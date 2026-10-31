@@ -1,0 +1,5 @@
+# Pipeline (mapdata) dependencies, for the build laptop only (architecture 4.7).
+# Heavier libraries are added by the spikes that need them, after their licence check.
+-r requirements-dev.txt
+
+shapely==2.2.0

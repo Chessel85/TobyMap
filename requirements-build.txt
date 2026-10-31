@@ -1,0 +1,4 @@
+# Packaging only: building the Windows installer (AD-20). NSIS is installed separately.
+-r requirements.txt
+
+pyinstaller==6.22.3

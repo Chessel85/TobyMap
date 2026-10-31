@@ -1,0 +1,4 @@
+# Runtime dependencies of the desktop application and the core.
+# The core's own dependencies must also exist in Pyodide (architecture 4.1).
+# PySide6 is always the latest release, checked at the start of each phase (4.2).
+PySide6==6.12.0

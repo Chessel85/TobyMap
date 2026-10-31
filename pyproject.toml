@@ -1,0 +1,9 @@
+# TobyMap is not installed as a package. This file only configures tools.
+# Code licence: GPL-3.0 (see LICENSE). Packs: ODbL.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "slow: long tests, skipped with -m 'not slow'",
+]

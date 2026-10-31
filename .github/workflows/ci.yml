@@ -1,0 +1,45 @@
+# Continuous integration (P0-T2, architecture 4.8).
+# Python tests on Windows and macOS, browser tests in Chromium and Firefox,
+# and the dependency licence check (SCP-4).
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python:
+    name: Python tests on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: python -m pip install -r requirements-pipeline.txt
+      - name: Licence check
+        run: python tools/check_licences.py
+      - name: Tests
+        run: python -m pytest --ignore=tests/web
+
+  web:
+    name: Browser tests in Chromium and Firefox
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m playwright install --with-deps chromium firefox
+      - name: Browser tests
+        run: python -m pytest tests/web --browser chromium --browser firefox

@@ -1,0 +1,47 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors
+.vscode/
+.idea/
+
+# The PO's original design folder. The live copies are in docs/design.
+/Solution Design/
+
+# Local settings that hold personal folders (AD-18). Copy the example file.
+mapdata/config/paths.yaml
+.claude/settings.local.json
+
+# Large binaries: never commit these (implementation plan 1.3)
+*.tpk
+*.pack
+*.pbf
+*.gol
+*.shp
+*.shx
+*.dbf
+*.zip
+/packs/
+/data/
+sounds/*.wav
+sounds/*.ogg
+/voices/
+
+# Build output
+/build/
+/dist/
+/dist_installer/
+packaging/version_info.txt
+
+# Web test output
+test-results/
+playwright-report/
+
+# Screen-reader convenience files
+stuff.txt
+taskInfo.txt

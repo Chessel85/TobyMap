@@ -43,4 +43,4 @@ jobs:
       - run: python -m playwright install --with-deps chromium firefox
       - name: Browser tests
         # pytest-qt is not needed here, and Qt cannot load on the bare Linux runner.
-        run: python -m pytest tests/web -p no:pytestqt --browser chromium --browser firefox
+        run: python -m pytest tests/web -p no:pytest-qt --browser chromium --browser firefox

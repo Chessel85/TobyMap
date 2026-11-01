@@ -27,7 +27,8 @@ def scripted(monkeypatch, tmp_path):
 def test_tour_plays_eight_directions(scripted):
     run, played, _ = scripted
     # Use the stereo engine so the test does not need the KEMAR download.
-    assert run(["5", "2", "1"] + [""] * 8 + ["0"]) == 0
+    stereo = str(list(spatial.ENGINES).index("stereo") + 1)  # needs no downloaded data
+    assert run(["5", stereo, "1"] + [""] * 8 + ["0"]) == 0
     assert len(played) == 8
 
 

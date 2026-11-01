@@ -1,4 +1,5 @@
 """The spike S5 desktop window, offscreen, with a recording announcer (P0-T8, UX section 2, ACC-1, ACC-7)."""
+import sys
 import time
 
 import pytest
@@ -56,8 +57,8 @@ def test_tab_in_an_open_menu_closes_it_and_goes_to_the_map(window, qtbot):
     assert region(window) == "map"
 
 
+@pytest.mark.skipif(sys.platform == "darwin", reason="macOS keeps focus on its menu bar; no Mac build yet (DP92)")
 def test_tab_on_the_menu_bar_goes_to_the_map(window, qtbot):
-    window.menuBar().setNativeMenuBar(False)  # macOS's own menu bar is outside the window
     window.focus_region("menu")
     QApplication.processEvents()
     window.focusNextPrevChild(True)

@@ -33,6 +33,7 @@ def test_piper_speaks_into_memory():
     assert 0.2 < len(audio) / voices.RATE < 2.0
 
 
+@pytest.mark.skipif(not (HERE / "s1" / "downloads" / "mit_kemar_compact.zip").is_file(), reason="MIT KEMAR data not downloaded")
 def test_demo_tour_with_espeak_and_a_stand_in_player(monkeypatch):
     pytest.importorskip("espeakng_loader")
     import importlib.util

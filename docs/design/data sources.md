@@ -284,6 +284,12 @@ These are not map data, but they are used to build or play TobyMap, so their lic
   * Alba: CC-BY 4.0.
   * Northern English male: CC-BY-SA 4.0.
   * Semaine is CC-BY-NC-SA, which forbids commercial use, so it is not used. Alan and Jenny have unclear licences, so they are not used either.
+* OpenAL Soft 1.25.2 (spike S1): LGPL-2.1 or later, loaded as a library. Compatible with GPL-3.0.
+* Synthizer 0.12.6 (spike S1): the Unlicense. Its bundled libraries, such as miniaudio, are permissive. Compatible with GPL-3.0. Archived in 2025.
+* Earcons supplied by the PO, in the sounds folder, which is not in git:
+  * bump.wav: the blocked sound, when the user cannot go that way, such as at a pole or when turning in north-fixed (UX sections 5.2 and 5.3).
+  * click.wav: the soft tick, when the user moves but nothing changes, such as crossing the UK in 100 metre steps (UX section 3.1, DP43).
+  * Their licence is the PO's to confirm before a public release: they need to be the PO's own, or under a licence compatible with GPL-3.0.
 
 ## Research references
 

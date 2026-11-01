@@ -8,11 +8,10 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 
 ## Short answer so far
 
-* Two desktop candidates are ready to listen to: the project's own HRTF processing, and the stereo speakers mode.
-* The browser candidate is ready too, in Firefox and Chrome.
-* OpenAL Soft is now in the demo too, as a fourth engine, and so is the own HRTF processing with a lower pitch behind you.
-* Synthizer is now built and in the demo too, in two set-ups, so six engines can be compared. See "Synthizer: ready".
-* No recommendation yet. After the first listening, the own HRTF processing gets left and right right every time, but places sounds on one side only roughly, and sometimes hears ahead as behind.
+* Six desktop engines were compared on 1 November: the own HRTF processing, with and without a lower pitch behind, stereo with pitch, OpenAL Soft, and Synthizer in two set-ups.
+* Stereo with pitch scored best, 8 out of 8. HRTF with a lower pitch behind came next. Every HRTF without the pitch cue, Synthizer's included, left sounds behind unclear.
+* Recommendation: offer stereo with pitch, as the default, and HRTF with pitch, both from TobyMap's own processing, with no outside sound library (DP100).
+* The browser demo has not been listened to yet.
 
 ## The candidates
 
@@ -145,8 +144,44 @@ You used the desktop demo with the own HRTF processing, and did three quizzes: o
 * The ahead heard as behind mix-ups matter for TobyMap, where ahead means north of you on the map. A small extra cue may help, such as the slightly lower pitch behind you that the speakers mode uses. That can be tried in the comparison.
 * The chime will be the default test sound.
 
+## Your second listening, 1 November: all six engines
+
+You used the chime with every engine, in side by side and quizzes. In the demo's menu the engines are numbered:
+
+1. Own HRTF processing.
+2. Own HRTF processing, lower pitch behind.
+3. Stereo panning with pitch, the speakers mode.
+4. OpenAL Soft.
+5. Synthizer, set up as in AtMap.
+6. Synthizer, angle-panned source.
+
+### What you said
+
+* Ahead left, ahead and right sounded good with every engine.
+* Engines 1, 4, 5 and 6, all four pure HRTFs: behind right, behind and behind left all sounded at ear level, with no sense of being behind.
+* Engine 2 was better: the sounds behind seemed lower than those at the sides.
+* Engine 3 was best: the sounds behind seemed lower still. In your second quiz with it you think you got full marks.
+* After another go with engine 2, you got used to it well too. So engines 2 and 3 could both be offered to users.
+* You were surprised that HRTF did not win.
+
+### What the quizzes recorded
+
+* Engine 3, stereo with pitch: 8 out of 8 exactly right.
+* Engine 2, own HRTF with lower pitch behind: 6 out of 8 exactly right, and the other 2 one direction out (45 degrees). No front and back mix-ups.
+* Engine 6, Synthizer angle-panned: 2 out of 8 exactly right, an average error of 64 degrees, and one sound behind heard as ahead.
+* Earlier, engine 1, own HRTF without pitch: 10 out of 24 right, and 3 sounds ahead heard as behind.
+
+### What this means
+
+* For you, the lower pitch behind is what makes ahead and behind clear. Without it, every HRTF, including Synthizer's and OpenAL Soft's, left behind unclear. HRTF data measured on a dummy head often fails this way, because front and back depend on the exact shape of each listener's ears.
+* The pitch cue is learned quickly: you improved within one more go.
+* Recommendation for AD-10:
+  * Offer two sound modes: stereo with pitch, and HRTF with pitch. Stereo with pitch is the default, since it scored best. HRTF with pitch keeps the extra sense of left and right in front, for users who prefer it.
+  * Use the own processing for both. It needs no outside sound library, only NumPy, and its results matched or beat Synthizer and OpenAL Soft. Synthizer, which is archived, and OpenAL Soft are not needed.
+  * The web version can do the same: Web Audio's stereo panner with a pitch change, or its HRTF panner with a pitch change. That keeps the desktop and web versions alike.
+* Still to check in Phase 1: playing sounds without delays or clicks while moving, and how the pitch cue works with spoken labels (spike S6), which should not have their pitch changed.
+
 ## Waiting for you
 
-* A quiz with each engine, using the chime, would give comparable numbers: own HRTF, own HRTF with lower pitch behind, OpenAL Soft, and the two Synthizer set-ups.
-* Side by side, menu option 3, plays one direction through all six engines in turn.
-* The browser demo, when convenient.
+* Your view on the recommendation above, which is DP100.
+* The browser demo, when convenient. It does not have the pitch cue yet; I can add it if you would like to compare the web version too.

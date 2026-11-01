@@ -35,6 +35,7 @@ class Live:
     mono: np.ndarray
     bearing: float  # degrees clockwise from ahead
     rate: int
+    setup: str = "atmap"  # "atmap": a 3D source, as AtMap; "angular": an angle-panned source
 
     @property
     def shape(self):  # so the demo's stand-in players can treat it like stereo samples
@@ -63,11 +64,16 @@ class _Player:
     def play(self, live: Live) -> None:  # pragma: no cover - opens the audio device
         syz = self.syz
         buffer = syz.Buffer.from_float_array(live.rate, 1, np.ascontiguousarray(live.mono, dtype=np.float32))
-        # As AtMap's CSpatialSource: a Source3D with the HRTF panner, placed by
-        # x (east) and y (north), with the listener facing +y and z up.
-        b = math.radians(live.bearing)
-        source = syz.Source3D(self.context, syz.PannerStrategy.HRTF, position=(math.sin(b), math.cos(b), 0.0))
-        source.distance_model.value = syz.DistanceModel.NONE  # SON-9 distance is already applied
+        if live.setup == "angular":
+            # Synthizer's angle-panned source: azimuth in degrees clockwise from
+            # ahead, with no positions or listener involved.
+            source = syz.AngularPannedSource(self.context, syz.PannerStrategy.HRTF, azimuth=live.bearing % 360)
+        else:
+            # As AtMap's CSpatialSource: a Source3D with the HRTF panner, placed by
+            # x (east) and y (north), with the listener facing +y and z up.
+            b = math.radians(live.bearing)
+            source = syz.Source3D(self.context, syz.PannerStrategy.HRTF, position=(math.sin(b), math.cos(b), 0.0))
+            source.distance_model.value = syz.DistanceModel.NONE  # SON-9 distance is already applied
         generator = syz.BufferGenerator(self.context)
         generator.buffer.value = buffer
         source.add_generator(generator)

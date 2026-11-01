@@ -128,4 +128,6 @@ def test_synthizer_gets_a_mono_sound_with_distance_applied_and_no_device_opened(
     assert isinstance(near, synth.Live) and near.bearing == 90 and near.rate == spatial.RATE
     assert near.shape == (len(tone), 2)
     assert energy(far.mono) < energy(near.mono) / 100  # 30 dB quieter, and muffled
+    assert near.setup == "atmap"
+    assert spatial.render("synthizer_angular", tone, 90, 0.05).setup == "angular"
     assert synth._player is None  # nothing played, so Synthizer was never started

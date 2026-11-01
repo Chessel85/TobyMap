@@ -16,7 +16,9 @@ Engines in this file:
   as in the speakers mode, to help tell ahead from behind (PO's first quiz).
 * "openal": OpenAL Soft's built-in HRTF (openal.py), when its library is in
   tools/spikes/s1/vendor.
-* "synthizer": Synthizer's HRTF (synth.py), when it is installed. Synthizer
+* "synthizer" and "synthizer_angular": Synthizer's HRTF (synth.py), when it
+  is installed, set up as AtMap did (a 3D source placed by east and north) or
+  with Synthizer's angle-panned source. Synthizer
   can only play to the sound device, so its render function returns a
   synth.Live object, which play() hands to Synthizer.
 
@@ -185,11 +187,19 @@ if _openal_available():
     ENGINES["openal"] = ("OpenAL Soft, built-in HRTF", openal_hrtf)
 
 
-def synthizer_hrtf(mono: np.ndarray, bearing: float, fraction: float):
+def _synthizer(mono: np.ndarray, bearing: float, fraction: float, setup: str):
     import synth  # Synthizer plays live, so this returns a sound for play() to hand over
     gain = 10 ** (distance_gain_db(fraction) / 20)
     muffled = lowpass(np.asarray(mono, dtype=np.float32), muffle_cutoff_hz(fraction)) * gain
-    return synth.Live(muffled.astype(np.float32), bearing, RATE)
+    return synth.Live(muffled.astype(np.float32), bearing, RATE, setup)
+
+
+def synthizer_hrtf(mono: np.ndarray, bearing: float, fraction: float):
+    return _synthizer(mono, bearing, fraction, "atmap")
+
+
+def synthizer_angular(mono: np.ndarray, bearing: float, fraction: float):
+    return _synthizer(mono, bearing, fraction, "angular")
 
 
 def _synthizer_available() -> bool:
@@ -198,7 +208,8 @@ def _synthizer_available() -> bool:
 
 
 if _synthizer_available():
-    ENGINES["synthizer"] = ("Synthizer HRTF, as in AtMap", synthizer_hrtf)
+    ENGINES["synthizer"] = ("Synthizer HRTF, set up as in AtMap", synthizer_hrtf)
+    ENGINES["synthizer_angular"] = ("Synthizer HRTF, angle-panned source", synthizer_angular)
 
 
 def render(engine: str, mono: np.ndarray, bearing: float, fraction: float = 0.1) -> np.ndarray:

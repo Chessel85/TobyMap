@@ -462,7 +462,7 @@ Every earcon is a WAV file and can be replaced (SON-8). You will supply all of t
 ### 8.7 Grid layers as pitch
 
 * With a grid layer switched on, such as elevation, each move plays the value at the new position as pitch: higher pitch means a higher value (SON-5).
-* V speaks the value with units, for example: "Elevation 1,345 metres".
+* Z speaks the value with units, for example: "Elevation 1,345 metres" (DP99).
 * S sweeps, playing values as a quick run of tones along a line. The default sweep runs from the user's left to their right across the view. In north-fixed that means west to east. The sweep dialog allows other directions, lengths, and "between two pins".
 
 ## 9. Pins, bookmarks, collections and tours
@@ -559,7 +559,8 @@ Keys changed since version 0.3 (agreed, DP79):
 * D: details of the current feature.
 * M: measure.
 * Q: query builder.
-* V: grid value.
+* V: size of the visible map, for example "Visible map: 1,140 by 890 kilometres" (DP99).
+* Z: grid value (DP99).
 * Ctrl+F: search.
 * T: world tree.
 * Shift+L: layers.
@@ -578,7 +579,7 @@ Keys changed since version 0.3 (agreed, DP79):
 ### Other
 * P: data packs.
 * F1: help.
-* Ctrl+Alt+G: go to the map, from anywhere (DP97).
+* Ctrl+Alt+Space: go to the map, from anywhere (DP97).
 * Ctrl+Alt+M, web version only: go to the menu bar (DP93). The desktop uses Alt.
 * Ctrl+comma: settings.
 

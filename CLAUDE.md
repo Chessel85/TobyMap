@@ -23,6 +23,16 @@ The detail lives in `docs/design/`:
 
 Current progress is in `docs/plan/phase-N.md`. Spike findings are in `docs/spikes/`.
 
+## Where things are in the code
+
+* `mapcore/session.py`: the one object both shells talk to. Commands in, responses out (AD-2).
+* `mapcore/commands/registry.yaml`: every command, its key, region and menu (AD-3).
+* `mapcore/describe/templates.yaml`: every word the application says or shows, including region names (3.4). The approved wording is held in `tests/mapcore/test_session.py`.
+* `mapcore/render/globe.py`: the orthographic globe and the shape list the shells paint (AD-6).
+* `mapcore/store/world_sample.py` and `mapcore/data/world_110m.json`: the Natural Earth stand-in for packs, until Phase 1.
+* `desktop/`: the PySide6 shell. `web/`: the browser shell, its worker and `bridge.py`.
+* NumPy in Pyodide is 32-bit. Use `np.intp` for any array of offsets or indexes, never `np.int64`.
+
 ## Commands
 
 Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
@@ -33,7 +43,18 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe -m pytest tests/web --browser chromium --browser firefox   # browser tests
 .venv\Scripts\python.exe tools\check_licences.py                       # licence check (SCP-4)
 .venv\Scripts\python.exe -m mapdata status                             # where the data folder is
+.venv\Scripts\python.exe tools\fetch_vendor.py                         # Pyodide (web) and NVDA Controller Client (desktop), not in git
+.venv\Scripts\python.exe -m desktop                                    # run the desktop application
+.venv\Scripts\python.exe tools\serve_web.py                            # stage the core and serve the web version locally
+.\packaging\build.ps1                                                  # Windows installer and portable zip, into dist_installer
+.venv\Scripts\python.exe -m mapdata fetch land-polygons                # download a source into <data>/tobymap/downloads
+.venv\Scripts\python.exe -m mapdata spike-s2-stage1                    # spike S2 stage 1 build and report, into <data>/tobymap/output
+.venv\Scripts\python.exe -m mapdata inspect <pack> <lat> <lon>         # what is at a point in a pack
+.venv\Scripts\python.exe tools\spikes\s1\demo.py                       # spike S1 sound demo (requirements-spikes.txt)
+.venv\Scripts\python.exe tools\spikes\s6\demo.py                       # spike S6 voice demo (requirements-spikes.txt)
 ```
+
+The browser tests stage the core into `web/py` themselves and need Pyodide in `web/vendor`. Each test starts Pyodide afresh, so they take about five minutes.
 
 Continuous integration (`.github/workflows/ci.yml`) runs the Python tests on Windows and macOS, and the browser tests in Chromium and Firefox, on every push.
 

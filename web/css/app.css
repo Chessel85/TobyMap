@@ -1,0 +1,38 @@
+/* TobyMap web shell. The map fills most of the window; the Information panel
+   and Details sit in a side panel (UX section 2). Focus is always clearly
+   visible for partially sighted users. */
+html, body { margin: 0; height: 100%; font: 16px/1.4 system-ui, sans-serif; background: #1b1f24; color: #f5f5f5; }
+body { display: flex; flex-direction: column; }
+#menubar { display: flex; gap: 2px; background: #2b3138; padding: 2px 4px; position: relative; }
+#menubar[hidden] { display: none; }
+.menubar-item { background: none; color: inherit; border: 2px solid transparent; padding: 4px 10px; font: inherit; }
+.menubar-item:focus, .menubar-item[aria-expanded="true"] { border-color: #ffd200; outline: none; background: #3c4652; }
+.menu { position: absolute; top: 100%; background: #f5f5f5; color: #111; list-style: none; margin: 0; padding: 4px 0;
+        min-width: 22em; border: 1px solid #444; box-shadow: 0 4px 12px #0008; z-index: 10; }
+.menu[hidden] { display: none; }
+.menu [role="menuitem"] { display: flex; justify-content: space-between; gap: 2em; padding: 4px 12px; }
+.menu [role="menuitem"]:focus { background: #0b57d0; color: #fff; outline: none; }
+.menu .key { opacity: 0.8; }
+main { flex: 1; display: flex; min-height: 0; }
+#loading { margin: 2em; font-size: 1.25em; }
+#map { flex: 3; position: relative; min-width: 300px; outline: none; }
+#map[hidden], #side[hidden] { display: none; }
+#map:focus { box-shadow: inset 0 0 0 4px #ffd200; }
+#canvas { width: 100%; height: 100%; display: block; }
+#side { flex: 1; display: flex; flex-direction: column; min-width: 260px; max-width: 420px; background: #f5f5f5; color: #111; }
+#tree { flex: 1; overflow: auto; margin: 0; padding: 4px; list-style: none; border-bottom: 2px solid #999; }
+#tree ul { list-style: none; padding-left: 1.4em; margin: 0; }
+#tree [role="treeitem"] { outline: none; padding: 2px 6px; }
+#tree [role="treeitem"][aria-expanded]::before { content: "\25B8  "; }
+#tree [role="treeitem"][aria-expanded="true"]::before { content: "\25BE  "; }
+#tree [role="treeitem"][aria-expanded="false"] > ul { display: none; }
+/* A focused group is highlighted, but not the items inside it. */
+#tree [role="treeitem"] > ul { color: #111; background: #f5f5f5; font-weight: normal; }
+#tree [role="treeitem"]:focus { background: #0b57d0; color: #fff; }
+#tree [aria-selected="true"] { font-weight: bold; }
+#details { flex: 1; resize: none; border: 0; padding: 8px; font: inherit; background: #fff; color: #111; }
+#details:focus { box-shadow: inset 0 0 0 4px #0b57d0; outline: none; }
+dialog { width: min(40em, 90vw); border: 2px solid #444; }
+dialog textarea { width: 100%; height: 18em; box-sizing: border-box; font: inherit; }
+dialog button { margin-top: 8px; font: inherit; padding: 4px 16px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

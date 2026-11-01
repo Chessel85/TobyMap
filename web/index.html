@@ -4,15 +4,37 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TobyMap</title>
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-<main>
-<h1>TobyMap</h1>
-<p>An accessible map for screen reader users. This is the Phase 0 placeholder page.</p>
-<div id="announcer" aria-live="polite"></div>
+<!-- The four regions (UX section 2). Tab and Shift+Tab move between the map,
+     the Information panel and Details, and wrap round; Ctrl+Alt+M reaches the
+     menu bar (DP93). Their names, and every word spoken, come from the core once it
+     has loaded; only the loading message below is written in the page. -->
+<div id="menubar" role="menubar" aria-label="Menu bar" hidden></div>
+<main id="app" aria-busy="true">
+  <p id="loading">Loading TobyMap. This can take a few seconds the first time.</p>
+  <div id="map" role="application" aria-label="Map" tabindex="0" hidden>
+    <canvas id="canvas" aria-hidden="true"></canvas>
+  </div>
+  <div id="side" hidden>
+    <ul id="tree" role="tree" aria-label="Information panel"></ul>
+    <textarea id="details" readonly aria-label="Details" spellcheck="false"></textarea>
+  </div>
 </main>
-<script>
-  document.getElementById("announcer").textContent = "TobyMap ready.";
-</script>
+<dialog id="dialog" aria-labelledby="dialog-title">
+  <h2 id="dialog-title"></h2>
+  <textarea id="dialog-text" readonly spellcheck="false"></textarea>
+  <button id="dialog-close" type="button">Close</button>
+</dialog>
+<!-- The announcer's live regions, two of each kind so that a repeated
+     message is still spoken (architecture 4.4). -->
+<div class="visually-hidden">
+  <div id="live-polite-a" aria-live="polite"></div>
+  <div id="live-polite-b" aria-live="polite"></div>
+  <div id="live-assertive-a" aria-live="assertive"></div>
+  <div id="live-assertive-b" aria-live="assertive"></div>
+</div>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>

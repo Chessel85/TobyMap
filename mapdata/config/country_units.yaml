@@ -1,0 +1,24 @@
+# Country units (architecture 6.12, DP86): areas that replace a level 2
+# country in the Countries layer. The level 2 relation is still used for its
+# divisions; the Countries layer shows these units instead.
+#
+# Each unit is an OSM relation, found by its id, with the sovereign state
+# recorded as a fact. Spike S2 stage 1 covers France; Gibraltar is already its
+# own level 2 area in OSM, with the United Kingdom as its sovereign state.
+#
+# ids are checked against the names when the build runs, so a wrong id stops
+# the build rather than producing a wrong country.
+
+units:
+  - replaces: osm:r2202162          # France, the whole sovereign state
+    parts:
+      - {id: osm:r1403916, name: France, type: metropolitan France}
+      - {id: osm:r1260551, name: French Guiana, type: overseas region}
+      - {id: osm:r1401835, name: Guadeloupe, type: overseas region}
+      - {id: osm:r1891495, name: Martinique, type: overseas region}
+      - {id: osm:r1785276, name: Réunion, type: overseas region}
+      - {id: osm:r1259885, name: Mayotte, type: overseas region}
+    sovereign: France
+
+sovereigns:
+  osm:r1278736: United Kingdom      # Gibraltar

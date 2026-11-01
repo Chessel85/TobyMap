@@ -1,0 +1,9 @@
+time,engine,sound,played_degrees,heard_degrees,error_degrees
+2026-11-01T16:33:01,synthizer_angular,chime,180,0,180
+2026-11-01T16:33:09,synthizer_angular,chime,270,225,45
+2026-11-01T16:33:13,synthizer_angular,chime,45,90,45
+2026-11-01T16:33:16,synthizer_angular,chime,315,225,90
+2026-11-01T16:33:21,synthizer_angular,chime,180,180,0
+2026-11-01T16:33:24,synthizer_angular,chime,270,225,45
+2026-11-01T16:33:33,synthizer_angular,chime,315,225,90
+2026-11-01T16:33:38,synthizer_angular,chime,225,225,0

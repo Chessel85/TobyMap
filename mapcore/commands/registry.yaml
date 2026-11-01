@@ -1,0 +1,54 @@
+# The command registry (AD-3): every command, once.
+# The key map, the menu bar, F1 help and the coverage tests are all built from
+# this file. Shells never add their own key handler for a command.
+#
+# Fields:
+#   name: the command name the shells send to the core
+#   label: the words used in menus and help
+#   key: the default key, in the shared key names (see registry.py), or empty
+#   region: "map" (only when the map has focus) or "global" (anywhere)
+#   menu: the menu it appears in, or empty for none
+#   platforms: desktop, web or both
+#   latest_only: if keys arrive faster than they can be handled, only the
+#     latest of these is carried out (ANN-3)
+#
+# Spike S5 (P0-T8) commands. The full UX keyboard map arrives in Phase 1.
+
+# Menus in order. "access" is the letter that opens the menu with Alt on the
+# desktop, such as Alt+H for Help. Browsers keep Alt for their own menus, so the
+# web version does not use it.
+menus:
+  - {label: Map, access: M}
+  - {label: Speech, access: S}
+  - {label: Help, access: H}
+
+commands:
+  - {name: globe.north, label: Turn the globe north, key: Up, region: map, menu: Map, latest_only: true}
+  - {name: globe.south, label: Turn the globe south, key: Down, region: map, menu: Map, latest_only: true}
+  - {name: globe.west, label: Turn the globe west, key: Left, region: map, menu: Map, latest_only: true}
+  - {name: globe.east, label: Turn the globe east, key: Right, region: map, menu: Map, latest_only: true}
+  - {name: zoom.out, label: Zoom out, key: Page Up, region: map, menu: Map}
+  - {name: zoom.in, label: Zoom in, key: Page Down, region: map, menu: Map}
+  - {name: where.am_i, label: Where am I, key: Space, region: map, menu: Map}
+  - {name: where.coordinates, label: Coordinates, key: C, region: map, menu: Map}
+  - {name: where.visible, label: Size of the visible map, key: V, region: map, menu: Map}
+  - {name: panel.within, label: Go to Within in the Information panel, key: Shift+Space, region: map, menu: Map}
+  - {name: panel.nearby, label: Go to Nearby in the Information panel, key: R, region: map, menu: Map}
+  - {name: details.show, label: Go to Details, key: D, region: map, menu: Map}
+  # From anywhere, so the map is one key away (DP97). NVDA reads the map's name,
+  # the place, on arrival, so the core says nothing.
+  - {name: focus.map, label: Go to the map, key: Ctrl+Alt+G, region: global, menu: Map}
+  - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
+  - {name: speech.repeat, label: Repeat the last announcement, key: Ctrl+Space, region: map, menu: Speech}
+  - {name: speech.braille_test, label: Send a Braille-only message, key: "", region: global, menu: Speech}
+  - {name: help.keys, label: Keys, key: F1, region: global, menu: Help}
+  # Tab does not reach the menu bar (DP93). The desktop uses Alt; browsers keep
+  # Alt for themselves, so the web version has this key. It focuses the first
+  # menu, Map, without opening it.
+  - {name: focus.menu, label: Go to the menu bar, key: Ctrl+Alt+M, region: global, menu: "", platforms: [web]}
+  - {name: diagnostics.timing, label: Drawing speed, key: "", region: global, menu: Help}
+  - {name: help.about, label: About TobyMap, key: "", region: global, menu: Help}
+  # Sent by the shells for mouse clicks and panel selection, so not in a menu.
+  # They have no key because they come from the mouse or the tree.
+  - {name: map.click, label: Centre the globe on a clicked point, key: "", region: map, menu: "", pointer: true}
+  - {name: panel.select, label: Select an item in the Information panel, key: "", region: global, menu: "", pointer: true}

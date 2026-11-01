@@ -1,0 +1,21 @@
+# Map themes (VIS-2). Phase 0 has only the standard theme.
+# Land colours are indexed by the country's colour number, 1 to 7, so that
+# neighbours differ (AD-19). Natural Earth supplies the numbers for now.
+standard:
+  background: "#1b1f24"      # around the globe
+  ocean: "#a9cce3"
+  globe_edge: "#3c5a73"
+  land:
+    - "#e8d8a9"
+    - "#c9e2b3"
+    - "#f2c6b4"
+    - "#d6c8e6"
+    - "#f6e3a1"
+    - "#b9dcd2"
+    - "#e5c1d3"
+  border: "#5a4a3a"
+  current_outline: "#b00020"   # the country under the centre (UX 11.2)
+  highlight_fill: "#ffd200"    # the item selected in the Information panel
+  highlight_outline: "#000000"
+  cross: "#000000"
+  cross_halo: "#ffffff"

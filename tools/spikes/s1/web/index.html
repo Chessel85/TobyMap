@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>TobyMap spike S1: spatial sound in the browser</title>
+<style>
+  body { font: 18px/1.5 system-ui, sans-serif; max-width: 48em; margin: 1em auto; padding: 0 1em; }
+  button { font: inherit; margin: 0.2em; padding: 0.3em 0.8em; }
+  button:focus { outline: 4px solid #0b57d0; }
+  fieldset { margin: 1em 0; }
+  textarea { width: 100%; height: 10em; font: inherit; }
+</style>
+</head>
+<body>
+<h1>Spike S1: spatial sound in the browser</h1>
+<p>Use headphones. Every button plays straight away. This page uses the browser's own HRTF (Web Audio), with the same sounds and distance settings as the desktop demo.</p>
+
+<h2>Settings</h2>
+<fieldset>
+  <legend>Engine</legend>
+  <label><input type="radio" name="engine" value="hrtf" checked> Browser HRTF</label>
+  <label><input type="radio" name="engine" value="stereo"> Stereo panning with pitch, the speakers mode</label>
+</fieldset>
+<fieldset>
+  <legend>Sound</legend>
+  <label><input type="radio" name="sound" value="noise" checked> Noise bursts</label>
+  <label><input type="radio" name="sound" value="chime"> Chime</label>
+</fieldset>
+
+<h2>Directions</h2>
+<div id="directions"></div>
+
+<h2>Near to far, ahead right</h2>
+<div id="distances"></div>
+
+<h2>Listening quiz</h2>
+<p>Eight sounds from random directions. Press Play, then choose where you heard it.</p>
+<button id="quiz-start" type="button">Start a new quiz</button>
+<button id="quiz-play" type="button" disabled>Play the sound</button>
+<div id="answers" role="group" aria-label="Where was it?"></div>
+<h3>Results</h3>
+<p>Copy these lines into your feedback, or use Save.</p>
+<textarea id="results" readonly aria-label="Quiz results"></textarea>
+<button id="save" type="button">Save results as a file</button>
+<div id="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+const RATE = 44100;
+const NEAR = 0.05, QUIET_DB = -30, BRIGHT = 16000, DULL = 1500, BEYOND = 900, BEHIND_PITCH = 0.84;
+const DIRECTIONS = [[0, "ahead"], [45, "ahead right"], [90, "right"], [135, "behind right"],
+                    [180, "behind"], [225, "behind left"], [270, "left"], [315, "ahead left"]];
+const DISTANCES = [[0.03, "very near"], [0.1, "a tenth of the way"], [0.25, "a quarter of the way"],
+                   [0.5, "halfway"], [1, "at the edge of the view"], [2, "beyond the view"]];
+let ctx = null;
+const $ = (id) => document.getElementById(id);
+const status = (text) => { $("status").textContent = ""; setTimeout(() => ($("status").textContent = text), 50); };
+const choice = (name) => document.querySelector(`input[name=${name}]:checked`).value;
+
+// The same distance rules as tools/spikes/s1/spatial.py (SON-9).
+function gainDb(f) {
+  if (f <= NEAR) return 0;
+  if (f >= 1) return QUIET_DB;
+  return QUIET_DB * Math.log2(f / NEAR) / Math.log2(1 / NEAR);
+}
+function cutoff(f) {
+  if (f > 1) return BEYOND;
+  if (f <= NEAR) return BRIGHT;
+  return BRIGHT * Math.pow(DULL / BRIGHT, Math.log2(f / NEAR) / Math.log2(1 / NEAR));
+}
+
+function fade(a, ms = 10) {
+  const n = Math.floor(RATE * ms / 1000);
+  for (let i = 0; i < n; i++) { a[i] *= i / n; a[a.length - 1 - i] *= i / n; }
+}
+function noiseBursts() {
+  const burst = Math.floor(RATE * 0.18), gap = Math.floor(RATE * 0.09);
+  const out = new Float32Array(3 * (burst + gap));
+  for (let b = 0; b < 3; b++) {
+    // Pink-ish noise (Paul Kellet's filter).
+    let b0 = 0, b1 = 0, b2 = 0, peak = 0;
+    const part = new Float32Array(burst);
+    for (let i = 0; i < burst; i++) {
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99765 * b0 + w * 0.099046; b1 = 0.963 * b1 + w * 0.2965164; b2 = 0.57 * b2 + w * 1.0526913;
+      part[i] = b0 + b1 + b2 + w * 0.1848; peak = Math.max(peak, Math.abs(part[i]));
+    }
+    for (let i = 0; i < burst; i++) part[i] = part[i] / peak * 0.8;
+    fade(part);
+    out.set(part, b * (burst + gap));
+  }
+  return out;
+}
+function chime() {
+  const n = Math.floor(RATE * 0.45), out = new Float32Array(n);
+  let peak = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / RATE;
+    let v = 0;
+    for (const k of [1, 2, 3, 4.2]) v += Math.sin(2 * Math.PI * 660 * k * t) / k;
+    out[i] = v * Math.exp(-t * 6); peak = Math.max(peak, Math.abs(out[i]));
+  }
+  for (let i = 0; i < n; i++) out[i] = out[i] / peak * 0.8;
+  fade(out);
+  return out;
+}
+
+function play(bearing, fraction = 0.1) {
+  if (!ctx) ctx = new AudioContext({ sampleRate: RATE });
+  const data = choice("sound") === "noise" ? noiseBursts() : chime();
+  const buffer = ctx.createBuffer(1, data.length, RATE);
+  buffer.copyToChannel(data, 0);
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const rad = bearing * Math.PI / 180;
+  const filter = new BiquadFilterNode(ctx, { type: "lowpass", frequency: cutoff(fraction), Q: 0.5 });
+  const gain = new GainNode(ctx, { gain: Math.pow(10, gainDb(fraction) / 20) * 0.5 });
+  let spatial;
+  if (choice("engine") === "hrtf") {
+    // Our own distance rules, so the browser's distance model is switched off.
+    spatial = new PannerNode(ctx, { panningModel: "HRTF", distanceModel: "linear", rolloffFactor: 0,
+                                    positionX: Math.sin(rad), positionY: 0, positionZ: -Math.cos(rad) });
+  } else {
+    spatial = new StereoPannerNode(ctx, { pan: Math.sin(rad) });
+    if (Math.cos(rad) < -1e-9) src.playbackRate.value = BEHIND_PITCH;
+  }
+  src.connect(filter).connect(spatial).connect(gain).connect(ctx.destination);
+  src.start();
+}
+
+for (const [bearing, name] of DIRECTIONS) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = `${name[0].toUpperCase()}${name.slice(1)}, ${bearing} degrees`;
+  b.addEventListener("click", () => play(bearing));
+  $("directions").appendChild(b);
+}
+for (const [fraction, name] of DISTANCES) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = name[0].toUpperCase() + name.slice(1);
+  b.addEventListener("click", () => play(45, fraction));
+  $("distances").appendChild(b);
+}
+
+// The quiz.
+let quiz = null;
+function nextTrial() {
+  quiz.bearing = DIRECTIONS[Math.floor(Math.random() * 8)][0];
+  quiz.n += 1;
+  $("quiz-play").disabled = false;
+  $("quiz-play").textContent = `Play sound ${quiz.n} of 8`;
+}
+$("quiz-start").addEventListener("click", () => {
+  quiz = { n: 0, rows: [] };
+  nextTrial();
+  $("quiz-play").focus();
+});
+$("quiz-play").addEventListener("click", () => quiz && play(quiz.bearing));
+DIRECTIONS.forEach(([heard, name], i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = `${i + 1}. ${name[0].toUpperCase()}${name.slice(1)}`;
+  b.addEventListener("click", () => {
+    if (!quiz || quiz.n === 0) { status("Start a quiz first."); return; }
+    const err = Math.abs(((heard - quiz.bearing + 540) % 360) - 180);
+    quiz.rows.push([new Date().toISOString().slice(0, 19), choice("engine") === "hrtf" ? "web-hrtf" : "web-stereo",
+                    choice("sound"), quiz.bearing, heard, err, navigator.userAgent.includes("Firefox") ? "Firefox" : "Chrome or Edge"]);
+    if (quiz.n < 8) {
+      nextTrial();
+      status(`Recorded. Sound ${quiz.n} of 8 is ready.`);
+      $("quiz-play").focus();
+    } else {
+      const within = quiz.rows.filter((r) => r[5] <= 45).length;
+      const fb = quiz.rows.filter((r) => (r[3] + r[4]) % 360 === 180 && r[3] !== 90 && r[3] !== 270).length;
+      const lines = quiz.rows.map((r) => r.join(","));
+      $("results").value += (($("results").value ? "\n" : "time,engine,sound,played_degrees,heard_degrees,error_degrees,browser\n") + lines.join("\n"));
+      $("quiz-play").disabled = true;
+      quiz = null;
+      status(`Quiz finished. ${within} of 8 within 45 degrees. Front and back mixed up ${fb} times. Results are in the text box.`);
+    }
+  });
+  $("answers").appendChild(b);
+});
+$("save").addEventListener("click", () => {
+  const blob = new Blob([$("results").value + "\n"], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `s1-web-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.csv`;
+  a.click();
+});
+</script>
+</body>
+</html>

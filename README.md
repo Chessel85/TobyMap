@@ -8,7 +8,7 @@ TobyMap will come as a Windows desktop application and a web application, both b
 
 ## Status
 
-TobyMap is in Phase 0: foundations and technical spikes. There is nothing to install yet. The first release will come at the end of Phase 1.
+TobyMap is in Phase 0: foundations and technical spikes. Spike S5 has a test build: a turning globe of countries in the four-region window, for trying with a screen reader. It is not a release. The first release will come at the end of Phase 1.
 
 ## Documents
 
@@ -18,6 +18,7 @@ TobyMap is in Phase 0: foundations and technical spikes. There is nothing to ins
 * [Implementation plan](docs/design/implementation%20plan.md)
 * [Data sources](docs/design/data%20sources.md)
 * [Phase 0 task list](docs/plan/phase-0.md)
+* [Spike S5 findings: the globe, the accessible window and the installer](docs/spikes/S5-globe-shell-installer.md)
 * [Developer set-up](docs/developer/setup.md)
 
 ## Licences

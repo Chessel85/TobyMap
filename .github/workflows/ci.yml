@@ -41,6 +41,40 @@ jobs:
           cache-dependency-path: requirements*.txt
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m playwright install --with-deps chromium firefox
+      - name: Cache Pyodide
+        uses: actions/cache@v4
+        with:
+          path: web/vendor
+          key: pyodide-${{ hashFiles('tools/fetch_vendor.py') }}
+      - name: Fetch Pyodide
+        run: python tools/fetch_vendor.py --web
       - name: Browser tests
         # pytest-qt is not needed here, and Qt cannot load on the bare Linux runner.
         run: python -m pytest tests/web -p no:pytest-qt --browser chromium --browser firefox
+
+  installer:
+    # The Windows installer and portable zip (AD-20), built on every push so a
+    # packaging fault is found at once. Download them from the run's Artifacts.
+    name: Windows installer
+    needs: python
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: python -m pip install -r requirements-build.txt
+      - name: Install NSIS if the runner lacks it
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
+      - name: Build
+        shell: pwsh
+        run: .\packaging\build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TobyMap-windows
+          path: dist_installer/*
+          retention-days: 30

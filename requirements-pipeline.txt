@@ -3,3 +3,6 @@
 -r requirements-dev.txt
 
 shapely==2.2.0
+# Spike S2 (P0-T5): fast queries on the GOL files (LGPL-3.0), and reading shapefiles such as the OSM land polygons (MIT, includes GDAL).
+geodesk==2.3.0
+pyogrio==0.13.0

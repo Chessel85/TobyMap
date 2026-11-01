@@ -1,0 +1,70 @@
+# Announcement templates (architecture 3.4). Every word the application says
+# comes from here. The tests in tests/mapcore/test_session.py hold the approved
+# wording for spike S5, so a change here must be made there too.
+#
+# Values in braces are filled in by the core.
+
+start: "TobyMap globe. {place}. Press F1 for keys."
+# The map region's name, which the screen reader says when Tab arrives on the
+# map. Just the place, as the PO asked after testing spike S5.
+map_label: "{place}"
+place_sea: "Sea"
+pole_north: "North Pole. {place}"
+pole_south: "South Pole. {place}"
+where_am_i: "{place}. {coordinates}. {zoom}"
+zoom: "Zoom {zoom} of {zooms}, step {step}."
+zoom_closest: "Closest zoom. {zoom}"
+zoom_whole: "Whole globe. {zoom}"
+step_degrees: "{value} degrees"
+step_one_degree: "1 degree"
+step_half: "half a degree"
+nothing_to_repeat: "Nothing to repeat."
+off_globe: "Not on the globe."
+visible_area: "Visible map: {width} by {height} kilometres."
+visible_globe: "Visible map: the whole globe."
+braille_test: "TobyMap Braille test: {place}"
+braille_fallback: "Braille-only messages need NVDA, and it was not found."
+braille_web: "Braille-only messages are not possible in a web browser. The screen reader shows announcements in Braille as well as speaking them."
+timing: "Last frame: worked out in {project} milliseconds, painted in {paint} milliseconds, {points} points."
+timing_startup: "Start-up took {seconds} seconds."
+
+# Names of the four regions and other window words (UX section 2).
+ui:
+  window_title: TobyMap
+  map: Map
+  panel: Information panel
+  details: Details
+  menu_bar: Menu bar
+  close: Close
+  loading: "Loading TobyMap. This can take a few seconds the first time."
+
+panel:
+  within: Within
+  nearby: Nearby
+  crossed: Crossed and passed
+  earth: Earth
+  nearby_item: "{name}, {distance} {direction}"
+  empty_later: "Nothing yet. This group is filled from Phase 2."
+
+details:
+  sovereign: "Sovereign state: {value}"
+  long_name: "Full name: {value}"
+  continent: "Continent: {value}"
+  subregion: "Region: {value}"
+  population: "Population estimate: {value}"
+  label_point: "Label point: {value}"
+  from_centre: "From the centre of the map: {distance} {direction}"
+  source: "Source: {value}"
+  sea: "Sea"
+  sea_note: "No country here in the Natural Earth sample."
+  centre: "Centre of the map: {value}"
+  earth: "Earth"
+  earth_note: "The whole world. Natural Earth lists 177 countries at this scale."
+
+dialogs:
+  keys_title: Keys
+  keys_intro: "These keys work when the map has focus. Tab and Shift+Tab move between the map, the Information panel, Details and the menu bar."
+  keys_line: "{label}: {key}"
+  keys_menu_only: "{label}: in the {menu} menu"
+  about_title: About TobyMap
+  about_text: "TobyMap version {version}.\nThis is spike S5: the globe, the accessible window and the installer.\nCountries from Natural Earth, public domain.\nTobyMap is free software under the GNU General Public License version 3."

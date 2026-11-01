@@ -194,3 +194,15 @@ def test_timing_report_uses_the_last_paint(window, qtbot):
     window.map.repaint()
     window.actions_by_name["diagnostics.timing"].trigger()
     assert "painted in" in window.announcer.texts[-1]
+
+
+def test_ctrl_alt_g_goes_to_the_map_from_anywhere(window, qtbot):
+    # DP97.
+    window.focus_region("details")
+    QApplication.processEvents()
+    window.actions_by_name["focus.map"].trigger()
+    assert region(window) == "map"
+    window.focus_region("panel")
+    window.dispatch("focus.map")
+    assert region(window) == "map"
+    assert window.actions_by_name["focus.map"].shortcut().toString() == "Ctrl+Alt+G"

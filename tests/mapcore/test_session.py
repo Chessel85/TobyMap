@@ -204,3 +204,15 @@ def test_unknown_command_raises(session):
 def test_response_as_plain_dict(session):
     d = session.start().to_dict()
     assert set(d) == {"announcements", "redraw", "panel_stale", "details_stale", "focus", "dialog", "action"}
+
+
+def test_v_says_the_size_of_the_visible_map(session):
+    # PO feedback on spike S5: "Visible map: 182 by 92 km".
+    session.start()
+    session.scene(900, 700)
+    assert spoken(session.run("where.visible")) == ["Visible map: the whole globe."]
+    for _ in range(4):
+        session.run("zoom.in")
+    assert spoken(session.run("where.visible")) == ["Visible map: 1,140 by 890 kilometres."]
+    session.scene(450, 700)  # the globe is sized to the narrower side, so more is visible
+    assert spoken(session.run("where.visible")) == ["Visible map: 890 by 1,380 kilometres."]

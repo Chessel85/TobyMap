@@ -33,6 +33,7 @@ The scene, all plain data:
 """
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -81,6 +82,15 @@ def _project_xyz(view: View, xyz: np.ndarray):
 
 def _radius(view: View, width: float, height: float) -> float:
     return min(width, height) * GLOBE_FRACTION * view.scale
+
+
+def visible_extent(view: View, width: float, height: float) -> tuple[float, float] | None:
+    """The visible map across and up and down, through the centre, as angles in
+    radians along the globe's surface. None when the whole globe fits."""
+    r = _radius(view, width, height)
+    if width / 2 >= r and height / 2 >= r:
+        return None
+    return (2 * math.asin(min(1.0, width / 2 / r)), 2 * math.asin(min(1.0, height / 2 / r)))
 
 
 def to_screen(view: View, width: float, height: float, lat: float, lon: float) -> tuple[float, float]:

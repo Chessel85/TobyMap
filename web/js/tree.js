@@ -67,12 +67,12 @@ export class Tree {
     li.setAttribute("aria-selected", "false");
     li.tabIndex = -1;
     li.dataset.id = id;
-    const span = document.createElement("span");
-    span.className = "label";
-    span.id = `ti-${Math.random().toString(36).slice(2)}`;
-    span.textContent = label;
-    li.setAttribute("aria-labelledby", span.id);  // so a group's name is not its whole contents
-    li.appendChild(span);
+    // The words go straight inside the item, with no labelling element, because
+    // NVDA's say current line was silent in Firefox otherwise (PO test of
+    // tools/spikes/s5/say_line.html). A group also holds its items, so it is
+    // named with aria-label, or its name would be all its items' words.
+    li.appendChild(document.createTextNode(label));
+    if (id.startsWith("group:")) li.setAttribute("aria-label", label);
     return li;
   }
 
@@ -145,7 +145,7 @@ export class Tree {
         if (e.key.length === 1 && e.key !== " ") {
           const letter = e.key.toLowerCase();
           const after = visible.slice(i + 1).concat(visible.slice(0, i + 1));
-          this._move(after.find((v) => v.querySelector(".label").textContent.toLowerCase().startsWith(letter)));
+          this._move(after.find((v) => v.firstChild.textContent.toLowerCase().startsWith(letter)));
         } else handled = false;
     }
     if (handled) e.preventDefault();

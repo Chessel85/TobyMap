@@ -226,6 +226,9 @@ class MainWindow(QMainWindow):
             self.close()
 
     def _apply_focus(self, focus: dict):
+        if focus["region"] == "map":
+            self.map.setFocus(Qt.FocusReason.OtherFocusReason)
+            return
         if focus["region"] == "details":
             self.details.moveCursor(self.details.textCursor().MoveOperation.Start)
             self.details.setFocus(Qt.FocusReason.OtherFocusReason)

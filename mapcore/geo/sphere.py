@@ -58,6 +58,15 @@ def coordinates_text(lat: float, lon: float) -> str:
     return f"{_degrees(lat_r)}{lat_word}, {_degrees(lon_r)}{lon_word}"
 
 
+def km_number(km: float) -> str:
+    """A distance in kilometres as a rounded number: 4.5, 92, 180, 1,050."""
+    if km < 10:
+        return f"{km:.1f}".removesuffix(".0")
+    if km < 100:
+        return str(round(km))
+    return f"{int(round(km, -1)):,}"
+
+
 def distance_text(km: float) -> str:
     """Rounded so it reads naturally: 7 kilometres, 340 kilometres, 1,050 kilometres."""
     if km < 0.5:

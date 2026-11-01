@@ -67,6 +67,7 @@ class MapSession:
         self.last_frame: dict | None = None
         self.paint_ms: float | None = None
         self.startup_ms: float | None = None
+        self.map_size: tuple[int, int] = (800, 600)  # until the shell first draws
         self._handlers = {
             "globe.north": lambda **a: self._turn(1, 0),
             "globe.south": lambda **a: self._turn(-1, 0),
@@ -76,11 +77,13 @@ class MapSession:
             "zoom.out": lambda **a: self._zoom(-1),
             "where.am_i": self._where_am_i,
             "where.coordinates": self._coordinates,
+            "where.visible": self._visible,
             "panel.within": lambda **a: Response(focus={"region": "panel", "group": "within"}, panel_stale=True),
             "panel.nearby": lambda **a: Response(focus={"region": "panel", "group": "nearby"}, panel_stale=True),
             "panel.select": self._select,
             "details.show": lambda **a: Response(focus={"region": "details"}, details_stale=True),
             "focus.menu": lambda **a: Response(focus={"region": "menu"}),
+            "focus.map": lambda **a: Response(focus={"region": "map"}),
             "speech.repeat": self._repeat,
             "speech.braille_test": self._braille_test,
             "help.keys": self._help_keys,
@@ -120,6 +123,7 @@ class MapSession:
         return merged
 
     def scene(self, width: int, height: int) -> dict:
+        self.map_size = (width, height)  # for the size of the visible map
         current = self._current()
         frame = globe.build_scene(self.geometry, self._view(), width, height,
                                   current=current.id if current else None,
@@ -270,6 +274,13 @@ class MapSession:
 
     def _coordinates(self, **_a) -> Response:
         return Response().speak(sphere.coordinates_text(self.state.lat, self.state.lon), ASSERTIVE)
+
+    def _visible(self, **_a) -> Response:
+        extent = globe.visible_extent(self._view(), *self.map_size)
+        if extent is None:
+            return Response().speak(say("visible_globe"), ASSERTIVE)
+        across, down = (sphere.km_number(a * sphere.EARTH_RADIUS_KM) for a in extent)
+        return Response().speak(say("visible_area", width=across, height=down), ASSERTIVE)
 
     def _repeat(self, **_a) -> Response:
         return Response().speak(self.last_spoken or say("nothing_to_repeat"), ASSERTIVE)

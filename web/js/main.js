@@ -51,6 +51,7 @@ function handle(result) {
   if (r.focus) {
     if (r.focus.region === "panel") tree.focusGroup(r.focus.group);
     else if (r.focus.region === "menu") menubar.focusBar();
+    else if (r.focus.region === "map") { menubar.closeAll(false); mapEl.focus(); }
     else if (r.focus.region === "details") {
       details.setSelectionRange(0, 0);  // before focus, so NVDA reads the first line on arrival
       details.scrollTop = 0;

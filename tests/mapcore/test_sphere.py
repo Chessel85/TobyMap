@@ -43,3 +43,7 @@ def test_wrap_longitude():
     assert sphere.wrap_lon(-180) == 180
     assert sphere.wrap_lon(180) == 180
     assert sphere.wrap_lon(-190) == 170
+
+
+def test_km_number_rounds_like_spoken_distances():
+    assert [sphere.km_number(k) for k in (4.46, 7.0, 92.4, 182.0, 1047.0)] == ["4.5", "7", "92", "180", "1,050"]

@@ -7,11 +7,11 @@ Phase 0 is Foundations and spikes. The tasks are described in "implementation pl
 * [x] P0-T1 Repository: TobyMap created, with the licence, README, CLAUDE.md, .gitignore, the folder layout, and the design documents in docs/design.
 * [x] P0-T2 Continuous integration: Python tests on Windows and macOS, browser tests in Chromium and Firefox, and the licence check.
 * [x] P0-T3 Development set-up: requirements files, setup.ps1, and the data folder setting. The PO's local paths file points at drive E:.
-* [ ] P0-T4 Spike S1, spatial sound. In progress: the PO listened to the own HRTF processing on 1 November; Synthizer and OpenAL Soft are being added, with the PO's permission. Draft findings: docs/spikes/S1-spatial-sound.md.
+* [ ] P0-T4 Spike S1, spatial sound. In progress: six engines compared on 1 November, including Synthizer and OpenAL Soft; stereo with pitch scored best. Recommendation in DP100. Draft findings: docs/spikes/S1-spatial-sound.md.
 * [ ] P0-T5 Spike S2, countries, coastlines and islands. In progress: stage 1 (the UK, France and Spain) built with mapdata spike-s2-stage1; the run stopped for low memory and resumes when the laptop is idle. Findings: docs/spikes/S2-countries-coastlines.md. Later stages wait for the PO's review.
 * [ ] P0-T6 Spike S3, hosting and browser.
 * [ ] P0-T7 Spike S4, core in Pyodide.
-* [x] P0-T8 Spike S5, globe, accessible shell and installer. Findings: docs/spikes/S5-globe-shell-installer.md. Two NVDA tests done; say current line in Firefox and DP97 still open.
+* [x] P0-T8 Spike S5, globe, accessible shell and installer. Findings: docs/spikes/S5-globe-shell-installer.md. Three NVDA tests done; say current line on group items in Firefox and DP99 still open.
 * [ ] P0-T9 Spike S6, spatial voice. In progress: the PO chose Piper with the Alba voice; eSpeak NG ruled out. Piper in the browser waits for DP98 and spike S4. Draft findings: docs/spikes/S6-spatial-voice.md.
 * [x] P0-T10 Comparison with AtMap and AtlasDL: docs/design/lessons-from-atmap.md created from architecture section 15. Lessons from the spikes are added as they are found.
 * [ ] P0-T11 Update the architecture from the findings.

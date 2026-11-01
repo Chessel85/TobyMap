@@ -578,6 +578,8 @@ Keys changed since version 0.3 (agreed, DP79):
 ### Other
 * P: data packs.
 * F1: help.
+* Ctrl+Alt+G: go to the map, from anywhere (DP97).
+* Ctrl+Alt+M, web version only: go to the menu bar (DP93). The desktop uses Alt.
 * Ctrl+comma: settings.
 
 ## 13. Settings

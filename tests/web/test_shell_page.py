@@ -99,7 +99,11 @@ def test_tree_items_take_real_focus(app):
     app.keyboard.press("ArrowDown")
     assert app.evaluate("document.activeElement.textContent") == "Earth"
     app.keyboard.press("ArrowLeft")
-    assert app.evaluate("document.activeElement.querySelector('.label').textContent") == "Within"
+    # Words directly inside each item, so NVDA+Up reads them in Firefox (PO test);
+    # a group is named by aria-label, not by all its items' words.
+    assert app.evaluate("document.activeElement.firstChild.nodeType") == 3  # a text node
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Within"
+    assert app.locator("#tree [aria-labelledby]").count() == 0
     assert app.evaluate("document.activeElement.getAttribute('aria-expanded')") == "true"
     app.keyboard.press("ArrowDown")  # Within's first item again
     app.keyboard.press("ArrowDown")
@@ -199,3 +203,17 @@ def test_announcer_alternates_live_regions(page, site_url):
     app.wait_for_function("window.tobymap.announcements.length > 2")
     texts = app.evaluate("[...document.querySelectorAll('[id^=live-assertive]')].map(e => e.textContent)")
     assert sorted(texts) == ["", "52 degrees north, 1 degree west"]
+
+
+def test_ctrl_alt_g_goes_to_the_map_from_anywhere(app):
+    # DP97.
+    app.keyboard.press("Tab")
+    app.keyboard.press("Tab")
+    assert region(app) == "details"
+    app.keyboard.press("Control+Alt+G")
+    app.wait_for_function("document.activeElement.id === 'map'")
+    go_to_menu_bar(app)
+    app.keyboard.press("Enter")  # an open menu
+    app.keyboard.press("Control+Alt+G")
+    app.wait_for_function("document.activeElement.id === 'map'")
+    assert app.locator(".menu:not([hidden])").count() == 0

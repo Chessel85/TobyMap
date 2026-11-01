@@ -52,11 +52,13 @@ These keys work when the map has focus:
 * Page Up and Page Down: zoom out and in. There are five zooms, with steps of 10, 5, 2 and 1 degrees, then half a degree.
 * Space: where am I. The country, the coordinates, the zoom and the step.
 * C: coordinates only.
+* V: the size of the visible map, such as "Visible map: 1,140 by 890 kilometres." At the first zoom it says "Visible map: the whole globe."
 * Shift+Space: go to Within in the Information panel.
 * R: go to Nearby in the Information panel.
 * D: go to Details.
 * Ctrl+Space: repeat the last announcement.
 * F1: the keys, in a dialog with a Close button. F1 works anywhere.
+* Ctrl+Alt+G: go to the map, from anywhere (DP97).
 
 To reach the menu bar:
 
@@ -78,13 +80,13 @@ Turning stops at the poles in this spike ("North Pole. Sea"). Crossing a pole pr
 
 ### Desktop: install it
 
-1. Run TobyMap-0.0.3-setup.exe from the dist_installer folder in the repository.
+1. Run TobyMap-0.0.4-setup.exe from the dist_installer folder in the repository.
 2. Windows SmartScreen may say the app is unrecognised, because it is not signed. Choose More info, then Run anyway (DP95).
 3. The installer has four standard pages: Welcome, Install location, Installing, and Finished. There is no administrator prompt. It installs into your own Programs folder.
 4. On the last page, "Start TobyMap now" is ticked. You can also tick "Put a shortcut on the desktop".
 5. Afterwards, TobyMap is in the Start menu. Uninstall it from Settings, Apps, or with "Uninstall TobyMap" in its folder.
 
-There is also a portable zip, TobyMap-0.0.3-portable.zip. Unzip it anywhere and run TobyMap.exe.
+There is also a portable zip, TobyMap-0.0.4-portable.zip. Unzip it anywhere and run TobyMap.exe.
 
 ### Web: on this laptop
 
@@ -308,3 +310,23 @@ What this means:
 * Phase 1 must deliver the drawing levels of architecture 6.9 before larger data goes on the globe.
 * Use NumPy's own index type throughout the core.
 * The architecture changes, ariaNotify in Firefox and the drawing-level budget, go into P0-T11.
+
+## Results of your third test, 1 November 2026
+
+### Fixes confirmed
+
+* Details reads each entry once on the desktop.
+* Tab goes round the map, the Information panel and Details only.
+* Alt reaches the desktop menu bar, and Ctrl+Alt+M the web one.
+* Tab leaves the menu bar for the map.
+
+### Say current line in Firefox
+
+* With the test page, say current line worked in both versions of Details, but in only the second version of the tree, where each item's words are directly inside it.
+* Fix: the web tree is now built that way. A group item is also named with aria-label, so that its name is just "Within", not all its items' words. A test checks this.
+* Still to confirm with NVDA: say current line on a group item, such as Within, in TobyMap itself.
+
+### Added since
+
+* V says the size of the visible map, as you asked: across and up and down through the centre, along the Earth's surface. It follows the window's size. V is also planned for the grid value in the draft keyboard map, so DP99 asks which should have it.
+* Ctrl+Alt+G goes to the map from anywhere, in both versions (DP97). It is also in the Map menu, as "Go to the map". It says nothing itself, because NVDA reads the map's name, the place, on arrival.

@@ -35,6 +35,7 @@ REVIEWED = {
     "certifi": "MPL-2.0",
     "text-unidecode": "Artistic or GPL-2.0-or-later",
     "pip": "MIT",
+    "espeakng-loader": "MIT (github.com/thewh1teagle/espeakng-loader), bundling the eSpeak NG library, GPL-3.0; spike S6",
 }
 
 # Licences that must never be accepted, even if a compatible word also appears.

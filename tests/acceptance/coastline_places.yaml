@@ -1,0 +1,31 @@
+# Coastline check places (artefacts section 8, architecture 12.3, DAT-3, DAT-14).
+# Spike S2 stage 1: the UK, France and Spain.
+#
+# For each place: its latitude and longitude, and either "sea: true", meaning
+# no land area may contain it, or "includes": names that must all be among the
+# areas containing it. Names are the English names the pack uses. The PO may
+# add places.
+
+places:
+  - {name: 2 km off the Pointe du Raz in Brittany, lat: 48.0395, lon: -4.7660, sea: true}
+  - {name: The Solent between Cowes and Southampton Water, lat: 50.7900, lon: -1.3000, sea: true}
+  - {name: The Strait of Gibraltar between Gibraltar and Ceuta, lat: 36.0200, lon: -5.3400, sea: true}
+  - {name: The Bay of Biscay off Bilbao, lat: 43.4500, lon: -2.9500, sea: true}
+  - {name: The English Channel at the Dover Strait, lat: 51.0000, lon: 1.5000, sea: true}
+  - {name: London, lat: 51.5074, lon: -0.1278, includes: [United Kingdom, England]}
+  - {name: Isle of Wight, lat: 50.6800, lon: -1.3000, includes: [United Kingdom, England, Isle of Wight]}
+  - {name: Isle of Skye, lat: 57.3000, lon: -6.2500, includes: [United Kingdom, Scotland, Highland]}
+  - {name: Belfast, lat: 54.5970, lon: -5.9300, includes: [United Kingdom, Northern Ireland]}
+  - {name: Cardiff, lat: 51.4816, lon: -3.1791, includes: [United Kingdom, Wales]}
+  - {name: Paris, lat: 48.8566, lon: 2.3522, includes: [France, Île-de-France, Paris]}
+  - {name: Corsica at Ajaccio, lat: 41.9300, lon: 8.7400, includes: [France, Corsica, Corse-du-Sud]}
+  - {name: French Guiana inland, lat: 4.0000, lon: -53.0000, includes: [French Guiana]}
+  - {name: Madrid, lat: 40.4168, lon: -3.7038, includes: [Spain, Community of Madrid]}
+  - {name: Mallorca, lat: 39.6200, lon: 2.9800, includes: [Spain, Balearic Islands]}
+  - {name: Tenerife, lat: 28.2700, lon: -16.6000, includes: [Spain, Canary Islands, Santa Cruz de Tenerife]}
+  - {name: Ceuta, lat: 35.8890, lon: -5.3200, includes: [Spain, Ceuta]}
+  - {name: Melilla, lat: 35.2930, lon: -2.9430, includes: [Spain, Melilla]}
+  - {name: Llívia, a part of Spain inside France, lat: 42.4655, lon: 1.9800, includes: [Spain, Catalonia, Girona]}
+  - {name: Gibraltar, lat: 36.1400, lon: -5.3500, includes: [Gibraltar]}
+  - {name: Andorra la Vella, lat: 42.5063, lon: 1.5218, includes: [Andorra]}
+  - {name: Saillagouse in France, just east of Llívia, lat: 42.4570, lon: 2.0360, includes: [France]}

@@ -272,6 +272,19 @@ What this means:
 * Marine Regions EEZ: CC-BY 4.0 for some versions. To verify for the version used.
 * Ordnance Survey OpenData and NaPTAN: Open Government Licence. Confirmed. Used only for UK validation.
 
+### Tools and assets checked in Phase 0
+
+These are not map data, but they are used to build or play TobyMap, so their licences are recorded here too.
+
+* GeoDesk for Python 2.3.0: LGPL-3.0. Confirmed in spike S2, from its package record. It is used only by the pipeline on the build laptop, and it opens the planet and UK GOL files read-only. It is compatible with GPL-3.0.
+* OSM land polygons: downloaded on 31 October 2026 into the data folder's tobymap/downloads folder, 885 MB.
+* MIT KEMAR HRTF measurements (spike S1): "provided without any usage restrictions", with a request to cite Bill Gardner and Keith Martin, MIT Media Lab, 1994.
+* Piper voices (spike S6), each with its own model card:
+  * Cori: public domain.
+  * Alba: CC-BY 4.0.
+  * Northern English male: CC-BY-SA 4.0.
+  * Semaine is CC-BY-NC-SA, which forbids commercial use, so it is not used. Alan and Jenny have unclear licences, so they are not used either.
+
 ## Research references
 
 * [IHO Sea Areas licence record (marineinfo.org dataset 5444)](https://marineinfo.org/id/dataset/5444)

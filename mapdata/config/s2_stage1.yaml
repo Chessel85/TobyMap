@@ -1,0 +1,38 @@
+# Spike S2, stage 1 (architecture 12.3): the UK, France and Spain.
+#
+# Countries: level 2 areas, by OSM relation id, with the name expected, so a
+# wrong id stops the build. "divisions: true" means levels 4 and 6 inside it
+# are built too. The neighbours are built at level 2 only, so the land borders
+# of the three countries can be checked.
+#
+# Regions: the boxes (west, south, east, north) that the land polygons are read
+# for. One for Europe and the Canary Islands, and one for each French overseas
+# region.
+
+name: s2-stage1
+source_gol: planet-latest.gol          # in the data folder, read only
+levels: [4, 6]
+
+countries:
+  - {id: osm:r62149, name: United Kingdom, divisions: true}
+  - {id: osm:r2202162, name: France, divisions: true}
+  - {id: osm:r1311341, name: España, divisions: true}
+  - {id: osm:r1278736, name: Gibraltar}
+  - {id: osm:r9407, name: Andorra}
+  - {id: osm:r62273, name: Éire / Ireland}
+  - {id: osm:r295480, name: Portugal}
+  - {id: osm:r52411, name: België / Belgique / Belgien}
+  - {id: osm:r2171347, name: Lëtzebuerg}
+  - {id: osm:r51477, name: Deutschland}
+  - {id: osm:r51701, name: Schweiz/Suisse/Svizzera/Svizra}
+  - {id: osm:r365331, name: Italia}
+  - {id: osm:r1124039, name: Monaco}
+  - {id: osm:r3630439, name: Maroc ⵍⵎⵖⵔⵉⴱ المغرب}
+
+regions:
+  europe: [-19.0, 27.0, 16.0, 61.5]
+  french_guiana: [-55.0, 1.5, -51.0, 6.5]
+  guadeloupe: [-62.0, 15.7, -60.8, 16.7]
+  martinique: [-61.4, 14.2, -60.7, 15.0]
+  reunion: [55.0, -21.6, 56.0, -20.7]
+  mayotte: [44.8, -13.2, 45.5, -12.5]

@@ -17,7 +17,8 @@ Engines in this file:
 * "openal": OpenAL Soft's built-in HRTF (openal.py), when its library is in
   tools/spikes/s1/vendor.
 * "synthizer": Synthizer's HRTF (synth.py), when it is installed. Synthizer
-  can only play to the sound device, so it is not a render function here.
+  can only play to the sound device, so its render function returns a
+  synth.Live object, which play() hands to Synthizer.
 
 Directions are bearings relative to ahead, in degrees clockwise: 0 ahead,
 90 right, 180 behind, 270 left. Distance is a fraction of the hearing range,
@@ -184,6 +185,22 @@ if _openal_available():
     ENGINES["openal"] = ("OpenAL Soft, built-in HRTF", openal_hrtf)
 
 
+def synthizer_hrtf(mono: np.ndarray, bearing: float, fraction: float):
+    import synth  # Synthizer plays live, so this returns a sound for play() to hand over
+    gain = 10 ** (distance_gain_db(fraction) / 20)
+    muffled = lowpass(np.asarray(mono, dtype=np.float32), muffle_cutoff_hz(fraction)) * gain
+    return synth.Live(muffled.astype(np.float32), bearing, RATE)
+
+
+def _synthizer_available() -> bool:
+    import synth
+    return synth.available()
+
+
+if _synthizer_available():
+    ENGINES["synthizer"] = ("Synthizer HRTF, as in AtMap", synthizer_hrtf)
+
+
 def render(engine: str, mono: np.ndarray, bearing: float, fraction: float = 0.1) -> np.ndarray:
     return ENGINES[engine][1](mono, bearing, fraction)
 
@@ -247,7 +264,11 @@ SOUNDS = {
 }
 
 
-def play(stereo_samples: np.ndarray) -> None:  # pragma: no cover - opens the audio device
+def play(stereo_samples) -> None:  # pragma: no cover - opens the audio device
+    import synth
+    if isinstance(stereo_samples, synth.Live):
+        synth.play(stereo_samples)
+        return
     import sounddevice as sd
 
     sd.play(stereo_samples, RATE, blocking=True)

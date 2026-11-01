@@ -9,3 +9,5 @@ sounddevice==0.5.6
 # and the eSpeak NG library (MIT loader, GPL-3.0 library).
 piper-tts==1.8.0
 espeakng-loader==0.2.4
+# S1 Synthizer (Unlicense) has no Python 3.14 package; it is built from source by
+#   powershell -ExecutionPolicy Bypass -File tools\spikes\s1\build_synthizer.ps1

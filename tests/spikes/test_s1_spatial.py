@@ -113,3 +113,19 @@ def test_openal_ahead_and_behind_are_balanced_but_differ():
     for x in (ahead, behind):
         assert abs(energy(x[:, 0]) - energy(x[:, 1])) < 0.01 * energy(x)
     assert not np.allclose(ahead, behind)
+
+
+import synth  # noqa: E402
+
+needs_synthizer = pytest.mark.skipif(not synth.available(), reason="Synthizer is not built (tools/spikes/s1/build_synthizer.ps1)")
+
+
+@needs_synthizer
+def test_synthizer_gets_a_mono_sound_with_distance_applied_and_no_device_opened():
+    tone = spatial.chime()
+    near = spatial.render("synthizer", tone, 90, 0.05)
+    far = spatial.render("synthizer", tone, 90, 1.0)
+    assert isinstance(near, synth.Live) and near.bearing == 90 and near.rate == spatial.RATE
+    assert near.shape == (len(tone), 2)
+    assert energy(far.mono) < energy(near.mono) / 100  # 30 dB quieter, and muffled
+    assert synth._player is None  # nothing played, so Synthizer was never started

@@ -18,8 +18,22 @@ if (-not (Test-Path $sdist)) {
     Invoke-WebRequest 'https://files.pythonhosted.org/packages/source/s/synthizer/synthizer-0.12.6.tar.gz' -OutFile $sdist
 }
 if ((Get-FileHash $sdist -Algorithm SHA256).Hash.ToLower() -ne $sha256) { throw "The download does not match PyPI's hash." }
-tar -xzf $sdist -C $build
 $src = Join-Path $build 'synthizer-0.12.6'
+if (Test-Path $src) { Remove-Item -Recurse -Force $src }  # always build from a clean copy
+tar -xzf $sdist -C $build
+# Synthizer's binding was written for Cython 0.29. Cython 3, the only one that
+# supports Python 3.14, needs this setting to accept its C callbacks.
+$setup = Join-Path $src 'setup.py'
+$text = [IO.File]::ReadAllText($setup)
+$old = 'cythonize(extensions, language_level=3)'
+$new = 'cythonize(extensions, language_level=3, compiler_directives={"legacy_implicit_noexcept": True})'
+if (-not $text.Contains($new)) {
+    if (-not $text.Contains($old)) { throw "setup.py is not the expected one." }
+    $text = $text.Replace($old, $new)
+}
+# Python extensions use the DLL C runtime (/MD), so the library must too.
+$text = $text.Replace('-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL"')
+[IO.File]::WriteAllText($setup, $text)
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath

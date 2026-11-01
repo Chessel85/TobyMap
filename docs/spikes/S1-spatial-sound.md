@@ -11,7 +11,7 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 * Two desktop candidates are ready to listen to: the project's own HRTF processing, and the stereo speakers mode.
 * The browser candidate is ready too, in Firefox and Chrome.
 * OpenAL Soft is now in the demo too, as a fourth engine, and so is the own HRTF processing with a lower pitch behind you.
-* Synthizer is not built yet. The safety rules stopped the build again, so it waits for you. See "Synthizer: permission given".
+* Synthizer is now built and in the demo too, as "Synthizer HRTF, as in AtMap". So all five candidates can be compared.
 * No recommendation yet. After the first listening, the own HRTF processing gets left and right right every time, but places sounds on one side only roughly, and sometimes hears ahead as behind.
 
 ## The candidates
@@ -37,14 +37,21 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 * Web Audio's HRTF panner, in Firefox and Chrome.
 * It uses the same sounds, distance settings and quiz as the desktop demo, so you can compare them.
 
-### Synthizer: permission given
+### Synthizer: ready
 
 * Synthizer is the library AtMap used, and you had no problems with it (DP91).
 * Its project was archived in 2025, so it will get no more fixes.
 * Its last release was in May 2023. It has no ready-built package for Python 3.14, which TobyMap uses.
 * It could be built from its source code with Visual Studio 2022, which is on your laptop. The safety rules stopped me running a download's build code without asking you, and you gave permission on 1 November.
 * Its licence, the Unlicense, is compatible with GPL-3.0.
-* On 1 November I downloaded its source, version 0.12.6 from PyPI, and checked it against PyPI's published hash. The safety rules stopped the build again, because a permission written in a file does not count as permission given in the conversation. The build script is ready: `powershell -ExecutionPolicy Bypass -File tools\spikes\s1\build_synthizer.ps1`. To go ahead, either run it yourself, or tell me in the conversation to run it.
+* Built on 1 November from its source, version 0.12.6 from PyPI, checked against PyPI's published hash. The build script is tools\spikes\s1\build_synthizer.ps1.
+* Two changes were needed to build it for Python 3.14, both to build settings, not to Synthizer's code:
+  * Cython 3 needs a compatibility setting for Synthizer's callbacks, which were written for Cython 0.29.
+  * The library is built with the same C runtime as Python.
+* The libraries it bundles, such as miniaudio, have permissive licences. The licence check records it.
+* Synthizer can only play to the sound device, with no way to render into memory. So in the demo it plays live, and the tests check only the sound handed to it.
+* As with the other engines, its own distance model is off, and the demo applies the SON-9 loudness and muffling. Only its direction processing is compared.
+* For TobyMap itself, being archived counts against it: any fault found later would be ours to fix, in C++.
 
 ### OpenAL Soft: ready
 
@@ -138,6 +145,6 @@ You used the desktop demo with the own HRTF processing, and did three quizzes: o
 
 ## Waiting for you
 
-* A quiz with each engine, using the chime, would give comparable numbers: own HRTF, own HRTF with lower pitch behind, and OpenAL Soft now, then Synthizer once it is built.
-* Synthizer's build, which needs you to run one command or to allow it. See "Synthizer: permission given".
+* A quiz with each engine, using the chime, would give comparable numbers: own HRTF, own HRTF with lower pitch behind, OpenAL Soft, and Synthizer.
+* Side by side, menu option 3, plays one direction through all five engines in turn.
 * The browser demo, when convenient.

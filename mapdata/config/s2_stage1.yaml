@@ -28,6 +28,10 @@ countries:
   - {id: osm:r365331, name: Italia}
   - {id: osm:r1124039, name: Monaco}
   - {id: osm:r3630439, name: Maroc ⵍⵎⵖⵔⵉⴱ المغرب}
+  # French Guiana's neighbours. Only their land inside the french_guiana box
+  # below is read, which is enough to check the borders.
+  - {id: osm:r287082, name: Suriname}
+  - {id: osm:r59470, name: Brasil}
 
 regions:
   europe: [-19.0, 27.0, 16.0, 61.5]

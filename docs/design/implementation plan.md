@@ -180,7 +180,7 @@ NAV-3, NAV-8 (coordinates), NAV-10, NAV-11, NAV-12, SCP-6, SCP-7, ANN-2, ANN-7, 
 * P2-T1 Orientations and turning: north-fixed, cardinal facing and free facing, the F key, turning keys, typing a bearing, great circle steps, crossing the poles, and the heading after each move.
 * P2-T2 Position history and jump to coordinates, accepting all the formats in NAV-8.
 * P2-T3 Layer catalogue: layer definitions from the pack, the user's changes, the layers list dialog (Shift+L), and saving choices. A layer that is off disappears from the map and from every announcement.
-* P2-T4 The visible rule: zoom ranges and the area size rule, used by the map scene and ready for the lists.
+* P2-T4 The visible rule: zoom ranges and the area size rule, used by the map scene and ready for the lists. Default zoom ranges start from the Shortbread schema (data sources, version 0.7).
 * P2-T5 Crossed and passed: along the step's path, in the background, with its earcon and its list in a simple first version of the Information panel.
 * P2-T6 Sound scene and audio backends: directions relative to the orientation, loudness from the tuned curve, muffling behind, the beyond-the-view level, and speakers mode.
 * P2-T7 Spatial voice: labels spoken by the voice chosen in spike S6 and placed in space, with history, Braille-only output on NVDA, and the setting to also speak them through the screen reader.

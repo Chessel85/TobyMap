@@ -1,6 +1,10 @@
 # Data sources
 
-Version 0.6, 31 October 2026. The product owner's original notes are kept unchanged in the first section. Everything after that is the architect's research and recommendations, for review.
+Version 0.7, 1 November 2026. The product owner's original notes are kept unchanged in the first section. Everything after that is the architect's research and recommendations, for review.
+
+## Changes in version 0.7
+
+* Shortbread, the open vector tile schema from Geofabrik, is used as a starting point and quality check for which OSM features go in each layer, and from which zoom they appear. It is a reference only: no code or data is taken from it. This came from a reply to the PO's OpenStreetMap forum post.
 
 ## Changes in version 0.6
 
@@ -171,6 +175,7 @@ The detailed pipeline belongs in the architecture document. The key processing s
    * the network graph
 7. Generalise the geometry for each zoom tier, then write the packs, each with an attribution file and a manifest.
 8. Write the layer definitions: each layer's name, style, default zoom range, minimum area size and default sounds (SCP-7, DP80). The zoom ranges decide which features are "visible" at each zoom, so the pipeline can pre-sort features by the zoom at which they appear. Each area also stores its width, so the size rule for visible areas (DP80) costs nothing at run time. That keeps Contains and Nearby fast, even for the whole United Kingdom.
+   * The layer definitions start from the Shortbread schema: its layers, the OSM tags in each, and the zoom at which each kind of feature first appears. Where we choose differently, for example because a feature matters more to someone listening than to someone looking, the layer definition says why. The pipeline's quality report lists where our layers and zooms differ from Shortbread's, so the differences are deliberate and reviewed.
 
 Tools likely to be needed are osmium, GDAL/OGR, GEOS through Shapely, and possibly DuckDB with its spatial extension. They are all free and scriptable from Python.
 
@@ -303,4 +308,5 @@ These are not map data, but they are used to build or play TobyMap, so their lic
 * [GMBA Inventory repository](https://www.github.com/GMBA-biodiversity/Inventory)
 * [HydroLAKES licence note](https://git.nayala.duckdns.org/fly/fgdata/src/branch/next/Textures/Globe/02READMElakes.txt)
 * [Copernicus DEM on AWS](https://registry.opendata.aws/copernicus-dem/)
+* [Shortbread vector tile schema](https://shortbread-tiles.org/schema/)
 * [GitHub releases limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)

@@ -1,6 +1,6 @@
 # Spike S6 findings: the spatial voice
 
-Task P0-T9. Architecture section 12.7. Draft of 31 October 2026, written overnight. It waits for your listening.
+Task P0-T9. Architecture section 12.7. Draft of 31 October 2026, updated on 1 November with your listening.
 
 ## The question
 
@@ -8,10 +8,10 @@ Which built-in voice should speak the spatial labels, such as "Berlin" heard fro
 
 ## Short answer so far
 
-* Four voices are ready to listen to on the desktop: eSpeak NG, and three Piper voices.
+* You listened on 1 November. eSpeak NG is ruled out, and Alba, the Scottish Piper voice, gave the best sense of direction.
+* Recommendation: Piper, with Alba as the default voice.
 * Windows voices are left out, as you asked (DP90).
-* The browser voices are not built yet. See "The web version".
-* No recommendation until you have listened.
+* The browser version is not built yet. Since eSpeak NG is ruled out, the web version needs Piper in the browser too. See "The web version".
 
 ## The voices
 
@@ -75,7 +75,20 @@ The browser needs its own copy of the voice:
 * The Piper Cori voice does the same.
 * The demo's tour works with a stand-in player, so no sound device is opened in the tests.
 
-## Waiting for you
+## Your listening, 1 November
 
-* Your listening, and which voice you prefer.
-* Whether the web version should match the desktop voice, which decides what the web build needs.
+* eSpeak NG sounded dated, like the 1970s, and you would be embarrassed to use it. It is ruled out.
+* Alba, the Scottish woman, gave the best sense of direction.
+* Cori and the northern English man were about equal to each other.
+
+## What this means
+
+* The desktop uses Piper, with Alba as the default (CC-BY 4.0, so the credit goes in the About box and the third-party notices).
+* Piper and its voice add about 75 MB to the installer.
+* Piper's slow first label, about 5 seconds, needs fixing before Phase 1. The voice can be loaded, and a first label made silently, while TobyMap starts.
+* The web version needs Piper in the browser, because DP90 says the desktop and web versions should not differ. That is about 60 MB more to download the first time, which spike S4 must allow for alongside the 17 MB of Pyodide. A new question, DP98, asks whether that is acceptable.
+
+## Still to do
+
+* Re-measure Piper's speed when the laptop is not busy.
+* Try Piper in the browser, during spike S4.

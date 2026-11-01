@@ -57,6 +57,7 @@ def test_tab_in_an_open_menu_closes_it_and_goes_to_the_map(window, qtbot):
 
 
 def test_tab_on_the_menu_bar_goes_to_the_map(window, qtbot):
+    window.menuBar().setNativeMenuBar(False)  # macOS's own menu bar is outside the window
     window.focus_region("menu")
     QApplication.processEvents()
     window.focusNextPrevChild(True)

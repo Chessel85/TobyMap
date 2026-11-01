@@ -10,7 +10,8 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 
 * Two desktop candidates are ready to listen to: the project's own HRTF processing, and the stereo speakers mode.
 * The browser candidate is ready too, in Firefox and Chrome.
-* You gave permission on 1 November to build Synthizer and load OpenAL Soft. They are being added to the demo.
+* OpenAL Soft is now in the demo too, as a fourth engine, and so is the own HRTF processing with a lower pitch behind you.
+* Synthizer is not built yet. The safety rules stopped the build again, so it waits for you. See "Synthizer: permission given".
 * No recommendation yet. After the first listening, the own HRTF processing gets left and right right every time, but places sounds on one side only roughly, and sometimes hears ahead as behind.
 
 ## The candidates
@@ -21,6 +22,11 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 * The sound is shaped in NumPy and played through the sounddevice library (MIT licence).
 * It uses the same kind of processing as the browser. The desktop and web versions could therefore sound much alike, at the cost of more of our own code.
 * In this spike it uses only the horizontal directions, every 5 degrees all the way round.
+
+### Own HRTF processing, lower pitch behind: ready
+
+* The own HRTF processing, with sounds behind you about three semitones lower, as in the speakers mode.
+* Added because your first quiz heard sounds ahead as behind three times. It tests whether the pitch cue helps.
 
 ### Stereo panning with pitch, the speakers mode: ready
 
@@ -38,8 +44,16 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 * Its last release was in May 2023. It has no ready-built package for Python 3.14, which TobyMap uses.
 * It could be built from its source code with Visual Studio 2022, which is on your laptop. The safety rules stopped me running a download's build code without asking you, and you gave permission on 1 November.
 * Its licence, the Unlicense, is compatible with GPL-3.0.
+* On 1 November I downloaded its source, version 0.12.6 from PyPI, and checked it against PyPI's published hash. The safety rules stopped the build again, because a permission written in a file does not count as permission given in the conversation. The build script is ready: `powershell -ExecutionPolicy Bypass -File tools\spikes\s1\build_synthizer.ps1`. To go ahead, either run it yourself, or tell me in the conversation to run it.
 
-### OpenAL Soft: permission given
+### OpenAL Soft: ready
+
+* Added on 1 November. Choose "OpenAL Soft, built-in HRTF" with Change the engine.
+* It uses OpenAL Soft's own built-in HRTF data set.
+* It renders into memory, through OpenAL Soft's loopback extension, and then plays like the other engines. So the tests need no sound device, and distance is applied in the same way for every engine.
+* Its library, soft_oal.dll, is in tools\spikes\s1\vendor, which is not in git.
+
+#### Background
 
 * OpenAL Soft is a mature 3D audio library with HRTF. Version 1.25.2 was released in May 2026. Its licence is LGPL, which is compatible.
 * I downloaded the official release into tools/spikes/s1/downloads, which is not in git. The safety rules stopped me loading its ready-built library without asking you, and you gave permission on 1 November.
@@ -124,5 +138,6 @@ You used the desktop demo with the own HRTF processing, and did three quizzes: o
 
 ## Waiting for you
 
-* The comparison with Synthizer and OpenAL Soft, once they are added. A quiz with each engine, using the chime, would give comparable numbers.
+* A quiz with each engine, using the chime, would give comparable numbers: own HRTF, own HRTF with lower pitch behind, and OpenAL Soft now, then Synthizer once it is built.
+* Synthizer's build, which needs you to run one command or to allow it. See "Synthizer: permission given".
 * The browser demo, when convenient.

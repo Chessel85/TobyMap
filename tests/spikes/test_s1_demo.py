@@ -33,7 +33,8 @@ def test_tour_plays_eight_directions(scripted):
 
 def test_quiz_saves_played_and_heard(scripted):
     run, played, results = scripted
-    answers = ["5", "2", "4"]
+    stereo = str(list(spatial.ENGINES).index("stereo") + 1)  # its number in the engine menu
+    answers = ["5", stereo, "4"]
     for _ in range(8):
         answers += ["", "r", "1"]  # play, replay once, answer "ahead"
     assert run(answers + ["0"]) == 0

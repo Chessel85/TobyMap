@@ -79,3 +79,37 @@ def test_render_shape():
     out = spatial.render("hrtf", spatial.chime(), 135, 0.3)
     assert out.dtype == np.float32 and out.ndim == 2 and out.shape[1] == 2
     assert np.abs(out).max() < 1.0
+
+
+@needs_kemar
+def test_hrtf_pitch_lowers_only_sounds_behind():
+    tone = spatial.chime()
+    ahead = spatial.render("hrtf_pitch", tone, 45)
+    behind = spatial.render("hrtf_pitch", tone, 135)
+    assert len(ahead) == len(spatial.render("hrtf", tone, 45))
+    assert len(behind) > len(ahead)  # played slower, so lower and longer
+
+
+import openal  # noqa: E402
+
+needs_openal = pytest.mark.skipif(not openal.available(), reason="OpenAL Soft is not in tools/spikes/s1/vendor")
+
+
+@needs_openal
+@pytest.mark.parametrize("bearing, louder", [(90, 1), (270, 0), (45, 1), (315, 0)])
+def test_openal_renders_in_memory_with_hrtf(bearing, louder):
+    # Loopback rendering: no sound device is opened.
+    al = openal.shared(spatial.RATE)
+    assert al.hrtf_enabled
+    out = spatial.render("openal", spatial.chime(), bearing)
+    assert out.shape[1] == 2 and np.abs(out).max() < 1
+    assert energy(out[:, louder]) > 1.5 * energy(out[:, 1 - louder])
+
+
+@needs_openal
+def test_openal_ahead_and_behind_are_balanced_but_differ():
+    tone = spatial.chime()
+    ahead, behind = spatial.render("openal", tone, 0), spatial.render("openal", tone, 180)
+    for x in (ahead, behind):
+        assert abs(energy(x[:, 0]) - energy(x[:, 1])) < 0.01 * energy(x)
+    assert not np.allclose(ahead, behind)

@@ -12,9 +12,12 @@ Engines in this file:
 * "stereo": the speakers mode of SON-1. Equal-power stereo panning, with
   sounds behind you pitched lower so front and back can be told apart.
 
-Synthizer and OpenAL Soft are the other desktop candidates. They need the
-PO's permission to build or load their libraries on this laptop, so they are
-added once that is given.
+* "hrtf_pitch": the own HRTF processing, with sounds behind you pitched lower
+  as in the speakers mode, to help tell ahead from behind (PO's first quiz).
+* "openal": OpenAL Soft's built-in HRTF (openal.py), when its library is in
+  tools/spikes/s1/vendor.
+* "synthizer": Synthizer's HRTF (synth.py), when it is installed. Synthizer
+  can only play to the sound device, so it is not a render function here.
 
 Directions are bearings relative to ahead, in degrees clockwise: 0 ahead,
 90 right, 180 behind, 270 left. Distance is a fraction of the hearing range,
@@ -157,10 +160,28 @@ def stereo(mono: np.ndarray, bearing: float, fraction: float) -> np.ndarray:
     return apply_distance(out.astype(np.float32), fraction)
 
 
+def hrtf_pitch(mono: np.ndarray, bearing: float, fraction: float) -> np.ndarray:
+    behind = math.cos(math.radians(bearing % 360)) < -1e-9
+    return hrtf(resample(mono, BEHIND_PITCH) if behind else mono, bearing, fraction)
+
+
+def openal_hrtf(mono: np.ndarray, bearing: float, fraction: float) -> np.ndarray:
+    import openal  # loaded only when chosen: it needs the OpenAL Soft library
+    return apply_distance(openal.shared(RATE).render(mono, bearing), fraction)
+
+
+def _openal_available() -> bool:
+    import openal
+    return openal.available()
+
+
 ENGINES = {
     "hrtf": ("Own HRTF processing (MIT KEMAR)", hrtf),
+    "hrtf_pitch": ("Own HRTF processing, lower pitch behind", hrtf_pitch),
     "stereo": ("Stereo panning with pitch, the speakers mode", stereo),
 }
+if _openal_available():
+    ENGINES["openal"] = ("OpenAL Soft, built-in HRTF", openal_hrtf)
 
 
 def render(engine: str, mono: np.ndarray, bearing: float, fraction: float = 0.1) -> np.ndarray:

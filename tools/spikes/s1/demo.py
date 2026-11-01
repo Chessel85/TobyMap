@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.fetch or not spatial.KEMAR_ZIP.is_file():
         fetch()
     print("TobyMap spike S1: spatial sound. Use headphones.")
-    engine, sound_key = "hrtf", "noise"
+    engine, sound_key = "hrtf", "chime"  # the PO found the chime easier to place
     while True:
         sound_label = dict(sound_choices()).get(sound_key, sound_key)
         print()

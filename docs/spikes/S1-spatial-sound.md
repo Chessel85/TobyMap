@@ -1,6 +1,6 @@
 # Spike S1 findings: spatial sound
 
-Task P0-T4. Architecture section 12.2. Draft of 31 October 2026, written overnight. It waits for your listening, and for your permission on two candidates.
+Task P0-T4. Architecture section 12.2. Draft of 31 October 2026, updated on 1 November with your first listening. Synthizer and OpenAL Soft are being added, with your permission.
 
 ## The question
 
@@ -10,8 +10,8 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 
 * Two desktop candidates are ready to listen to: the project's own HRTF processing, and the stereo speakers mode.
 * The browser candidate is ready too, in Firefox and Chrome.
-* Synthizer and OpenAL Soft need your permission before I can try them. See "Waiting for your permission".
-* No recommendation yet. It depends on what you hear.
+* You gave permission on 1 November to build Synthizer and load OpenAL Soft. They are being added to the demo.
+* No recommendation yet. After the first listening, the own HRTF processing gets left and right right every time, but places sounds on one side only roughly, and sometimes hears ahead as behind.
 
 ## The candidates
 
@@ -31,18 +31,18 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 * Web Audio's HRTF panner, in Firefox and Chrome.
 * It uses the same sounds, distance settings and quiz as the desktop demo, so you can compare them.
 
-### Synthizer: needs your permission
+### Synthizer: permission given
 
 * Synthizer is the library AtMap used, and you had no problems with it (DP91).
 * Its project was archived in 2025, so it will get no more fixes.
 * Its last release was in May 2023. It has no ready-built package for Python 3.14, which TobyMap uses.
-* It could be built from its source code with Visual Studio 2022, which is on your laptop. The safety rules stopped me running a download's build code without asking you.
+* It could be built from its source code with Visual Studio 2022, which is on your laptop. The safety rules stopped me running a download's build code without asking you, and you gave permission on 1 November.
 * Its licence, the Unlicense, is compatible with GPL-3.0.
 
-### OpenAL Soft: needs your permission
+### OpenAL Soft: permission given
 
 * OpenAL Soft is a mature 3D audio library with HRTF. Version 1.25.2 was released in May 2026. Its licence is LGPL, which is compatible.
-* I downloaded the official release into tools/spikes/s1/downloads, which is not in git. The safety rules stopped me loading its ready-built library without asking you.
+* I downloaded the official release into tools/spikes/s1/downloads, which is not in git. The safety rules stopped me loading its ready-built library without asking you, and you gave permission on 1 November.
 
 ## Distance
 
@@ -95,9 +95,34 @@ The main menu has:
   * each doubling of distance is equally quieter, as SON-9 asks;
   * the demo's menus and quiz work, and the quiz saves the right file.
 * The browser demo page is checked in Chromium and Firefox: every button works without errors, and the quiz records results.
-* Nobody has listened yet. I cannot hear, so whether any of this sounds right is your test.
+* I cannot hear, so whether any of this sounds right is your test.
+
+## Your first listening, 1 November
+
+You used the desktop demo with the own HRTF processing, and did three quizzes: one with noise bursts and two with the chime.
+
+### What you said
+
+* Ahead seemed quite obvious, and you think you learned to tell when a sound was behind.
+* The chime was better than the noise bursts.
+* Telling right from left was easy.
+* Telling apart the three directions on one side, such as ahead right, right and behind right, was hard. They seemed only about 20 degrees apart, when they are really 45 degrees apart.
+
+### What the quizzes recorded
+
+* 24 sounds in all. 10 were heard in exactly the right direction, and 11 more were one direction out (45 degrees).
+* Every sound was heard on the correct side, left or right.
+* Front and back were mixed up 3 times. Each time, a sound played ahead was heard as behind. Of the 5 sounds played ahead, 2 were heard ahead.
+* Sounds on one side were often heard as more to the side than they were. For example, ahead right and behind right were both heard as right.
+* The chime did a little better than the noise: an average error of 42 degrees, against 56 for the noise.
+
+### What this suggests
+
+* The KEMAR dummy head gives clear left and right, but its front, side and back differences do not match your ears well. This is common with a head that is not your own, and is the reason to compare other engines.
+* The ahead heard as behind mix-ups matter for TobyMap, where ahead means north of you on the map. A small extra cue may help, such as the slightly lower pitch behind you that the speakers mode uses. That can be tried in the comparison.
+* The chime will be the default test sound.
 
 ## Waiting for you
 
-* Permission to build Synthizer from its source code, and to load OpenAL Soft's library. With both, the side-by-side comparison will cover all four candidates.
-* Your listening, ideally including a quiz with each engine.
+* The comparison with Synthizer and OpenAL Soft, once they are added. A quiz with each engine, using the chime, would give comparable numbers.
+* The browser demo, when convenient.

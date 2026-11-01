@@ -1,0 +1,9 @@
+time,engine,sound,played_degrees,heard_degrees,error_degrees
+2026-11-01T14:29:44,hrtf,noise,0,0,0
+2026-11-01T14:29:50,hrtf,noise,135,90,45
+2026-11-01T14:29:58,hrtf,noise,0,180,180
+2026-11-01T14:30:06,hrtf,noise,270,270,0
+2026-11-01T14:30:11,hrtf,noise,225,315,90
+2026-11-01T14:30:22,hrtf,noise,315,315,0
+2026-11-01T14:30:31,hrtf,noise,270,225,45
+2026-11-01T14:30:46,hrtf,noise,225,315,90

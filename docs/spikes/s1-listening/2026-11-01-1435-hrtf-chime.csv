@@ -1,0 +1,9 @@
+time,engine,sound,played_degrees,heard_degrees,error_degrees
+2026-11-01T14:34:19,hrtf,chime,135,90,45
+2026-11-01T14:34:24,hrtf,chime,270,225,45
+2026-11-01T14:34:30,hrtf,chime,135,90,45
+2026-11-01T14:34:35,hrtf,chime,180,180,0
+2026-11-01T14:34:43,hrtf,chime,270,270,0
+2026-11-01T14:34:49,hrtf,chime,0,180,180
+2026-11-01T14:34:59,hrtf,chime,225,225,0
+2026-11-01T14:35:04,hrtf,chime,225,270,45

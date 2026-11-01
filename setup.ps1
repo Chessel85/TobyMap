@@ -24,6 +24,9 @@ if ($Build) {
 Write-Output "Installing the Chromium and Firefox browsers for the web tests"
 & $py -m playwright install chromium firefox
 
+Write-Output "Fetching Pyodide and the NVDA Controller Client"
+& $py tools\fetch_vendor.py
+
 if (-not (Test-Path mapdata\config\paths.yaml)) {
     Write-Output "No local paths file yet. Copy mapdata\config\paths.example.yaml to mapdata\config\paths.yaml and set data_folder."
 }

@@ -1,0 +1,24 @@
+TobyMap third-party notices
+
+TobyMap is free software under the GNU General Public License version 3
+(see LICENSE). It includes or uses the following, each under its own licence.
+
+Libraries in the desktop application
+
+* Python 3.14. Python Software Foundation License.
+* PySide6 and Qt 6 (Qt for Python). GNU Lesser General Public License version 3.
+  The Qt libraries are included as separate files and can be replaced.
+* NumPy. BSD 3-Clause License.
+* PyYAML. MIT License.
+* NVDA Controller Client, from NV Access. GNU Lesser General Public License
+  version 2.1. Included unchanged as nvdaControllerClient.dll; its licence is
+  in desktop/vendor/nvdaControllerClient-license.txt.
+
+Libraries in the web version
+
+* Pyodide. Mozilla Public License 2.0.
+* NumPy and PyYAML, as above, built for Pyodide.
+
+Data
+
+* Natural Earth countries, 1:110 million. Public domain. https://www.naturalearthdata.com

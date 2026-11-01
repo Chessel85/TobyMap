@@ -42,6 +42,13 @@ packaging/version_info.txt
 test-results/
 playwright-report/
 
+# Fetched or staged files (tools/fetch_vendor.py, tools/stage_web.py)
+/web/vendor/
+/web/py/
+/desktop/vendor/
+/tools/spikes/s1/downloads/
+/tools/spikes/s1/vendor/
+
 # Screen-reader convenience files
 stuff.txt
 taskInfo.txt

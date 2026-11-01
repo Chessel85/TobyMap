@@ -1,7 +1,7 @@
 """The main window: the four regions (UX section 2) around one map session.
 
-Tab and Shift+Tab move between the map, the Information panel, Details and the
-menu bar, wrapping round. Every key and menu entry comes from the command
+Tab and Shift+Tab move between the map, the Information panel and Details,
+wrapping round. Alt reaches the menu bar, and Tab leaves it (DP93). Every key and menu entry comes from the command
 registry (AD-3), and every word from the core's templates (3.4). This module
 only translates: keys and clicks into commands, responses into speech,
 painting and focus.
@@ -65,7 +65,7 @@ class _MenuTabFilter(QObject):
 
 
 class MainWindow(QMainWindow):
-    REGIONS = ("map", "panel", "details", "menu")
+    REGIONS = ("map", "panel", "details")  # Tab never goes to the menu bar (DP93)
 
     def __init__(self, session: MapSession | None = None, announcer=None):
         super().__init__()
@@ -94,6 +94,9 @@ class MainWindow(QMainWindow):
                                              | Qt.TextInteractionFlag.TextSelectableByMouse)
         self.details.setTabChangesFocus(True)
         self.details.setAccessibleName(self.words["details"])
+        # One entry, one line. A wrapped entry made NVDA read it again on each
+        # screen line when arrowing down (PO feedback on spike S5).
+        self.details.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
 
         side = QSplitter(Qt.Orientation.Vertical)
         side.addWidget(self.tree)
@@ -103,6 +106,7 @@ class MainWindow(QMainWindow):
         main.addWidget(side)
         main.setStretchFactor(0, 3)
         main.setStretchFactor(1, 1)
+        main.setSizes([800, 400])
         self.setCentralWidget(main)
 
         self._menu_filter = _MenuTabFilter(self)
@@ -149,7 +153,7 @@ class MainWindow(QMainWindow):
         if self.focusWidget() is None or self.focusWidget() is self.menuBar():
             self.map.setFocus()
 
-    # Focus between the four regions --------------------------------------
+    # Focus between the regions -------------------------------------------
 
     def region_of(self, widget) -> str | None:
         while widget is not None:
@@ -181,6 +185,9 @@ class MainWindow(QMainWindow):
 
     def focusNextPrevChild(self, forward: bool) -> bool:
         current = self.region_of(self.focusWidget()) or "map"
+        if current == "menu":  # leaving the menu bar: on to the map, or back to Details
+            self.focus_region("map" if forward else "details")
+            return True
         i = self.REGIONS.index(current)
         self.focus_region(self.REGIONS[(i + (1 if forward else -1)) % len(self.REGIONS)])
         return True

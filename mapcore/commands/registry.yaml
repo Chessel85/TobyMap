@@ -38,6 +38,10 @@ commands:
   - {name: speech.repeat, label: Repeat the last announcement, key: Ctrl+Space, region: map, menu: Speech}
   - {name: speech.braille_test, label: Send a Braille-only message, key: "", region: global, menu: Speech}
   - {name: help.keys, label: Keys, key: F1, region: global, menu: Help}
+  # Tab does not reach the menu bar (DP93). The desktop uses Alt; browsers keep
+  # Alt for themselves, so the web version has this key. It focuses the first
+  # menu, Map, without opening it.
+  - {name: focus.menu, label: Go to the menu bar, key: Ctrl+Alt+M, region: global, menu: "", platforms: [web]}
   - {name: diagnostics.timing, label: Drawing speed, key: "", region: global, menu: Help}
   - {name: help.about, label: About TobyMap, key: "", region: global, menu: Help}
   # Sent by the shells for mouse clicks and panel selection, so not in a menu.

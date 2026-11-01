@@ -35,25 +35,47 @@ def test_start_is_announced_and_map_has_focus(window):
     assert window.details.accessibleName() == "Details"
 
 
-def test_tab_cycles_the_four_regions_and_wraps(window, qtbot):
+def test_tab_cycles_the_three_regions_and_wraps(window, qtbot):
+    # The menu bar is reached with Alt, not Tab (DP93).
     seen = []
     for _ in range(3):
         qtbot.keyClick(QApplication.focusWidget(), Qt.Key.Key_Tab)
         seen.append(region(window))
-    assert seen == ["panel", "details", "menu"]
-    window.focus_region("map")
+    assert seen == ["panel", "details", "map"]
     qtbot.keyClick(window.map, Qt.Key.Key_Tab, Qt.KeyboardModifier.ShiftModifier)
-    assert region(window) == "menu"
+    assert region(window) == "details"
 
 
-def test_tab_to_the_menu_bar_opens_the_map_menu(window, qtbot):
-    window.focus_region("menu")
-    QApplication.processEvents()
+def test_tab_in_an_open_menu_closes_it_and_goes_to_the_map(window, qtbot):
     menu = window.menuBar().actions()[0].menu()
+    menu.popup(window.mapToGlobal(window.rect().topLeft()))
+    QApplication.processEvents()
     assert menu.isVisible()
     qtbot.keyClick(menu, Qt.Key.Key_Tab)
     assert not menu.isVisible()
     assert region(window) == "map"
+
+
+def test_tab_on_the_menu_bar_goes_to_the_map(window, qtbot):
+    window.focus_region("menu")
+    QApplication.processEvents()
+    window.focusNextPrevChild(True)
+    assert region(window) == "map"
+    window.focus_region("menu")
+    window.focusNextPrevChild(False)
+    assert region(window) == "details"
+
+
+def test_details_entries_are_one_line_each(window):
+    # A wrapped entry was read twice by NVDA when arrowing down (PO feedback).
+    window.session.state.lat, window.session.state.lon = 51.0, 10.0  # Germany
+    window.details.setPlainText(window.session.details())
+    window.resize(400, 300)
+    QApplication.processEvents()
+    block = window.details.document().begin()
+    while block.isValid():
+        assert block.layout().lineCount() == 1, block.text()
+        block = block.next()
 
 
 def test_tab_from_details_backwards_reaches_the_panel(window, qtbot):

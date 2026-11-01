@@ -1,4 +1,4 @@
-// The web shell (architecture 5.6): the four regions around the core in the
+// The web shell (architecture 5.6): the regions around the core in the
 // worker. It only translates keys and clicks into commands, and the core's
 // responses into speech, painting and focus. Every key comes from the command
 // registry, and every word from the core.
@@ -12,7 +12,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const REGIONS = ["map", "panel", "details", "menu"];
+const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 
 const client = new WorkerClient(new URL("../worker.js", import.meta.url));
 let registry = null, words = null, menubar = null, tree = null;
@@ -50,6 +50,7 @@ function handle(result) {
   }
   if (r.focus) {
     if (r.focus.region === "panel") tree.focusGroup(r.focus.group);
+    else if (r.focus.region === "menu") menubar.focusBar();
     else if (r.focus.region === "details") {
       details.setSelectionRange(0, 0);  // before focus, so NVDA reads the first line on arrival
       details.scrollTop = 0;
@@ -80,7 +81,8 @@ function showError(error) {
   console.error(error);
 }
 
-// Focus between the four regions, wrapping round (UX section 2).
+// Focus between the map, the Information panel and Details, wrapping round
+// (UX section 2). Ctrl+Alt+M reaches the menu bar, and Tab leaves it (DP93).
 function regionOf(node) {
   if (!node) return null;
   if (mapEl.contains(node)) return "map";
@@ -94,11 +96,11 @@ function focusRegion(region) {
   if (region === "map") mapEl.focus();
   else if (region === "panel") tree.focusCurrent();
   else if (region === "details") details.focus();
-  else if (region === "menu") menubar.focusFirst();
 }
 
 function moveRegion(step) {
   const here = regionOf(document.activeElement) || "map";
+  if (here === "menu") return focusRegion(step > 0 ? "map" : "details");
   focusRegion(REGIONS[(REGIONS.indexOf(here) + step + REGIONS.length) % REGIONS.length]);
 }
 

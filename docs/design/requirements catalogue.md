@@ -266,7 +266,7 @@ The high level requirements document stays the product owner's own statement of 
 * Source: HLR, DP13
 * Priority: Must. Status: Agreed.
 * Acceptance criteria:
-  * Tab and Shift+Tab move through all regions of the window, and focus always lands somewhere that is spoken.
+  * Tab and Shift+Tab move through the map, the Information panel and Details, and focus always lands somewhere that is spoken. The menu bar is reached with Alt on the desktop and Ctrl+Alt+M in the web version, and Tab leaves it (DP93).
   * The map region works in application (focus) mode, so arrow keys reach the application rather than the screen reader's browse mode.
 
 ### ACC-3 Remappable keys and key help

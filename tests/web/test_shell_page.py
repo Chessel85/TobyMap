@@ -52,14 +52,20 @@ def test_the_globe_is_painted(app):
     assert colour != [0x1b, 0x1f, 0x24]
 
 
-def test_tab_cycles_the_four_regions_and_wraps(app):
+def test_tab_cycles_the_three_regions_and_wraps(app):
+    # The menu bar is reached with Ctrl+Alt+M, not Tab (DP93).
     seen = []
-    for _ in range(4):
+    for _ in range(3):
         app.keyboard.press("Tab")
         seen.append(region(app))
-    assert seen == ["panel", "details", "menu", "map"]
+    assert seen == ["panel", "details", "map"]
     app.keyboard.press("Shift+Tab")
-    assert region(app) == "menu"
+    assert region(app) == "details"
+
+
+def go_to_menu_bar(app):
+    app.keyboard.press("Control+Alt+M")
+    app.wait_for_function("document.getElementById('menubar').contains(document.activeElement)")
 
 
 def test_arrow_keys_turn_the_globe_and_speak(app):
@@ -131,13 +137,14 @@ def test_details_by_tab_starts_on_the_first_line_after_a_move(app):
 
 
 def test_menu_bar_from_the_registry(app):
-    app.keyboard.press("Shift+Tab")
-    assert region(app) == "menu"
+    go_to_menu_bar(app)
     tops = app.locator("#menubar > [role=menuitem]").all_text_contents()
     assert tops == ["Map", "Speech", "Help"]
-    # Tab to the menu bar opens the Map menu, as on the desktop.
-    assert app.evaluate("document.activeElement.textContent").startswith("Turn the globe north")
-    app.keyboard.press("ArrowRight")  # Speech menu
+    # Ctrl+Alt+M goes to Map without opening it (DP93).
+    assert app.evaluate("document.activeElement.textContent") == "Map"
+    assert app.locator(".menu:not([hidden])").count() == 0
+    app.keyboard.press("ArrowRight")  # Speech
+    app.keyboard.press("ArrowDown")   # opens it, on its first item, Repeat
     app.keyboard.press("ArrowDown")
     assert app.evaluate("document.activeElement.textContent") == "Send a Braille-only message"
     app.keyboard.press("Enter")
@@ -146,8 +153,15 @@ def test_menu_bar_from_the_registry(app):
     assert region(app) == "map"
 
 
-def test_tab_leaves_an_open_menu(app):
+def test_tab_leaves_the_menu_bar_and_an_open_menu(app):
+    go_to_menu_bar(app)
+    app.keyboard.press("Tab")
+    assert region(app) == "map"
+    go_to_menu_bar(app)
     app.keyboard.press("Shift+Tab")
+    assert region(app) == "details"
+    go_to_menu_bar(app)
+    app.keyboard.press("Enter")
     assert app.locator(".menu:not([hidden])").count() == 1
     app.keyboard.press("Tab")
     assert region(app) == "map"

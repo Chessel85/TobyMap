@@ -80,6 +80,7 @@ class MapSession:
             "panel.nearby": lambda **a: Response(focus={"region": "panel", "group": "nearby"}, panel_stale=True),
             "panel.select": self._select,
             "details.show": lambda **a: Response(focus={"region": "details"}, details_stale=True),
+            "focus.menu": lambda **a: Response(focus={"region": "menu"}),
             "speech.repeat": self._repeat,
             "speech.braille_test": self._braille_test,
             "help.keys": self._help_keys,

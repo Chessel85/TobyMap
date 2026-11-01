@@ -154,6 +154,18 @@ def test_help_keys_dialog_lists_commands_for_the_platform(session):
     assert r.dialog["title"] == "Keys"
     assert "Turn the globe north: Up" in r.dialog["text"]
     assert "Exit" not in r.dialog["text"]
+    assert "Go to the menu bar: Ctrl+Alt+M" in r.dialog["text"]
+
+
+def test_menu_bar_key_is_web_only_and_moves_focus_silently(session):
+    # DP93: Tab no longer reaches the menu bar; the desktop uses Alt.
+    from mapcore.commands import registry
+    assert registry.keymap("web")["global"]["Ctrl+Alt+M"] == "focus.menu"
+    assert "Ctrl+Alt+M" not in registry.keymap("desktop")["global"]
+    session.start()
+    r = session.run("focus.menu")
+    assert r.focus == {"region": "menu"}
+    assert r.announcements == []
 
 
 def test_timing_report(session):

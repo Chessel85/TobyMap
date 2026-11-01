@@ -58,6 +58,11 @@ These keys work when the map has focus:
 * Ctrl+Space: repeat the last announcement.
 * F1: the keys, in a dialog with a Close button. F1 works anywhere.
 
+To reach the menu bar:
+
+* Desktop: Alt, or Alt+M, Alt+S or Alt+H for one menu.
+* Web: Ctrl+Alt+M goes to the Map menu, without opening it (DP93).
+
 Menu only:
 
 * Speech, Send a Braille-only message.
@@ -73,13 +78,13 @@ Turning stops at the poles in this spike ("North Pole. Sea"). Crossing a pole pr
 
 ### Desktop: install it
 
-1. Run TobyMap-0.0.2-setup.exe from the dist_installer folder in the repository.
+1. Run TobyMap-0.0.3-setup.exe from the dist_installer folder in the repository.
 2. Windows SmartScreen may say the app is unrecognised, because it is not signed. Choose More info, then Run anyway (DP95).
 3. The installer has four standard pages: Welcome, Install location, Installing, and Finished. There is no administrator prompt. It installs into your own Programs folder.
 4. On the last page, "Start TobyMap now" is ticked. You can also tick "Put a shortcut on the desktop".
 5. Afterwards, TobyMap is in the Start menu. Uninstall it from Settings, Apps, or with "Uninstall TobyMap" in its folder.
 
-There is also a portable zip, TobyMap-0.0.2-portable.zip. Unzip it anywhere and run TobyMap.exe.
+There is also a portable zip, TobyMap-0.0.3-portable.zip. Unzip it anywhere and run TobyMap.exe.
 
 ### Web: on this laptop
 
@@ -110,8 +115,9 @@ Please try each of these in the desktop version, then in Firefox and Chrome.
 
 ### Moving between regions
 
-* Tab: Information panel. Tab: Details. Tab: the menu bar, with the Map menu open. Tab: back to the map.
+* Tab: Information panel. Tab: Details. Tab: back to the map. Tab does not reach the menu bar (DP93).
 * Shift+Tab goes the other way.
+* From the menu bar, or an open menu, Tab goes to the map and Shift+Tab goes to Details.
 * Does NVDA say the name of each region as you arrive?
 
 ### The Information panel
@@ -173,11 +179,37 @@ You tested the desktop version and Firefox with NVDA. You have no Braille displa
 
 ### Still open
 
-* Say current line works in the Information panel and Details on the desktop, but not in Firefox. The cause is not known yet. A read-only text box may keep NVDA in browse mode in Firefox. More detail from you is needed.
+* Say current line in Firefox. See the second test, below.
 
 ### Your answers
 
 * Announcement methods (DP94): you could not tell ariaNotify and the live regions apart. So the web version keeps ariaNotify, with the live regions as the fall-back.
+
+## Results of your second test, 1 November 2026
+
+### Fixes confirmed
+
+* The map is named after the place, on the desktop and in Firefox.
+* Alt+M, Alt+S and Alt+H on the desktop.
+* NVDA speaks closed groups in the desktop Information panel.
+
+### Found, and fixed since
+
+* On the desktop, with Germany selected, NVDA read some lines of Details twice when arrowing down: sovereign state, population estimate, label point and source.
+  * Cause: those lines were too long for the narrow Details box, so each wrapped onto two or more screen lines. NVDA read the whole entry again on each screen line.
+  * Fix: Details no longer wraps, so each entry is one line, and the side panel starts wider. A new test checks that every entry for Germany is one line, even in a small window.
+* Tab no longer goes to the menu bar, as you asked in DP93. It moves round the map, the Information panel and Details.
+  * The desktop reaches the menu bar with Alt.
+  * The web version has Ctrl+Alt+M, which goes to the Map menu without opening it. Its key is in the command registry, for the web only.
+  * Tab leaves the menu bar or an open menu for the map, so Escape is still never needed.
+
+### Still open
+
+* Say current line, NVDA+Up arrow, is silent in Firefox in the Information panel and in Details, in focus mode. It works on the desktop.
+  * The cause is not known, and I cannot test with NVDA myself.
+  * A small test page, tools\spikes\s5\say_line.html, shows two versions of Details and two of the tree. Open it straight from File Explorer in Firefox, with no server needed. Pressing NVDA+Up on each one will show which version Firefox reads.
+  * Details 1 and Tree 1 are as in TobyMap now. Details 2 is a text box that refuses typing but is not marked read-only to Firefox. Tree 2 has each item's words directly inside it.
+* A key to go to the map from anywhere (DP97).
 
 ## Results from the automatic checks
 

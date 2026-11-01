@@ -55,10 +55,10 @@ export class MenuBar {
     this.el.hidden = false;
   }
 
-  // Reaching the menu bar with Tab opens the first menu, as the desktop
-  // version does, so both behave the same (UX section 2).
-  focusFirst() {
-    this._open(0, true);
+  // Ctrl+Alt+M goes to the first menu, Map, without opening it (DP93).
+  focusBar() {
+    this.closeAll(false);
+    this._focusTop(0);
   }
 
   contains(node) {

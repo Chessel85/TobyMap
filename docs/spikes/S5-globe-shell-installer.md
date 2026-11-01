@@ -58,7 +58,7 @@ These keys work when the map has focus:
 * D: go to Details.
 * Ctrl+Space: repeat the last announcement.
 * F1: the keys, in a dialog with a Close button. F1 works anywhere.
-* Ctrl+Alt+G: go to the map, from anywhere (DP97).
+* Ctrl+Alt+Space: go to the map, from anywhere (DP97).
 
 To reach the menu bar:
 
@@ -80,13 +80,13 @@ Turning stops at the poles in this spike ("North Pole. Sea"). Crossing a pole pr
 
 ### Desktop: install it
 
-1. Run TobyMap-0.0.4-setup.exe from the dist_installer folder in the repository.
+1. Run TobyMap-0.0.5-setup.exe from the dist_installer folder in the repository.
 2. Windows SmartScreen may say the app is unrecognised, because it is not signed. Choose More info, then Run anyway (DP95).
 3. The installer has four standard pages: Welcome, Install location, Installing, and Finished. There is no administrator prompt. It installs into your own Programs folder.
 4. On the last page, "Start TobyMap now" is ticked. You can also tick "Put a shortcut on the desktop".
 5. Afterwards, TobyMap is in the Start menu. Uninstall it from Settings, Apps, or with "Uninstall TobyMap" in its folder.
 
-There is also a portable zip, TobyMap-0.0.4-portable.zip. Unzip it anywhere and run TobyMap.exe.
+There is also a portable zip, TobyMap-0.0.5-portable.zip. Unzip it anywhere and run TobyMap.exe.
 
 ### Web: on this laptop
 
@@ -328,5 +328,10 @@ What this means:
 
 ### Added since
 
-* V says the size of the visible map, as you asked: across and up and down through the centre, along the Earth's surface. It follows the window's size. V is also planned for the grid value in the draft keyboard map, so DP99 asks which should have it.
-* Ctrl+Alt+G goes to the map from anywhere, in both versions (DP97). It is also in the Map menu, as "Go to the map". It says nothing itself, because NVDA reads the map's name, the place, on arrival.
+* V says the size of the visible map, as you asked: across and up and down through the centre, along the Earth's surface. It follows the window's size. You chose V for the visible map, and Z for the grid value, which the draft keyboard map had on V (DP99).
+* Ctrl+Alt+Space goes to the map from anywhere, in both versions (DP97). It is also in the Map menu, as "Go to the map". It says nothing itself, because NVDA reads the map's name, the place, on arrival.
+
+### After your fourth test, 1 November
+
+* Ctrl+Alt+G opened Firefox on your laptop, so going to the map is now Ctrl+Alt+Space, as you suggested. No Windows shortcut on your laptop uses Ctrl+Alt+G, so another program must be catching it.
+* Shift+Space and R no longer reached the Information panel for you. I could not make this happen in Firefox or Chromium, so it may have been Ctrl+Alt+G opening a Firefox window and taking your later keys. Waiting for you to try again.

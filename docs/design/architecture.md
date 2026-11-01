@@ -74,7 +74,14 @@ Containment, neighbours with shared border lengths, overlaps, the order in which
 In the browser, Pyodide and the core run in a Web Worker, so the page never freezes and speech is never delayed. The worker reads packs with synchronous range requests and caches them in the browser's private file storage.
 
 ### AD-10 Spatial sound and the spatial voice behind one interface
-The core works out where each sound is (direction, loudness and muffling, SON-9) without playing it. A sound backend on each platform plays it. The web uses the browser's built-in HRTF. For the desktop, Phase 0 spike S1 chooses between Synthizer (which AtMap used), OpenAL Soft and the project's own HRTF processing. The spatial voice (SON-3) is chosen by spike S6 (DP82). eSpeak NG is the starting candidate.
+The core works out where each sound is (direction, loudness and muffling, SON-9) without playing it. A sound backend on each platform plays it. The spatial voice (SON-3) is chosen by spike S6 (DP82).
+
+Decided by spike S1 (DP100, 1 November 2026): two sound modes, both from the project's own processing, with no outside sound library.
+
+* Stereo with pitch, the default: equal-power panning, with sounds behind the user about three semitones lower.
+* HRTF with pitch, an option: the MIT KEMAR responses, with the same lower pitch behind.
+
+Without the pitch cue, every HRTF tried, including Synthizer's and OpenAL Soft's, left sounds behind unclear to the PO. On the desktop the sounds are shaped with NumPy and played through sounddevice. The web version does the same with Web Audio: a stereo panner, or its HRTF panner, with the same pitch change. How the pitch cue works with spoken labels, whose own pitch should not change, is tried in Phase 1. Full detail is in docs/spikes/S1-spatial-sound.md, and the rest of the architecture is updated in P0-T11.
 
 ### AD-11 The graticule is data, not code
 Lines of latitude and longitude at every 1 degree, plus the special lines, are written into the base pack by the pipeline. The interval the user chooses filters them. This keeps SCP-7's rule that the graticule is added by configuration alone, with no code specific to it. It costs well under 1 MB.

@@ -205,4 +205,4 @@ def test_ctrl_alt_g_goes_to_the_map_from_anywhere(window, qtbot):
     window.focus_region("panel")
     window.dispatch("focus.map")
     assert region(window) == "map"
-    assert window.actions_by_name["focus.map"].shortcut().toString() == "Ctrl+Alt+G"
+    assert window.actions_by_name["focus.map"].shortcut().toString() == "Ctrl+Alt+Space"

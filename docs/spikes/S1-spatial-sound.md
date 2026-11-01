@@ -10,7 +10,7 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
 
 * Six desktop engines were compared on 1 November: the own HRTF processing, with and without a lower pitch behind, stereo with pitch, OpenAL Soft, and Synthizer in two set-ups.
 * Stereo with pitch scored best, 8 out of 8. HRTF with a lower pitch behind came next. Every HRTF without the pitch cue, Synthizer's included, left sounds behind unclear.
-* Recommendation: offer stereo with pitch, as the default, and HRTF with pitch, both from TobyMap's own processing, with no outside sound library (DP100).
+* Decided (DP100, you agreed on 1 November): stereo with pitch as the default, and HRTF with pitch as an option, both from TobyMap's own processing, with no outside sound library. Recorded in architecture AD-10.
 * The browser demo has not been listened to yet.
 
 ## The candidates
@@ -183,5 +183,4 @@ You used the chime with every engine, in side by side and quizzes. In the demo's
 
 ## Waiting for you
 
-* Your view on the recommendation above, which is DP100.
 * The browser demo, when convenient. It does not have the pitch cue yet; I can add it if you would like to compare the web version too.

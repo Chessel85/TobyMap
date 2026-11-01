@@ -210,10 +210,10 @@ def test_ctrl_alt_g_goes_to_the_map_from_anywhere(app):
     app.keyboard.press("Tab")
     app.keyboard.press("Tab")
     assert region(app) == "details"
-    app.keyboard.press("Control+Alt+G")
+    app.keyboard.press("Control+Alt+Space")
     app.wait_for_function("document.activeElement.id === 'map'")
     go_to_menu_bar(app)
     app.keyboard.press("Enter")  # an open menu
-    app.keyboard.press("Control+Alt+G")
+    app.keyboard.press("Control+Alt+Space")
     app.wait_for_function("document.activeElement.id === 'map'")
     assert app.locator(".menu:not([hidden])").count() == 0

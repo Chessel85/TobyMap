@@ -37,7 +37,7 @@ commands:
   - {name: details.show, label: Go to Details, key: D, region: map, menu: Map}
   # From anywhere, so the map is one key away (DP97). NVDA reads the map's name,
   # the place, on arrival, so the core says nothing.
-  - {name: focus.map, label: Go to the map, key: Ctrl+Alt+G, region: global, menu: Map}
+  - {name: focus.map, label: Go to the map, key: Ctrl+Alt+Space, region: global, menu: Map}
   - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
   - {name: speech.repeat, label: Repeat the last announcement, key: Ctrl+Space, region: map, menu: Speech}
   - {name: speech.braille_test, label: Send a Braille-only message, key: "", region: global, menu: Speech}

@@ -289,7 +289,8 @@ These are not map data, but they are used to build or play TobyMap, so their lic
 * Earcons supplied by the PO, in the sounds folder, which is not in git:
   * bump.wav: the blocked sound, when the user cannot go that way, such as at a pole or when turning in north-fixed (UX sections 5.2 and 5.3).
   * click.wav: the soft tick, when the user moves but nothing changes, such as crossing the UK in 100 metre steps (UX section 3.1, DP43).
-  * Their licence is the PO's to confirm before a public release: they need to be the PO's own, or under a licence compatible with GPL-3.0.
+  * click.wav is the PO's own recording of their voice, so the PO can choose its licence.
+  * bump.wav comes from ZapSplat, under the PO's subscription. ZapSplat's licence allows its sounds in the PO's own projects, but it is not an open licence, so the file cannot be put under GPL-3.0 or shared on its own. It stays out of git, and before a public release, whether the installer and the public web version may include it must be checked against ZapSplat's current terms. An openly licensed or home-made bump would avoid the question.
 
 ## Research references
 

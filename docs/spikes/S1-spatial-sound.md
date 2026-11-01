@@ -49,6 +49,7 @@ Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The bro
   * Cython 3 needs a compatibility setting for Synthizer's callbacks, which were written for Cython 0.29.
   * The library is built with the same C runtime as Python.
 * The libraries it bundles, such as miniaudio, have permissive licences. The licence check records it.
+* It is set up as AtMap's own C++ wrapper set it up (CSpatialSource and CSoundEngine): a 3D source with the HRTF panner, placed by east and north, with the listener facing north. So it should sound as it did in AtMap.
 * Synthizer can only play to the sound device, with no way to render into memory. So in the demo it plays live, and the tests check only the sound handed to it.
 * As with the other engines, its own distance model is off, and the demo applies the SON-9 loudness and muffling. Only its direction processing is compared.
 * For TobyMap itself, being archived counts against it: any fault found later would be ours to fix, in C++.

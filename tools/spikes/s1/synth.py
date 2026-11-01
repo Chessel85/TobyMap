@@ -14,6 +14,7 @@ change the result.)
 from __future__ import annotations
 
 import atexit
+import math
 import time
 from dataclasses import dataclass
 
@@ -47,6 +48,9 @@ class _Player:
         synthizer.initialize()
         self.context = synthizer.Context()
         self.context.default_panner_strategy.value = synthizer.PannerStrategy.HRTF
+        # AtMap's listener: at the origin, facing +y (north), with +z up.
+        self.context.position.value = (0.0, 0.0, 0.0)
+        self.context.orientation.value = (0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
         # Synthizer's audio thread keeps Python running until it is shut down.
         atexit.register(self.close)
 
@@ -59,8 +63,11 @@ class _Player:
     def play(self, live: Live) -> None:  # pragma: no cover - opens the audio device
         syz = self.syz
         buffer = syz.Buffer.from_float_array(live.rate, 1, np.ascontiguousarray(live.mono, dtype=np.float32))
-        # Synthizer's azimuth is in degrees clockwise from ahead, like the bearings here.
-        source = syz.AngularPannedSource(self.context, syz.PannerStrategy.HRTF, azimuth=live.bearing % 360)
+        # As AtMap's CSpatialSource: a Source3D with the HRTF panner, placed by
+        # x (east) and y (north), with the listener facing +y and z up.
+        b = math.radians(live.bearing)
+        source = syz.Source3D(self.context, syz.PannerStrategy.HRTF, position=(math.sin(b), math.cos(b), 0.0))
+        source.distance_model.value = syz.DistanceModel.NONE  # SON-9 distance is already applied
         generator = syz.BufferGenerator(self.context)
         generator.buffer.value = buffer
         source.add_generator(generator)

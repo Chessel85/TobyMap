@@ -22,6 +22,10 @@ Older documents written before this glossary, such as architecture section 6 and
 * Point: one corner on the outline of a shape. The number of points is a measure of how detailed, and how large, a shape is.
 * Border: the line where two areas meet on land.
 * Coast: where an area meets the sea, after trimming.
+* Shared island: an island whose land is in two countries, with a border across it, such as Märket, shared by Sweden and Finland.
+* The 180 degree line: the meridian at 180 degrees east and west (the antimeridian). OSM splits every shape that crosses it, so Fiji's shape has parts either side.
+* Artificial edge: an edge of a shape that is only there because the shape was split, along the 180 degree line or at the South Pole. It is never a border or coast, never announced and never outlined (AD-17).
+* Counties record: the list, in mapdata/config/county_levels.yaml, of which levels make up each country's Counties layer (DP101). The build writes it once per country; a corrected entry is never overwritten.
 
 ## The land polygons
 

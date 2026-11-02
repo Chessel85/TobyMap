@@ -52,3 +52,48 @@ These results are from spike S2, stage 1.
 * Lakes and rivers stay land. The land polygons remove only the sea, so Lough Neagh is still inside Northern Ireland. That's right for saying where you are, but water will need its own layer.
 * Estuaries depend on mappers. Where a river meets the sea, mappers decide where the coastline crosses the river. Upstream of that point the river counts as land, so for example the Thames counts as land through London.
 * The dates don't match. In spike S2, the boundaries came from the planet file of November 2025, and the land polygons from October 2026. Where either changed in that year, the two might not quite meet. The checks found no problem, but the real pipeline should use a planet file and land polygons from close dates. This is listed for Phase 1 in the S2 findings (docs/spikes/S2-countries-coastlines.md).
+
+## How the build shares its work between the processor's cores
+
+### The problem
+
+Your laptop's processor has 4 cores, and each core can run two threads, so 8 things can happen at once. In spike S2, most of the build ran on one thread. While stage 3 was running, the laptop showed about 30% of the processor in use and 40% of the memory, and some steps took the better part of an hour. At that speed, building the whole world could take days.
+
+The graphics card can't help. It is very fast at the arithmetic used in neural networks, which is why the OMR project uses it, but the map build does polygon geometry: cutting, joining and comparing shapes. The library that does this, GEOS, only runs on the processor.
+
+### Workers
+
+The build now works like a small office. The main process is the manager. It splits a slow step into many small jobs and hands them to worker processes, which run at the same time on different cores. Each worker sends its result back, and only the manager writes the files and the report, so nothing gets mixed up. This is the same method OMR uses.
+
+These steps are shared out among workers:
+
+* Cutting each area to the land. Each area is one job. The biggest go first, so a large country isn't left until the end.
+* Checking that neighbours meet exactly. Each layer is one job.
+* Writing the pack. The shapes are cut into pack tiles in batches, then the pack tiles are encoded in batches. Both kinds of pack (WKB and compact coordinates) are now written from one cutting, where before each was cut separately.
+* Drawing the pictures. Each picture is one job, and the globe views are another.
+
+### How many workers
+
+* 3 by default, while you're using the laptop. The laptop stays usable, though a bit slower. Running all 8 threads flat out also makes the chip hot, and it then slows itself down.
+* 6 with `--away`, when nobody is using the laptop.
+
+### Memory comes first
+
+Each worker holds its own copy of the shapes it's working on, so more workers means more memory. On 2 November, two builds running at once ran the laptop out of memory, and Claude Code stopped them both. So:
+
+* a new job only starts while at least 6 GB of memory is free. When memory is short, fewer jobs run at once, and the build carries on more slowly instead of stopping;
+* if free memory falls below 3 GB, the build stops by itself, writes its report so far and a note of where it stopped, and keeps everything it has finished, so the next run carries on from there;
+* this check pauses while the planet file is being read, because reading it fills memory with a copy of the file that Windows can take back at any time.
+
+### Before a heavy build
+
+Claude Code tells you before a heavy build starts, so you know the laptop will be slower: which build, how many cores, and roughly how long. The first lines of the build's report say the same, including how long the last run of that build took.
+
+### What made the biggest difference
+
+Sharing the work between cores helps, but on 2 November the biggest gains came from doing less work, not from more cores:
+
+* finding land in no county: from over half an hour to seconds, by working first with the boundaries as read, which have few points at sea, and only then cutting the small leftover to the land;
+* matching Norway's 150,000 island names to its land: from over 25 minutes to seconds, by preparing each part of the land once;
+* checking that neighbours meet: from over half an hour per layer to under two minutes, by checking only within 5 km of the land borders;
+* looking up a place in the pack: from 0.75 seconds to 0.02 seconds, by not letting one pack tile hold too many points.

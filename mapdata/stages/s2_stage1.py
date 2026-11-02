@@ -316,6 +316,11 @@ def pictures(out_dir: Path, layers: dict, log: Log) -> list[str]:
         p = QPainter(img)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         for k, g in enumerate(shapes):
+            # Only what is inside the picture is drawn: trimming first saves
+            # drawing every point of a whole country for a small close-up.
+            g = shapely.clip_by_rect(g, w - (e - w) * 0.01, s - (n - s) * 0.01, e + (e - w) * 0.01, n + (n - s) * 0.01)
+            if g.is_empty:
+                continue
             g = shapely.simplify(g, (e - w) / width / 2)
             path = QPainterPath()
             path.setFillRule(Qt.FillRule.OddEvenFill)

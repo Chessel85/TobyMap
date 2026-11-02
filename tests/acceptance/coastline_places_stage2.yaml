@@ -1,0 +1,23 @@
+# Coastline check places for spike S2 stage 2: Norway and Sweden.
+# Format as in coastline_places.yaml. A name matches an area's English name
+# or its local name.
+
+places:
+  - {name: The Skagerrak off Arendal, lat: 58.30, lon: 9.30, sea: true}
+  - {name: The North Sea west of Sotra, lat: 60.40, lon: 4.55, sea: true}
+  - {name: The Gulf of Bothnia, lat: 62.50, lon: 19.50, sea: true}
+  - {name: The Barents Sea north of Varanger, lat: 70.80, lon: 30.50, sea: true}
+  - {name: Isfjorden at Longyearbyen, lat: 78.30, lon: 15.30, sea: true}
+  - {name: Oslo, lat: 59.9139, lon: 10.7522, includes: [Norway, Oslo]}
+  - {name: Bergen, lat: 60.3913, lon: 5.3221, includes: [Norway, Vestland, Bergen]}
+  - {name: Svolvær in Lofoten, lat: 68.2343, lon: 14.5683, includes: [Norway, Nordland]}
+  - {name: Tromsø, lat: 69.6492, lon: 18.9553, includes: [Norway]}
+  - {name: Longyearbyen in Svalbard, lat: 78.2232, lon: 15.6267, includes: [Norway, Svalbard]}
+  - {name: Halden by the Swedish border, lat: 59.1230, lon: 11.3870, includes: [Norway]}
+  - {name: Stockholm, lat: 59.3293, lon: 18.0686, includes: [Sweden, Stockholms län]}
+  - {name: Visby on Gotland, lat: 57.6348, lon: 18.2948, includes: [Sweden, Gotlands län]}
+  - {name: Kiruna, lat: 67.8558, lon: 20.2253, includes: [Sweden, Norrbottens län]}
+  - {name: Strömstad by the Norwegian border, lat: 58.9395, lon: 11.1712, includes: [Sweden]}
+  - {name: Haparanda, beside Finland, lat: 65.8355, lon: 24.1368, includes: [Sweden]}
+  - {name: Tornio, beside Sweden, lat: 65.8480, lon: 24.1460, includes: [Finland]}
+  - {name: Kirkenes near Russia, lat: 69.7271, lon: 30.0450, includes: [Norway]}

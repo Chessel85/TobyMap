@@ -1,6 +1,245 @@
 # Spike S2 findings: countries, coastlines and islands
 
-Task P0-T5. Architecture sections 6.12 and 12.3. Status note of 1 November 2026, updated in the evening. Stage 1 is complete: the seventh run passed every check below. Later stages wait for the PO's review and discussion point 101.
+Task P0-T5. Architecture sections 6.12, 6.13 and 12.3. Stage 1 is complete (1 November). Stage 2 is complete, and stage 3 nearly so (2 November): see the next section. Stage 4, Argentina, is parked.
+
+## Stages 2 and 3, 2 November
+
+### What was built
+
+* One build program now runs both stages from a settings file each: `.venv\Scripts\python.exe -m mapdata spike-s2 2` for Norway and Sweden, and `spike-s2 3` for Fiji, Russia, the USA, Kiribati and Antarctica. The settings are in mapdata/config/s2_stage2.yaml and s2_stage3.yaml, and the check places in tests/acceptance/coastline_places_stage2.yaml and coastline_places_stage3.yaml.
+* It reads the planet file in its own short-lived process, as stage 1 recommended. That worked: each read took a few minutes and the memory was given back when the process ended.
+* The reading boxes for the land polygons are now worked out from the countries' shapes and read in one pass: 5 for stage 2, 35 for stage 3.
+* The counties layer follows discussion point 101, with the counties record in mapdata/config/county_levels.yaml.
+* Areas are now worked out on the WGS 84 ellipsoid, not a sphere. A one-degree square at the equator is 12,308 km², which is the right figure; the old sphere figure was 12,364 km².
+* New checks: islands shared between countries, land far from a country's largest part (for country units), and, for stage 3, the 180 degree line: bounding box and centre across the line, area against Wikidata, isolated drawing, the globe, and artificial edges.
+
+### A fault in the OSM data: Russia's outline is not closed
+
+* In the planet file of 22 November 2025, Russia's level 2 outline has one open end, 11 km wide, on the Perekop isthmus at the north of Crimea, between 46.1347 north, 33.6147 east and 46.2283 north, 33.6327 east.
+* Because of that, GeoDesk could not form Russia's mainland at all. Its shape was 30 islands and the part of Chukotka east of the 180 degree line, with no mainland. Moscow was not in Russia.
+* Fix in the build: when a country's outline has an open end shorter than half a degree, the member ways are joined and the gap is closed with a straight line. The repair is listed in the report. With it, Russia is one shape of 31 parts, and Moscow, Murmansk, Kaliningrad and Anadyr are all in it.
+* The other countries checked, the USA, Fiji, Kiribati, Antarctica and Norway, have closed outlines.
+* In this planet file, Russia's outline includes Crimea. This is a fact about the OSM data, recorded here for the PO.
+* For Phase 1: the pipeline must check every outline is closed, and close or correct open ones with a correction rule (DMT-4), because one missing way can lose a whole country without any error.
+
+### Stage 2: Norway and Sweden, complete
+
+The run on the afternoon of 2 November passed every check. The report is in the data folder's tobymap\output\s2-stage2 folder, with the packs and six pictures.
+
+Areas against Wikidata:
+
+* Norway: 384,749 km² of land, Wikidata 385,207 km², 0.1% less. Norway's shape includes Svalbard, Jan Mayen and Bouvet Island.
+* Sweden: 450,198 km², Wikidata 447,425 km², 0.6% more.
+* Finland, as a neighbour: 338,481 km², Wikidata 338,478 km².
+
+The counties layer, by the rule of discussion point 101:
+
+* Neither country has anything at level 6. Norway has 357 municipalities at level 7, and Sweden 290, so both counties layers come from level 7 by the general rule, with no setting needed.
+* Svalbard, Jan Mayen and Bouvet Island have no municipalities, so each is used as its own county, as the rule says: 60,531 km², 377 km² and 49 km².
+* No land is left in no county.
+* Both countries are now in the counties record, mapdata/config/county_levels.yaml. The second run read them from the record instead of working them out.
+
+Gaps:
+
+* No land within about 1 km of Norway or Sweden is in no country.
+* No land in either country is in no region (level 4).
+
+Islands:
+
+* Norway's land is in 118,845 separate parts, with 7.4 million points. OSM has 150,133 named islands and islets there. 79,571 parts have a name and 39,273 have none. 17,444 parts are 1 hectare or more, of which 2,594 have no name; 758 are 1 km² or more.
+* Sweden's land is in 64,135 parts, with 3.2 million points. 41,432 have a name and 22,702 have none.
+
+Shared islands:
+
+* No island at sea is shared between Norway and Sweden. Lakes and rivers count as land here, so any island in a border lake or river is joined to the mainland around it, and is not a separate island.
+* Seven shared islands were found, all between Sweden and Finland, and all meet exactly across the border:
+  * four in the mouth of the Torne river near Haparanda and Tornio: Kataja (two places where its halves meet), Hamppuleiviskä with Tirro, and Leppikari, with one more too small to have a name;
+  * Märket, in the Åland Sea, in two parts, with borders of 311 m and 42 m across them. It is listed without a name, probably because island names were read only for Norway and Sweden, and Märket's name is likely recorded on the Finnish side.
+
+Parts far from the mainland (for country units):
+
+* Norway has land more than 1,000 km from its largest part in Svalbard (1,637 km² of it), Jan Mayen (377 km²) and Bouvet Island (49 km²).
+* But most of Svalbard, 59,000 km², is closer than 1,000 km to the mainland, so the 1,000 km rule from architecture 6.12 would not, on its own, find Svalbard as a country unit. The rule needs a different test, such as a sea gap of more than 300 km.
+* Sweden has no far parts.
+
+Neighbours meeting exactly (AD-16):
+
+* All five layers meet exactly after cleaning and after simplifying, with no overlap: the countries, Norway's regions and counties, and Sweden's regions and counties.
+* Cleaning moved 2.9 km² among Norway's municipalities, and nothing measurable elsewhere.
+* The check now looks only within 5 km of the land borders, where neighbours meet. Checking along every coast too took over half an hour per layer for Norway.
+
+Packs and places:
+
+* All 18 check places pass, including Oslo, Bergen, Longyearbyen, Stockholm, Visby, Haparanda and Tornio, and five points at sea.
+* Compact coordinates make the pack 4.9 times smaller: 72.0 MB instead of 350.4 MB.
+* A lookup takes 20.5 ms (median), at most 49 ms.
+* The first run's lookups took 744 ms, because one pack tile held 332 of Norway's municipalities: 690,000 points, 2.9 MB. Pack tiles are now also split when their tile entries together have more than 20,000 points. That matters even more for the web version, where each pack tile read is one download.
+
+Time and memory:
+
+* The whole run took 35.5 minutes, with a peak of 3.9 GB of memory, once the planet read and the cutting were cached.
+* Writing the two packs took 16 of those minutes, even with each written in its own process. The pack writer cuts shapes into pack tiles in Python, one at a time; it needs a faster method for the world.
+
+### Stage 3: the 180 degree line and the South Pole, nearly complete
+
+The first full run finished on the afternoon of 2 November: 24 of 27 places passed. The three failures are explained below. Two are fixed and one was a wrong test, but they wait for a confirming run. The report is in the data folder's tobymap\output\s2-stage3 folder.
+
+Areas, against Wikidata (the 1% check):
+
+* Russia: 16,971,396 km², 0.6% less than Wikidata's 17,075,400 km². Passes.
+* Fiji: 18,757 km², 2.6% more than 18,274 km². Fails.
+* Kiribati: 1,097 km², 35% more than 811 km². Fails. Kiribati is made of atolls; the land polygons probably count reef flats, or lagoons closed off by the coastline, as land. This needs looking at before the world build, because many Pacific countries are atolls.
+* The USA: 9,488,731 km², 3.4% less than 9,826,675 km². This is expected: Wikidata's figure includes coastal waters, and ours keeps the Great Lakes and other inland water but no sea.
+* Antarctica: 12,991,389 km², 5.3% less than 13,720,000 km². The cause: the OSM land polygons stop at 86 degrees south, so the South Pole was in the sea, and about 620,000 km² round the pole was missing. The build now adds the cap south of that as land, because the ice sheet is land all the way to the pole. That should bring Antarctica to about 13.6 million km², within 1%. To be confirmed.
+
+Bounding box and centre across the line:
+
+* Each country's bounding box, allowing for the line, is the right size: Fiji 7.1 degrees of longitude, Kiribati 40.3, Russia 171.4, the USA 150.8. Worked out without allowing for the line, each would be nearly 360 degrees.
+* Russia's centre is on its land, in Siberia. Antarctica, which goes all the way round the pole, should have the pole as its centre; that waits for the polar cap fix.
+* For countries spread over the ocean, the middle of the bounding box is in the sea: Fiji 20 km from its nearest land, Kiribati 56 km, the USA 1,800 km (in the Pacific, because it stretches from Guam to Puerto Rico). Hierarchy mode and search need a label point instead, such as the nearest land to the middle, which the build already works out, or the middle of the largest part.
+
+Artificial edges along the line:
+
+* Russia has 500 km of edges along the 180 degree line on each side, and Fiji 28 km. On both, every edge on one side is matched exactly by one on the other, so the line only splits the shape and loses nothing.
+* Antarctica has 817 km on one side and 739 km on the other, with 78 km on one side only. This is near the pole, where the land polygons stop; to be checked again after the polar cap fix.
+* No land border or coast was found along the line, other than these artificial edges.
+* The isolated drawings show Fiji and Russia each as one compact shape. But a thin line is drawn where the two halves meet at the 180 degree line, on Taveuni and across Chukotka. The shells must not outline artificial edges, in the isolated drawing as on the globe (AD-17).
+
+Places:
+
+* Passed: both sides of the line on Wrangel Island and Taveuni, Anadyr and Uelen, Big Diomede (Russia) and Little Diomede (the USA) with the sea between them, Attu, the Bering Sea at the line, Washington, Honolulu, Moscow, Kaliningrad, Tarawa, Kiritimati, McMurdo, the Ross Ice Shelf on both sides of the line, the Ross Sea and the Southern Ocean.
+* Failed: the South Pole, which was in the sea (see Antarctica above).
+* Failed: Taveuni west of the line, and Amchitka. Both points I had chosen were about 1 km offshore; land was found 1 km away in each case. They have been moved onto the islands, with a note in the places file.
+
+The counties layer, by the rule of discussion point 101:
+
+* Fiji: its 14 provinces at level 6, and Rotuma, which has none, as its own county.
+* Kiribati: nothing at levels 6 or 7, so its 24 island councils at level 8, with the Line Islands and Phoenix Islands used as their own county where no council covers them.
+* Russia and the USA, near the line only: level 6, with small gaps filled by their regions: 154 km² of Kamchatka, 211 km² of Sakha, 5 km² of Chukotka, and 31 km² of Alaska.
+* All four are now in the counties record.
+
+Gaps:
+
+* Land in no country near the line: two specks of 0.08 hectares each, exactly on the 180 degree line in Chukotka. They are where the land tiles and Russia's outline meet the line very slightly differently; harmless, but the real pipeline should snap shapes to the line.
+* Russia: 5 km² in no region, on the Perekop isthmus. That is the straight line that closed Russia's open outline.
+* The USA: 31 km² in no state. The largest part, 6 km², is Wake Island, which belongs to the USA but to no state, which is correct.
+
+Neighbours meeting exactly (AD-16):
+
+* All nine layers meet exactly after cleaning and after simplifying, with no overlap.
+* Cleaning moved 864 km² between Russia's regions. OSM's borders between some of Russia's regions overlap; which ones is still to be found.
+
+Parts far from the mainland (for country units):
+
+* The USA: Alaska, Hawaii, Puerto Rico, Guam, the Northern Mariana Islands, the US Virgin Islands and American Samoa are each more than 1,000 km from its largest part. These are the expected country units.
+* Kiribati: its three island groups are each more than 1,000 km from Tarawa's.
+* Russia: the check wrongly listed Chukotka east of the line as far away, because the check did not allow for the line. That is fixed in the build, with a test.
+
+Packs:
+
+* Compact coordinates make the pack 4.6 times smaller: 56.9 MB instead of 260.8 MB.
+* A lookup takes 16.6 ms (median), at most 54 ms.
+* Cutting the 155 areas to the land took 6 minutes with 3 workers. The USA alone took 5.7 minutes, while the other workers had finished.
+The globe (VIS-5), drawn as the shells will draw it, with artificial edges filled but not outlined:
+
+* Fiji at the 180 degree line, enlarged six times: the islands either side of the line join up, and the 5 edges along the line are filled but not outlined.
+* The Pacific centred on the line: 283,700 points, nothing drawn across the globe.
+* The South Pole: Antarctica is drawn whole round the pole, with no stray lines.
+* The Bering Strait: Chukotka and the Aleutian chain run across the line with no gap or stray line. The automatic check flagged one long edge, but it is Alaska's border with Canada along 141 degrees west, a real straight line about 1,000 km long; Canada is not in this build, so that border shows as an edge. The check is too blunt: it should look only at edges near the 180 degree line.
+
+Time and memory:
+
+* The whole run took 75.7 minutes, with a peak of 4.6 GB of memory.
+* About 45 minutes of that was drawing the pictures, mostly the isolated USA and preparing the globe's shapes, all on one thread. Writing the two packs took 11 minutes, and cutting to the land 6.
+
+### How the runs went, and what was fixed on the way
+
+* The first try ran stages 2 and 3 at the same time. Together they ran the laptop short of memory and Claude Code stopped both. Since then, one heavy build runs at a time.
+* The builds now record their memory at each step, and stop themselves cleanly, with a line in the report, if free memory falls below 3 GB. This worked three times. But it also stopped stage 4 wrongly while the planet file was being read: GeoDesk's mapping of the file counts as used memory, though Windows can take it back. The guard needs to pause during the planet read.
+* Slow steps found and fixed, with tests:
+  * finding land in no county or region now works from the shapes as read, then cuts only the leftover to the land (over half an hour for Norway before, seconds now);
+  * matching island names to land parts prepares each part once (over 25 minutes for Norway before, seconds now);
+  * the check that neighbours meet looks only within 5 km of the land borders, and the band round the borders is built from widened shapes, not widened lines (which used 18 GB);
+  * pack tiles are split when their entries hold more than 20,000 points (lookups 744 ms before, 20 ms now);
+  * pictures are trimmed to their frame before drawing.
+* Worker processes, as in the PO's OMR project: cutting to the land, the layer checks and the two packs now run 3 at a time (mapdata/parallel.py, `--workers`). Most other steps still use one thread, so the processor was about 30% busy. Discussion point 103 asks how the full pipeline should use the laptop's cores before any bulk build.
+
+### Discussion point 103: using the laptop's cores, actioned
+
+The PO agreed the recommendation and asked to test it on the stage 3 rerun for Antarctica. Built on 2 November, before that run (architecture 8.6, and explanation.md, "How the build shares its work between the processor's cores"):
+
+* The memory check pauses while the planet file is read, so it no longer stops a build wrongly, as it did stage 4.
+* A new job starts only while at least 6 GB of memory is free; below 3 GB the build stops cleanly, as before.
+* The pack is now cut into pack tiles once, for both kinds of coordinates, instead of once for each, with the cutting and the encoding shared among workers. Before, two packs took 11 to 16 minutes, each written separately.
+* Each picture, and the globe views, are drawn in their own worker. Before, stage 3's pictures took about 45 minutes on one thread.
+* `--away` uses 6 workers instead of 3.
+* The report's first lines say how many workers the build uses, and how long the last run of the same stage took.
+* Tests cover each of these, and all 207 Python tests pass. None of it has run on real data yet: the Antarctica rerun is the test.
+
+### Room for more speed
+
+Yes, there is more to gain. In order of how much I expect each to help:
+
+1. Cutting shapes into pack tiles works through each shape one pack tile at a time in Python. Cutting a whole grid of pack tiles in one call would be much faster, and pack writing was the slowest step left in stage 2.
+2. Drawing hands each point to Qt one at a time. Passing whole outlines at once would speed up the pictures, and the globe's shapes are prepared slowly for reasons not yet found. Pictures are for checking only, so the real pipeline could also draw fewer of them.
+3. A very big country is one job, so one worker is busy while the others wait: the USA took 5.7 minutes to cut while the rest took under a minute. Cutting it region by region, then joining, spreads it out.
+4. Areas are measured one part at a time; Norway has 118,845 parts. Measuring them all in one call would be faster.
+5. Reading the land polygons scans the whole 885 MB file for each new set of reading boxes. Converting it once to a format with a spatial index would make that near instant.
+
+Separately, for the application rather than the build: looking up a place decodes compact coordinates in plain Python. Doing that with NumPy would make each step faster, which matters for NFR-1.
+
+### Next: faster algorithms, proved on stage 1 (the PO's request, 2 November)
+
+Before the Antarctica run, the algorithms are made faster, then stage 1 (the UK, France and Spain) is built again with them, to show both that it is faster and that the results are the same.
+
+The times to beat, from stage 1's last full run on 1 November (its report in tobymap\output\s2-stage1), with the cutting to the land already cached:
+
+* total: 20.9 minutes, with a peak of 5.9 GB of memory;
+* finding land in no country and in no division: 548 seconds;
+* checking that neighbours meet (5 layers): 165 seconds;
+* islands and drawing levels: 58 seconds;
+* writing the two packs, the places check and the pictures: about 480 seconds between them;
+* and from its first run, with nothing cached: about 30 minutes in all, 5 of them cutting to the land.
+
+The algorithm changes, from "Room for more speed" above, in this order:
+
+1. Cut whole grids of pack tiles at once, instead of one pack tile at a time.
+2. Draw whole outlines at once, and find what makes preparing the globe's shapes slow.
+3. Cut very big countries region by region, then join them, so the work is spread across workers.
+4. Measure all of a country's parts in one go.
+5. Convert the land polygons once into a format with a spatial index, so a build reads only what it needs.
+6. Stage 1 is built by the same program as stages 2 and 3, so it gets the earlier speed-ups too (gaps worked out from the shapes as read, the border window, workers, and the pack tile limit).
+
+How "the same results" is checked, by a comparison script that reads the old summary and the new one, and writes a report of every difference:
+
+* the cut shapes: every area's land must be the same shape as the one cached on 1 November, apart from differences under a square metre;
+* the 22 check places: the same areas found at each, in the same order;
+* the UK's islands: the same number of parts, named and unnamed, at each size;
+* land in no country: still none; land in no region: the same slivers;
+* neighbours: every layer still meets exactly after cleaning and simplifying;
+* the packs: the same areas found at a grid of test points across the three countries.
+
+Two differences are expected and are not faults:
+
+* areas are now measured on the ellipsoid instead of a sphere, so area figures move by a fraction of a percent. The comparison measures both old and new shapes the new way;
+* the counties layer now follows discussion point 101, so it gains the areas that level 6 left out, such as London's boroughs, Northern Ireland's districts, and French Guiana as its own county. The comparison checks the level 6 areas are unchanged, and lists what was added.
+
+The cut shapes cached on 1 November are kept, so both runs can be timed the same way: once with the cutting cached, against the 20.9 minutes, and once from scratch, against the 30 minutes.
+
+### Still to do
+
+* Faster algorithms, proved on stage 1: see the section above. This comes first.
+* Stage 3: one more run, to confirm the polar cap (the South Pole and Antarctica's area) and the two moved places, and to test the DP103 changes. Only Antarctica needs cutting again. Expected: about 30 to 40 minutes with 3 workers, against 76 minutes last time, mostly because the pictures and packs now share the work.
+* Look into Kiribati's area (35% more than Wikidata), Fiji's (2.6% more), and the 864 km² that cleaning moved between Russia's regions.
+* Make the globe check look only at edges near the 180 degree line.
+
+### Stage 4, Argentina: parked
+
+* The PO added Argentina on 2 November, because their earlier work had trouble there with lines that crossed. It tests Tierra del Fuego, an island shared with Chile, the long Andes border, the undecided border on the Southern Patagonian Ice Field, and the Falkland Islands.
+* Its settings and check places are ready: mapdata/config/s2_stage4.yaml and tests/acceptance/coastline_places_stage4.yaml. The first try stopped twice, once on the memory guard during the planet read and once because OSM names Paraguay "Paraguay / Paraguái"; the name is corrected. Bolivia's and the Falkland Islands' names are not yet checked against OSM.
+* Parked by the PO on 2 November, to be picked up later.
+
+Everything below this point is about stage 1, the UK, France and Spain, from 1 November.
 
 ## Afternoon runs, 1 November
 

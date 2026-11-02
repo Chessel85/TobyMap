@@ -21,6 +21,14 @@ def build_parser() -> argparse.ArgumentParser:
     fe = sub.add_parser("fetch", help="download a source into the data folder's downloads folder")
     fe.add_argument("source", help="the source to download, or 'list' to list them")
     sub.add_parser("spike-s2-stage1", help="spike S2 stage 1: the UK, France and Spain, with its report")
+    st = sub.add_parser("spike-s2", help="spike S2 stage 2 (Norway and Sweden), 3 (the 180 degree line) or 4 (Argentina)")
+    st.add_argument("stage", type=int, choices=[2, 3, 4])
+    st.add_argument("--workers", type=int, default=3,
+                    help="processor cores to use for the slowest steps (default 3, which leaves the laptop usable)")
+    st.add_argument("--away", action="store_true",
+                    help="use 6 worker processes, for when nobody is using the laptop (DP103)")
+    ex = sub.add_parser("spike-s2-extract", help="used by spike-s2: read the planet file in its own process")
+    ex.add_argument("stage", type=int, choices=[2, 3, 4])
     ins = sub.add_parser("inspect", help="ask a pack what is at a point")
     ins.add_argument("pack", help="the pack file")
     ins.add_argument("lat", type=float)
@@ -125,6 +133,18 @@ def main(argv: list[str] | None = None) -> int:
             print(exc)
             return 2
         return s2_stage1.run(folders)
+    if args.command in ("spike-s2", "spike-s2-extract"):
+        from mapdata.stages import s2_stage
+        try:
+            folders = resolve_data_folder(args.data)
+        except DataFolderNotSet as exc:
+            print(exc)
+            return 2
+        if args.command == "spike-s2-extract":
+            return s2_stage.run_extract(args.stage, folders)
+        from mapdata import parallel
+        workers = parallel.AWAY_WORKERS if args.away else args.workers
+        return s2_stage.run(args.stage, folders, parallel.check_workers(workers))
     if args.command == "inspect":
         return cmd_inspect(args)
     if args.command == "world-sample":

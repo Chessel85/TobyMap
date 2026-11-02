@@ -1,0 +1,33 @@
+# Coastline check places for spike S2 stage 3: the 180 degree line and the
+# South Pole (architecture 6.13). Format as in coastline_places.yaml.
+# Taveuni west and Amchitka were moved on 2 November: the first points
+# chosen were about 1 km offshore.
+
+places:
+  - {name: Suva in Fiji, lat: -18.1416, lon: 178.4419, includes: [Fiji]}
+  - {name: Taveuni just west of the 180 degree line, lat: -16.85, lon: 179.97, includes: [Fiji]}
+  - {name: Taveuni just east of the 180 degree line, lat: -16.84, lon: -179.995, includes: [Fiji]}
+  - {name: The Koro Sea east of the line, lat: -17.60, lon: -179.80, sea: true}
+  - {name: Wrangel Island west of the line, lat: 71.20, lon: 179.50, includes: [Russia]}
+  - {name: Wrangel Island east of the line, lat: 71.20, lon: -179.50, includes: [Russia]}
+  - {name: Anadyr, lat: 64.7340, lon: 177.5100, includes: [Russia]}
+  - {name: Uelen at the eastern tip of Asia, lat: 66.1600, lon: -169.8100, includes: [Russia]}
+  - {name: Big Diomede, lat: 65.7800, lon: -169.0600, includes: [Russia]}
+  - {name: Little Diomede, lat: 65.7550, lon: -168.9300, includes: [United States, Alaska]}
+  - {name: The sea between the Diomedes, lat: 65.7700, lon: -168.9950, sea: true}
+  - {name: Amchitka in the Aleutians, west of the line, lat: 51.45, lon: 179.15, includes: [United States, Alaska]}
+  - {name: Attu in the Aleutians, lat: 52.88, lon: 173.10, includes: [United States, Alaska]}
+  - {name: The Bering Sea at the line, lat: 57.00, lon: 179.99, sea: true}
+  - {name: Washington, lat: 38.8977, lon: -77.0365, includes: [United States]}
+  - {name: Honolulu, lat: 21.3069, lon: -157.8583, includes: [United States, Hawaii]}
+  - {name: Moscow, lat: 55.7558, lon: 37.6173, includes: [Russia]}
+  - {name: Kaliningrad, lat: 54.7104, lon: 20.4522, includes: [Russia]}
+  - {name: Tarawa in Kiribati, lat: 1.3290, lon: 172.9790, includes: [Kiribati]}
+  - {name: Kiritimati in Kiribati, east of the line, lat: 1.8700, lon: -157.4300, includes: [Kiribati]}
+  - {name: The Pacific between Tarawa and Kiritimati, lat: 1.50, lon: -175.0, sea: true}
+  - {name: The South Pole, lat: -89.99, lon: 0.0, includes: [Antarctica]}
+  - {name: McMurdo Station on Ross Island, lat: -77.8460, lon: 166.6760, includes: [Antarctica]}
+  - {name: The Ross Ice Shelf west of the line, lat: -81.0, lon: 179.90, includes: [Antarctica]}
+  - {name: The Ross Ice Shelf east of the line, lat: -81.0, lon: -179.90, includes: [Antarctica]}
+  - {name: The Ross Sea, lat: -74.0, lon: -178.0, sea: true}
+  - {name: The Southern Ocean south of Africa, lat: -60.0, lon: 0.0, sea: true}

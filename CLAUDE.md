@@ -51,6 +51,7 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .\packaging\build.ps1                                                  # Windows installer and portable zip, into dist_installer
 .venv\Scripts\python.exe -m mapdata fetch land-polygons                # download a source into <data>/tobymap/downloads
 .venv\Scripts\python.exe -m mapdata spike-s2-stage1                    # spike S2 stage 1 build and report, into <data>/tobymap/output
+.venv\Scripts\python.exe -m mapdata spike-s2 3 --away                  # spike S2 stage 2, 3 or 4; 3 workers, or 6 with --away (DP103)
 .venv\Scripts\python.exe -m mapdata inspect <pack> <lat> <lon>         # what is at a point in a pack
 .venv\Scripts\python.exe tools\spikes\s1\demo.py                       # spike S1 sound demo (requirements-spikes.txt)
 .venv\Scripts\python.exe tools\spikes\s6\demo.py                       # spike S6 voice demo (requirements-spikes.txt)

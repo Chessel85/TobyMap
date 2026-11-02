@@ -1,0 +1,43 @@
+# Spike S2, stage 2 (architecture 12.3): Sweden and Norway, for shared
+# islands and a very complex coast.
+#
+# Countries: level 2 areas, by OSM relation id, with the name expected, so a
+# wrong id stops the build. "divisions: true" builds its regions (level 4)
+# and its counties by the rule of discussion point 101. "islands: true"
+# counts its islands. "land_within" limits a neighbour to the rectangles given
+# (west, south, east, north, in degrees), enough to check the land border.
+#
+# The reading boxes for the land polygons are worked out from the shapes.
+
+name: s2-stage2
+title: "Spike S2, stage 2: Norway and Sweden."
+source_gol: planet-latest.gol          # in the data folder, read only
+places: coastline_places_stage2.yaml   # in tests/acceptance
+region_level: 4
+
+# The check that neighbours meet exactly (AD-16) looks only within this many
+# kilometres of the land borders, where neighbours meet. Checking along
+# every coast too took over half an hour per layer for Norway.
+coverage_window_km: 5
+
+countries:
+  - {id: osm:r2978650, name: Norge, divisions: true, islands: true}
+  - {id: osm:r52822, name: Sverige, divisions: true, islands: true}
+  - {id: osm:r54224, name: Suomi / Finland}
+  - {id: osm:r60189, name: Россия, land_within: [[26.5, 68.5, 33.0, 71.0]]}
+
+shared_islands: [osm:r2978650, osm:r52822, osm:r54224]
+
+# Wikidata's area (P2046), retrieved 2 November 2026. Norway's includes
+# Svalbard and Jan Mayen. Both include lakes, as the land here does.
+wikidata_km2:
+  osm:r2978650: 385207
+  osm:r52822: 447425
+
+pictures:
+  - {name: norway-sweden-counties, box: [4.0, 55.2, 31.5, 71.3], layer: counties}
+  - {name: norway-sweden-regions, box: [4.0, 55.2, 31.5, 71.3], layer: regions}
+  - {name: svalbard, box: [9.0, 76.3, 34.0, 80.9], layer: regions}
+  - {name: svinesund-border, box: [10.9, 58.85, 11.75, 59.25], layer: countries}
+  - {name: lofoten, box: [12.0, 67.6, 16.5, 68.7], layer: counties}
+  - {name: haparanda-tornio, box: [23.6, 65.6, 24.5, 66.0], layer: countries}

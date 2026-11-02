@@ -78,6 +78,10 @@ Inside mapdata/:
 * Implementation plan
   * Where: docs/design/implementation plan.md.
   * Phase: 0. Owner: CC, with PO agreement.
+* Glossary for reports and documents
+  * Where: docs/design/glossary.md.
+  * For: one meaning for each word Claude Code uses in reports, findings and documents, so the PO isn't left guessing. Separate from the user glossary in Help (section 9).
+  * Phase: from 0, then kept up to date. Owner: CC.
 * This artefact list
   * Where: docs/design/artefacts.md.
   * Phase: 0. Owner: CC.

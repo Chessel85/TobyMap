@@ -189,7 +189,7 @@ def island_report(named_points: list, uk_land, log: Log) -> dict:
         "largest": [(round(float(areas[i]), 1)) for i in order[:5]],
     }
     log(f"The UK's land is in {total} separate parts: Great Britain, Ireland's northern part and the islands.")
-    log(f"Named islands and islets in OSM inside the UK's box: {len(named_points)}. "
+    log(f"Named islands and islets in OSM inside the UK's bounding box: {len(named_points)}. "
         f"Land parts with a name: {len(named_parts)}. Without a name: {report['unnamed_parts']}.")
     log(f"Parts of 1 hectare or more: {report['at_least_1_hectare']}, of which unnamed: "
         f"{report['unnamed_at_least_1_hectare']}. Of 1 km2 or more: {report['at_least_1_km2']}. "
@@ -285,7 +285,7 @@ def check_places(pack_path: Path, log: Log) -> tuple[int, int, list[str]]:
             passed += ok
             heard = ", ".join(names) if names else "sea"
             lines.append(f"{'PASS' if ok else 'FAIL'} {p['name']}: found {heard}. Expected {expect}. "
-                         f"{pack.reads - reads_before} pieces read.")
+                         f"{pack.reads - reads_before} pack tiles read.")
     finally:
         pack.close()
     for line in lines:
@@ -418,7 +418,7 @@ def run(folders: DataFolders) -> int:
     near = shapely.union_all([a.geom for a in countries[:3]]).buffer(0.01)
     near_land = land.clip(near)
     no_country = clip.gaps(near_land, [clipped[a.id] for a in countries], [english(a) for a in countries])
-    log(f"Pieces of land within about 1 km of the UK, France and Spain that are in no country: {len(no_country)}, "
+    log(f"Parts of land within about 1 km of the UK, France and Spain that are in no country: {len(no_country)}, "
         f"{sum(s.area_km2 for s in no_country):.3f} km2 in all.")
     for s in no_country[:15]:
         log(f"  {s.area_km2 * 100:.2f} hectares at {s.centre[1]:.4f} north, {s.centre[0]:.4f} east, beside {s.near}.")
@@ -430,7 +430,7 @@ def run(folders: DataFolders) -> int:
             container = shapely.union_all([clipped[u.id] for u in unit_areas])
         g = clip.gaps(container, [clipped[d.id] for d in divs], [english(d) for d in divs])
         level_gaps[(cid, level)] = g
-        log(f"{english(country)}: land in no level {level} area: {len(g)} pieces, "
+        log(f"{english(country)}: land in no level {level} area: {len(g)} parts, "
             f"{sum(s.area_km2 for s in g):.3f} km2." + (f" Largest {g[0].area_km2 * 100:.2f} hectares, "
                                                       f"beside {g[0].near}." if g else ""))
     timings["gaps"] = time.perf_counter() - t
@@ -495,6 +495,9 @@ def run(folders: DataFolders) -> int:
     log(f"Compact coordinates make the pack {saving:.1f} times smaller.")
 
     log.heading("Coastline places")
+    log("Each line looks up one place in the compact pack. \"Pack tiles read\" is how many records the "
+        "lookup fetched from the pack: at most one pack tile at each tile level. More are read where the "
+        "coast is detailed, because the pack tiles there are smaller. See docs/design/glossary.md.")
     passed, total, place_lines = check_places(out_dir / "s2-stage1-compact.pack", log)
 
     log.heading("Pictures")

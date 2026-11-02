@@ -94,6 +94,6 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, encoding
     writer.close()
     stats = {"bytes": path.stat().st_size, "tiles": len(tiles), "pieces": pieces, "levels": levels,
              "seconds": time.perf_counter() - start}
-    say(f"Wrote {path.name}: {stats['bytes'] / 1e6:.1f} MB, {stats['tiles']} tiles, {pieces} pieces, "
+    say(f"Wrote {path.name}: {stats['bytes'] / 1e6:.1f} MB, {stats['tiles']} pack tiles, {pieces} tile entries, "
         f"{stats['seconds']:.0f} seconds.")
     return stats

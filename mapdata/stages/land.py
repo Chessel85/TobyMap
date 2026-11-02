@@ -36,12 +36,12 @@ def load(downloads: Path, working: Path, boxes: dict[str, list[float]], say=prin
         cache = working / f"land-{name}-{key}.pkl"
         if cache.is_file():
             geoms = pickle.loads(cache.read_bytes())
-            say(f"Land polygons for {name}: {len(geoms)} pieces, from the cache.")
+            say(f"Land polygons for the {name} reading box: {len(geoms)} land tiles, from the cache.")
         else:
             _meta, _fids, wkb, _fields = pyogrio.raw.read(vsi, bbox=tuple(box), return_fids=True, read_geometry=True)
             geoms = shapely.from_wkb(wkb)
             working.mkdir(parents=True, exist_ok=True)
             cache.write_bytes(pickle.dumps(geoms, protocol=pickle.HIGHEST_PROTOCOL))
-            say(f"Land polygons for {name}: {len(geoms)} pieces, read from the download.")
+            say(f"Land polygons for the {name} reading box: {len(geoms)} land tiles, read from the download.")
         pieces.append(geoms)
     return np.concatenate(pieces) if pieces else np.zeros(0, object)

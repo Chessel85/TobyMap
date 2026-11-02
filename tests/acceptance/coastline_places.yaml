@@ -3,7 +3,8 @@
 #
 # For each place: its latitude and longitude, and either "sea: true", meaning
 # no land area may contain it, or "includes": names that must all be among the
-# areas containing it. Names are the English names the pack uses. The PO may
+# areas containing it. A name matches an area's English name or its local
+# name, so "Corse-du-Sud" and "South Corsica" are both accepted. The PO may
 # add places.
 
 places:

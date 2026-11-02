@@ -37,7 +37,8 @@ from mapdata.stages.geodesy import area_km2
 
 ROOT = Path(__file__).resolve().parents[2]
 PLACES_FILE = ROOT / "tests" / "acceptance" / "coastline_places.yaml"
-VERSION = "s2-stage1-v1"  # change to discard the caches
+VERSION = "s2-stage1-v2"  # change to discard the land caches
+EXTRACT_VERSION = "s2-stage1-v1"  # change to read the planet file again
 
 
 class Log:
@@ -72,7 +73,12 @@ def peak_memory_mb() -> float:
                     ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
     pmc = PMC()
     pmc.cb = ctypes.sizeof(PMC)
-    ctypes.windll.psapi.GetProcessMemoryInfo(ctypes.windll.kernel32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb)
+    # The process handle is pointer-sized; without these declarations ctypes
+    # passes it as a 32-bit int and the call fails, which read as 0 MB.
+    kernel32, psapi = ctypes.WinDLL("kernel32"), ctypes.WinDLL("psapi")
+    kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+    psapi.GetProcessMemoryInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(PMC), ctypes.c_ulong]
+    psapi.GetProcessMemoryInfo(kernel32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb)
     return pmc.PeakWorkingSetSize / (1024 * 1024)
 
 
@@ -127,7 +133,9 @@ def clip_all(land: clip.Land, areas: list, working: Path, log: Log) -> dict:
     for a in areas:
         key = hashlib.sha1(shapely.to_wkb(a.geom) + VERSION.encode()).hexdigest()[:16]
         start = time.perf_counter()
-        out[a.id] = cached(working / "clipped" / f"{a.id.replace(':', '_')}-{key}.pkl", lambda a=a: land.clip(a.geom))
+        # polygonal() again, because shapes cached by an earlier version may be collections.
+        out[a.id] = clip.polygonal(cached(working / "clipped" / f"{a.id.replace(':', '_')}-{key}.pkl",
+                                          lambda a=a: land.clip(a.geom)))
         took = time.perf_counter() - start
         if took > 20:
             slow.append(f"{english(a)} {took:.0f} s")
@@ -136,12 +144,10 @@ def clip_all(land: clip.Land, areas: list, working: Path, log: Log) -> dict:
     return out
 
 
-def island_report(world, uk: boundaries.Area, uk_land, log: Log) -> dict:
+def named_islands(world, uk: boundaries.Area) -> list[tuple[str, object]]:
+    """Named islands and islets in OSM inside the UK's box, as (name, point)."""
     import geodesk
 
-    parts = shapely.get_parts(uk_land)
-    areas = np.array([area_km2(p) for p in parts])
-    order = np.argsort(-areas)
     w, s, e, n = uk.geom.bounds
     box = geodesk.Box(west=w, south=s, east=e, north=n)
     named_points = []
@@ -153,6 +159,13 @@ def island_report(world, uk: boundaries.Area, uk_land, log: Log) -> dict:
             named_points.append((name, shapely.Point(f.lon, f.lat)))
         else:
             named_points.append((name, shapely.point_on_surface(geodesk.from_mercator(f.shape))))
+    return named_points
+
+
+def island_report(named_points: list, uk_land, log: Log) -> dict:
+    parts = shapely.get_parts(uk_land)
+    areas = np.array([area_km2(p) for p in parts])
+    order = np.argsort(-areas)
     tree = shapely.STRtree(parts)
     named_parts = set()
     for _name, pt in named_points:
@@ -176,7 +189,7 @@ def island_report(world, uk: boundaries.Area, uk_land, log: Log) -> dict:
         "largest": [(round(float(areas[i]), 1)) for i in order[:5]],
     }
     log(f"The UK's land is in {total} separate parts: Great Britain, Ireland's northern part and the islands.")
-    log(f"Named islands and islets in OSM inside the UK's box: {len(named_points)}. "
+    log(f"Named islands and islets in OSM inside the UK's bounding box: {len(named_points)}. "
         f"Land parts with a name: {len(named_parts)}. Without a name: {report['unnamed_parts']}.")
     log(f"Parts of 1 hectare or more: {report['at_least_1_hectare']}, of which unnamed: "
         f"{report['unnamed_at_least_1_hectare']}. Of 1 km2 or more: {report['at_least_1_km2']}. "
@@ -215,11 +228,21 @@ def drawing_report(uk_land, log: Log) -> list[dict]:
 
 
 def coverage_report(layer_name: str, shapes: list, tolerance: float, log: Log) -> dict:
-    """Simplify a layer as one coverage and check neighbours still meet exactly."""
+    """Clean a layer, simplify it as one coverage, and check neighbours still meet exactly.
+
+    Cleaning (GEOS coverage cleaning) closes tiny gaps and gives each overlap
+    to the neighbour with the longer shared border. It is needed for two
+    reasons found in spike S2: where a border meets the coast, cutting to the
+    land can leave the neighbours a few metres apart; and OSM's own borders
+    sometimes overlap, as Burgos and Soria do in Spain.
+    """
     arr = np.array([s for s in shapes if not s.is_empty], dtype=object)
     start = time.perf_counter()
     valid_before = bool(shapely.coverage_is_valid(arr))
-    simplified = shapely.coverage_simplify(arr, tolerance)
+    cleaned = shapely.coverage_clean(arr)
+    moved = float(sum(abs(area_km2(a) - area_km2(b)) for a, b in zip(arr, cleaned)))
+    valid_cleaned = bool(shapely.coverage_is_valid(cleaned))
+    simplified = shapely.coverage_simplify(cleaned, tolerance)
     valid_after = bool(shapely.coverage_is_valid(simplified))
     overlap = 0.0
     tree = shapely.STRtree(simplified)
@@ -229,10 +252,12 @@ def coverage_report(layer_name: str, shapes: list, tolerance: float, log: Log) -
     took = time.perf_counter() - start
     before = int(shapely.get_num_coordinates(arr).sum())
     after = int(shapely.get_num_coordinates(simplified).sum())
-    log(f"{layer_name}: {len(arr)} areas. Valid coverage before: {'yes' if valid_before else 'no'}, "
+    log(f"{layer_name}: {len(arr)} areas. Valid coverage before cleaning: {'yes' if valid_before else 'no'}, "
+        f"after cleaning: {'yes' if valid_cleaned else 'no'} ({moved:.3f} km2 moved), "
         f"after simplifying: {'yes' if valid_after else 'no'}. Overlap after: {overlap:.3f} km2. "
         f"Points {before:,} to {after:,}. {took:.0f} seconds.")
-    return {"layer": layer_name, "areas": len(arr), "valid_before": valid_before, "valid_after": valid_after,
+    return {"layer": layer_name, "areas": len(arr), "valid_before": valid_before, "valid_cleaned": valid_cleaned,
+            "cleaning_moved_km2": moved, "valid_after": valid_after,
             "overlap_km2": overlap, "points_before": before, "points_after": after, "seconds": took,
             "simplified": simplified}
 
@@ -250,16 +275,17 @@ def check_places(pack_path: Path, log: Log) -> tuple[int, int, list[str]]:
             found = pack.at(p["lon"], p["lat"])
             times.append((time.perf_counter() - start) * 1000)
             names = [f["name"] for f in found]
+            known = set(names) | {f.get("local_name") for f in found}  # English or local name
             if p.get("sea"):
                 ok = not found
                 expect = "sea"
             else:
-                ok = all(n in names for n in p["includes"])
+                ok = all(n in known for n in p["includes"])
                 expect = ", ".join(p["includes"])
             passed += ok
             heard = ", ".join(names) if names else "sea"
             lines.append(f"{'PASS' if ok else 'FAIL'} {p['name']}: found {heard}. Expected {expect}. "
-                         f"{pack.reads - reads_before} pieces read.")
+                         f"{pack.reads - reads_before} pack tiles read.")
     finally:
         pack.close()
     for line in lines:
@@ -333,8 +359,34 @@ def run(folders: DataFolders) -> int:
 
     log.heading("Extract")
     t = time.perf_counter()
-    world = geodesk.Features(str(gol))
-    countries, unit_areas, divisions, repairs = extract(world, config, units, log)
+    # Everything read from the planet file is cached, and the file is closed
+    # before the land work starts. GeoDesk maps the file into memory, and on
+    # the PO's laptop that mapping grew to about 24 GB and left the system
+    # short of memory for the steps after it.
+    stamp = f"{gol.stat().st_size}-{gol.stat().st_mtime_ns}"
+    extract_key = hashlib.sha1(json.dumps([config, units, stamp, EXTRACT_VERSION], sort_keys=True,
+                                          default=str).encode()).hexdigest()[:16]
+    extract_cache = working / f"extract-{extract_key}.pkl"
+    from_cache = extract_cache.is_file()
+
+    def read_planet():
+        lines: list[str] = []
+        world = geodesk.Features(str(gol))
+        try:
+            found = extract(world, config, units, lines.append)
+            uk_area = next(a for a in found[0] if a.id == config["countries"][0]["id"])
+            named = named_islands(world, uk_area)
+        finally:
+            del world
+            import gc
+            gc.collect()
+        return (*found, named, lines)
+
+    countries, unit_areas, divisions, repairs, island_names, extract_lines = cached(extract_cache, read_planet)
+    for line in extract_lines:
+        log(line)
+    if from_cache:
+        log("Read from the cache of an earlier run; the planet file was not opened.")
     timings["extract"] = time.perf_counter() - t
     log(f"Repairs: {len(repairs)}.")
     for r in repairs:
@@ -366,7 +418,7 @@ def run(folders: DataFolders) -> int:
     near = shapely.union_all([a.geom for a in countries[:3]]).buffer(0.01)
     near_land = land.clip(near)
     no_country = clip.gaps(near_land, [clipped[a.id] for a in countries], [english(a) for a in countries])
-    log(f"Pieces of land within about 1 km of the UK, France and Spain that are in no country: {len(no_country)}, "
+    log(f"Parts of land within about 1 km of the UK, France and Spain that are in no country: {len(no_country)}, "
         f"{sum(s.area_km2 for s in no_country):.3f} km2 in all.")
     for s in no_country[:15]:
         log(f"  {s.area_km2 * 100:.2f} hectares at {s.centre[1]:.4f} north, {s.centre[0]:.4f} east, beside {s.near}.")
@@ -378,7 +430,7 @@ def run(folders: DataFolders) -> int:
             container = shapely.union_all([clipped[u.id] for u in unit_areas])
         g = clip.gaps(container, [clipped[d.id] for d in divs], [english(d) for d in divs])
         level_gaps[(cid, level)] = g
-        log(f"{english(country)}: land in no level {level} area: {len(g)} pieces, "
+        log(f"{english(country)}: land in no level {level} area: {len(g)} parts, "
             f"{sum(s.area_km2 for s in g):.3f} km2." + (f" Largest {g[0].area_km2 * 100:.2f} hectares, "
                                                       f"beside {g[0].near}." if g else ""))
     timings["gaps"] = time.perf_counter() - t
@@ -386,7 +438,7 @@ def run(folders: DataFolders) -> int:
     log.heading("The UK's islands")
     t = time.perf_counter()
     uk = countries[0]
-    islands = island_report(world, uk, clipped[uk.id], log)
+    islands = island_report(island_names, clipped[uk.id], log)
     drawing = drawing_report(clipped[uk.id], log)
     timings["islands"] = time.perf_counter() - t
 
@@ -443,6 +495,9 @@ def run(folders: DataFolders) -> int:
     log(f"Compact coordinates make the pack {saving:.1f} times smaller.")
 
     log.heading("Coastline places")
+    log("Each line looks up one place in the compact pack. \"Pack tiles read\" is how many records the "
+        "lookup fetched from the pack: at most one pack tile at each tile level. More are read where the "
+        "coast is detailed, because the pack tiles there are smaller. See docs/design/glossary.md.")
     passed, total, place_lines = check_places(out_dir / "s2-stage1-compact.pack", log)
 
     log.heading("Pictures")

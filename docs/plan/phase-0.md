@@ -8,7 +8,7 @@ Phase 0 is Foundations and spikes. The tasks are described in "implementation pl
 * [x] P0-T2 Continuous integration: Python tests on Windows and macOS, browser tests in Chromium and Firefox, and the licence check.
 * [x] P0-T3 Development set-up: requirements files, setup.ps1, and the data folder setting. The PO's local paths file points at drive E:.
 * [ ] P0-T4 Spike S1, spatial sound. In progress: six engines compared on 1 November, including Synthizer and OpenAL Soft; stereo with pitch scored best. Decided (DP100): stereo with pitch by default and HRTF with pitch as an option, from our own processing; recorded in AD-10. Draft findings: docs/spikes/S1-spatial-sound.md.
-* [ ] P0-T5 Spike S2, countries, coastlines and islands. In progress: stage 1 (the UK, France and Spain) built with mapdata spike-s2-stage1; the run stopped for low memory and resumes when the laptop is idle. Findings: docs/spikes/S2-countries-coastlines.md. Later stages wait for the PO's review.
+* [ ] P0-T5 Spike S2, countries, coastlines and islands. Stage 1 (the UK, France and Spain) complete on 1 November: 22 of 22 coastline places pass, every layer meets exactly after cleaning and simplifying. Findings: docs/spikes/S2-countries-coastlines.md. Discussion point 101 (the counties level) is open. Later stages wait for the PO's review.
 * [ ] P0-T6 Spike S3, hosting and browser.
 * [ ] P0-T7 Spike S4, core in Pyodide.
 * [x] P0-T8 Spike S5, globe, accessible shell and installer. Findings: docs/spikes/S5-globe-shell-installer.md. Three NVDA tests done; Shift+Space and R in the PO's fourth test still to recheck.

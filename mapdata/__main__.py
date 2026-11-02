@@ -165,4 +165,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    # Names such as Russia's are printed as written in OSM. Sent to a file,
+    # Windows would otherwise use its old character set and stop the build.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main())

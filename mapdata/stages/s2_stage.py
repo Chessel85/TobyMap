@@ -106,6 +106,22 @@ def with_polar_cap(tiles: np.ndarray):
     return np.concatenate([tiles, np.array([cap], dtype=object)]), south
 
 
+def outline_to_the_pole(geom):
+    """An outline that goes all the way round the South Pole, taken to the pole.
+
+    OSM's Antarctica stops at 85.05 degrees south, the limit of the web map
+    projection, so adding the cap to the land tiles alone (with_polar_cap)
+    still left the South Pole outside the country. Returns the shape and the
+    latitude it stopped at, or the same shape and None if it already reaches
+    the pole or does not go round it.
+    """
+    west, south, east, _ = geom.bounds
+    if south <= -89.999 or south > -80 or east - west < 359.9:
+        return geom, None
+    cap = shapely.box(-180.0, -90.0, 180.0, south + 0.0005)
+    return shapely.union(geom, cap), south
+
+
 # Stage 1 has its own program (s2_stage1.py) and settings (s2_stage1.yaml),
 # kept as they were for the 1 November baseline. Built by this program, it
 # uses s2_stage1_again.yaml.
@@ -801,7 +817,9 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
     shapes_for_land = {}
     boxes = []
     for a in countries:
-        g = limited(a.geom, settings[a.id].get("land_within"))
+        g, stopped = outline_to_the_pole(limited(a.geom, settings[a.id].get("land_within")))
+        if stopped is not None:
+            log(f"{english(a)}'s outline in OSM stops at {stopped:.2f} degrees south, so it is taken to the South Pole.")
         shapes_for_land[a.id] = g
         boxes.extend(part_boxes(g, join=0.5))
     # Join overlapping boxes, so no land tile is read twice.

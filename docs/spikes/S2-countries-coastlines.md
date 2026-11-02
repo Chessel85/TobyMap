@@ -80,9 +80,9 @@ Time and memory:
 * The whole run took 35.5 minutes, with a peak of 3.9 GB of memory, once the planet read and the cutting were cached.
 * Writing the two packs took 16 of those minutes, even with each written in its own process. The pack writer cuts shapes into pack tiles in Python, one at a time; it needs a faster method for the world.
 
-### Stage 3: the 180 degree line and the South Pole, nearly complete
+### Stage 3: the 180 degree line and the South Pole, complete
 
-The first full run finished on the afternoon of 2 November: 24 of 27 places passed. The three failures are explained below. Two are fixed and one was a wrong test, but they wait for a confirming run. The report is in the data folder's tobymap\output\s2-stage3 folder.
+The first full run finished on the afternoon of 2 November: 24 of 27 places passed. The three failures are explained below. The confirming run, the same evening, passed all 27: see "Stage 3 confirmed" below. The figures in this section are from the first run, except where that section says otherwise. The report is in the data folder's tobymap\output\s2-stage3 folder.
 
 Areas, against Wikidata (the 1% check):
 
@@ -239,6 +239,34 @@ Each slow step was timed on the real shapes before it was changed, and each new 
 
 Tests: 18 new ones, each comparing a new method with the old one, or with what the download gives. All 225 Python tests pass.
 
+### Stage 3 confirmed: 27 of 27 places, 2 November evening
+
+The confirming run with 6 workers (`--away`) passed all 27 places. The report is in the data folder's tobymap\output\s2-stage3 folder.
+
+The South Pole needed a second fix:
+
+* The run before it still found the sea at the South Pole, and Antarctica's area had not changed at all. The polar cap had been added to the land tiles, but OSM's outline of Antarctica itself stops at 85.05 degrees south, the limit of the web map projection. Cutting to the land keeps only what is inside the country's outline, so the cap was cut away again.
+* The build now also extends any outline that goes all the way round the pole, but stops short of it, down to the pole (`outline_to_the_pole` in mapdata/stages/s2_stage.py, with a test). The report says when it does this.
+
+Results:
+
+* The South Pole is in Antarctica, and Antarctica's centre is now the pole.
+* Taveuni west of the line and Amchitka, the two moved places, both pass.
+* Antarctica's area is 13,950,822 km², 1.7% more than Wikidata's 13,720,000 km², so it does not pass the 1% check. It was 5.3% less before. Published figures for Antarctica differ by about half a million km², depending on whether the ice shelves are counted. The Ross Ice Shelf is land in the OSM land polygons, so it is counted here. I have not checked which definition Wikidata's figure uses. For the world build, Antarctica needs its own expected figure, with the ice shelves included.
+* Antarctica's edges along the 180 degree line are now 1,367 km on the east side and 1,289 km on the west, because they now run on to the pole. The 78 km on one side only has not changed, so it is not caused by where the land polygons stop. Its cause is still to be found.
+* The globe centred on the South Pole draws Antarctica whole, with the edge at the pole filled but not outlined, and no edge jumping across the globe.
+* The other figures are the same as in the first run: the other countries' areas, the counties, the gaps, neighbours meeting exactly, and the pack sizes (56.8 MB compact, 261.1 MB WKB).
+
+Time, the test of discussion point 103:
+
+* The whole run took 13.1 minutes, against 75.7 minutes for the first run. Peak memory was 3.3 GB, against 4.6 GB.
+* Drawing the pictures took 36 seconds, against about 45 minutes. Writing both packs took 2 minutes, against 11.
+* The slowest steps now are checking that neighbours meet (3.2 minutes, mostly the 15,577 areas of the USA's counties layer), writing the packs (2 minutes) and the counties step (2 minutes).
+* Only Antarctica was cut again, and the planet file's extract came from the cache, so this was not a run from scratch.
+* Lookups in the compact pack took 13.4 ms (median), at most 59 ms.
+
+One fault was found on the way. The first try stopped while printing a Russian name, because its output was going to a file, and Windows then uses its old character set. mapdata now always writes its output as UTF-8.
+
 ### Stage 1 again: not finished, because of the counties step
 
 Stage 1 was started again three times. The planet read, the land tiles and cutting all 64 countries, units and regions to the land took about a minute (67 seconds for the cutting, with 3 workers). Each time, the build then spent a long time in the counties step and was stopped.
@@ -255,7 +283,7 @@ The lesson from all of these: the slow steps were each an operation on a whole c
 ### Still to do
 
 * Stage 1 again: finish the whole run and the comparison once the counties step is faster, or run it with the counties step timed separately.
-* Stage 3: one more run, to confirm the polar cap (the South Pole and Antarctica's area) and the two moved places, and to test the DP103 changes. Only Antarctica needs cutting again. Expected: about 30 to 40 minutes with 3 workers, against 76 minutes last time, mostly because the pictures and packs now share the work.
+* Antarctica: which definition Wikidata's area uses, and the cause of the 78 km of edges along the 180 degree line that are on one side only.
 * Look into Kiribati's area (35% more than Wikidata), Fiji's (2.6% more), and the 864 km² that cleaning moved between Russia's regions.
 * Make the globe check look only at edges near the 180 degree line.
 

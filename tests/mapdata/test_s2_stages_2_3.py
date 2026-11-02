@@ -272,6 +272,22 @@ def test_polar_cap_is_added_when_the_land_stops_short_of_the_pole():
     assert with_polar_cap(tiles[1:])[1] is None
 
 
+def test_an_outline_round_the_pole_that_stops_short_is_taken_to_the_pole():
+    # OSM's Antarctica stops at 85.05 degrees south, the web map limit, so
+    # the cap on the land tiles alone left the South Pole in the sea.
+    from mapdata.stages.s2_stage import outline_to_the_pole
+
+    ring = shapely.box(-180, -85.0511, 180, -60)
+    out, south = outline_to_the_pole(ring)
+    assert south == pytest.approx(-85.0511)
+    assert shapely.contains_xy(out, 0, -89.99) and shapely.contains_xy(out, 90, -70)
+    assert out.is_valid and len(shapely.get_parts(out)) == 1
+    # Not round the pole, or already reaching it: unchanged.
+    for g in (shapely.box(-70, -85, -60, -50), shapely.box(-180, -90, 180, -60), shapely.box(10, 50, 11, 51)):
+        same, south = outline_to_the_pole(g)
+        assert south is None and same is g
+
+
 def test_both_packs_written_at_once_match_the_packs_written_one_by_one(tmp_path):
     from mapcore.packs.archive import Pack
     from mapdata.stages import pack_write

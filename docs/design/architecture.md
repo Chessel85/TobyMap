@@ -1,6 +1,26 @@
 # Architecture and High Level Design
 
-Version 0.2, 31 October 2026, for product owner review.
+Version 0.3, 2 November 2026. Updated from the Phase 0 spikes (task P0-T11).
+
+## Changes in version 0.3
+
+This version brings in what spikes S1, S3, S5 and S6 decided, and your answers to DP86 to DP102. Spike S2 (stages 2 and 3), spike S4 and Piper in the browser are not finished. Their results come in a later version, before Phase 0 closes.
+
+* AD-9 and sections 5.6 and 9.1 to 9.3: packs stay on GitHub Releases for the desktop, and the web version uses a copy on Hugging Face, downloaded whole into the browser's private storage (spike S3, DP102). Each site may store about 10 GB.
+* AD-10 and sections 4.5 and 5.5: two sound modes from TobyMap's own processing, stereo with pitch by default and HRTF with pitch as an option. Synthizer and OpenAL Soft are not used (spike S1, DP100).
+* AD-10 and section 4.6: the spatial voice is Piper, with the Alba voice by default, on the desktop and in the browser. eSpeak NG and the Windows voices are ruled out (spike S6, DP90, DP98).
+* Section 4.1: Python 3.14, the version the current Pyodide runs. NumPy in the browser is 32-bit, so the core uses NumPy's own index type.
+* Section 4.2: PySide6 6.12.0.
+* Section 4.3: the web version downloads about 17 MB and starts in about 9 to 10 seconds (DP96). The Piper voice loads after the map is ready (DP98).
+* Section 4.4: the web version uses ariaNotify, which Firefox and Chrome both support, with live regions as the fall-back (DP94).
+* Section 4.8: the installer installs for the current user, with no administrator prompt (DP95), and is built on every push.
+* Section 5.5: the desktop keys between regions (DP93, DP97), and a known limitation with NVDA in the Information panel.
+* Section 5.7: held keys are all carried out, and only the last place is spoken.
+* Section 6.9: a frame must be kept to about 10,000 points to be drawn within 100 ms (spike S5).
+* Section 6.12: your answers on country units (DP86), unnamed islands (DP87), continents (DP88) and the counties layer (DP101).
+* Section 12: the results of spikes S1, S3, S5 and S6 so far, and the risks they settle.
+* Section 14: DP86 to DP102 are answered. There are no new questions in this version.
+* The words used in this document follow the glossary, docs/design/glossary.md. Older sections that say "piece" are brought into line as they are edited.
 
 ## Changes in version 0.2
 
@@ -79,17 +99,17 @@ Decided by spike S3 (DP102, 2 November 2026):
 * Each read from Hugging Face takes about 0.4 seconds, so the web version does not read records one at a time while stepping. It downloads each pack whole into private storage, and reads records from there, as fast as on the desktop. While a pack is downloading, it uses range requests so the map can be used straight away.
 * When you install your first pack beyond the base pack, the web version asks the browser to keep its storage. Firefox's prompt for this works with NVDA.
 
-Full detail is in docs/spikes/S3-hosting-browser.md, and the rest of the architecture is updated in P0-T11.
+Full detail is in docs/spikes/S3-hosting-browser.md.
 
 ### AD-10 Spatial sound and the spatial voice behind one interface
-The core works out where each sound is (direction, loudness and muffling, SON-9) without playing it. A sound backend on each platform plays it. The spatial voice (SON-3) is chosen by spike S6 (DP82).
+The core works out where each sound is (direction, loudness and muffling, SON-9) without playing it. A sound backend on each platform plays it. The spatial voice (SON-3) is Piper, with the Alba voice by default, on the desktop and in the browser (spike S6, DP90, DP98). Its speech is made as sound in memory and placed like any other sound.
 
 Decided by spike S1 (DP100, 1 November 2026): two sound modes, both from the project's own processing, with no outside sound library.
 
 * Stereo with pitch, the default: equal-power panning, with sounds behind the user about three semitones lower.
 * HRTF with pitch, an option: the MIT KEMAR responses, with the same lower pitch behind.
 
-Without the pitch cue, every HRTF tried, including Synthizer's and OpenAL Soft's, left sounds behind unclear to the PO. On the desktop the sounds are shaped with NumPy and played through sounddevice. The web version does the same with Web Audio: a stereo panner, or its HRTF panner, with the same pitch change. How the pitch cue works with spoken labels, whose own pitch should not change, is tried in Phase 1. Full detail is in docs/spikes/S1-spatial-sound.md, and the rest of the architecture is updated in P0-T11.
+Without the pitch cue, every HRTF tried, including Synthizer's and OpenAL Soft's, left sounds behind unclear to the PO. On the desktop the sounds are shaped with NumPy and played through sounddevice. The web version does the same with Web Audio: a stereo panner, or its HRTF panner, with the same pitch change. How the pitch cue works with spoken labels, whose own pitch should not change, is tried in Phase 1. Full detail is in docs/spikes/S1-spatial-sound.md.
 
 ### AD-11 The graticule is data, not code
 Lines of latitude and longitude at every 1 degree, plus the special lines, are written into the base pack by the pipeline. The interval the user chooses filters them. This keeps SCP-7's rule that the graticule is added by configuration alone, with no code specific to it. It costs well under 1 MB.
@@ -176,12 +196,13 @@ There is no human developer (DEL-2). Continuous integration runs every test on W
 Each choice gives the reason and the main alternative considered. Every library listed is compatible with GPL-3.0 (SCP-4).
 
 ### 4.1 Language: Python
-* Python is the main language (DEL-3). The version is pinned to the one used by the current Pyodide release, so the desktop and web run the same Python (3.13 at the time of writing).
+* Python is the main language (DEL-3). The version is pinned to the one used by the current Pyodide release, so the desktop and web run the same Python. That is Python 3.14, which the current Pyodide release (numbered 314) runs, on the desktop, in the browser and on the build laptop.
+* NumPy in Pyodide is 32-bit. Spike S5's first web run failed because the globe used 64-bit numbers for positions in arrays. The core always uses NumPy's own index type (np.intp) for array positions, and a test guards this.
 * The core uses only libraries that also work in Pyodide: Shapely 2 (geometry, using GEOS), NumPy, and GeographicLib (geodesy). All three are available in Pyodide.
 * Alternative considered: Rust or C++ for the core. Rejected for now, because Python is fast enough with precomputed relations (AD-8) and is far easier for Claude Code to maintain and for tests to cover. If a hot spot is found, it can be moved to a compiled extension later without changing the design.
 
 ### 4.2 Desktop user interface: PySide6
-* PySide6 (Qt 6, LGPL), always the latest release. Qt's accessibility keeps improving, so at the start of each phase Claude Code checks for a newer PySide6, upgrades, and runs the full test suite. Version 6.8 is the minimum, because it added the accessibility announcements that NVDA receives as UI Automation notifications. RecallScore already relies on this.
+* PySide6 (Qt 6, LGPL), always the latest release, which is 6.12.0 in Phase 0. Qt's accessibility keeps improving, so at the start of each phase Claude Code checks for a newer PySide6, upgrades, and runs the full test suite. Version 6.8 is the minimum, because it added the accessibility announcements that NVDA receives as UI Automation notifications. RecallScore already relies on this.
 * PySide6 brings its own copy of Qt, installed by pip. Your separate Qt download for C++ is not used, so it does not matter how old it is.
 * The map is a custom widget that paints the core's shape list (AD-6). The Information panel is a standard tree view, the Details panel a read-only text box, and the menu a standard menu bar.
 * Alternative considered: wxPython. Rejected because RecallScore has already proven PySide6 with NVDA.
@@ -190,27 +211,31 @@ Each choice gives the reason and the main alternative considered. Every library 
 * The core runs in Pyodide inside a Web Worker (AD-9). A small bridge module returns plain dictionaries and lists, never Python objects, following RecallScore's web_api pattern.
 * The page itself is plain JavaScript with no framework: a key map, a focus manager, an announcer, a tree, a canvas painter, dialogs and a menu. These are modelled on RecallScore's web modules.
 * The web application is a static site on GitHub Pages, so it costs nothing to host.
+* The first visit downloads about 17 MB (Pyodide, NumPy and PyYAML), and starting took 9 to 10 seconds in spike S5, which you accepted (DP96). Spike S4 looks at reducing it.
+* The Piper voice adds about 60 MB the first time. It loads after the map is ready, so TobyMap can be used while the voice downloads (DP98).
 
 ### 4.4 Screen reader output
 * Desktop on Windows: Qt accessibility announcements, which NVDA and JAWS receive as UI Automation notifications. For Braille-only output of spatial labels (SON-3), the NVDA Controller Client library is used when NVDA is running.
 * Desktop on macOS: the same Qt announcements, which VoiceOver receives as accessibility announcements.
-* Web: the browser's ariaNotify where available, otherwise two alternating live regions, exactly as in RecallScore.
+* Web: the browser's ariaNotify, which Firefox and Chrome both support (spike S5). Two alternating live regions, as in RecallScore, are the fall-back for older browsers. You could not tell the two apart with NVDA, so ariaNotify is used unless you report a problem (DP94).
 
 ### 4.5 Sound
-* Web: the Web Audio API, which has a built-in HRTF panner, plus a low-pass filter for muffling and reverb for the second distance cue.
-* Desktop: three candidates, chosen by spike S1:
-  * Synthizer, the 3D audio library with HRTF that AtMap used. It has Python bindings. Spike S1 checks that it is still maintained, that it installs on the Python version we use, and its licence.
-  * OpenAL Soft (LGPL), a mature 3D audio library with HRTF, used through a small Python binding.
-  * The project's own HRTF processing, using a published HRTF data set and NumPy, played through the sounddevice library (PortAudio). This gives the same sound on desktop and web, at the cost of more code.
+Decided by spike S1 (AD-10, DP100):
+
+* Two sound modes, on both platforms. Stereo with pitch is the default: equal-power panning, with sounds behind you about three semitones lower. HRTF with pitch is an option: the MIT KEMAR responses, with the same lower pitch behind.
+* Desktop: TobyMap's own processing in NumPy, played through the sounddevice library (PortAudio, MIT licence). No outside sound library is used.
+* Web: the Web Audio API, with its stereo panner or its HRTF panner and the same pitch change, plus a low-pass filter for muffling.
+* Synthizer and OpenAL Soft were tried and are not used. Without the pitch cue, every HRTF, theirs included, left sounds behind unclear to you. Synthizer is also no longer maintained.
 * Earcons are WAV files (SON-8). Placeholders are generated by a project script until your files arrive.
-* Speakers mode (SON-1) is stereo panning plus pitch, provided by the same backends.
 
 ### 4.6 The spatial voice
-You asked for a spike before choosing (DP82), so spike S6 compares these by ear:
+Decided by spike S6 (DP82, DP90, DP98):
 
-* eSpeak NG (GPL-3.0). It has a library for the desktop and a WebAssembly build for the browser, so both platforms have the same voice. It is small, fast and familiar to many screen reader users. It works on Windows, macOS and Linux, so it also answers your question about the Mac: yes, eSpeak NG runs on a Mac, and its library would be bundled inside the Mac application.
-* Piper, a modern neural voice. It sounds much more natural, but its voices are 20 to 60 MB each and it is slower to start, especially in the browser. Its licence must be checked in the spike, because newer releases changed hands.
-* The voices already installed in Windows, such as the ones NVDA can use through SAPI or OneCore. Windows can write their speech into memory instead of to the speakers, and that audio can be placed in space. This would only work on the desktop, so the web version would still need eSpeak NG or Piper (DP90).
+* Piper, a neural voice, with Alba, the Scottish voice, as the default. It gave you the best sense of direction. Alba's licence is CC-BY 4.0, so it is credited in the About box and the third-party notices.
+* The same voice on the desktop and in the browser, where Piper runs in WebAssembly (DP90, DP98). Piper in the browser is tried during spike S4.
+* Piper and its voice add about 75 MB to the installer, and about 60 MB to the web version's first download.
+* Piper's first label took about 5 seconds. The voice is loaded, and a first label made silently, while TobyMap starts.
+* eSpeak NG was ruled out: you found it dated. The Windows voices were ruled out too, because the web version can't use them (DP90).
 
 In every case, the speech is generated as audio samples and placed in space like any other sound. The screen reader's own voice cannot be used, because it cannot be placed in space (DP46).
 
@@ -229,7 +254,8 @@ The pipeline runs only on the build laptop, so it can use heavier libraries than
 * GitHub repository with GitHub Actions (DEL-1).
 * Tests run on Windows and macOS for every change, and the web tests run with Playwright in headless Chromium and Firefox (NFR-5). Firefox is your main browser, and NVDA works particularly well with it, so it is tested as fully as Chromium.
 * A licence check fails the build if any dependency is not GPL-compatible (SCP-4).
-* Windows: PyInstaller and an NSIS installer, as in RecallScore, built from Phase 0 (AD-20). A portable zip is also offered.
+* Windows: PyInstaller and an NSIS installer, as in RecallScore, built from Phase 0 (AD-20). A portable zip is also offered. Continuous integration builds both on every push.
+* The installer installs for the current user, in your own Programs folder, so there is no administrator prompt. It is not signed, so Windows SmartScreen may warn the first time (DP95). In spike S5 the installer was 40 MB and the installed program 140 MB, before Piper.
 * macOS: no downloads at first (AD-20). When a Mac tester is found, a PyInstaller application bundle in a disk image will be built in continuous integration. It will not be signed, because signing costs money, so the release notes will explain how to open it.
 * Web: built and published to GitHub Pages by continuous integration.
 
@@ -300,19 +326,23 @@ Using a step in stepping mode as the example:
 * The map widget paints the shape list and turns keys and mouse actions into commands. It tells Windows where the centre of the map is, so magnifiers follow it (ACC-8).
 * Speech goes through one announcer, attached to a real widget, as RecallScore found was necessary.
 * Background work, such as the crossed and passed list, filling a panel group, downloading and fetching nearby tiles in advance, runs in a thread pool. Results come back to the user interface thread.
-* The audio backend chosen by spike S1.
+* Tab and Shift+Tab move round the map, the Information panel and Details, but not the menu bar. Alt goes to the menu bar. Ctrl+Alt+Space goes to the map from anywhere (DP93, DP97).
+* Sound: TobyMap's own processing in NumPy, played through sounddevice (AD-10).
+* Known limitation from spike S5: when the Information panel is rebuilt, Qt 6.12 keeps an out-of-date list of its items for screen readers, so after R or Shift+Space NVDA doesn't read the item it has moved to until you arrow. In Phase 1 the panel's items are changed in place instead of being rebuilt.
 * Settings and personal data are stored as JSON files in the user's application data folder.
 
 ### 5.6 Web shell
 * The page holds the same four regions. The map is a canvas. The Information panel is a tree with real focus on its items. The menu is a real menu.
 * The worker holds Pyodide, the core and the pack readers. It downloads packs whole into the browser's private file system (OPFS), so they work offline, and reads records from there. While a pack is downloading, it reads records with synchronous range requests, which are allowed in workers (AD-9, DP102).
 * The page and the worker exchange small messages. Shape lists are passed as numeric arrays, which cross between worker and page without copying.
-* Sound uses Web Audio on the page. The spatial voice chosen in spike S6 runs in WebAssembly.
+* Sound uses Web Audio on the page. The spatial voice, Piper, runs in WebAssembly.
+* Ctrl+Alt+M goes to the menu bar's first menu, Map, without opening it, because the browser keeps Alt for itself (DP93).
+* The tree builds each item with its words directly inside it, because Firefox's say current line needs that (spike S5).
 * Settings and personal data are stored in the browser.
 
 ### 5.7 Threading and responsiveness
 * Desktop: movement runs on the user interface thread, because it is fast and its order matters. Everything slower runs in the background and never holds a lock that movement needs. Decoded tiles are never changed once loaded, so background threads can read them safely.
-* Web: the worker handles one message at a time. A queue in the page sends only the latest movement when keys arrive faster than the worker can answer (ANN-3).
+* Web: the worker handles one message at a time. When keys arrive faster than the worker can answer, the waiting moves are joined and all carried out, and only the last place is spoken (ANN-3). The joining is in the core, so both shells behave the same (spike S5).
 
 ---
 
@@ -408,6 +438,7 @@ Each feature record holds:
 ### 6.9 Drawing detail
 * Shapes are stored at several levels of simplification, matched to the zoom list (NAV-13).
 * The drawing level for a zoom is chosen so that simplification is never visible on screen.
+* Spike S5 found that painting time grows with the number of points. A frame of about 10,000 points or fewer meets the 100 ms redraw target (VIS-1). The whole globe at Natural Earth's 1:50 million scale, about 80,000 points, took 330 ms to paint. So the drawing levels are essential, and each zoom uses the level that keeps the frame to about that size.
 * At each drawing level, parts of an area that are too small to pass the size rule at that level, such as tiny islands, are left out of the drawing shape. This is what keeps the UK fast to draw at country zoom despite its thousands of islands (section 6.12).
 * Simplification is done on shared edges, never on whole areas (AD-16):
   1. Every area boundary in a layer group is broken into edges. An edge runs between two points where three or more areas meet, or where a boundary meets the coast. An edge is shared by every area that uses it, at every level: the edge between Hampshire and Dorset is also part of the edge between South East and South West England.
@@ -436,7 +467,7 @@ OpenStreetMap's country boundaries (administrative level 2) include territorial 
 * We do not need to know whether a boundary includes territorial waters. Every land area is intersected with the OSM land polygons, which contain only land. Whatever water a boundary includes, whether territorial waters, an estuary or a bay, is removed. Where a boundary already follows the coast, nothing changes.
 * The same applies at every level: England, Hampshire and Southampton are all cut the same way, so they line up with each other and with the coast.
 * The land polygons are produced every day by the OpenStreetMap project's OSMCoastline program from every coastline in the world. It joins the pieces, closes small breaks and reports errors. That is why this avoids the problem AtlasDL hit at Gibraltar, where Spain's coastline stops at the Gibraltar border. We never need a country's coastline to join up. We only ask "which parts of Spain's area are land", and Gibraltar is not in Spain's area to begin with.
-* The land polygons are downloaded from osmdata.openstreetmap.de, about 1 GB, under ODbL. They are not on drive E: yet.
+* The land polygons are downloaded from osmdata.openstreetmap.de, about 900 MB, under ODbL, into the data folder's tobymap\downloads folder.
 
 #### Slivers and gaps
 * Where a boundary runs a little inland of the coastline, a thin strip of land can end up in no country. The pipeline finds land that is in no country. A small strip is given to the country it touches along the longest edge, and listed in the quality report. A large one stops the build for a correction rule (DMT-4).
@@ -448,8 +479,8 @@ OpenStreetMap's level 2 follows sovereignty, so France's area includes French Gu
 * A short configuration list of country units says which areas replace a level 2 country in the Countries layer. For France: Metropolitan France (OSM level 3, named "France") plus each overseas region as its own entry. AtlasDL did the same with its "Metropolitan France" and "is in France" filters.
 * Each unit records its sovereign state as a fact, so French Guiana's details say "overseas region of France".
 * The list is checked against Natural Earth's "map units", which already make these splits. The quality report lists every country whose parts are more than 1000 km apart, so nothing is missed. Expected cases include the Netherlands, Norway (Svalbard), Denmark (Greenland and the Faroe Islands), Portugal, the USA and New Zealand.
-* Optionally, a Sovereign States layer, switched off by default, keeps the whole of France as one area (DP86).
-* Ceuta and Melilla stay part of Spain, because they are Spain, not territories with their own identity. Spain's area simply has parts in Africa. Which continent they are placed in is DP88.
+* There is no Sovereign States layer for now. One could be added later, switched off by default, keeping the whole of France as one area, if you decide you want it (DP86).
+* Ceuta and Melilla stay part of Spain, because they are Spain, not territories with their own identity. Spain's area simply has parts in Africa. Each part of a country is placed in the continent it is in, so Spain appears under Europe and Africa, as Russia appears under Europe and Asia (DP88).
 * Gibraltar is its own entry in the Countries layer, with the United Kingdom as its sovereign state.
 
 #### Islands
@@ -466,7 +497,15 @@ Named islands:
 * They form an Islands layer, so Skye is announced as "Skye, island" and listed in Contains for Highland.
 * Named island groups, such as the Isles of Scilly (place=archipelago), are a later improvement.
 
-Unnamed islands: by default they are simply land, so on one you hear the county and country. Alternatively, unnamed islands above a minimum size could become features announced as "unnamed island" (DP87).
+Unnamed islands are announced as "Unnamed island", so standing on one you hear that, then its county and country. There will be many of them. At a high enough zoom, every island is visible, however small (DP87).
+
+#### The counties layer
+OSM does not use the same level for counties everywhere. Spike S2 found that level 6 leaves gaps: England's metropolitan areas and London have nothing at level 6, Northern Ireland's districts are level 7, and France's overseas departments and Ceuta and Melilla have no level 6 at all. So, as you agreed (DP101):
+
+* The counties layer uses level 6. Where level 6 leaves land uncovered, the gap is filled by the next level down that covers it, level 7 and then level 8. Where nothing below covers it, the region itself is used.
+* The pipeline keeps a record, for each country, of which levels make up its counties, so it isn't worked out again on every build.
+* The record can be corrected for one country in the pipeline's settings, for example if a country is found to use level 9. The correction is kept and used from then on.
+* The quality report lists every gap that was filled, so it can be checked against the OSM wiki.
 
 #### Borders and coasts
 * Once countries are cut to the land, a shared edge between two countries is a land border, and an edge against the sea is coast.
@@ -707,10 +746,10 @@ The listening test tool plays sounds from random directions and distances, asks 
 
 ### 12.1 The main risks
 * Countries, coastlines and islands may be harder than expected, as you found with AtlasDL. Handled by spike S2, which starts with the UK, France and Spain before anything else is built on it.
-* Web hosting of packs may be blocked by browser rules (section 9.2). Handled by spike S3, with fall-backs.
+* Web hosting of packs may be blocked by browser rules (section 9.2). Spike S3 confirmed it: the web version uses a copy on Hugging Face (DP102).
 * Pyodide may be too slow or use too much memory for the 150 ms target. Handled by spike S4. Fall-back: the web version keeps more in memory, or accepts a slightly longer target that you agree.
-* HRTF on the desktop may sound different from the browser. Handled by spike S1.
-* No built-in voice may be pleasant enough. Handled by spike S6.
+* HRTF on the desktop may sound different from the browser. Settled by spike S1: both use the same processing with a pitch cue, and stereo with pitch is the default.
+* No built-in voice may be pleasant enough. Settled by spike S6: Piper's Alba voice.
 * The base pack may not fit 250 MB with the detail wanted. Measured in spike S2 and in Phase 3, then discussed with you (PCK-1).
 * OpenStreetMap data is untidy, for example rivers in many pieces, boundaries that almost match, and whole relations that fail to build (AtlasDL found Russia broken in one planet file). Handled by the quality reports and correction rules, starting in spike S2. A relation that fails to build is reported, and the last good version or the Natural Earth shape is used instead, so one broken country never stops a build.
 * The macOS version cannot be tested by a person yet (PLT-2). Handled by automatic tests on macOS in continuous integration.
@@ -722,6 +761,7 @@ The listening test tool plays sounds from random directions and distances, asks 
 * Method: a small program that plays sounds from chosen directions and distances with each desktop candidate (Synthizer, OpenAL Soft and the project's own HRTF processing) and with Web Audio in Firefox and Chrome. For Synthizer, also check that it is still maintained, that it installs on our Python version, and its licence.
 * You listen and give your impressions of direction, front and back, and distance. DP91 asks about your experience with Synthizer in AtMap.
 * It decides AD-10, and confirms the plan for the full listening test in Phase 1.
+* Result (DP100): stereo with pitch by default and HRTF with pitch as an option, both from TobyMap's own processing. Findings: docs/spikes/S1-spatial-sound.md.
 
 ### 12.3 Spike S2: countries, coastlines and islands
 * Question: can the pipeline build accurate land-only countries and their divisions, with islands, shared borders and the antimeridian, quickly enough on your laptop, and how big are the results?
@@ -746,6 +786,7 @@ The listening test tool plays sounds from random directions and distances, asks 
 * Question: can a web page read pieces of a file from GitHub Releases, and how much can a browser store?
 * Method: publish a test file to a release on the TobyMap repository, then read pieces of it from a worker with synchronous requests in Firefox, Chrome and Edge. Test the browser's private file storage limits. If GitHub Releases fails, test Hugging Face, then Cloudflare Pages with a pack in parts.
 * It decides the web hosting (DP83).
+* Result (DP102): browsers cannot read GitHub Releases, and can read Hugging Face. The web version downloads packs from Hugging Face into private storage, which allows about 10 GB. Nothing was published to TobyMap's repository: the tests used files other projects had published. Findings: docs/spikes/S3-hosting-browser.md.
 
 ### 12.5 Spike S4: the core in Pyodide
 * Question: is the core fast enough in the browser?
@@ -757,12 +798,14 @@ The listening test tool plays sounds from random directions and distances, asks 
 * Method: an empty desktop window using the latest PySide6, and a web page, each with the map, the Information panel tree, Details and the menu, plus a globe drawn from Natural Earth countries that turns as you press the arrow keys. Check focus, announcements (including Braille-only through the NVDA Controller Client) and tree navigation with NVDA, using Firefox and Chrome for the web page. Package the desktop window as a Windows installer (AD-20).
 * You install it, and try both versions with NVDA.
 * It confirms AD-6, AD-20 and the shell patterns.
+* Result: confirmed, after five NVDA tests. Each frame must be kept to about 10,000 points (section 6.9). One known limitation remains in the desktop Information panel (section 5.5). Findings: docs/spikes/S5-globe-shell-installer.md.
 
 ### 12.7 Spike S6: the spatial voice
 * Question: which built-in voice speaks the spatial labels (SON-3, DP82)?
 * Method: a small program that speaks the same place names, such as "Berlin", "Bay of Biscay" and "Llívia", from chosen directions, using eSpeak NG, Piper and the Windows voices (section 4.6), plus the web candidates in Firefox. Measure the delay from request to sound, and the download size of each.
 * You listen and choose. If you prefer a Windows voice on the desktop, DP90 asks whether the web version may use a different voice.
 * It decides the voice for AD-10.
+* Result so far: Piper with the Alba voice (section 4.6). Piper in the browser is still to be tried, during spike S4. Findings: docs/spikes/S6-spatial-voice.md.
 
 ### 12.8 What each spike produces
 A short findings document for each, written for you, in the repository's docs/spikes folder, with a recommendation. Where a finding changes a decision here, this document is updated and the change is listed at the top.
@@ -799,16 +842,27 @@ A short findings document for each, written for you, in the repository's docs/sp
 * DP84: the repository is TobyMap, public, with the design documents in Markdown only.
 * DP85: no preview stage. Releases are made from an early phase, and you decide when to involve others.
 
-### New questions
-These are added to "Discussion points.csv" as DP86 to DP92.
+### Answered since version 0.2
+* DP86: no Sovereign States layer for now. It can be added later if you want it (section 6.12).
+* DP87: unnamed islands are announced as "Unnamed island", and at a high enough zoom every island is visible (section 6.12).
+* DP88: each part of a country is in the continent it is in, so a country can be under two continents (section 6.12).
+* DP89: the base pack's countries and first-level divisions come from OSM if spike S2 shows they fit the size budget.
+* DP90: no Windows voices. The desktop and web use the same voice (section 4.6).
+* DP91: you had no problems with Synthizer in AtMap, and it was compared in spike S1. It is not used (section 4.5).
+* DP92: the automatic tests keep running on macOS, with no Mac downloads until a Mac tester is found.
+* DP93: Tab moves round the map, the Information panel and Details only. Alt, or Ctrl+Alt+M in the web version, goes to the menu bar.
+* DP94: the web version uses ariaNotify (section 4.4).
+* DP95: the installer installs for the current user, with no administrator prompt (section 4.8).
+* DP96: the web version's 17 MB download and 9 to 10 second start are acceptable (section 4.3).
+* DP97: a key goes to the map from anywhere. It is now Ctrl+Alt+Space, because Ctrl+Alt+G was taken on your laptop.
+* DP98: Piper's Alba voice in the browser too, loaded after the map is ready (section 4.3).
+* DP99: V says the size of the visible map, and Z the grid value.
+* DP100: two sound modes from TobyMap's own processing (AD-10).
+* DP101: the counties layer fills gaps from the next level down, and the pipeline keeps a record of each country's levels (section 6.12).
+* DP102: packs on GitHub Releases for the desktop, and a copy on Hugging Face for the web (AD-9).
 
-* DP86: Country units. French Guiana and the other overseas regions become their own entries in the Countries layer, with France as their sovereign state. Should there also be a Sovereign States layer, off by default, with the whole of France as one area?
-* DP87: Unnamed islands. Should unnamed islands above a minimum size, such as 1 hectare, be announced as "unnamed island", or should they simply be land?
-* DP88: Continents for distant parts. Should the Canary Islands, Ceuta and Melilla be in Africa, French Guiana in South America, and Hawaii in Oceania, so a country can appear under two continents, as Russia does?
-* DP89: Should the base pack's countries and first-level divisions come from OSM, cut to the coast and simplified, instead of Natural Earth, if spike S2 shows they fit the size budget?
-* DP90: If a Windows voice is preferred in spike S6, is it acceptable for the web version to use a different voice?
-* DP91: What was your experience of Synthizer's direction and distance in AtMap?
-* DP92: macOS. Is it acceptable to keep the automatic tests running on macOS, but produce no Mac downloads until a Mac tester is found?
+### New questions
+There are no new questions in this version.
 
 ---
 

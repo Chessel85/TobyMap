@@ -14,14 +14,14 @@ Phase 0 is Foundations and spikes. The tasks are described in "implementation pl
 * [x] P0-T8 Spike S5, globe, accessible shell and installer. Findings: docs/spikes/S5-globe-shell-installer.md. Five NVDA tests done. Known limitation on the desktop: after Shift+Space or R, NVDA doesn't read the new item until Up then Down (fifth test, 2 November); to be tried again in Phase 1.
 * [ ] P0-T9 Spike S6, spatial voice. In progress: the PO chose Piper with the Alba voice; eSpeak NG ruled out. Piper in the browser waits for DP98 and spike S4. Draft findings: docs/spikes/S6-spatial-voice.md.
 * [x] P0-T10 Comparison with AtMap and AtlasDL: docs/design/lessons-from-atmap.md created from architecture section 15. Lessons from the spikes are added as they are found.
-* [ ] P0-T11 Update the architecture from the findings.
+* [ ] P0-T11 Update the architecture from the findings. In progress: version 0.3 on 2 November brings in spikes S1, S3, S5 and S6 so far, and DP86 to DP102. Still to come: spike S2 stages 2 and 3, spike S4, and Piper in the browser.
 
 ## Notes found while setting up
 
-* Python 3.14, not 3.13. The current Pyodide release is numbered 314 and runs Python 3.14, so desktop, web and the build laptop all use Python 3.14. Architecture section 4.1 will be updated in P0-T11.
+* Python 3.14, not 3.13. The current Pyodide release is numbered 314 and runs Python 3.14, so desktop, web and the build laptop all use Python 3.14. Architecture section 4.1 was updated in P0-T11.
 * PySide6 6.12.0 is the latest release, and is used.
 * The data folder on drive E: already had an "output" folder of the PO's from 2025. So mapdata writes only inside a new "tobymap" subfolder of the data folder, and reads the planet and UK files where they are.
 * The PO's original "Solution Design" folder stays on the laptop but is not in git. The live copies of the design documents are now in docs/design.
 * Spike S5 found that Pyodide's NumPy is 32-bit, so the core uses np.intp for array offsets.
-* Firefox and Chrome both support ariaNotify now. Architecture 4.4 will be updated in P0-T11.
-* The version is 0.0.2 for the S5 test build.
+* Firefox and Chrome both support ariaNotify now. Architecture 4.4 was updated in P0-T11.
+* The version is 0.0.5 for the S5 test build. A draft of the phase report is in docs/plan/phase-0-report.md.

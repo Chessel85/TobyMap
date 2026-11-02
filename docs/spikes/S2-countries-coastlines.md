@@ -87,8 +87,8 @@ The first full run finished on the afternoon of 2 November: 24 of 27 places pass
 Areas, against Wikidata (the 1% check):
 
 * Russia: 16,971,396 km², 0.6% less than Wikidata's 17,075,400 km². Passes.
-* Fiji: 18,757 km², 2.6% more than 18,274 km². Fails.
-* Kiribati: 1,097 km², 35% more than 811 km². Fails. Kiribati is made of atolls; the land polygons probably count reef flats, or lagoons closed off by the coastline, as land. This needs looking at before the world build, because many Pacific countries are atolls.
+* Fiji: 18,757 km², 2.6% more than 18,274 km². Fails. Partly explained by its lakes, mangroves and wetlands: see "Follow-ups" below.
+* Kiribati: 1,097 km², 35% more than 811 km². Fails. Mostly explained by its lagoons and salt ponds: see "Follow-ups" below.
 * The USA: 9,488,731 km², 3.4% less than 9,826,675 km². This is expected: Wikidata's figure includes coastal waters, and ours keeps the Great Lakes and other inland water but no sea.
 * Antarctica: 12,991,389 km², 5.3% less than 13,720,000 km². The cause: the OSM land polygons stop at 86 degrees south, so the South Pole was in the sea, and about 620,000 km² round the pole was missing. The build now adds the cap south of that as land, because the ice sheet is land all the way to the pole. That should bring Antarctica to about 13.6 million km², within 1%. To be confirmed.
 
@@ -127,7 +127,7 @@ Gaps:
 Neighbours meeting exactly (AD-16):
 
 * All nine layers meet exactly after cleaning and after simplifying, with no overlap.
-* Cleaning moved 864 km² between Russia's regions. OSM's borders between some of Russia's regions overlap; which ones is still to be found.
+* Cleaning moved 864 km² in Russia's regions. This is not overlapping borders, as first thought: it is Sevastopol, held twice. See "Follow-ups" below.
 
 Parts far from the mainland (for country units):
 
@@ -267,6 +267,39 @@ Time, the test of discussion point 103:
 
 One fault was found on the way. The first try stopped while printing a Russian name, because its output was going to a file, and Windows then uses its old character set. mapdata now always writes its output as UTF-8.
 
+### Follow-ups: Fiji's and Kiribati's areas, and Russia's 864 km², 2 November evening
+
+Worked out from stage 3's cached shapes, with one small read of the planet file round Fiji and Kiribati. No build was run.
+
+#### Kiribati and Fiji: inland water counted as land
+
+The OSM land polygons treat only the sea as water. Lakes, lagoons, ponds and wetlands inside the coastline are land in them, as the Great Lakes are for the USA. Published land areas leave most of those out.
+
+Kiribati, 1,097 km² here against Wikidata's 811 km²:
+
+* The excess is spread over all three island groups, about 35% in each. Kiritimati alone has 546 km² here; its published land area is about 388 km², and it has a large lagoon and hundreds of salt ponds.
+* OSM maps 237 km² of water inside Kiribati's land, mostly lagoons and ponds, and 30 km² of wetland, reef and sand flats.
+* Without them Kiribati has 830 km², 2.3% more than Wikidata. So the water explains most of the 35%, but not quite all of it.
+
+Fiji, 18,757 km² here against 18,274 km²:
+
+* The excess is spread too: Viti Levu has 10,637 km² here against the usually published 10,388 km², and Vanua Levu 5,680 km² against 5,587 km².
+* OSM maps 79 km² of lakes and rivers inside Fiji's land, 34 km² of mangrove, 62 km² of other wetland and 15 km² of reef and sand flats: 186 km² together.
+* Without them Fiji has 18,570 km², 1.6% more than Wikidata. The rest is not explained. A likely cause is that the coastline is drawn on the seaward side of mangroves and river mouths, with more detail than the maps the published figure was measured from. Mangroves in OSM are probably not all mapped. This is a guess and has not been checked.
+
+What this means for the world build:
+
+* Comparing our land with Wikidata's area will fail for any country with large lagoons, lakes or wetlands, without anything being wrong. The check should either take away the inland water mapped in OSM first, or allow more for such countries, and report the water separately.
+* For the application, area facts come from Wikidata with their source (DAT-7), not from our shapes, so no figure the user hears is affected.
+
+#### Russia's 864 km²: Sevastopol is in the layer twice
+
+* Repeating the stage 3 check showed that all 864 km² is one area: one of two copies of Sevastopol, which the cleaning removed entirely. No other region gained or lost anything.
+* OSM has two areas for Sevastopol with exactly the same outline: Ukraine's city (osm:r1574364, with Ukraine's code UA-40) and Russia's federal city (osm:r3788485). Both lie inside Russia's outline in OSM, so both were taken as Russia's regions. Cleaning cannot let two areas share land, so it kept one and dropped the other.
+* No two different regions of Russia overlap. The overlap check in the report did not catch this, because it looks only for shapes that partly overlap, not for one shape wholly inside another. That check should be widened.
+* Crimea itself appears in Russia's regions only once, as Ukraine's "Autonomous Republic of Crimea".
+* Which of the two to keep is a question about disputed places, so it is discussion point 104. DP28 already says disputed places follow the data source's view; DP104 asks how to apply that when OSM holds both views.
+
 ### Stage 1 again: not finished, because of the counties step
 
 Stage 1 was started again three times. The planet read, the land tiles and cutting all 64 countries, units and regions to the land took about a minute (67 seconds for the cutting, with 3 workers). Each time, the build then spent a long time in the counties step and was stopped.
@@ -284,7 +317,11 @@ The lesson from all of these: the slow steps were each an operation on a whole c
 
 * Stage 1 again: finish the whole run and the comparison once the counties step is faster, or run it with the counties step timed separately.
 * Antarctica: which definition Wikidata's area uses, and the cause of the 78 km of edges along the 180 degree line that are on one side only.
-* Look into Kiribati's area (35% more than Wikidata), Fiji's (2.6% more), and the 864 km² that cleaning moved between Russia's regions.
+* For the Phase 1 pipeline, agreed by the PO on 2 November:
+  * Discussion point 104, recommendation accepted: the build lists areas in one layer that cover the same land, keeps the one in the country whose outline holds it (Russia's Sevastopol), marks it disputed, and keeps the other's name and country for its details (ANN-6).
+  * Before comparing a country's land with Wikidata's area, take away the inland water mapped in OSM, and report that water separately.
+  * Widen the overlap check so it also finds one area wholly inside another.
+* Fiji's remaining 1.6% is close enough, the PO says; not looked into further.
 * Make the globe check look only at edges near the 180 degree line.
 
 ### Stage 4, Argentina: parked

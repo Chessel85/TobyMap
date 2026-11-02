@@ -1,0 +1,810 @@
+{
+ "first": {
+  "browser": "Chrome 156.0.8078.4",
+  "timings": {
+   "pyodide_ms": 4215,
+   "packages_ms": 606,
+   "core_ms": 785,
+   "startup_ms": 5606,
+   "copy_ms": 220,
+   "open_ms": 28,
+   "bench_ms": 10217
+  },
+  "download": {
+   "total": 17325825,
+   "files": [
+    [
+     "pyodide-lock.json",
+     119077
+    ],
+    [
+     "python_stdlib.zip",
+     2545637
+    ],
+    [
+     "pyodide.asm.wasm",
+     9598218
+    ],
+    [
+     "pyodide.asm.mjs",
+     1250344
+    ],
+    [
+     "numpy-2.4.6-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+     2960568
+    ],
+    [
+     "shapely-2.1.2-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+     851981
+    ]
+   ]
+  },
+  "heap_mb": 52,
+  "result": {
+   "places": [
+    {
+     "name": "The Skagerrak off Arendal",
+     "ms": 159.4,
+     "ok": true,
+     "tiles_read": 1,
+     "read_ms": 0.8,
+     "decode_ms": 149.2,
+     "test_ms": 0.9,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "The North Sea west of Sotra",
+     "ms": 33.2,
+     "ok": true,
+     "tiles_read": 2,
+     "read_ms": 1,
+     "decode_ms": 31.4,
+     "test_ms": 0.1,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "The Gulf of Bothnia",
+     "ms": 16.5,
+     "ok": true,
+     "tiles_read": 1,
+     "read_ms": 0.4,
+     "decode_ms": 15.5,
+     "test_ms": 0.3,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "The Barents Sea north of Varanger",
+     "ms": 93.3,
+     "ok": true,
+     "tiles_read": 5,
+     "read_ms": 2.2,
+     "decode_ms": 90.3,
+     "test_ms": 0.3,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "Isfjorden at Longyearbyen",
+     "ms": 134.2,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 2.1,
+     "decode_ms": 130.7,
+     "test_ms": 1,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "Oslo",
+     "ms": 52.9,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.4,
+     "decode_ms": 50.6,
+     "test_ms": 0.7,
+     "found": [
+      "Oslo",
+      "Oslo",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Bergen",
+     "ms": 46.7,
+     "ok": true,
+     "tiles_read": 4,
+     "read_ms": 0.9,
+     "decode_ms": 44.7,
+     "test_ms": 0.2,
+     "found": [
+      "Bergen",
+      "Vestland",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Svolv\u00e6r in Lofoten",
+     "ms": 131.8,
+     "ok": true,
+     "tiles_read": 6,
+     "read_ms": 2.4,
+     "decode_ms": 128.4,
+     "test_ms": 0.5,
+     "found": [
+      "V\u00e5gan",
+      "Nordland",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Troms\u00f8",
+     "ms": 121.4,
+     "ok": true,
+     "tiles_read": 5,
+     "read_ms": 2.2,
+     "decode_ms": 118.2,
+     "test_ms": 0.5,
+     "found": [
+      "Troms\u00f8",
+      "Troms",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Longyearbyen in Svalbard",
+     "ms": 82,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.4,
+     "decode_ms": 80.1,
+     "test_ms": 0.4,
+     "found": [
+      "Svalbard",
+      "Svalbard",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Halden by the Swedish border",
+     "ms": 43.7,
+     "ok": true,
+     "tiles_read": 1,
+     "read_ms": 0.4,
+     "decode_ms": 42.7,
+     "test_ms": 0.1,
+     "found": [
+      "Halden",
+      "\u00d8stfold",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Stockholm",
+     "ms": 61.3,
+     "ok": true,
+     "tiles_read": 2,
+     "read_ms": 1.2,
+     "decode_ms": 59.5,
+     "test_ms": 0.3,
+     "found": [
+      "Stockholm Municipality",
+      "Stockholm County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Visby on Gotland",
+     "ms": 25,
+     "ok": true,
+     "tiles_read": 2,
+     "read_ms": 0.9,
+     "decode_ms": 23.6,
+     "test_ms": 0.3,
+     "found": [
+      "Gotlands kommun",
+      "Gotland County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Kiruna",
+     "ms": 91.2,
+     "ok": true,
+     "tiles_read": 5,
+     "read_ms": 2.5,
+     "decode_ms": 87.6,
+     "test_ms": 0.6,
+     "found": [
+      "Kiruna kommun",
+      "Norrbotten County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Str\u00f6mstad by the Norwegian border",
+     "ms": 72.9,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.4,
+     "decode_ms": 70.9,
+     "test_ms": 0.3,
+     "found": [
+      "Str\u00f6mstads kommun",
+      "V\u00e4stra G\u00f6taland County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Haparanda",
+     "ms": 37.6,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1,
+     "decode_ms": 36,
+     "test_ms": 0.2,
+     "found": [
+      "Haparanda kommun",
+      "Norrbotten County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Tornio",
+     "ms": 42.6,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.1,
+     "decode_ms": 40.6,
+     "test_ms": 0.6,
+     "found": [
+      "Finland"
+     ]
+    },
+    {
+     "name": "Kirkenes near Russia",
+     "ms": 119.8,
+     "ok": true,
+     "tiles_read": 5,
+     "read_ms": 2.4,
+     "decode_ms": 116.5,
+     "test_ms": 0.4,
+     "found": [
+      "South Varanki",
+      "Finnmark",
+      "Norway"
+     ]
+    }
+   ],
+   "walks": [
+    {
+     "name": "West from Svolv\u00e6r, along Lofoten, 1 km steps",
+     "steps": 40,
+     "step_km": 1,
+     "no_cache": {
+      "count": 40,
+      "median_ms": 97.15,
+      "p90_ms": 118.46,
+      "max_ms": 145.2,
+      "mean_ms": 99.16,
+      "tiles_read": 224,
+      "read_ms": 87.6,
+      "decode_ms": 3848.3,
+      "test_ms": 15.8
+     },
+     "tile_cache": {
+      "count": 40,
+      "median_ms": 0.4,
+      "p90_ms": 20.34,
+      "max_ms": 35.3,
+      "mean_ms": 5.62,
+      "tiles_read": 22,
+      "read_ms": 6.6,
+      "decode_ms": 307.5,
+      "test_ms": 8.8
+     }
+    },
+    {
+     "name": "West from Bergen, out through the islands to the sea, 0.5 km steps",
+     "steps": 40,
+     "step_km": 0.5,
+     "no_cache": {
+      "count": 40,
+      "median_ms": 39.9,
+      "p90_ms": 52.88,
+      "max_ms": 63.5,
+      "mean_ms": 41.94,
+      "tiles_read": 144,
+      "read_ms": 41.6,
+      "decode_ms": 1614.6,
+      "test_ms": 9.1
+     },
+     "tile_cache": {
+      "count": 40,
+      "median_ms": 0.2,
+      "p90_ms": 9.14,
+      "max_ms": 27.7,
+      "mean_ms": 2.66,
+      "tiles_read": 10,
+      "read_ms": 3,
+      "decode_ms": 130.9,
+      "test_ms": 5.4
+     }
+    },
+    {
+     "name": "East from Halden, across the Swedish border, 1 km steps",
+     "steps": 40,
+     "step_km": 1,
+     "no_cache": {
+      "count": 40,
+      "median_ms": 13.45,
+      "p90_ms": 36.93,
+      "max_ms": 41.2,
+      "mean_ms": 19.76,
+      "tiles_read": 40,
+      "read_ms": 16.6,
+      "decode_ms": 760.3,
+      "test_ms": 5.7
+     },
+     "tile_cache": {
+      "count": 40,
+      "median_ms": 0.2,
+      "p90_ms": 0.4,
+      "max_ms": 12.4,
+      "mean_ms": 0.83,
+      "tiles_read": 3,
+      "read_ms": 1.3,
+      "decode_ms": 55.1,
+      "test_ms": 5
+     }
+    },
+    {
+     "name": "North from Stockholm, through the archipelago, 2 km steps",
+     "steps": 40,
+     "step_km": 2,
+     "no_cache": {
+      "count": 40,
+      "median_ms": 30.25,
+      "p90_ms": 54.41,
+      "max_ms": 57.5,
+      "mean_ms": 31.24,
+      "tiles_read": 144,
+      "read_ms": 32.2,
+      "decode_ms": 1198.5,
+      "test_ms": 8.7
+     },
+     "tile_cache": {
+      "count": 40,
+      "median_ms": 1.35,
+      "p90_ms": 32.27,
+      "max_ms": 48.3,
+      "mean_ms": 10.78,
+      "tiles_read": 34,
+      "read_ms": 9.2,
+      "decode_ms": 474.4,
+      "test_ms": 6.5
+     }
+    }
+   ],
+   "where_am_i": {
+    "count": 18,
+    "median_ms": 67.1,
+    "p90_ms": 132.52,
+    "max_ms": 159.4,
+    "mean_ms": 75.86
+   },
+   "places_passed": 18
+  }
+ },
+ "second": {
+  "browser": "Chrome 156.0.8078.4",
+  "timings": {
+   "pyodide_ms": 3087,
+   "packages_ms": 685,
+   "core_ms": 870,
+   "startup_ms": 4642,
+   "copy_ms": 0,
+   "open_ms": 33,
+   "bench_ms": 10982
+  },
+  "download": {
+   "total": 17325825,
+   "files": [
+    [
+     "pyodide-lock.json",
+     119077
+    ],
+    [
+     "python_stdlib.zip",
+     2545637
+    ],
+    [
+     "pyodide.asm.wasm",
+     9598218
+    ],
+    [
+     "pyodide.asm.mjs",
+     1250344
+    ],
+    [
+     "numpy-2.4.6-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+     2960568
+    ],
+    [
+     "shapely-2.1.2-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+     851981
+    ]
+   ]
+  },
+  "heap_mb": 52,
+  "result": {
+   "places": [
+    {
+     "name": "The Skagerrak off Arendal",
+     "ms": 154.2,
+     "ok": true,
+     "tiles_read": 1,
+     "read_ms": 1.4,
+     "decode_ms": 138.4,
+     "test_ms": 1,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "The North Sea west of Sotra",
+     "ms": 35.2,
+     "ok": true,
+     "tiles_read": 2,
+     "read_ms": 0.9,
+     "decode_ms": 33.5,
+     "test_ms": 0.2,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "The Gulf of Bothnia",
+     "ms": 27.4,
+     "ok": true,
+     "tiles_read": 1,
+     "read_ms": 0.6,
+     "decode_ms": 26,
+     "test_ms": 0.3,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "The Barents Sea north of Varanger",
+     "ms": 97.1,
+     "ok": true,
+     "tiles_read": 5,
+     "read_ms": 2.6,
+     "decode_ms": 93.8,
+     "test_ms": 0.4,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "Isfjorden at Longyearbyen",
+     "ms": 125.8,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.7,
+     "decode_ms": 122.5,
+     "test_ms": 1.4,
+     "found": [
+      "sea"
+     ]
+    },
+    {
+     "name": "Oslo",
+     "ms": 50.5,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.3,
+     "decode_ms": 48,
+     "test_ms": 0.6,
+     "found": [
+      "Oslo",
+      "Oslo",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Bergen",
+     "ms": 54.6,
+     "ok": true,
+     "tiles_read": 4,
+     "read_ms": 1.4,
+     "decode_ms": 52.1,
+     "test_ms": 0.5,
+     "found": [
+      "Bergen",
+      "Vestland",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Svolv\u00e6r in Lofoten",
+     "ms": 168.3,
+     "ok": true,
+     "tiles_read": 6,
+     "read_ms": 3.2,
+     "decode_ms": 164.1,
+     "test_ms": 0.4,
+     "found": [
+      "V\u00e5gan",
+      "Nordland",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Troms\u00f8",
+     "ms": 125.7,
+     "ok": true,
+     "tiles_read": 5,
+     "read_ms": 2.5,
+     "decode_ms": 121.9,
+     "test_ms": 0.7,
+     "found": [
+      "Troms\u00f8",
+      "Troms",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Longyearbyen in Svalbard",
+     "ms": 91.7,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.7,
+     "decode_ms": 89.1,
+     "test_ms": 0.5,
+     "found": [
+      "Svalbard",
+      "Svalbard",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Halden by the Swedish border",
+     "ms": 49.2,
+     "ok": true,
+     "tiles_read": 1,
+     "read_ms": 0.8,
+     "decode_ms": 47.7,
+     "test_ms": 0.3,
+     "found": [
+      "Halden",
+      "\u00d8stfold",
+      "Norway"
+     ]
+    },
+    {
+     "name": "Stockholm",
+     "ms": 71.9,
+     "ok": true,
+     "tiles_read": 2,
+     "read_ms": 1.6,
+     "decode_ms": 69.4,
+     "test_ms": 0.3,
+     "found": [
+      "Stockholm Municipality",
+      "Stockholm County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Visby on Gotland",
+     "ms": 25,
+     "ok": true,
+     "tiles_read": 2,
+     "read_ms": 0.7,
+     "decode_ms": 23.8,
+     "test_ms": 0.2,
+     "found": [
+      "Gotlands kommun",
+      "Gotland County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Kiruna",
+     "ms": 92.3,
+     "ok": true,
+     "tiles_read": 5,
+     "read_ms": 2.4,
+     "decode_ms": 88.7,
+     "test_ms": 1,
+     "found": [
+      "Kiruna kommun",
+      "Norrbotten County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Str\u00f6mstad by the Norwegian border",
+     "ms": 74.1,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.3,
+     "decode_ms": 72.1,
+     "test_ms": 0.3,
+     "found": [
+      "Str\u00f6mstads kommun",
+      "V\u00e4stra G\u00f6taland County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Haparanda",
+     "ms": 36.7,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1,
+     "decode_ms": 35.1,
+     "test_ms": 0.2,
+     "found": [
+      "Haparanda kommun",
+      "Norrbotten County",
+      "Sweden"
+     ]
+    },
+    {
+     "name": "Tornio",
+     "ms": 38.3,
+     "ok": true,
+     "tiles_read": 3,
+     "read_ms": 1.1,
+     "decode_ms": 36.3,
+     "test_ms": 0.3,
+     "found": [
+      "Finland"
+     ]
+    },
+    {
+     "name": "Kirkenes near Russia",
+     "ms": 123.1,
+     "ok": true,
+     "tiles_read": 5,
+     "read_ms": 2.4,
+     "decode_ms": 119.5,
+     "test_ms": 0.7,
+     "found": [
+      "South Varanki",
+      "Finnmark",
+      "Norway"
+     ]
+    }
+   ],
+   "walks": [
+    {
+     "name": "West from Svolv\u00e6r, along Lofoten, 1 km steps",
+     "steps": 40,
+     "step_km": 1,
+     "no_cache": {
+      "count": 40,
+      "median_ms": 113.8,
+      "p90_ms": 141.14,
+      "max_ms": 163,
+      "mean_ms": 116.81,
+      "tiles_read": 224,
+      "read_ms": 102,
+      "decode_ms": 4535.8,
+      "test_ms": 18.6
+     },
+     "tile_cache": {
+      "count": 40,
+      "median_ms": 0.45,
+      "p90_ms": 23.03,
+      "max_ms": 41.8,
+      "mean_ms": 6.21,
+      "tiles_read": 22,
+      "read_ms": 7,
+      "decode_ms": 347.3,
+      "test_ms": 9.8
+     }
+    },
+    {
+     "name": "West from Bergen, out through the islands to the sea, 0.5 km steps",
+     "steps": 40,
+     "step_km": 0.5,
+     "no_cache": {
+      "count": 40,
+      "median_ms": 42.5,
+      "p90_ms": 51.51,
+      "max_ms": 56,
+      "mean_ms": 41.33,
+      "tiles_read": 144,
+      "read_ms": 45,
+      "decode_ms": 1588.7,
+      "test_ms": 9.4
+     },
+     "tile_cache": {
+      "count": 40,
+      "median_ms": 0.3,
+      "p90_ms": 10.03,
+      "max_ms": 30,
+      "mean_ms": 2.97,
+      "tiles_read": 10,
+      "read_ms": 2.7,
+      "decode_ms": 144.3,
+      "test_ms": 5.7
+     }
+    },
+    {
+     "name": "East from Halden, across the Swedish border, 1 km steps",
+     "steps": 40,
+     "step_km": 1,
+     "no_cache": {
+      "count": 40,
+      "median_ms": 13.7,
+      "p90_ms": 36.71,
+      "max_ms": 48.8,
+      "mean_ms": 19.99,
+      "tiles_read": 40,
+      "read_ms": 17.4,
+      "decode_ms": 769,
+      "test_ms": 5.8
+     },
+     "tile_cache": {
+      "count": 40,
+      "median_ms": 0.2,
+      "p90_ms": 0.3,
+      "max_ms": 15,
+      "mean_ms": 0.92,
+      "tiles_read": 3,
+      "read_ms": 1.1,
+      "decode_ms": 62.2,
+      "test_ms": 4.2
+     }
+    },
+    {
+     "name": "North from Stockholm, through the archipelago, 2 km steps",
+     "steps": 40,
+     "step_km": 2,
+     "no_cache": {
+      "count": 40,
+      "median_ms": 31.25,
+      "p90_ms": 61.51,
+      "max_ms": 63.2,
+      "mean_ms": 31.48,
+      "tiles_read": 144,
+      "read_ms": 31.2,
+      "decode_ms": 1208.1,
+      "test_ms": 8.9
+     },
+     "tile_cache": {
+      "count": 40,
+      "median_ms": 1.05,
+      "p90_ms": 27.41,
+      "max_ms": 40.5,
+      "mean_ms": 8.87,
+      "tiles_read": 34,
+      "read_ms": 6.9,
+      "decode_ms": 385.9,
+      "test_ms": 5.4
+     }
+    }
+   ],
+   "where_am_i": {
+    "count": 18,
+    "median_ms": 73,
+    "p90_ms": 134.32,
+    "max_ms": 168.3,
+    "mean_ms": 80.06
+   },
+   "places_passed": 18
+  }
+ }
+}

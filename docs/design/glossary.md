@@ -45,6 +45,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Tile level: the size of a pack tile. At tile level 3, a pack tile is 45 degrees wide and 22.5 degrees tall. Each level up halves both, so one pack tile is split into four. A pack tile is split only where a shape in it has more than 4,000 points, so pack tiles are small where coasts are detailed and big elsewhere.
 * Tile entry: what one pack tile holds for one area. It is either the part of the area's shape inside the tile, or a note that the area covers the whole tile.
 * Lookup: finding every area at a point. It reads at most one pack tile at each tile level.
+* Decoding: turning a pack tile's stored bytes back into shapes that can be tested against a point. Compact coordinates must be decoded before use.
+* Pack tile cache: the decoded shapes of pack tiles read recently, kept in memory, so a lookup nearby needs no reading or decoding.
 
 ## Hosting and the browser
 

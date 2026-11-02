@@ -116,29 +116,52 @@ def encode_compact(geom) -> bytes:
     return _varints(np.asarray(header, np.uint64)) + _varints(_zigzag(deltas))
 
 
+def _all_varints(buf: bytes) -> np.ndarray:
+    """Every varint in the buffer, decoded in one go with NumPy.
+
+    Spike S4 found that decoding one number at a time in Python took about
+    95% of a lookup in the browser. Indexes use np.intp, because NumPy in
+    Pyodide is 32-bit.
+    """
+    a = np.frombuffer(buf, dtype=np.uint8)
+    ends = np.flatnonzero(a < 0x80).astype(np.intp)
+    starts = np.empty_like(ends)
+    starts[0] = 0
+    starts[1:] = ends[:-1] + 1
+    within = np.arange(a.size, dtype=np.intp) - np.repeat(starts, ends - starts + 1)
+    parts = (a & 0x7F).astype(np.uint64) << (within * 7).astype(np.uint64)
+    return np.bitwise_or.reduceat(parts, starts)
+
+
 def decode_compact(buf: bytes):
-    pos = 0
-    (npoly,), pos = _read_varints(buf, pos, 1)
-    structure = []
-    total = 0
+    values = _all_varints(buf)
+    head = values[:4096].tolist()  # enough for most shapes' structure; more is read if needed
+    npoly, pos = head[0], 1
+    poly_rings, ring_counts = [], []
     for _ in range(npoly):
-        (nrings,), pos = _read_varints(buf, pos, 1)
-        counts, pos = _read_varints(buf, pos, nrings)
-        structure.append(counts)
-        total += sum(counts)
-    raw, pos = _read_varints(buf, pos, total * 2)
-    z = np.asarray(raw, np.uint64)
+        if pos + 1 >= len(head):
+            head = values.tolist()
+        nrings = head[pos]
+        if pos + 1 + nrings > len(head):
+            head = values.tolist()
+        poly_rings.append(nrings)
+        ring_counts.extend(head[pos + 1:pos + 1 + nrings])
+        pos += 1 + nrings
+    counts = np.asarray(ring_counts, dtype=np.intp)
+    total = int(counts.sum())
+    z = values[pos:pos + 2 * total]
     deltas = ((z >> np.uint64(1)).astype(np.int64)) ^ (-(z & np.uint64(1)).astype(np.int64))
     pts = np.cumsum(deltas.reshape(-1, 2), axis=0) / SCALE
-    polys, k = [], 0
-    for counts in structure:
-        rings = []
-        for c in counts:
-            ring = pts[k:k + c]
-            k += c
-            rings.append(np.vstack([ring, ring[:1]]))
-        polys.append(shapely.Polygon(rings[0], rings[1:]))
-    return polys[0] if len(polys) == 1 else shapely.MultiPolygon(polys)
+    # Close each ring by repeating its first point (the encoding leaves it out).
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]]).astype(np.intp)
+    closed = counts + 1
+    ring_offsets = np.concatenate([[0], np.cumsum(closed)]).astype(np.intp)
+    index = np.arange(int(closed.sum()), dtype=np.intp) - np.repeat(ring_offsets[:-1] - starts, closed)
+    index[ring_offsets[1:] - 1] = starts
+    poly_offsets = np.concatenate([[0], np.cumsum(poly_rings)]).astype(np.intp)
+    geom = shapely.from_ragged_array(shapely.GeometryType.MULTIPOLYGON, pts[index],
+                                     (ring_offsets, poly_offsets, np.array([0, npoly], dtype=np.intp)))[0]
+    return geom.geoms[0] if npoly == 1 else geom
 
 
 # Writing -------------------------------------------------------------------
@@ -189,36 +212,58 @@ class Writer:
 
 # Reading -------------------------------------------------------------------
 
-class Pack:
-    """Reads pieces on demand from a pack file."""
+class FileSource:
+    """A pack's bytes from a file on disk."""
 
     def __init__(self, path: Path):
         self.path = Path(path)
         self.file = open(self.path, "rb")
-        head = self.file.read(16)
+        self.size = self.path.stat().st_size
+
+    def read(self, offset: int, length: int) -> bytes:
+        self.file.seek(offset)
+        return self.file.read(length)
+
+    def close(self) -> None:
+        self.file.close()
+
+
+class Pack:
+    """Reads pieces on demand from a pack.
+
+    The pack is a file path, or a byte source: anything with a `size` and a
+    `read(offset, length)` method. The web version passes a source that reads
+    the browser's private storage (spike S4, DP102).
+    """
+
+    def __init__(self, source):
+        if isinstance(source, (str, Path)):
+            source = FileSource(Path(source))
+        self.source = source
+        self.path = getattr(source, "path", None)
+        head = bytes(source.read(0, 16))
         if head[:8] != MAGIC:
-            raise ValueError(f"{path} is not a TobyMap pack")
+            raise ValueError(f"{self.path or 'This'} is not a TobyMap pack")
         self.version = struct.unpack_from("<H", head, 8)[0]
         self.reads = 0
-        self.file.seek(-16, 2)
-        offset, length = struct.unpack("<QQ", self.file.read(16))
-        self.file.seek(offset)
-        self.directory = json.loads(zlib.decompress(self.file.read(length)))
+        offset, length = struct.unpack("<QQ", bytes(source.read(source.size - 16, 16)))
+        self.directory = json.loads(zlib.decompress(source.read(offset, length)))
         self.manifest = self.get_json("manifest")
         self.features = self.get_json("features")
         self.levels = self.manifest["tile_levels"]
         self.reads = 0
 
     def close(self) -> None:
-        self.file.close()
+        close = getattr(self.source, "close", None)
+        if close is not None:
+            close()
 
     def get(self, key: str) -> bytes | None:
         entry = self.directory.get(key)
         if entry is None:
             return None
-        self.file.seek(entry[0])
         self.reads += 1
-        return zlib.decompress(self.file.read(entry[1]))
+        return zlib.decompress(self.source.read(entry[0], entry[1]))
 
     def get_json(self, key: str):
         data = self.get(key)

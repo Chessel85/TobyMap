@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Spike S6: Piper's Alba voice in the browser</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 50em; margin: 1em auto; padding: 0 1em; }
+  textarea { width: 100%; height: 20em; font-family: monospace; }
+  button { margin: 0.25em 0.5em 0.25em 0; font-size: 1em; }
+  input, select { font-size: 1em; }
+</style>
+</head>
+<body>
+<h1>Spike S6: Piper's Alba voice in the browser</h1>
+<p>Use headphones. This page runs Piper's Alba voice inside the browser, in a worker, and places each label in space with the browser's own HRTF, as the desktop demo does.</p>
+<p>First press "Load the voice". The first time, it downloads about 60 MB, so it may take a while. The page says when the voice is ready.</p>
+<p><label><input id="fresh" type="checkbox"> Download the voice again, even if it is already stored</label></p>
+<button id="load" type="button">Load the voice</button>
+<p id="status" role="status" aria-live="polite"></p>
+
+<h2>Eight place names from eight directions</h2>
+<p>Each button speaks one place name from its direction.</p>
+<div id="directions"></div>
+
+<h2>Your own words</h2>
+<p><label for="words">Words to speak</label><br>
+<input id="words" type="text" size="40" value="Mont Saint-Michel"></p>
+<p><label for="bearing">Direction</label><br>
+<select id="bearing"></select></p>
+<button id="speak" type="button">Speak</button>
+
+<h2>Results</h2>
+<p>Every load and every label adds its timings here.</p>
+<p><label for="results">Results</label><br>
+<textarea id="results" readonly></textarea></p>
+<button id="save" type="button">Save the results as a file</button>
+<script src="main.js"></script>
+</body>
+</html>

@@ -56,3 +56,11 @@ Older documents written before this glossary, such as architecture section 6 and
 * Private storage: the browser's private file system for one web site (OPFS). Other sites and the user's own files can't see it. The web version keeps packs here so they work offline.
 * Storage limit: how much the browser lets one web site keep in its private storage.
 * Kept storage: private storage that the browser has agreed not to clear when the disk gets full. A site has to ask for it, and Firefox asks the user.
+* Cache storage: a second store the browser keeps for one web site, for whole downloaded files. The web version keeps the voice here, so a later visit does not download it again.
+* Thread: one line of work inside a program. A program with several threads can use several of the computer's cores at once.
+* Cross-origin isolation: a setting a web site sends with its page (two headers) that lets the page's workers use several threads. Without it, a worker has one thread.
+
+## Voice
+
+* Phonemes: the separate sounds of speech, such as the five in Berlin: "b", "er", "l", "i" and "n". Piper is given phonemes, not letters. eSpeak NG works them out from the text.
+* Label: a short piece of speech from the spatial voice, such as "Berlin", placed in space.

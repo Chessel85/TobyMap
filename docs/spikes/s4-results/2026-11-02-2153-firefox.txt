@@ -1,0 +1,96 @@
+Spike S4 in Firefox 157.0, 2026-11-02T21:54:13.210Z.
+Pyodide started in 3148 ms.
+Packages loaded (numpy, shapely) in 664 ms.
+The core's pack reader and the timing code loaded and imported in 1395 ms.
+Start-up in all: 5207 ms.
+Pyodide and its packages fetched: 16.5 MB.
+  pyodide.mjs: 0.02 MB
+  pyodide.asm.mjs: 1.19 MB
+  pyodide-lock.json: 0.11 MB
+  python_stdlib.zip: 2.43 MB
+  pyodide.asm.wasm: 9.15 MB
+  shapely-2.1.2-cp314-cp314-pyemscripten_2026_0_wasm32.whl: 0.81 MB
+  numpy-2.4.6-cp314-cp314-pyemscripten_2026_0_wasm32.whl: 2.82 MB
+The pack (68.6 MB) copied into private storage in 475 ms.
+The pack opened (its directory, manifest and areas read) in 38 ms.
+== In this browser ==
+Where am I, at 18 places, nothing cached: median 58.5 ms, 90% within 111.4 ms, slowest 132.0 ms. Places with the expected answer: 18 of 18.
+  PASS The Skagerrak off Arendal: 80.0 ms, 1 pack tiles read (reading 2.0 ms, decoding 78.0 ms, testing 0.0 ms). Found sea.
+  PASS The North Sea west of Sotra: 16.0 ms, 2 pack tiles read (reading 2.0 ms, decoding 14.0 ms, testing 0.0 ms). Found sea.
+  PASS The Gulf of Bothnia: 13.0 ms, 1 pack tiles read (reading 1.0 ms, decoding 12.0 ms, testing 0.0 ms). Found sea.
+  PASS The Barents Sea north of Varanger: 75.0 ms, 5 pack tiles read (reading 5.0 ms, decoding 68.0 ms, testing 0.0 ms). Found sea.
+  PASS Isfjorden at Longyearbyen: 124.0 ms, 3 pack tiles read (reading 3.0 ms, decoding 121.0 ms, testing 0.0 ms). Found sea.
+  PASS Oslo: 41.0 ms, 3 pack tiles read (reading 1.0 ms, decoding 40.0 ms, testing 0.0 ms). Found Oslo, Oslo, Norway.
+  PASS Bergen: 36.0 ms, 4 pack tiles read (reading 1.0 ms, decoding 35.0 ms, testing 0.0 ms). Found Bergen, Vestland, Norway.
+  PASS Svolvær in Lofoten: 132.0 ms, 6 pack tiles read (reading 5.0 ms, decoding 126.0 ms, testing 0.0 ms). Found Vågan, Nordland, Norway.
+  PASS Tromsø: 106.0 ms, 5 pack tiles read (reading 4.0 ms, decoding 102.0 ms, testing 0.0 ms). Found Tromsø, Troms, Norway.
+  PASS Longyearbyen in Svalbard: 67.0 ms, 3 pack tiles read (reading 4.0 ms, decoding 63.0 ms, testing 0.0 ms). Found Svalbard, Svalbard, Norway.
+  PASS Halden by the Swedish border: 30.0 ms, 1 pack tiles read (reading 1.0 ms, decoding 29.0 ms, testing 0.0 ms). Found Halden, Østfold, Norway.
+  PASS Stockholm: 50.0 ms, 2 pack tiles read (reading 1.0 ms, decoding 48.0 ms, testing 1.0 ms). Found Stockholm Municipality, Stockholm County, Sweden.
+  PASS Visby on Gotland: 23.0 ms, 2 pack tiles read (reading 2.0 ms, decoding 21.0 ms, testing 0.0 ms). Found Gotlands kommun, Gotland County, Sweden.
+  PASS Kiruna: 72.0 ms, 5 pack tiles read (reading 4.0 ms, decoding 68.0 ms, testing 0.0 ms). Found Kiruna kommun, Norrbotten County, Sweden.
+  PASS Strömstad by the Norwegian border: 74.0 ms, 3 pack tiles read (reading 3.0 ms, decoding 70.0 ms, testing 1.0 ms). Found Strömstads kommun, Västra Götaland County, Sweden.
+  PASS Haparanda: 29.0 ms, 3 pack tiles read (reading 1.0 ms, decoding 27.0 ms, testing 0.0 ms). Found Haparanda kommun, Norrbotten County, Sweden.
+  PASS Tornio: 30.0 ms, 3 pack tiles read (reading 2.0 ms, decoding 28.0 ms, testing 0.0 ms). Found Finland.
+  PASS Kirkenes near Russia: 85.0 ms, 5 pack tiles read (reading 3.0 ms, decoding 81.0 ms, testing 1.0 ms). Found South Varanki, Finnmark, Norway.
+Walk: West from Svolvær, along Lofoten, 1 km steps, 40 steps.
+  nothing cached: median 79.5 ms a step, 90% within 107.1 ms, slowest 119.0 ms. Pack tiles read: 224. In all: reading 124.0 ms, decoding 3203.0 ms, testing 8.0 ms.
+  with the tile cache: median 1.0 ms a step, 90% within 17.1 ms, slowest 33.0 ms. Pack tiles read: 22. In all: reading 10.0 ms, decoding 261.0 ms, testing 8.0 ms.
+Walk: West from Bergen, out through the islands to the sea, 0.5 km steps, 40 steps.
+  nothing cached: median 33.5 ms a step, 90% within 43.0 ms, slowest 44.0 ms. Pack tiles read: 144. In all: reading 69.0 ms, decoding 1223.0 ms, testing 10.0 ms.
+  with the tile cache: median 0.0 ms a step, 90% within 8.7 ms, slowest 26.0 ms. Pack tiles read: 10. In all: reading 1.0 ms, decoding 114.0 ms, testing 7.0 ms.
+Walk: East from Halden, across the Swedish border, 1 km steps, 40 steps.
+  nothing cached: median 9.0 ms a step, 90% within 26.0 ms, slowest 27.0 ms. Pack tiles read: 40. In all: reading 24.0 ms, decoding 524.0 ms, testing 6.0 ms.
+  with the tile cache: median 0.0 ms a step, 90% within 1.0 ms, slowest 9.0 ms. Pack tiles read: 3. In all: reading 2.0 ms, decoding 40.0 ms, testing 4.0 ms.
+Walk: North from Stockholm, through the archipelago, 2 km steps, 40 steps.
+  nothing cached: median 24.0 ms a step, 90% within 43.1 ms, slowest 47.0 ms. Pack tiles read: 144. In all: reading 52.0 ms, decoding 916.0 ms, testing 8.0 ms.
+  with the tile cache: median 1.0 ms a step, 90% within 26.1 ms, slowest 44.0 ms. Pack tiles read: 34. In all: reading 14.0 ms, decoding 343.0 ms, testing 7.0 ms.
+Python's memory in the browser (the WebAssembly heap) at the end: 52 MB.
+Spike S4 in Firefox 157.0, 2026-11-02T21:54:27.416Z.
+Pyodide started in 2508 ms.
+Packages loaded (numpy, shapely) in 629 ms.
+The core's pack reader and the timing code loaded and imported in 787 ms.
+Start-up in all: 3924 ms.
+Pyodide and its packages fetched: 16.5 MB.
+  pyodide.mjs: 0.02 MB
+  pyodide-lock.json: 0.11 MB
+  pyodide.asm.mjs: 1.19 MB
+  python_stdlib.zip: 2.43 MB
+  pyodide.asm.wasm: 9.15 MB
+  numpy-2.4.6-cp314-cp314-pyemscripten_2026_0_wasm32.whl: 2.82 MB
+  shapely-2.1.2-cp314-cp314-pyemscripten_2026_0_wasm32.whl: 0.81 MB
+The pack was already in private storage, so it was not copied again.
+The pack opened (its directory, manifest and areas read) in 25 ms.
+== In this browser ==
+Where am I, at 18 places, nothing cached: median 48.5 ms, 90% within 85.9 ms, slowest 98.0 ms. Places with the expected answer: 18 of 18.
+  PASS The Skagerrak off Arendal: 65.0 ms, 1 pack tiles read (reading 1.0 ms, decoding 64.0 ms, testing 0.0 ms). Found sea.
+  PASS The North Sea west of Sotra: 12.0 ms, 2 pack tiles read (reading 1.0 ms, decoding 11.0 ms, testing 0.0 ms). Found sea.
+  PASS The Gulf of Bothnia: 9.0 ms, 1 pack tiles read (reading 1.0 ms, decoding 8.0 ms, testing 0.0 ms). Found sea.
+  PASS The Barents Sea north of Varanger: 78.0 ms, 5 pack tiles read (reading 3.0 ms, decoding 74.0 ms, testing 0.0 ms). Found sea.
+  PASS Isfjorden at Longyearbyen: 88.0 ms, 3 pack tiles read (reading 3.0 ms, decoding 85.0 ms, testing 0.0 ms). Found sea.
+  PASS Oslo: 42.0 ms, 3 pack tiles read (reading 2.0 ms, decoding 40.0 ms, testing 0.0 ms). Found Oslo, Oslo, Norway.
+  PASS Bergen: 33.0 ms, 4 pack tiles read (reading 1.0 ms, decoding 32.0 ms, testing 0.0 ms). Found Bergen, Vestland, Norway.
+  PASS Svolvær in Lofoten: 98.0 ms, 6 pack tiles read (reading 3.0 ms, decoding 95.0 ms, testing 0.0 ms). Found Vågan, Nordland, Norway.
+  PASS Tromsø: 85.0 ms, 5 pack tiles read (reading 6.0 ms, decoding 79.0 ms, testing 0.0 ms). Found Tromsø, Troms, Norway.
+  PASS Longyearbyen in Svalbard: 55.0 ms, 3 pack tiles read (reading 2.0 ms, decoding 52.0 ms, testing 0.0 ms). Found Svalbard, Svalbard, Norway.
+  PASS Halden by the Swedish border: 26.0 ms, 1 pack tiles read (reading 1.0 ms, decoding 25.0 ms, testing 0.0 ms). Found Halden, Østfold, Norway.
+  PASS Stockholm: 44.0 ms, 2 pack tiles read (reading 2.0 ms, decoding 41.0 ms, testing 1.0 ms). Found Stockholm Municipality, Stockholm County, Sweden.
+  PASS Visby on Gotland: 20.0 ms, 2 pack tiles read (reading 1.0 ms, decoding 19.0 ms, testing 0.0 ms). Found Gotlands kommun, Gotland County, Sweden.
+  PASS Kiruna: 63.0 ms, 5 pack tiles read (reading 2.0 ms, decoding 60.0 ms, testing 1.0 ms). Found Kiruna kommun, Norrbotten County, Sweden.
+  PASS Strömstad by the Norwegian border: 53.0 ms, 3 pack tiles read (reading 1.0 ms, decoding 52.0 ms, testing 0.0 ms). Found Strömstads kommun, Västra Götaland County, Sweden.
+  PASS Haparanda: 26.0 ms, 3 pack tiles read (reading 0.0 ms, decoding 26.0 ms, testing 0.0 ms). Found Haparanda kommun, Norrbotten County, Sweden.
+  PASS Tornio: 26.0 ms, 3 pack tiles read (reading 1.0 ms, decoding 25.0 ms, testing 0.0 ms). Found Finland.
+  PASS Kirkenes near Russia: 76.0 ms, 5 pack tiles read (reading 2.0 ms, decoding 73.0 ms, testing 0.0 ms). Found South Varanki, Finnmark, Norway.
+Walk: West from Svolvær, along Lofoten, 1 km steps, 40 steps.
+  nothing cached: median 71.0 ms a step, 90% within 92.0 ms, slowest 110.0 ms. Pack tiles read: 224. In all: reading 114.0 ms, decoding 2834.0 ms, testing 9.0 ms.
+  with the tile cache: median 1.0 ms a step, 90% within 18.1 ms, slowest 33.0 ms. Pack tiles read: 22. In all: reading 12.0 ms, decoding 264.0 ms, testing 6.0 ms.
+Walk: West from Bergen, out through the islands to the sea, 0.5 km steps, 40 steps.
+  nothing cached: median 30.5 ms a step, 90% within 40.1 ms, slowest 45.0 ms. Pack tiles read: 144. In all: reading 61.0 ms, decoding 1222.0 ms, testing 1.0 ms.
+  with the tile cache: median 0.0 ms a step, 90% within 9.0 ms, slowest 27.0 ms. Pack tiles read: 10. In all: reading 4.0 ms, decoding 117.0 ms, testing 4.0 ms.
+Walk: East from Halden, across the Swedish border, 1 km steps, 40 steps.
+  nothing cached: median 9.0 ms a step, 90% within 25.0 ms, slowest 32.0 ms. Pack tiles read: 40. In all: reading 16.0 ms, decoding 529.0 ms, testing 3.0 ms.
+  with the tile cache: median 0.0 ms a step, 90% within 1.0 ms, slowest 11.0 ms. Pack tiles read: 3. In all: reading 4.0 ms, decoding 53.0 ms, testing 5.0 ms.
+Walk: North from Stockholm, through the archipelago, 2 km steps, 40 steps.
+  nothing cached: median 25.0 ms a step, 90% within 44.1 ms, slowest 47.0 ms. Pack tiles read: 144. In all: reading 45.0 ms, decoding 950.0 ms, testing 5.0 ms.
+  with the tile cache: median 1.0 ms a step, 90% within 25.2 ms, slowest 40.0 ms. Pack tiles read: 34. In all: reading 8.0 ms, decoding 348.0 ms, testing 4.0 ms.
+Python's memory in the browser (the WebAssembly heap) at the end: 52 MB.

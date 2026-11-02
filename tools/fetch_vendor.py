@@ -1,7 +1,9 @@
 """Fetch the third-party files that are not kept in git (implementation plan 1.3).
 
-* Pyodide core and the NumPy and PyYAML packages, into web/vendor/pyodide, for
-  the web shell (AD-9). Pyodide is MPL-2.0; NumPy is BSD; PyYAML is MIT.
+* Pyodide core and the NumPy, PyYAML and Shapely packages, into
+  web/vendor/pyodide, for the web shell (AD-9). Pyodide is MPL-2.0; NumPy is
+  BSD; PyYAML is MIT; Shapely is BSD-3-Clause, with GEOS (LGPL-2.1) built in.
+  Shapely is used by the pack reader, from spike S4 on.
 * The NVDA Controller Client, 64-bit, into desktop/vendor, for Braille-only
   messages (architecture 4.4). It is LGPL-2.1.
 
@@ -31,7 +33,7 @@ PYODIDE_CORE_URL = (f"https://github.com/pyodide/pyodide/releases/download/{PYOD
                     f"pyodide-core-{PYODIDE_VERSION}.tar.bz2")
 PYODIDE_CORE_SHA256 = "2abdcc2e35208af406e07724cffa85bc582ced97e9028383ecf5462541393f95"
 PYODIDE_CDN = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/"
-PYODIDE_PACKAGES = ("numpy", "pyyaml")
+PYODIDE_PACKAGES = ("numpy", "pyyaml", "shapely")
 PYODIDE_DIR = ROOT / "web" / "vendor" / "pyodide"
 # Node.js launchers and type files in the archive, which a browser never loads.
 BROWSER_UNUSED = {"python", "python.bat", "python.exe", "python_cli_entry.mjs"}

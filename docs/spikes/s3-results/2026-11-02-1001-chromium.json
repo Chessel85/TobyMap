@@ -1,0 +1,74 @@
+{
+ "browser": "Chrome 156.0.8078.4",
+ "read": [
+  {
+   "name": "This computer, with permission for other pages",
+   "url": "http://127.0.0.1:63852/s3-test-64MiB.bin",
+   "works": true,
+   "status": 206,
+   "firstMs": 6.7,
+   "finalHost": "127.0.0.1:63852",
+   "sizeVisible": true,
+   "size": 67108864,
+   "smallMedianMs": 4.7,
+   "smallSlowestMs": 7.2,
+   "smallWrong": 0,
+   "lastOk": true,
+   "bigOk": true,
+   "megabytesPerSecond": 200,
+   "cacheOk": true
+  },
+  {
+   "name": "This computer, without permission, as GitHub's download server",
+   "url": "http://127.0.0.1:63853/s3-test-64MiB.bin",
+   "works": false,
+   "blocked": true,
+   "error": "NetworkError",
+   "fetchAllowed": false
+  },
+  {
+   "name": "GitHub Releases, a file in another public project (Pyodide)",
+   "url": "https://github.com/pyodide/pyodide/releases/download/0.27.0/pyodide-core-0.27.0.tar.bz2",
+   "works": false,
+   "blocked": true,
+   "error": "NetworkError",
+   "fetchAllowed": false
+  },
+  {
+   "name": "Hugging Face, a file in another public dataset (GSM8K)",
+   "url": "https://huggingface.co/datasets/openai/gsm8k/resolve/main/main/test-00000-of-00001.parquet",
+   "works": true,
+   "status": 206,
+   "firstMs": 413,
+   "finalHost": "us.aws.cdn.hf.co",
+   "sizeVisible": true,
+   "size": 419088,
+   "smallMedianMs": 367.9,
+   "smallSlowestMs": 685.9,
+   "smallWrong": 0,
+   "lastOk": true,
+   "bigOk": true,
+   "megabytesPerSecond": 1,
+   "cacheOk": true
+  }
+ ],
+ "storage": {
+  "targetMegabytes": 2048,
+  "writtenMegabytes": 2048,
+  "before": {
+   "usageMB": 0,
+   "quotaMB": 10240
+  },
+  "writeMegabytesPerSecond": 1033.1,
+  "readBackOk": true,
+  "during": {
+   "usageMB": 2048,
+   "quotaMB": 12288
+  },
+  "after": {
+   "usageMB": 0,
+   "quotaMB": 10240
+  },
+  "persisted": false
+ }
+}

@@ -40,3 +40,12 @@ Older documents written before this glossary, such as architecture section 6 and
 * Tile level: the size of a pack tile. At tile level 3, a pack tile is 45 degrees wide and 22.5 degrees tall. Each level up halves both, so one pack tile is split into four. A pack tile is split only where a shape in it has more than 4,000 points, so pack tiles are small where coasts are detailed and big elsewhere.
 * Tile entry: what one pack tile holds for one area. It is either the part of the area's shape inside the tile, or a note that the area covers the whole tile.
 * Lookup: finding every area at a point. It reads at most one pack tile at each tile level.
+
+## Hosting and the browser
+
+* Range request: asking a server for only some bytes of a file, given by where they start and end, instead of the whole file. In the web version, each read of a record over the internet is one range request.
+* Web permission: a setting a server sends with each file (the Access-Control-Allow-Origin header) that lets web pages from other addresses read the file. Without it, the browser blocks the page from reading the file, even though the file downloads normally in a browser tab or on the desktop.
+* Redirect: when one address sends the browser on to another server for the file. GitHub Releases and Hugging Face both do this, so every range request goes to two servers.
+* Private storage: the browser's private file system for one web site (OPFS). Other sites and the user's own files can't see it. The web version keeps packs here so they work offline.
+* Storage limit: how much the browser lets one web site keep in its private storage.
+* Kept storage: private storage that the browser has agreed not to clear when the disk gets full. A site has to ask for it, and Firefox asks the user.

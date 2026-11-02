@@ -1,6 +1,12 @@
 # Requirements Catalogue
 
-Version 0.7, 31 October 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.8, 2 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.8
+
+This change comes from spike S3 and your answer to DP102.
+
+* PCK-4: packs stay on GitHub Releases, and a copy is published to a TobyMap dataset on Hugging Face for the web version, because browsers cannot read GitHub Releases. Both cost nothing. The web version downloads packs whole into the browser's private storage. Now Agreed.
 
 ## Changes in version 0.7
 
@@ -1194,14 +1200,16 @@ The high level requirements document stays the product owner's own statement of 
 * Priority: Should. Status: Agreed.
 * Acceptance criteria: Moving into an area that is not installed, while online, gives a detailed announcement within 3 seconds on a typical home broadband connection (proposed).
 
-### PCK-4 Zero-cost hosting on GitHub
-* Outcome: Packs are hosted and downloaded at no cost to the project, using GitHub Releases on the project repository. Other hosting is considered only if user demand needs it.
-* Source: DP27, DP48
+### PCK-4 Zero-cost hosting on GitHub, with a copy for the web
+* Outcome: Packs are hosted and downloaded at no cost to the project, using GitHub Releases on the project repository. Browsers cannot read GitHub Releases, so the web version uses a copy of each pack on a TobyMap dataset on Hugging Face (spike S3, DP102). Other hosting is considered only if user demand needs it.
+* Source: DP27, DP48, DP83, DP102
 * Priority: Must. Status: Agreed.
 * Acceptance criteria:
   * Every published file is under GitHub's 2 GiB limit per file.
   * The hosting has no recurring charges.
-  * An early spike confirms whether GitHub release downloads can serve parts of a file, which on-demand data (PCK-3) and the web version need. If they cannot, the design of PCK-3 is revised.
+  * The pipeline publishes each pack to both places, and the two copies are identical.
+  * GitHub release downloads serve ranges of a file, for the desktop's on-demand data (PCK-3). Confirmed by spike S3.
+  * The web version downloads each pack whole into the browser's private storage and reads it from there. While a pack is downloading, it reads records with range requests from Hugging Face.
 
 ### PCK-5 Trustworthy packs
 * Outcome: A user never ends up with a corrupt or mismatched pack.

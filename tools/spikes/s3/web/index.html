@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Spike S3: hosting and browser storage</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 50em; margin: 1em auto; padding: 0 1em; }
+  textarea { width: 100%; height: 20em; font-family: monospace; }
+  fieldset { margin-bottom: 1em; }
+  button { margin: 0.25em 0.5em 0.25em 0; font-size: 1em; }
+</style>
+</head>
+<body>
+<h1>Spike S3: hosting and browser storage</h1>
+<p>This page tests two things for the web version of TobyMap. First, whether a web page can make range requests, reading a few bytes from anywhere in a file without downloading all of it, to each place a pack could be stored. Second, how much this browser lets a web site keep in its private file storage.</p>
+<p>Results go into the Results box. When a test finishes, the page says so.</p>
+
+<h2>Reading ranges of a file</h2>
+<fieldset>
+  <legend>Places to read from</legend>
+  <div id="sources"><p>Loading the list of places.</p></div>
+</fieldset>
+<p><label for="other-url">Another address, optional</label><br>
+<input id="other-url" type="url" size="60"></p>
+<button id="read-test" type="button">Test reading</button>
+
+<h2>Private file storage</h2>
+<p><label for="megabytes">How much to try to store, in megabytes</label>
+<input id="megabytes" type="number" min="16" step="16" value="2048"></p>
+<button id="storage-test" type="button">Test storage</button>
+<button id="persist" type="button">Ask the browser to keep this site's storage</button>
+<p>The storage test writes a test file, reads some of it back, and then deletes it.</p>
+
+<h2>Results</h2>
+<p id="status" role="status" aria-live="polite"></p>
+<p><label for="results">Results</label><br>
+<textarea id="results" readonly></textarea></p>
+<button id="save" type="button">Save the results as a file</button>
+<button id="clear" type="button">Clear the results</button>
+
+<script src="main.js"></script>
+</body>
+</html>

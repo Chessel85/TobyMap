@@ -1,0 +1,40 @@
+Reading test in Edge 156.0.0.0, 2026-11-02T10:02:26.658Z
+Place: This computer, with permission for other pages
+  Address: http://127.0.0.1:63852/s3-test-64MiB.bin
+  Allowed. The first 16 bytes took 10.8 ms. Served from 127.0.0.1:63852.
+  20 reads of 4 KB from all over the file: middle time 9.3 ms, slowest 33.3 ms. All checked correct.
+  The last 16 bytes: correct.
+  One read of 4 MB took 44.2 ms, about 90.5 megabytes a second. Correct.
+  Keeping what the 20 reads returned in private storage, and reading it back: correct.
+  Result: works.
+Place: This computer, without permission, as GitHub's download server
+  Address: http://127.0.0.1:63853/s3-test-64MiB.bin
+  Blocked: the browser did not let the page read this file (NetworkError).
+  An ordinary fetch was blocked too.
+Place: GitHub Releases, a file in another public project (Pyodide)
+  Address: https://github.com/pyodide/pyodide/releases/download/0.27.0/pyodide-core-0.27.0.tar.bz2
+  Blocked: the browser did not let the page read this file (NetworkError).
+  An ordinary fetch was blocked too.
+Place: Hugging Face, a file in another public dataset (GSM8K)
+  Address: https://huggingface.co/datasets/openai/gsm8k/resolve/main/main/test-00000-of-00001.parquet
+  Allowed. The first 16 bytes took 402.3 ms. Served from us.aws.cdn.hf.co.
+  20 reads of 4 KB from all over the file: middle time 347.3 ms, slowest 445.3 ms. All the right length.
+  The last 16 bytes: correct.
+  One read of 0.4 MB took 468.5 ms, about 0.9 megabytes a second. Correct.
+  Keeping what the 20 reads returned in private storage, and reading it back: correct.
+  Result: works.
+Reading test finished: 2 of 4 places work.
+
+Storage test in Edge 156.0.0.0, 2026-11-02T10:02:35.658Z
+  The browser says this site may store up to 10240 MB, about 10 GB. It is using 0 MB.
+  Stored 512 MB so far.
+  Stored 1024 MB so far.
+  Stored 1536 MB so far.
+  Stored 2048 MB so far.
+  Stored 2048 MB in 2.5 seconds, about 805.3 megabytes a second.
+  Reading it back: correct.
+  The test file is deleted. The site is now using 0 MB.
+Storage kept for this site: no, the browser may clear it when the disk is full
+Storage test finished: 2048 megabytes stored.
+
+TobyMap's GitHub release: the test file is not published there yet, so it was not tried.

@@ -48,6 +48,7 @@ playwright-report/
 /desktop/vendor/
 /tools/spikes/s1/downloads/
 /tools/spikes/s1/vendor/
+/tools/spikes/s3/files/
 
 # Screen-reader convenience files
 stuff.txt

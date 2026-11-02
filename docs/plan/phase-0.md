@@ -11,7 +11,7 @@ Phase 0 is Foundations and spikes. The tasks are described in "implementation pl
 * [ ] P0-T5 Spike S2, countries, coastlines and islands. Stage 1 (the UK, France and Spain) complete on 1 November: 22 of 22 coastline places pass, every layer meets exactly after cleaning and simplifying. Findings: docs/spikes/S2-countries-coastlines.md. Discussion point 101 (the counties level) is open. Later stages wait for the PO's review.
 * [ ] P0-T6 Spike S3, hosting and browser.
 * [ ] P0-T7 Spike S4, core in Pyodide.
-* [x] P0-T8 Spike S5, globe, accessible shell and installer. Findings: docs/spikes/S5-globe-shell-installer.md. Three NVDA tests done; Shift+Space and R in the PO's fourth test still to recheck.
+* [x] P0-T8 Spike S5, globe, accessible shell and installer. Findings: docs/spikes/S5-globe-shell-installer.md. Five NVDA tests done. Known limitation on the desktop: after Shift+Space or R, NVDA doesn't read the new item until Up then Down (fifth test, 2 November); to be tried again in Phase 1.
 * [ ] P0-T9 Spike S6, spatial voice. In progress: the PO chose Piper with the Alba voice; eSpeak NG ruled out. Piper in the browser waits for DP98 and spike S4. Draft findings: docs/spikes/S6-spatial-voice.md.
 * [x] P0-T10 Comparison with AtMap and AtlasDL: docs/design/lessons-from-atmap.md created from architecture section 15. Lessons from the spikes are added as they are found.
 * [ ] P0-T11 Update the architecture from the findings.

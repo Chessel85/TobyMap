@@ -335,3 +335,17 @@ What this means:
 
 * Ctrl+Alt+G opened Firefox on your laptop, so going to the map is now Ctrl+Alt+Space, as you suggested. No Windows shortcut on your laptop uses Ctrl+Alt+G, so another program must be catching it.
 * Shift+Space and R no longer reached the Information panel for you. I could not make this happen in Firefox or Chromium, so it may have been Ctrl+Alt+G opening a Firefox window and taking your later keys. Waiting for you to try again.
+
+### After your fifth test, 2 November
+
+* On the desktop, Shift+Space and R did move focus to the panel, because Tab then went on to Details. But NVDA+Up still said "United Kingdom" after R, until you pressed Up then Down.
+* Cause 1: each time the panel is rebuilt, Qt 6.12 keeps its accessible list of the tree's items from before the rebuild. So the second time, every item NVDA could ask about was empty. The earlier fix refreshed that list only when a group was opened or closed.
+* Cause 2: when focus moves into the tree with the item already chosen, Qt doesn't tell screen readers which item has focus. It only does that when the item changes while the tree has focus, as when arrowing.
+* Tried in version 0.0.6: refreshing the list after every rebuild, then sending the screen reader the same "this item has focus" message that arrowing sends. It didn't fix the fault, and NVDA then reported every item in the tree as level 1, losing the level 2 of the items inside each group. The level matters, so the change was undone, and the program is back to version 0.0.5.
+* Also tried and rejected: choosing the item after focus arrives. Qt first picks "Within", which NVDA would start to read.
+
+### Known limitation, desktop
+
+* After R or Shift+Space, NVDA doesn't read the item the panel has moved to. Pressing Up then Down makes NVDA read it.
+* The hierarchy levels are reported correctly, and that is kept.
+* Idea for Phase 1: change the panel's items in place instead of clearing and rebuilding the tree, so Qt's list of items for screen readers never goes out of date.

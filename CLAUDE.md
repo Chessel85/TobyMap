@@ -55,6 +55,7 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe -m mapdata inspect <pack> <lat> <lon>         # what is at a point in a pack
 .venv\Scripts\python.exe tools\spikes\s1\demo.py                       # spike S1 sound demo (requirements-spikes.txt)
 .venv\Scripts\python.exe tools\spikes\s6\demo.py                       # spike S6 voice demo (requirements-spikes.txt)
+.venv\Scripts\python.exe tools\spikes\s6\web_run.py                    # spike S6 Piper in Chromium and Firefox (--serve to listen, --isolated for 4 threads; needs fetch_vendor.py --piper)
 .venv\Scripts\python.exe tools\spikes\s3\run.py                          # spike S3 hosting and storage tests in Chromium, Firefox, Edge (--serve for your own browser)
 ```
 

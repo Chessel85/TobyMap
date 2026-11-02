@@ -1,6 +1,22 @@
 # Architecture and High Level Design
 
-Version 0.3, 2 November 2026. Updated from the Phase 0 spikes (task P0-T11).
+Version 0.4, 2 November 2026. Updated from the Phase 0 spikes (task P0-T11).
+
+## Changes in version 0.4
+
+This version brings in the rest of the Phase 0 spikes: spike S2 stages 2 and 3, spike S4, and Piper in the browser (the last part of spike S6), with your answers to DP103 to DP105. Every spike has now reported.
+
+* AD-5 and section 6.1: compact coordinates are kept, because they make packs 4.5 to 4.9 times smaller. Pack tiles are also split when their tile entries hold more than 20,000 points, so no lookup reads one huge pack tile (spike S2).
+* AD-9, sections 4.3 and 10.1: the core runs unchanged in a Pyodide worker. After decoding compact coordinates with NumPy, the slowest lookup took 49 ms in Chrome and 34 ms in Firefox, well within the 150 ms target. The web version loads Shapely too (spike S4).
+* AD-15, AD-16 and section 6.12: the method that worked for the UK, France, Spain, Norway, Sweden and the 180 degree line countries: cut to the land, clean each layer, then simplify it as one coverage. A check that every outline is closed, after Russia's was found open. Country units need a sea gap test, because the 1,000 km rule misses Svalbard.
+* AD-17 and section 6.13: confirmed on Fiji, Russia, the USA, Kiribati and Antarctica, 27 of 27 check places. Outlines that go round the South Pole are extended to it. Jumping to a country uses a point on its land, not the middle of its bounding box.
+* Section 4.6: Piper in the browser works in Chrome and Firefox, with ONNX Runtime Web and eSpeak NG for the phonemes. A label takes about 380 ms from request to sound with one thread, or 220 ms with four, against 100 ms on the desktop. The web version uses four threads, as you agreed (DP105). The voice's slow first label was the busy laptop: measured again, it takes about 100 ms.
+* Section 4.7: GeoDesk is used (LGPL-3.0). The planet file is read in its own short-lived process.
+* Section 6.12: areas that one layer holds twice, such as Sevastopol, are handled as you agreed (DP104).
+* Section 8.2: the build repairs open outlines, and the area check against Wikidata takes away inland water first.
+* Section 8.6: the cores, tested on stage 3: 13.1 minutes instead of 75.7 (DP103).
+* Section 12: the results of spikes S2, S4 and S6, and the risks they settle.
+* Section 14: DP103 to DP105 are answered. There are no new questions in this version.
 
 ## Changes in version 0.3
 
@@ -79,7 +95,14 @@ Each command is defined once, with its name, default key, region and menu positi
 The visual map and every list draw their features through the same layer catalogue and the same visibility rule (NAV-13). So a feature that is drawn can always be found by a query, and a layer switched off disappears from both (SCP-2, SCP-6).
 
 ### AD-5 A custom single-file pack format, read in pieces
-Each data pack is one file containing many small compressed pieces (tiles, feature records, relations, search index and grids) plus a directory. The application reads only the pieces it needs. The same reader works on a local file on the desktop, and over the internet with range requests in the browser and for on-demand data (PCK-3). Section 6 explains why this was chosen over SQLite, GeoPackage and PMTiles.
+Each data pack is one file containing many small compressed records (pack tiles, feature records, relations, search index and grids) plus a directory. The application reads only the records it needs. The same reader works on a local file on the desktop, and over the internet with range requests in the browser and for on-demand data (PCK-3). Section 6 explains why this was chosen over SQLite, GeoPackage and PMTiles.
+
+Confirmed by spikes S2 and S4 (2 November 2026):
+
+* Compact coordinates are used. They make packs 4.5 to 4.9 times smaller: the UK, France and Spain in 38.4 MB instead of 172.3 MB, and Norway and Sweden in 72.0 MB instead of 350.4 MB.
+* A pack tile is split when its tile entries together hold more than 20,000 points, as well as when one shape in it has more than 4,000. Without that, one of Norway's pack tiles held 332 municipalities and a lookup took 744 ms. With it, lookups took about 20 ms on the desktop.
+* Compact coordinates are decoded with NumPy, all of a shape at once, which is about 4.5 times faster than one number at a time (spike S4).
+* The reader takes a byte source: a file on the desktop, the browser's private storage, or range requests while a pack downloads.
 
 ### AD-6 The visual map is drawn by the core, painted by the shells
 The core projects features onto the globe (VIS-5) and produces a list of shapes in screen coordinates, each with a style. The desktop paints that list with Qt, and the web paints it on an HTML canvas. Your tilemaker and PMTiles test was considered and not adopted, because a separate tile set could drift from the data the screen reader uses, and web map tiles use a flat projection rather than the globe.
@@ -101,8 +124,10 @@ Decided by spike S3 (DP102, 2 November 2026):
 
 Full detail is in docs/spikes/S3-hosting-browser.md.
 
+Confirmed by spike S4 (2 November 2026): the core's pack reader runs unchanged in a Pyodide worker in Chrome and Firefox, reading spike S2's Norway and Sweden pack from private storage, with the right answer at all 18 check places. The slowest "where am I" took 49 ms in Chrome and 34 ms in Firefox, and steps with a pack tile cache took 1 ms or less at the median. The browser is about three times slower than the desktop, but within the 150 ms target (NFR-1). Full detail is in docs/spikes/S4-core-in-browser.md.
+
 ### AD-10 Spatial sound and the spatial voice behind one interface
-The core works out where each sound is (direction, loudness and muffling, SON-9) without playing it. A sound backend on each platform plays it. The spatial voice (SON-3) is Piper, with the Alba voice by default, on the desktop and in the browser (spike S6, DP90, DP98). Its speech is made as sound in memory and placed like any other sound.
+The core works out where each sound is (direction, loudness and muffling, SON-9) without playing it. A sound backend on each platform plays it. The spatial voice (SON-3) is Piper, with the Alba voice by default, on the desktop and in the browser (spike S6, DP90, DP98). Its speech is made as sound in memory and placed like any other sound. In the browser the voice runs in a worker of its own (section 4.6).
 
 Decided by spike S1 (DP100, 1 November 2026): two sound modes, both from the project's own processing, with no outside sound library.
 
@@ -126,11 +151,20 @@ Each pack declares which tiles of the world it covers in detail. For any place, 
 ### AD-15 Countries are cut to the coastline with the OSM land polygons
 OpenStreetMap country boundaries include territorial waters. Rather than trying to work out which parts of a boundary are at sea, the pipeline keeps only the parts that are on land, by intersecting each area with the OSM land polygons. Those polygons are built every day by the OpenStreetMap project from every coastline in the world, and checked for breaks. A short configuration list of "country units" splits places such as French Guiana from France (DP86). Section 6.12 explains this in full.
 
+Confirmed by spike S2 on the UK, France, Spain, Norway, Sweden, Fiji, Russia, the USA, Kiribati and Antarctica: 22 of 22, 18 of 18 and 27 of 27 check places passed in its three stages, including points just offshore, on islands, and either side of the 180 degree line. Two additions came from it:
+
+* Every outline is checked to be closed. In the planet file of November 2025, Russia's had an 11 km open end in Crimea, and without a repair Russia had no mainland and Moscow was not in it, with no error. A gap shorter than half a degree is closed with a straight line and listed in the quality report; a longer one stops the build for a correction rule.
+* The land polygons stop short of the South Pole, and OSM's outline of Antarctica stops at 85.05 degrees south. The build adds the land south of that, and extends any outline that goes all the way round the pole down to it.
+
 ### AD-16 Shared borders are simplified once
 Where two areas share a border, that border is simplified once and both areas are rebuilt from the simplified version. This is the lesson from AtlasDL: simplifying each area on its own leaves gaps and overlaps between neighbours. The same shared edges also become the border lines used by network mode.
 
+Confirmed by spike S2: cutting to the land leaves tiny gaps and overlaps where borders meet the coast, and OSM's own borders sometimes overlap. So each layer is cleaned as one coverage first (GEOS, through Shapely), which gives each overlap to the neighbour with the longer shared border, then simplified as one coverage. Every layer in all three stages then met exactly, before and after simplifying. To make the levels match each other too, only the finest level is simplified, and each coarser level is made by joining its simplified parts.
+
 ### AD-17 The antimeridian is handled explicitly
 Shapes that cross the 180 degree line, such as Fiji, Russia, the USA and Kiribati, are stored split at the line, but every calculation that needs the whole shape treats it as one: its area, its centre, its bounding box, its outline when isolated, and distances to it. The edges along the 180 degree line are marked as artificial, so they are never announced as a border or coastline, never drawn as an outline and never "crossed". Each of these has its own tests.
+
+Confirmed by spike S2's stage 3: the bounding boxes and centres are right across the line, the artificial edges on each side match exactly for Russia and Fiji, and the globe draws Fiji, Chukotka and Antarctica whole, with no stray lines.
 
 ### AD-18 No drive letter is ever assumed
 The pipeline's data folder is a setting, given on the command line, in an environment variable or in a local settings file that is not in git. Drive E: is only your laptop's value of that setting. The application's pack folder is also a setting, chosen in the pack manager, with a sensible default in the user's own application data folder.
@@ -211,8 +245,9 @@ Each choice gives the reason and the main alternative considered. Every library 
 * The core runs in Pyodide inside a Web Worker (AD-9). A small bridge module returns plain dictionaries and lists, never Python objects, following RecallScore's web_api pattern.
 * The page itself is plain JavaScript with no framework: a key map, a focus manager, an announcer, a tree, a canvas painter, dialogs and a menu. These are modelled on RecallScore's web modules.
 * The web application is a static site on GitHub Pages, so it costs nothing to host.
-* The first visit downloads about 17 MB (Pyodide, NumPy and PyYAML), and starting took 9 to 10 seconds in spike S5, which you accepted (DP96). Spike S4 looks at reducing it.
-* The Piper voice adds about 60 MB the first time. It loads after the map is ready, so TobyMap can be used while the voice downloads (DP98).
+* The first visit downloads about 17 MB (Pyodide, NumPy, Shapely and PyYAML), and starting took 9 to 10 seconds in spike S5, which you accepted (DP96). In spike S4, the core alone was ready in 4 to 4.5 seconds: Pyodide itself took about 2.7 seconds, NumPy and Shapely 0.6, and the core's files 0.8.
+* Shapely is loaded in the worker from Phase 1, for the pack reader. It adds 0.8 MB, with GEOS built in (spike S4).
+* The Piper voice adds about 60 MB the first time, with the server compressing it. It loads after the map is ready, so TobyMap can be used while the voice downloads (DP98). It is kept in the browser's cache storage, so it downloads only once.
 
 ### 4.4 Screen reader output
 * Desktop on Windows: Qt accessibility announcements, which NVDA and JAWS receive as UI Automation notifications. For Braille-only output of spatial labels (SON-3), the NVDA Controller Client library is used when NVDA is running.
@@ -232,9 +267,19 @@ Decided by spike S1 (AD-10, DP100):
 Decided by spike S6 (DP82, DP90, DP98):
 
 * Piper, a neural voice, with Alba, the Scottish voice, as the default. It gave you the best sense of direction. Alba's licence is CC-BY 4.0, so it is credited in the About box and the third-party notices.
-* The same voice on the desktop and in the browser, where Piper runs in WebAssembly (DP90, DP98). Piper in the browser is tried during spike S4.
-* Piper and its voice add about 75 MB to the installer, and about 60 MB to the web version's first download.
-* Piper's first label took about 5 seconds. The voice is loaded, and a first label made silently, while TobyMap starts.
+* The same voice on the desktop and in the browser (DP90, DP98).
+* Piper and its voice add about 75 MB to the installer, and about 60 MB to the web version's first download, with the server compressing it.
+* On the desktop, loading the voice takes about 8 seconds, so it is loaded while TobyMap starts. After that each label takes about 100 ms from request to sound, the first one included. The 5 seconds first measured for the first label was the laptop being busy with a build.
+
+Piper in the browser, tried on 2 November 2026:
+
+* The voice runs in a worker of its own, beside the core's worker, so making a label never holds up the map.
+* eSpeak NG turns the text into phonemes, using phonemizer.js (Apache-2.0, with eSpeak NG built in, GPL-3.0). ONNX Runtime Web (MIT) runs the Alba voice on them. Both are fetched by tools/fetch_vendor.py, not kept in git.
+* The phonemes match the desktop's for 7 of 8 test names. Llívia differs slightly, because the two use different versions of eSpeak NG.
+* The page places each label with Web Audio, as for any other sound (section 4.5).
+* The voice is ready about 4 to 5 seconds after it starts loading. Most of that is ONNX Runtime preparing the voice, about 3 seconds.
+* Each label takes about 380 ms from request to sound with one thread, and about 220 ms with four. Four threads need the site to send cross-origin isolation (glossary), which GitHub Pages cannot send itself.
+* As you agreed (DP105), the web version uses four threads, through a small helper script the page loads (a service worker, such as coi-serviceworker, MIT licence) that turns on cross-origin isolation. It is tried first in Phase 2, when the voice is built in (P2-T7). If it causes trouble with NVDA or with downloading packs, the voice falls back to one thread, which works everywhere.
 * eSpeak NG was ruled out: you found it dated. The Windows voices were ruled out too, because the web version can't use them (DP90).
 
 In every case, the speech is generated as audio samples and placed in space like any other sound. The screen reader's own voice cannot be used, because it cannot be placed in space (DP46).
@@ -243,7 +288,7 @@ In every case, the speech is generated as audio samples and placed in space like
 The pipeline runs only on the build laptop, so it can use heavier libraries than the application:
 
 * pyosmium for reading OpenStreetMap files.
-* GeoDesk for Python, for fast queries on the GOL files on drive E: (subject to the licence check in spike S2). AtlasDL already used GeoDesk's C++ library and its query language on these files, which shows it works with the planet file.
+* GeoDesk for Python (LGPL-3.0, checked in spike S2), for fast queries on the GOL files on drive E:. AtlasDL already used GeoDesk's C++ library and its query language on these files, which shows it works with the planet file. GeoDesk maps the planet file into memory, up to about 24 GB on your laptop, and gives it back only when its process ends. So the planet file is always read in its own short-lived process, which saves what it read to the working folder and ends.
 * GDAL through pyogrio, for shapefiles and GeoPackages such as Natural Earth, VLIZ and GMBA.
 * rasterio, for the GEBCO and CHELSA grids.
 * Shapely, GeoPandas and PyArrow, with GeoParquet as the format for working files.
@@ -335,7 +380,7 @@ Using a step in stepping mode as the example:
 * The page holds the same four regions. The map is a canvas. The Information panel is a tree with real focus on its items. The menu is a real menu.
 * The worker holds Pyodide, the core and the pack readers. It downloads packs whole into the browser's private file system (OPFS), so they work offline, and reads records from there. While a pack is downloading, it reads records with synchronous range requests, which are allowed in workers (AD-9, DP102).
 * The page and the worker exchange small messages. Shape lists are passed as numeric arrays, which cross between worker and page without copying.
-* Sound uses Web Audio on the page. The spatial voice, Piper, runs in WebAssembly.
+* Sound uses Web Audio on the page. The spatial voice, Piper, runs in a second worker, with ONNX Runtime Web, and hands each label to the page as sound (section 4.6).
 * Ctrl+Alt+M goes to the menu bar's first menu, Map, without opening it, because the browser keeps Alt for itself (DP93).
 * The tree builds each item with its words directly inside it, because Firefox's say current line needs that (spike S5).
 * Settings and personal data are stored in the browser.
@@ -478,7 +523,8 @@ OpenStreetMap's level 2 follows sovereignty, so France's area includes French Gu
 
 * A short configuration list of country units says which areas replace a level 2 country in the Countries layer. For France: Metropolitan France (OSM level 3, named "France") plus each overseas region as its own entry. AtlasDL did the same with its "Metropolitan France" and "is in France" filters.
 * Each unit records its sovereign state as a fact, so French Guiana's details say "overseas region of France".
-* The list is checked against Natural Earth's "map units", which already make these splits. The quality report lists every country whose parts are more than 1000 km apart, so nothing is missed. Expected cases include the Netherlands, Norway (Svalbard), Denmark (Greenland and the Faroe Islands), Portugal, the USA and New Zealand.
+* The list is checked against Natural Earth's "map units", which already make these splits. The quality report lists every country with parts far from its largest part, so nothing is missed. Expected cases include the Netherlands, Norway (Svalbard), Denmark (Greenland and the Faroe Islands), Portugal, the USA and New Zealand.
+* Spike S2 found that distance alone is not enough: most of Svalbard is less than 1,000 km from mainland Norway. The report also lists parts separated from the largest part by more than about 300 km of sea. For the USA, the distance rule found Alaska, Hawaii, Puerto Rico, Guam and the other territories, as expected.
 * There is no Sovereign States layer for now. One could be added later, switched off by default, keeping the whole of France as one area, if you decide you want it (DP86).
 * Ceuta and Melilla stay part of Spain, because they are Spain, not territories with their own identity. Spain's area simply has parts in Africa. Each part of a country is placed in the continent it is in, so Spain appears under Europe and Africa, as Russia appears under Europe and Asia (DP88).
 * Gibraltar is its own entry in the Countries layer, with the United Kingdom as its sovereign state.
@@ -499,6 +545,10 @@ Named islands:
 
 Unnamed islands are announced as "Unnamed island", so standing on one you hear that, then its county and country. There will be many of them. At a high enough zoom, every island is visible, however small (DP87).
 
+What spike S2 counted: the UK's land is in 19,854 parts, of which 11,823 have no name; Norway's is in 118,845 parts, with 7.4 million points. At world zoom the UK is drawn from 3 parts, and at country zoom from 41.
+
+Lakes, lagoons and rivers count as land in the land polygons. So an island in a border lake is joined to the land around it, and Lough Neagh is inside Northern Ireland. Water needs its own layer, over the land.
+
 #### The counties layer
 OSM does not use the same level for counties everywhere. Spike S2 found that level 6 leaves gaps: England's metropolitan areas and London have nothing at level 6, Northern Ireland's districts are level 7, and France's overseas departments and Ceuta and Melilla have no level 6 at all. So, as you agreed (DP101):
 
@@ -506,6 +556,16 @@ OSM does not use the same level for counties everywhere. Spike S2 found that lev
 * The pipeline keeps a record, for each country, of which levels make up its counties, so it isn't worked out again on every build.
 * The record can be corrected for one country in the pipeline's settings, for example if a country is found to use level 9. The correction is kept and used from then on.
 * The quality report lists every gap that was filled, so it can be checked against the OSM wiki.
+
+Spike S2 used this rule for all its countries. Norway and Sweden have nothing at level 6, so their counties come from level 7; Kiribati's come from level 8.
+
+#### Areas held twice in one layer
+OSM sometimes holds two areas with exactly the same outline in one layer, one for each side of a dispute. Spike S2 found this for Sevastopol: Ukraine's city and Russia's federal city. As you agreed (DP104):
+
+* The build lists areas in one layer that cover the same land.
+* It keeps the one in the country whose outline holds it, which in this planet file is Russia's Sevastopol, and marks it as disputed.
+* It keeps the other's name and country for its details, so the dispute is described (ANN-6).
+* The overlap check in the quality report also finds one area wholly inside another, which it did not in the spike.
 
 #### Borders and coasts
 * Once countries are cut to the land, a shared edge between two countries is a land border, and an edge against the sea is coast.
@@ -527,12 +587,16 @@ The line at 180 degrees east and west runs through Fiji, Russia's far east, the 
 * Storage: shapes are split at the line and every piece is a valid shape.
 * Artificial edges: edges along the 180 degree line are marked, and never announced as a border or coastline, drawn as an outline, crossed, or used in network mode.
 * Area: measured on the ellipsoid from all the pieces, and compared with Wikidata's figure in the quality report.
-* Bounding box and centre: worked out across the line, so Fiji's centre is in Fiji, not in the Atlantic. The centre is used when hierarchy mode or a search jumps to it.
+* Bounding box and centre: worked out across the line, so Fiji's bounding box is 7.1 degrees wide, not nearly 360.
+* Jumping to a country: for a country spread over the ocean, the middle of its bounding box is in the sea (Kiribati's is 56 km from land, and the USA's 1,800 km out in the Pacific). So hierarchy mode and search jump to a point on the country's land, the nearest land to that middle, which the build works out.
+* The South Pole: Antarctica's outline is extended to the pole (AD-15), so the pole is in Antarctica, and Antarctica's centre is the pole.
 * Isolated drawing (VIS-2) and shape tracing (TCH-1): the drawing is centred on the feature's own centre, so Fiji appears as one compact group of islands, not split to the two edges of the screen.
-* Globe drawing: the orthographic projection has no edge at 180 degrees, so pieces either side join seamlessly.
+* Globe drawing: the orthographic projection has no edge at 180 degrees, so the parts either side join seamlessly. The shells fill artificial edges but never outline them, on the globe and in isolated drawings.
 * Moving: stepping, distances and "where am I" across the line are covered by tests in Phase 1.
 
 Tests use Fiji, Russia, the USA, Kiribati and Antarctica, both in spike S2 and permanently in the test suite.
+
+Areas against Wikidata, from spike S2: Russia was within 1%. The USA was 3.4% less, because Wikidata counts coastal waters. Antarctica was 1.7% more, probably because the Ross Ice Shelf counts as land, so it needs its own expected figure. Fiji and Kiribati were more, because their lagoons, lakes and wetlands count as land (section 8.2). The areas users hear come from Wikidata, with their source (DAT-7), so these differences only matter for the build's checks.
 
 ---
 
@@ -615,7 +679,7 @@ The commands follow the UX description, section 16:
 1. Extract: cut the region from the planet or a regional file, using osmium or GeoDesk.
 2. Filter: keep only the tags the layer definitions ask for. The rules are in one configuration file, not chained command lines.
 3. Load other sources: Natural Earth, VLIZ, GMBA, HydroLAKES, GEBCO and CHELSA.
-4. Repair: fix invalid shapes and record each repair (DMT-3).
+4. Repair: fix invalid shapes, close outlines with a short open end (AD-15), and record each repair (DMT-3).
 5. Clip: cut land areas to the land polygons, so coastlines are real, apply the country units list, and give small slivers of land to their neighbour (DAT-3, section 6.12).
 6. Assemble: join river pieces into whole rivers, link wide river areas to their lines, and build multi-part boundaries.
 7. Identify: assign canonical identifiers and match base features (AD-13).
@@ -628,7 +692,15 @@ The commands follow the UX description, section 16:
 14. Index: build the search index.
 15. Grids: cut grids into tiles at each resolution.
 16. Write: write the pack, its manifest, its attribution and its checksum.
-17. Validate: run the coverage test (DAT-1), the no-gaps test (LOC-6), the antimeridian checks (section 6.13), the size budget (PCK-1) and the licence check (DMT-6).
+17. Validate: run the coverage test (DAT-1), the no-gaps test (LOC-6), the antimeridian checks (section 6.13), the size budget (PCK-1) and the licence check (DMT-6). Each country's land is compared with Wikidata's area after taking away the inland water mapped in OSM, which is reported separately (spike S2).
+
+Spike S2's lessons for the order of work:
+
+* Each slow step in the spike was an operation on a whole country, or a whole gap, made of many thousands of parts, when it needed only the few parts nearby. Steps work on what is nearby, through a spatial index.
+* The land polygons are converted once after each download into a land index (glossary), so a build reads only the land tiles in its reading boxes.
+* Pack tiles are cut with the cut made for rectangles, and land tiles are joined in groups that touch, which were each several times faster in the spike.
+* The counties step needs a faster way to find which areas fill a gap, before France's 34,874 level 8 areas are used (task P1-T16).
+* The planet file and the land polygons are taken from close dates.
 
 ### 8.3 Caching and repeatability
 * Each stage writes GeoParquet files to the working folder, named by a fingerprint of its inputs and configuration. If the fingerprint has not changed, the stage is skipped.
@@ -658,6 +730,8 @@ Spike S2 found that most of a build ran on one processor thread, so a world buil
 * Memory first: memory, not the processor, is the limit, because each worker holds its own shapes. A new job starts only while at least 6 GB is free, so fewer jobs run when memory is short. Below 3 GB free, the build stops cleanly, writes its report and where it stopped, and keeps its cached work. The memory check pauses while the planet file is being read, because that process's mapping of the file is given back when it ends.
 * Stop and carry on: each slow step saves its results in the working folder (section 8.3), so a long build can stop and continue later, for example over several nights.
 * Timing run first: before the world build, one continent is built and timed, so the world's time can be estimated before it starts.
+
+Tested on spike S2's stage 3 rerun, with 6 workers: the whole run took 13.1 minutes instead of 75.7, with a peak of 3.3 GB of memory instead of 4.6. Drawing the pictures took 36 seconds instead of about 45 minutes, and writing the packs 2 minutes instead of 11.
 
 ---
 
@@ -702,7 +776,9 @@ The target is 150 ms from key press to the screen reader (NFR-1). The planned bu
 * change detection and wording: under 5 ms
 * handing the text to the screen reader: a few ms
 
-Pyodide is typically two to three times slower than desktop Python, so the web budget is tighter. Spike S4 measures it. Tiles around the location are read in advance in the background, so a step rarely waits for the disk.
+Pyodide is about three times slower than desktop Python, so the web budget is tighter. Spike S4 measured "where am I" with nothing cached at a median of 6 ms on the desktop and 16 to 18 ms in the browsers, and at most 12 ms and 49 ms. The target stays at 150 ms in the web version too. The store keeps a pack tile cache of decoded shapes, with a size limit, so most steps need no decoding; with it, steps took 1 ms or less at the median. Pack tiles around the location are read in advance in the background, so a step rarely waits for the disk.
+
+The spatial label comes after the announcement and does not count towards the 150 ms. It takes about 100 ms more on the desktop, and about 220 ms in the browser with four threads (section 4.6).
 
 ### 10.2 Robustness
 * A pack whose checksum fails, or whose pieces cannot be read, is reported and set aside. The application carries on with the other packs (NFR-4).
@@ -755,15 +831,16 @@ The listening test tool plays sounds from random directions and distances, asks 
 ## 12. Risks and Phase 0 spikes
 
 ### 12.1 The main risks
-* Countries, coastlines and islands may be harder than expected, as you found with AtlasDL. Handled by spike S2, which starts with the UK, France and Spain before anything else is built on it.
+* Countries, coastlines and islands may be harder than expected, as you found with AtlasDL. Largely settled by spike S2: the method worked on ten countries, including the 180 degree line and the South Pole. What remains is speed for the whole world, above all the counties step (P1-T16).
 * Web hosting of packs may be blocked by browser rules (section 9.2). Spike S3 confirmed it: the web version uses a copy on Hugging Face (DP102).
-* Pyodide may be too slow or use too much memory for the 150 ms target. Handled by spike S4. Fall-back: the web version keeps more in memory, or accepts a slightly longer target that you agree.
+* Pyodide may be too slow or use too much memory for the 150 ms target. Settled by spike S4: the slowest lookup took 49 ms in the browser, and Python used 52 MB.
 * HRTF on the desktop may sound different from the browser. Settled by spike S1: both use the same processing with a pitch cue, and stereo with pitch is the default.
-* No built-in voice may be pleasant enough. Settled by spike S6: Piper's Alba voice.
+* No built-in voice may be pleasant enough. Settled by spike S6: Piper's Alba voice, on the desktop and in the browser.
 * The base pack may not fit 250 MB with the detail wanted. Measured in spike S2 and in Phase 3, then discussed with you (PCK-1).
-* OpenStreetMap data is untidy, for example rivers in many pieces, boundaries that almost match, and whole relations that fail to build (AtlasDL found Russia broken in one planet file). Handled by the quality reports and correction rules, starting in spike S2. A relation that fails to build is reported, and the last good version or the Natural Earth shape is used instead, so one broken country never stops a build.
+* OpenStreetMap data is untidy, for example rivers split into many sections, boundaries that almost match, and whole relations that fail to build (AtlasDL found Russia broken in one planet file). Handled by the quality reports and correction rules, starting in spike S2. A relation that fails to build is reported, and the last good version or the Natural Earth shape is used instead, so one broken country never stops a build.
 * The macOS version cannot be tested by a person yet (PLT-2). Handled by automatic tests on macOS in continuous integration.
-* GeoDesk's licence is not yet confirmed. Checked in spike S2. If it does not fit, the pipeline uses osmium and the .osm.pbf files only, which is slower but works.
+* GeoDesk's licence. Settled by spike S2: it is LGPL-3.0, which is compatible.
+* One broken outline can lose a whole country without an error, as Russia's did. Handled by the outline check (AD-15).
 * No human developer. Handled by strong tests, short phases, and the CLAUDE.md and design documents kept up to date in the repository.
 
 ### 12.2 Spike S1: spatial sound
@@ -791,6 +868,7 @@ The listening test tool plays sounds from random directions and distances, asks 
   * The UK's islands: how many there are, named and unnamed, how many are kept at each drawing level, and how long the UK takes to draw at world, country and 1 km zoom.
 * Also measured: time, memory, disk use and pack size, with and without compact coordinates (section 6.1). GeoDesk's licence is checked.
 * It settles the detail of AD-15 and AD-16, whether GeoDesk is used and whether compact coordinates are used, and gives real sizes for PCK-1. It also answers DP89: whether the base pack's countries come from OSM.
+* Result: the method works (AD-15, AD-16, AD-17). Stage 1, the UK, France and Spain, passed 22 of 22 places; stage 2, Norway and Sweden, 18 of 18; stage 3, the 180 degree line and the South Pole, 27 of 27. GeoDesk and compact coordinates are used. The packs, at full OSM detail, were 38 to 72 MB for each stage, with compact coordinates. Whether the world's countries at base pack detail fit 250 MB is measured with the base pack lite in Phase 1 (P1-T4, DP89). Stage 1's whole run with the new counties rule, and stage 4, Argentina, moved to Phase 1 (P1-T16). Findings: docs/spikes/S2-countries-coastlines.md.
 
 ### 12.4 Spike S3: hosting and the browser
 * Question: can a web page read pieces of a file from GitHub Releases, and how much can a browser store?
@@ -802,6 +880,7 @@ The listening test tool plays sounds from random directions and distances, asks 
 * Question: is the core fast enough in the browser?
 * Method: run Shapely, NumPy and GeographicLib in a Pyodide worker. Read the S2 pack's tiles and time "where am I" and a step, in Firefox and Chrome. Measure start-up time and download size.
 * It confirms AD-9 and the web performance target.
+* Result: confirmed. The core runs unchanged, and after decoding with NumPy every lookup was within 49 ms in the browser. Findings: docs/spikes/S4-core-in-browser.md.
 
 ### 12.6 Spike S5: the globe, the accessible shell and the installer
 * Question: does the four-region window work well with NVDA, can the globe be drawn fast enough, and does the installer work?
@@ -815,7 +894,7 @@ The listening test tool plays sounds from random directions and distances, asks 
 * Method: a small program that speaks the same place names, such as "Berlin", "Bay of Biscay" and "Llívia", from chosen directions, using eSpeak NG, Piper and the Windows voices (section 4.6), plus the web candidates in Firefox. Measure the delay from request to sound, and the download size of each.
 * You listen and choose. If you prefer a Windows voice on the desktop, DP90 asks whether the web version may use a different voice.
 * It decides the voice for AD-10.
-* Result so far: Piper with the Alba voice (section 4.6). Piper in the browser is still to be tried, during spike S4. Findings: docs/spikes/S6-spatial-voice.md.
+* Result: Piper with the Alba voice (section 4.6), on the desktop and in Chrome and Firefox. About 100 ms from request to sound on the desktop, and about 220 ms in the browser with four threads (DP105). Findings: docs/spikes/S6-spatial-voice.md.
 
 ### 12.8 What each spike produces
 A short findings document for each, written for you, in the repository's docs/spikes folder, with a recommendation. Where a finding changes a decision here, this document is updated and the change is listed at the top.
@@ -870,6 +949,12 @@ A short findings document for each, written for you, in the repository's docs/sp
 * DP100: two sound modes from TobyMap's own processing (AD-10).
 * DP101: the counties layer fills gaps from the next level down, and the pipeline keeps a record of each country's levels (section 6.12).
 * DP102: packs on GitHub Releases for the desktop, and a copy on Hugging Face for the web (AD-9).
+
+### Answered since version 0.3
+* DP103: the build uses the laptop's cores, 3 workers by default and 6 when you are away, tested on stage 3 (section 8.6).
+* DP104: areas held twice in one layer, such as Sevastopol, keep the one in the country whose outline holds it, marked as disputed (section 6.12).
+
+* DP105: the web version uses four threads for the voice, through a helper script that turns on cross-origin isolation, tried first in Phase 2 (section 4.6).
 
 ### New questions
 There are no new questions in this version.

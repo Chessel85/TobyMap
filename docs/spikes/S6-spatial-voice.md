@@ -12,7 +12,7 @@ Which built-in voice should speak the spatial labels, such as "Berlin" heard fro
 * Recommendation: Piper, with Alba as the default voice.
 * Windows voices are left out, as you asked (DP90).
 * Piper with the Alba voice works in the browser too, in Chrome and Firefox, from a worker, placed in space with Web Audio. See "Piper in the browser, 2 November".
-* In the browser each label takes about 380 ms from request to sound with one thread, or about 220 ms with four. On the desktop it takes about 100 ms. Discussion point 105 asks whether the web version should use four threads.
+* In the browser each label takes about 380 ms from request to sound with one thread, or about 220 ms with four. On the desktop it takes about 100 ms. You agreed (DP105) that the web version uses four threads, tried first in Phase 2.
 
 ## The voices
 
@@ -129,7 +129,7 @@ On the desktop, the same labels took a median of 99 ms, and at most 123 ms.
 
 * A web page's worker can only use several threads if the site sends cross-origin isolation (see the glossary). The runner's `--isolated` option does that, for the four-thread figures.
 * GitHub Pages cannot send it. A small helper script loaded by the page (a service worker) can add it, but that has not been tried yet.
-* Discussion point 105 asks whether the web version should use four threads.
+* You agreed (DP105) that the web version uses four threads, through the helper script, tried first in Phase 2 (P2-T7). If it causes trouble, it falls back to one thread.
 
 ### The phonemes compared with the desktop
 
@@ -151,5 +151,5 @@ The runner without `--serve` repeats the timings in Chromium and Firefox without
 
 ## Still to do
 
-* Decide on four threads in the browser (DP105). Built in Phase 2 with the voice (P2-T7).
+* Four threads in the browser through the helper script (DP105), built in Phase 2 with the voice (P2-T7).
 * The speed of starting the voice in ONNX Runtime, about 3 seconds, could be looked at in Phase 2, but the map is usable while it starts.

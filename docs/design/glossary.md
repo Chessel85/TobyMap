@@ -22,12 +22,17 @@ Older documents written before this glossary, such as architecture section 6 and
 * Point: one corner on the outline of a shape. The number of points is a measure of how detailed, and how large, a shape is.
 * Border: the line where two areas meet on land.
 * Coast: where an area meets the sea, after trimming.
+* Shared island: an island whose land is in two countries, with a border across it, such as Märket, shared by Sweden and Finland.
+* The 180 degree line: the meridian at 180 degrees east and west (the antimeridian). OSM splits every shape that crosses it, so Fiji's shape has parts either side.
+* Artificial edge: an edge of a shape that is only there because the shape was split, along the 180 degree line or at the South Pole. It is never a border or coast, never announced and never outlined (AD-17).
+* Counties record: the list, in mapdata/config/county_levels.yaml, of which levels make up each country's Counties layer (DP101). The build writes it once per country; a corrected entry is never overwritten.
 
 ## The land polygons
 
 * Land polygons: the worldwide OSM product that holds all the land in the world, with the sea removed (AD-15).
 * Land tile: one shape in the land polygons file. It is a whole small island, or a slice of a bigger island or a continent, cut along the lines of latitude and longitude at every whole degree. No land tile is bigger than one degree each way, and neighbouring land tiles overlap very slightly.
 * Reading box: a rectangle, given by its west, south, east and north edges in degrees, that says which land tiles a build reads. They are listed in the build's configuration, such as mapdata/config/s2_stage1.yaml.
+* Land index: the land polygons converted once, after each download, into a form a build can read in part: the bounding box of every land tile in one list, and the land tiles themselves one after another. A build finds the land tiles in its reading boxes from the list and reads only those. It is kept in the data folder's tobymap\working folder.
 * Bounding box: the smallest rectangle, with edges along lines of latitude and longitude, that contains a shape.
 * Trimming: removing the sea from an area by keeping only the land tiles inside it, cutting those that cross its boundary.
 

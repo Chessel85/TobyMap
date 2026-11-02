@@ -649,6 +649,16 @@ The commands follow the UX description, section 16:
 * Before a build, it estimates the space needed and stops with a clear message if there is not enough.
 * Progress is printed as plain lines at each stage, no more than one every 10 seconds. A summary is printed at the end, and full logs go to a text file (DMT-2).
 
+### 8.6 Using the laptop's processor and memory (DP103)
+Spike S2 found that most of a build ran on one processor thread, so a world build could take days. As you agreed (DP103), the pipeline uses the laptop's cores as follows. The graphics card is not used: the work is polygon geometry (GEOS, through Shapely), which has no graphics card version for Windows.
+
+* Small independent jobs: every slow step is split into jobs that a pool of worker processes runs, as the OMR project does (mapdata/parallel.py). In the spike this covers cutting areas to the land, the per-layer checks of AD-16, cutting shapes into pack tiles and encoding them, and drawing pictures. Still to do: cutting a very big country region by region, so it is spread across workers.
+* Two settings: 3 workers while you use the laptop (the default), and 6 when you are away (`--away`).
+* Warning first: before a heavy build, Claude Code tells you how long the laptop will be busy and how many cores it will use. The build's report says the same, and gives the time the last run of the same build took.
+* Memory first: memory, not the processor, is the limit, because each worker holds its own shapes. A new job starts only while at least 6 GB is free, so fewer jobs run when memory is short. Below 3 GB free, the build stops cleanly, writes its report and where it stopped, and keeps its cached work. The memory check pauses while the planet file is being read, because that process's mapping of the file is given back when it ends.
+* Stop and carry on: each slow step saves its results in the working folder (section 8.3), so a long build can stop and continue later, for example over several nights.
+* Timing run first: before the world build, one continent is built and timed, so the world's time can be estimated before it starts.
+
 ---
 
 ## 9. Delivery and hosting

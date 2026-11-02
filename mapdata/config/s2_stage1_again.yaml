@@ -1,0 +1,66 @@
+# Spike S2, stage 1 again (architecture 12.3): the UK, France and Spain,
+# built by the same program as stages 2 and 3, with the faster methods of
+# 2 November, to compare with the stage 1 build of 1 November.
+#
+# Its own name, so it writes to its own working and output folders, and the
+# 1 November results in s2-stage1 are kept as the baseline.
+#
+# Settings as in s2_stage2.yaml. "units: true" puts France's country units
+# (country_units.yaml) in the Countries layer in place of France, as stage 1
+# did. "land_within" keeps each country to the reading boxes stage 1 used,
+# so the same land is used: Europe and the Canary Islands, and each French
+# overseas region. Only the countries that reach outside those boxes need it:
+# France, Portugal (the Azores), Morocco, and French Guiana's neighbours.
+# "region_boxes" are where France's regions and counties are looked for,
+# because France's own shape reaches round the world.
+
+name: s2-stage1-again
+title: "Spike S2, stage 1 again: the United Kingdom, France and Spain, with the faster methods."
+source_gol: planet-latest.gol          # in the data folder, read only
+places: coastline_places.yaml          # in tests/acceptance
+region_level: 4
+units: true
+
+# The check that neighbours meet exactly (AD-16) looks only within this many
+# kilometres of the land borders, where neighbours meet.
+coverage_window_km: 5
+
+# Stage 1's reading boxes (s2_stage1.yaml), west, south, east, north.
+boxes:
+  europe: &europe [-19.0, 27.0, 16.0, 61.5]
+  french_guiana: &french_guiana [-55.0, 1.5, -51.0, 6.5]
+  guadeloupe: &guadeloupe [-62.0, 15.7, -60.8, 16.7]
+  martinique: &martinique [-61.4, 14.2, -60.7, 15.0]
+  reunion: &reunion [55.0, -21.6, 56.0, -20.7]
+  mayotte: &mayotte [44.8, -13.2, 45.5, -12.5]
+
+countries:
+  - {id: osm:r62149, name: United Kingdom, divisions: true, islands: true}
+  - id: osm:r2202162
+    name: France
+    divisions: true
+    land_within: &france [*europe, *french_guiana, *guadeloupe, *martinique, *reunion, *mayotte]
+    region_boxes: *france
+  - {id: osm:r1311341, name: España, divisions: true}
+  - {id: osm:r1278736, name: Gibraltar}
+  - {id: osm:r9407, name: Andorra}
+  - {id: osm:r62273, name: Éire / Ireland}
+  - {id: osm:r295480, name: Portugal, land_within: [*europe]}
+  - {id: osm:r52411, name: België / Belgique / Belgien}
+  - {id: osm:r2171347, name: Lëtzebuerg}
+  - {id: osm:r51477, name: Deutschland}
+  - {id: osm:r51701, name: Schweiz/Suisse/Svizzera/Svizra}
+  - {id: osm:r365331, name: Italia}
+  - {id: osm:r1124039, name: Monaco}
+  - {id: osm:r3630439, name: Maroc ⵍⵎⵖⵔⵉⴱ المغرب, land_within: [*europe]}
+  # French Guiana's neighbours, only inside its box, enough to check the borders.
+  - {id: osm:r287082, name: Suriname, land_within: [*french_guiana]}
+  - {id: osm:r59470, name: Brasil, land_within: [*french_guiana]}
+
+pictures:
+  - {name: uk-counties, box: [-8.7, 49.8, 2.0, 61.0], layer: counties}
+  - {name: france-departements, box: [-5.3, 41.2, 9.8, 51.2], layer: counties}
+  - {name: spain-provinces, box: [-9.5, 35.8, 4.5, 44.0], layer: counties}
+  - {name: canary-islands, box: [-18.3, 27.5, -13.3, 29.5], layer: counties}
+  - {name: gibraltar-ceuta, box: [-5.7, 35.75, -5.15, 36.3], layer: countries}
+  - {name: llivia-andorra, box: [1.35, 42.35, 2.15, 42.7], layer: countries}

@@ -1,0 +1,28 @@
+# Spike S2, stage 4 (added by the PO on 2 November 2026): Argentina, which
+# gave trouble in the PO's earlier work, with lines that crossed. It tests
+# Tierra del Fuego, an island shared with Chile, a long Andes border, the
+# border on the Southern Patagonian Ice Field that has never been finally
+# agreed, and the Falkland Islands, a UK territory that Argentina claims.
+#
+# Settings as in s2_stage2.yaml.
+
+name: s2-stage4
+title: "Spike S2, stage 4: Argentina and its neighbours."
+source_gol: planet-latest.gol
+places: coastline_places_stage4.yaml
+region_level: 4
+
+# The check that neighbours meet exactly (AD-16) looks only within this many
+# kilometres of the land borders, where neighbours meet.
+coverage_window_km: 5
+
+countries:
+  - {id: osm:r286393, name: Argentina, divisions: true, islands: true}
+  - {id: osm:r167454, name: Chile, divisions: true, islands: true}
+  - {id: osm:r287072, name: Uruguay}
+  - {id: osm:r287077, name: Paraguay / Paraguái}
+  - {id: osm:r252645, name: Bolivia}
+  - {id: osm:r59470, name: Brasil, land_within: [[-60.0, -34.0, -48.0, -24.0]]}
+  - {id: osm:r2185374, name: Falkland Islands}
+
+shared_islands: [osm:r286393, osm:r167454]

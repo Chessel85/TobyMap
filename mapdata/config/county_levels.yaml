@@ -1,0 +1,65 @@
+# The counties record (discussion point 101, architecture 6.12).
+#
+# For each country: which admin levels make up its counties layer, in order,
+# and which regions are used as their own county where no level covers them.
+# The build works a country out once and writes it here, marked "worked out".
+# To correct a country, change its levels and set "how" to "corrected: " and
+# the reason. A corrected record is used as it is and never overwritten.
+
+countries:
+  osm:r148838:
+    name: United States
+    levels:
+    - 6
+    regions_used:
+    - Alaska
+    how: worked out by spike S2 stage 3 on 2 November 2026
+  osm:r2978650:
+    name: Norway
+    levels:
+    - 7
+    regions_used:
+    - Bouvet Island
+    - Jan Mayen
+    - Svalbard
+    how: worked out by spike S2 stage 2 on 2 November 2026
+  osm:r52822:
+    name: Sweden
+    levels:
+    - 7
+    regions_used: []
+    how: worked out by spike S2 stage 2 on 2 November 2026
+  osm:r571178:
+    name: Kiribati
+    levels:
+    - 8
+    regions_used:
+    - Line Islands
+    - Phoenix Islands
+    how: worked out by spike S2 stage 3 on 2 November 2026
+  osm:r571747:
+    name: Fiji
+    levels:
+    - 6
+    regions_used:
+    - Rotuma
+    how: worked out by spike S2 stage 3 on 2 November 2026
+  osm:r60189:
+    name: Russia
+    levels:
+    - 6
+    regions_used:
+    - Kamchatka Krai
+    - Sakha Republic
+    - Chukotka Autonomous Okrug
+    how: worked out by spike S2 stage 3 on 2 November 2026
+  osm:r62149:
+    name: United Kingdom
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Scotland
+    - England
+    how: worked out by spike S2 stage 1 on 2 November 2026

@@ -1,0 +1,63 @@
+# Spike S2, stage 3 (architecture 12.3 and 6.13): the countries that cross
+# the 180 degree line, and Antarctica, which contains the South Pole.
+#
+# Settings as in s2_stage2.yaml. "county_boxes" limits the counties to the
+# rectangles given, near the 180 degree line, to keep the run short: Russia's and
+# the USA's regions are built in full, their counties only near the line.
+
+name: s2-stage3
+title: "Spike S2, stage 3: Fiji, Russia, the USA, Kiribati and Antarctica."
+source_gol: planet-latest.gol
+places: coastline_places_stage3.yaml
+region_level: 4
+
+# The check that neighbours meet exactly (AD-16) looks only within this many
+# kilometres of the land borders, where neighbours meet. Checking along
+# every coast too took over half an hour per layer for Norway.
+coverage_window_km: 5
+
+countries:
+  - {id: osm:r571747, name: Viti, divisions: true, islands: true}
+  - {id: osm:r571178, name: Kiribati, divisions: true, islands: true}
+  - id: osm:r60189
+    name: Россия
+    divisions: true
+    county_boxes: [[160.0, 40.0, 180.0, 78.0], [-180.0, 40.0, -160.0, 78.0]]
+  - id: osm:r148838
+    name: United States
+    divisions: true
+    county_boxes: [[160.0, 40.0, 180.0, 78.0], [-180.0, 40.0, -160.0, 78.0]]
+  - {id: osm:r2186646, name: Antarctica}
+
+# Land in no country is looked for near the line only.
+no_country_boxes:
+  - [160.0, 40.0, 180.0, 78.0]
+  - [-180.0, 40.0, -160.0, 78.0]
+  - [172.0, -22.0, 180.0, -11.0]
+  - [-180.0, -22.0, -177.0, -11.0]
+  - [168.0, -12.0, 180.0, 5.0]
+  - [-180.0, -12.0, -148.0, 5.0]
+
+antimeridian: [osm:r571747, osm:r571178, osm:r60189, osm:r148838, osm:r2186646]
+
+# Wikidata's area (P2046), retrieved 2 November 2026: Fiji Q712, Kiribati
+# Q710, Russia Q159 (the 2014 figure, the one not deprecated), the USA Q30
+# (total area, including inland and coastal waters), Antarctica Q51 (the
+# preferred figure).
+wikidata_km2:
+  osm:r571747: 18274
+  osm:r571178: 811
+  osm:r60189: 17075400
+  osm:r148838: 9826675
+  osm:r2186646: 13720000
+
+pictures:
+  - {name: bering-strait, box: [-172.5, 64.5, -166.0, 67.0], layer: countries}
+  - {name: taveuni, box: [179.7, -17.1, 180.0, -16.6], layer: counties}
+  - {name: chukotka-regions, box: [160.0, 60.0, 180.0, 72.0], layer: regions}
+
+globe_views:
+  - {name: fiji, title: Fiji at the 180 degree line, lat: -17.0, lon: 180.0, scale: 6.0}
+  - {name: bering, title: the Bering Strait, lat: 63.0, lon: -175.0, scale: 2.5}
+  - {name: pacific, title: the Pacific at the 180 degree line, lat: 20.0, lon: 180.0}
+  - {name: south-pole, title: the South Pole, lat: -89.0, lon: 0.0}

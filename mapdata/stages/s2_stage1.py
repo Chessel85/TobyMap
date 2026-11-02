@@ -33,7 +33,7 @@ import yaml
 
 from mapdata.paths import CONFIG_DIR, DataFolders
 from mapdata.stages import boundaries, clip, land as landmod, pack_write
-from mapdata.stages.geodesy import area_km2
+from mapdata.stages.geodesy import area_km2, areas_km2
 
 ROOT = Path(__file__).resolve().parents[2]
 PLACES_FILE = ROOT / "tests" / "acceptance" / "coastline_places.yaml"
@@ -164,7 +164,7 @@ def named_islands(world, uk: boundaries.Area) -> list[tuple[str, object]]:
 
 def island_report(named_points: list, uk_land, log: Log) -> dict:
     parts = shapely.get_parts(uk_land)
-    areas = np.array([area_km2(p) for p in parts])
+    areas = areas_km2(parts)
     order = np.argsort(-areas)
     tree = shapely.STRtree(parts)
     named_parts = set()
@@ -206,7 +206,7 @@ DRAWING_LEVELS = [  # spike values: tolerance in degrees, smallest part kept
 
 def drawing_report(uk_land, log: Log) -> list[dict]:
     parts = shapely.get_parts(uk_land)
-    areas = np.array([area_km2(p) for p in parts])
+    areas = areas_km2(parts)
     out = []
     for level in DRAWING_LEVELS:
         start = time.perf_counter()
@@ -240,7 +240,7 @@ def coverage_report(layer_name: str, shapes: list, tolerance: float, log: Log) -
     start = time.perf_counter()
     valid_before = bool(shapely.coverage_is_valid(arr))
     cleaned = shapely.coverage_clean(arr)
-    moved = float(sum(abs(area_km2(a) - area_km2(b)) for a, b in zip(arr, cleaned)))
+    moved = float(np.abs(areas_km2(arr) - areas_km2(cleaned)).sum())
     valid_cleaned = bool(shapely.coverage_is_valid(cleaned))
     simplified = shapely.coverage_simplify(cleaned, tolerance)
     valid_after = bool(shapely.coverage_is_valid(simplified))
@@ -299,9 +299,10 @@ def pictures(out_dir: Path, layers: dict, log: Log) -> list[str]:
     """PNG pictures for sighted reviewers, drawn with Qt offscreen."""
     import os
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PySide6.QtCore import QPointF, Qt
-    from PySide6.QtGui import QBrush, QColor, QImage, QPainter, QPainterPath, QPen, QPolygonF
+    from PySide6.QtGui import QBrush, QColor, QImage, QPainter, QPen
     from PySide6.QtWidgets import QApplication
+
+    from mapdata.stages import drawing
 
     QApplication.instance() or QApplication([])
     made = []
@@ -316,18 +317,16 @@ def pictures(out_dir: Path, layers: dict, log: Log) -> list[str]:
         p = QPainter(img)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         for k, g in enumerate(shapes):
-            g = shapely.simplify(g, (e - w) / width / 2)
-            path = QPainterPath()
-            path.setFillRule(Qt.FillRule.OddEvenFill)
-            for poly in shapely.get_parts(g):
-                if poly.geom_type != "Polygon":
-                    continue
-                for ring in [poly.exterior, *poly.interiors]:
-                    c = np.asarray(ring.coords)
-                    xs = (c[:, 0] - w) / (e - w) * width
-                    ys = (n - c[:, 1]) / (n - s) * height
-                    path.addPolygon(QPolygonF([QPointF(x, y) for x, y in zip(xs.tolist(), ys.tolist())]))
-                    path.closeSubpath()
+            # Only what is inside the picture is drawn: trimming first saves
+            # drawing every point of a whole country for a small close-up.
+            g = shapely.clip_by_rect(g, w - (e - w) * 0.01, s - (n - s) * 0.01, e + (e - w) * 0.01, n + (n - s) * 0.01)
+            if g.is_empty:
+                continue
+            g = drawing.simplify_parts(g, (e - w) / width / 2)
+            # Every ring of the shape handed to Qt in one step (drawing.py).
+            xy, move = drawing.polygon_arrays(g)
+            screen = np.stack([(xy[:, 0] - w) / (e - w) * width, (n - xy[:, 1]) / (n - s) * height], axis=1)
+            path = drawing.qpath(screen, move)
             p.setBrush(QBrush(QColor(palette[k % len(palette)])))
             p.setPen(QPen(QColor("#5a4a3a"), 1))
             p.drawPath(path)

@@ -100,10 +100,10 @@ def test_gaps_accept_a_member_that_is_a_geometry_collection():
 
 
 def test_area_on_the_earth():
-    # One degree square at the equator is about 12,364 km2.
-    assert area_km2(shapely.box(0, 0, 1, 1)) == pytest.approx(12364, rel=0.003)
-    # At 60 degrees north it is about half that.
-    assert area_km2(shapely.box(0, 59.5, 1, 60.5)) == pytest.approx(12364 * 0.5, rel=0.01)
+    # One degree square at the equator is about 12,308 km2 on the WGS 84 ellipsoid.
+    assert area_km2(shapely.box(0, 0, 1, 1)) == pytest.approx(12308, rel=0.001)
+    # At 60 degrees north it is about half that: 6,216 km2, as the ellipsoid is flatter there.
+    assert area_km2(shapely.box(0, 59.5, 1, 60.5)) == pytest.approx(6216, rel=0.002)
 
 
 def test_fetch_writes_only_into_the_downloads_folder(tmp_path):

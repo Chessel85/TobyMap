@@ -57,7 +57,74 @@ def relation(world, cid: str, expected_name: str, level: int, repairs: list[str]
     name = str(feature.tags["name"])
     if name != expected_name:
         raise SystemExit(f"{cid} is named {name!r}, but the configuration expects {expected_name!r}. Check the id.")
-    return _to_area(feature, level, parent, repairs)
+    area = _to_area(feature, level, parent, repairs)
+    closed = close_gaps(feature, repairs)
+    if closed is not None:
+        area.geom = closed
+        area.repaired = True
+    return area
+
+
+MAX_GAP_DEGREES = 0.5
+
+
+def close_gaps(feature, repairs: list[str]):
+    """Rebuild a relation's shape if its outline is not closed.
+
+    Spike S2 stage 2 found that in the planet file of November 2025 Russia's
+    outline had one open end, about 10 km, so the whole mainland was missing
+    from the shape GeoDesk made: only islands were left. The member ways are
+    joined here; an open end whose two ends are within MAX_GAP_DEGREES of
+    each other is closed with a straight line, and the repair is reported.
+    Returns None if the outline was already closed.
+    """
+    import geodesk
+
+    outer, inner = [], []
+    for m in feature.members:
+        if not m.is_way:
+            continue
+        line = geodesk.from_mercator(m.shape)
+        if line.geom_type == "Polygon":
+            line = line.exterior
+        (inner if str(m.role) == "inner" else outer).append(shapely.LineString(line.coords))
+    return close_outline(outer, inner, f"osm:r{feature.id} {feature.tags['name']}", repairs)
+
+
+def close_outline(outer: list, inner: list, name: str, repairs: list[str]):
+    """The shape made from a relation's outer and inner lines, with small open
+    ends closed by straight lines; None if the outline was already closed."""
+    from shapely.ops import linemerge, polygonize_full
+
+    if not outer:
+        return None
+    merged = linemerge(shapely.MultiLineString(outer))
+    _polys, _cuts, dangles, _invalid = polygonize_full([merged])
+    open_lines = [d for d in shapely.get_parts(dangles) if not d.is_empty]
+    if not open_lines:
+        return None
+    closings = []
+    for d in open_lines:
+        a, b = d.coords[0], d.coords[-1]
+        gap = shapely.Point(a).distance(shapely.Point(b))
+        if gap > MAX_GAP_DEGREES:
+            repairs.append(f"{name}: outline open between {a[1]:.4f} north, {a[0]:.4f} east and "
+                           f"{b[1]:.4f} north, {b[0]:.4f} east; too far apart to close.")
+            continue
+        closings.append(shapely.LineString([b, a]))
+        repairs.append(f"{name}: outline open between {a[1]:.4f} north, {a[0]:.4f} east and "
+                       f"{b[1]:.4f} north, {b[0]:.4f} east, {gap * 111:.0f} km apart; closed with a straight line.")
+    if not closings:
+        return None
+    polys, _c, _d, _i = polygonize_full([shapely.union_all([merged, *closings])])
+    shape = shapely.union_all(list(shapely.get_parts(polys)))
+    if inner:
+        holes, _c, _d, _i = polygonize_full([linemerge(shapely.MultiLineString(inner))])
+        if not holes.is_empty:
+            shape = shapely.difference(shape, shapely.union_all(list(shapely.get_parts(holes))))
+    if not shape.is_valid:
+        shape = shapely.make_valid(shape, method="structure")
+    return shape
 
 
 def divisions(world, country: Area, level: int, repairs: list[str],

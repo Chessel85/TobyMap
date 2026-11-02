@@ -1,0 +1,19 @@
+# Coastline check places for spike S2 stage 4: Argentina and its neighbours.
+# Format as in coastline_places.yaml.
+
+places:
+  - {name: Buenos Aires, lat: -34.6037, lon: -58.3816, includes: [Argentina]}
+  - {name: Mendoza, lat: -32.8895, lon: -68.8458, includes: [Argentina, Mendoza]}
+  - {name: Aconcagua, lat: -32.6532, lon: -70.0109, includes: [Argentina]}
+  - {name: El Chaltén near the Southern Patagonian Ice Field, lat: -49.3315, lon: -72.8863, includes: [Argentina]}
+  - {name: Iguazú on the Argentine side, lat: -25.6953, lon: -54.4367, includes: [Argentina]}
+  - {name: Ushuaia on Tierra del Fuego, lat: -54.8019, lon: -68.3030, includes: [Argentina]}
+  - {name: Porvenir on the Chilean side of Tierra del Fuego, lat: -53.2955, lon: -70.3688, includes: [Chile]}
+  - {name: Isla de los Estados, lat: -54.78, lon: -64.25, includes: [Argentina]}
+  - {name: Santiago, lat: -33.4489, lon: -70.6693, includes: [Chile]}
+  - {name: Montevideo, lat: -34.9011, lon: -56.1645, includes: [Uruguay]}
+  - {name: Stanley in the Falkland Islands, lat: -51.6977, lon: -57.8605, includes: [Falkland Islands]}
+  - {name: The Atlantic off Mar del Plata, lat: -38.10, lon: -57.30, sea: true}
+  - {name: The Beagle Channel off Ushuaia, lat: -54.87, lon: -68.25, sea: true}
+  - {name: The Strait of Magellan, lat: -52.60, lon: -69.80, sea: true}
+  - {name: The Pacific off Valparaíso, lat: -33.00, lon: -71.90, sea: true}

@@ -1,17 +1,17 @@
 # Spike S1 findings: spatial sound
 
-Task P0-T4. Architecture section 12.2. Draft of 31 October 2026, updated on 1 November with your first listening. Synthizer and OpenAL Soft are being added, with your permission.
+Task P0-T4. Architecture section 12.2. Started on 31 October 2026, listened to on 1 November, and finished on 2 November. The decision is DP100, recorded in architecture AD-10.
 
 ## The question
 
 Which desktop sound engine should TobyMap use for spatial sound (AD-10)? The browser version uses the browser's own HRTF in any case.
 
-## Short answer so far
+## Short answer
 
 * Six desktop engines were compared on 1 November: the own HRTF processing, with and without a lower pitch behind, stereo with pitch, OpenAL Soft, and Synthizer in two set-ups.
 * Stereo with pitch scored best, 8 out of 8. HRTF with a lower pitch behind came next. Every HRTF without the pitch cue, Synthizer's included, left sounds behind unclear.
 * Decided (DP100, you agreed on 1 November): stereo with pitch as the default, and HRTF with pitch as an option, both from TobyMap's own processing, with no outside sound library. Recorded in architecture AD-10.
-* The browser demo has not been listened to yet.
+* The browser demo was not listened to. It was not needed for the decision, and it does not have the pitch cue yet. The web version is checked by ear in Phase 1, with the pitch cue added.
 
 ## The candidates
 
@@ -181,6 +181,21 @@ You used the chime with every engine, in side by side and quizzes. In the demo's
   * The web version can do the same: Web Audio's stereo panner with a pitch change, or its HRTF panner with a pitch change. That keeps the desktop and web versions alike.
 * Still to check in Phase 1: playing sounds without delays or clicks while moving, and how the pitch cue works with spoken labels (spike S6), which should not have their pitch changed.
 
-## Waiting for you
+## Decision
 
-* The browser demo, when convenient. It does not have the pitch cue yet; I can add it if you would like to compare the web version too.
+You agreed the recommendation on 1 November (DP100). It is recorded in architecture AD-10:
+
+* Two sound modes, both from TobyMap's own processing, with no outside sound library.
+* Stereo with pitch is the default. HRTF with pitch is an option.
+* Sounds behind you are about three semitones lower in both modes.
+* The desktop shapes the sound with NumPy and plays it through sounddevice. The web version does the same with Web Audio.
+* Synthizer and OpenAL Soft are not used. Their spike code stays in tools\spikes\s1 as a record, and is not part of TobyMap.
+
+## Left for Phase 1
+
+These do not change the decision, and are tested when the sound is built into TobyMap:
+
+* The web version by ear, in Firefox and Chrome, with the pitch cue added to the browser demo or to the web version itself.
+* Playing sounds while moving, with no delays or clicks.
+* How the pitch cue works with spoken labels from Piper (spike S6), whose own pitch should not change.
+* Tuning the distance loudness and muffling (SON-9) in the full listening test.

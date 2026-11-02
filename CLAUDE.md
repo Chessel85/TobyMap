@@ -20,6 +20,7 @@ The detail lives in `docs/design/`:
 * `data sources.md`: every data source and its licence.
 * `Discussion points.csv`: questions between Claude Code and the PO (see below).
 * `glossary.md`: the meaning of each word used in reports, findings, documents and answers to the PO. Follow it for everything written for the PO, including text that code prints into build reports. Never use "piece", "box" or "tile" on their own. If a new idea needs a word, add it to the glossary first.
+* `explanation.md`: plain-language explanations of how parts of TobyMap work, one section per topic. When the PO asks how something works, the answer usually belongs here as a new section.
 * `high level requirements.md` and `target users.md` belong to the PO. Never rewrite them.
 
 Current progress is in `docs/plan/phase-N.md`. Spike findings are in `docs/spikes/`.

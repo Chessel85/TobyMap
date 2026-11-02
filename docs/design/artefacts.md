@@ -82,6 +82,10 @@ Inside mapdata/:
   * Where: docs/design/glossary.md.
   * For: one meaning for each word Claude Code uses in reports, findings and documents, so the PO isn't left guessing. Separate from the user glossary in Help (section 9).
   * Phase: from 0, then kept up to date. Owner: CC.
+* Explanations
+  * Where: docs/design/explanation.md.
+  * For: plain-language explanations of how parts of TobyMap work, one section per topic, starting with how the build trims countries to the coastline.
+  * Phase: from 0, added to as the work goes on. Owner: CC.
 * This artefact list
   * Where: docs/design/artefacts.md.
   * Phase: 0. Owner: CC.

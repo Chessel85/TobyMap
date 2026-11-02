@@ -54,6 +54,7 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe -m mapdata inspect <pack> <lat> <lon>         # what is at a point in a pack
 .venv\Scripts\python.exe tools\spikes\s1\demo.py                       # spike S1 sound demo (requirements-spikes.txt)
 .venv\Scripts\python.exe tools\spikes\s6\demo.py                       # spike S6 voice demo (requirements-spikes.txt)
+.venv\Scripts\python.exe tools\spikes\s3\run.py                          # spike S3 hosting and storage tests in Chromium, Firefox, Edge (--serve for your own browser)
 ```
 
 The browser tests stage the core into `web/py` themselves and need Pyodide in `web/vendor`. Each test starts Pyodide afresh, so they take about five minutes.

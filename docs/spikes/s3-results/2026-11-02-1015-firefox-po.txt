@@ -1,0 +1,56 @@
+Reading test in Firefox 159.0, 2026-11-02T10:11:31.780Z
+Place: This computer, with permission for other pages
+  Address: http://127.0.0.1:8771/s3-test-64MiB.bin
+  Allowed. The first 16 bytes took 8 ms. Served from 127.0.0.1:8771.
+  20 reads of 4 KB from all over the file: middle time 7 ms, slowest 12 ms. All checked correct.
+  The last 16 bytes: correct.
+  One read of 4 MB took 44 ms, about 90.9 megabytes a second. Correct.
+  Keeping what the 20 reads returned in private storage, and reading it back: correct.
+  Result: works.
+Place: This computer, without permission, as GitHub's download server
+  Address: http://127.0.0.1:8772/s3-test-64MiB.bin
+  Blocked: the browser did not let the page read this file (status 0).
+  An ordinary fetch was blocked too.
+Place: GitHub Releases, a file in another public project (Pyodide)
+  Address: https://github.com/pyodide/pyodide/releases/download/0.27.0/pyodide-core-0.27.0.tar.bz2
+  Blocked: the browser did not let the page read this file (status 0).
+  An ordinary fetch was blocked too.
+Place: Hugging Face, a file in another public dataset (GSM8K)
+  Address: https://huggingface.co/datasets/openai/gsm8k/resolve/main/main/test-00000-of-00001.parquet
+  Allowed. The first 16 bytes took 390 ms. Served from us.aws.cdn.hf.co.
+  20 reads of 4 KB from all over the file: middle time 349 ms, slowest 373 ms. All the right length.
+  The last 16 bytes: correct.
+  One read of 0.4 MB took 442 ms, about 0.9 megabytes a second. Correct.
+  Keeping what the 20 reads returned in private storage, and reading it back: correct.
+  Result: works.
+Reading test finished: 2 of 4 places work.
+
+Storage test in Firefox 159.0, 2026-11-02T10:12:21.973Z
+  The browser says this site may store up to 10240 MB, about 10 GB. It is using 0.5 MB.
+  Stored 512 MB so far.
+  Stored 1024 MB so far.
+  Stored 1536 MB so far.
+  Stored 2048 MB so far.
+  Stored 2560 MB so far.
+  Stored 3072 MB so far.
+  Stored 3584 MB so far.
+  Stored 4096 MB so far.
+  Stored 4608 MB so far.
+  Stored 5120 MB so far.
+  Stored 5632 MB so far.
+  Stored 6144 MB so far.
+  Stored 6656 MB so far.
+  Stored 7168 MB so far.
+  Stored 7680 MB so far.
+  Stored 8192 MB so far.
+  Stored 8704 MB so far.
+  Stored 9216 MB so far.
+  Stored 9728 MB so far.
+  The browser stopped the writing: it would take only 15728640 more bytes.
+  Stored 10224 MB in 8.9 seconds, about 1146.4 megabytes a second.
+  Reading it back: correct.
+  The test file is deleted. The site is now using 0.5 MB.
+Storage kept for this site: no, the browser may clear it when the disk is full
+Storage test finished: 10224 megabytes stored.
+
+The browser will keep this site's storage.

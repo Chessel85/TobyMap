@@ -73,6 +73,14 @@ Containment, neighbours with shared border lengths, overlaps, the order in which
 ### AD-9 The web version runs the core in a background worker
 In the browser, Pyodide and the core run in a Web Worker, so the page never freezes and speech is never delayed. The worker reads packs with synchronous range requests and caches them in the browser's private file storage.
 
+Decided by spike S3 (DP102, 2 November 2026):
+
+* The web version reads its packs from a copy on a TobyMap dataset on your Hugging Face account. Browsers block web pages from reading GitHub Releases, so the desktop keeps using GitHub Releases and the pipeline publishes to both.
+* Each read from Hugging Face takes about 0.4 seconds, so the web version does not read records one at a time while stepping. It downloads each pack whole into private storage, and reads records from there, as fast as on the desktop. While a pack is downloading, it uses range requests so the map can be used straight away.
+* When you install your first pack beyond the base pack, the web version asks the browser to keep its storage. Firefox's prompt for this works with NVDA.
+
+Full detail is in docs/spikes/S3-hosting-browser.md, and the rest of the architecture is updated in P0-T11.
+
 ### AD-10 Spatial sound and the spatial voice behind one interface
 The core works out where each sound is (direction, loudness and muffling, SON-9) without playing it. A sound backend on each platform plays it. The spatial voice (SON-3) is chosen by spike S6 (DP82).
 
@@ -297,7 +305,7 @@ Using a step in stepping mode as the example:
 
 ### 5.6 Web shell
 * The page holds the same four regions. The map is a canvas. The Information panel is a tree with real focus on its items. The menu is a real menu.
-* The worker holds Pyodide, the core and the pack readers. It reads packs with synchronous range requests, which are allowed in workers, and stores downloaded pieces in the browser's private file system (OPFS), so they work offline.
+* The worker holds Pyodide, the core and the pack readers. It downloads packs whole into the browser's private file system (OPFS), so they work offline, and reads records from there. While a pack is downloading, it reads records with synchronous range requests, which are allowed in workers (AD-9, DP102).
 * The page and the worker exchange small messages. Shape lists are passed as numeric arrays, which cross between worker and page without copying.
 * Sound uses Web Audio on the page. The spatial voice chosen in spike S6 runs in WebAssembly.
 * Settings and personal data are stored in the browser.
@@ -609,7 +617,7 @@ The commands follow the UX description, section 16:
 ### 9.1 Where things live
 * Source code, issues and continuous integration: one public GitHub repository, TobyMap, under your GitHub account Chessel85 (DP84). The design documents live in its docs/design folder, as Markdown only. The HTML copies are not added.
 * Application releases: GitHub Releases, tagged by application version. Releases are made from an early phase, whenever a phase is accepted (DP85). There is no separate preview stage. You decide when to invite other people to try it.
-* Packs: GitHub Releases, in separate data releases tagged by date, such as "packs-2027-01" (PCK-4).
+* Packs: GitHub Releases, in separate data releases tagged by date, such as "packs-2027-01" (PCK-4). The web version uses a copy on a TobyMap dataset on Hugging Face (DP102).
 * Web application: GitHub Pages, built from the repository.
 
 ### 9.2 A risk for the web version
@@ -625,8 +633,12 @@ Cloudflare R2 is not considered unless you decide to add a card to your Cloudfla
 
 The packs would still be published to GitHub Releases for the desktop, with a copy at the fall-back for the web.
 
+Spike S3 confirmed the risk on 2 November 2026. Chrome, Firefox and Edge all block a web page from reading GitHub Releases, and all three can read from Hugging Face. So the first fall-back, Hugging Face, is used (DP102). Cloudflare Pages and GitHub Pages were not needed.
+
 ### 9.3 Browser storage
 Browsers limit how much a site can store, often to a share of free disk space. The pack manager reports how much space is left (UX section 14). Spike S3 measures what Firefox, Chrome and Edge allow. Firefox comes first, because it is your main browser.
+
+Spike S3 found a limit of 10 GB for the site in all three browsers, including your own Firefox, which stopped writing at that limit. That is far more than the 250 MB base pack (PCK-1), and enough for several 1 GB packs. The pack manager still asks the browser how much is left, rather than assuming 10 GB.
 
 ---
 

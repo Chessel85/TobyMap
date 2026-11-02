@@ -63,6 +63,33 @@ def area_km2(geom) -> float:
     return float(shapely.transform(geom, project).area)
 
 
+def areas_km2(geoms) -> np.ndarray:
+    """The area of each shape in an array, on the WGS 84 ellipsoid, in one go.
+
+    The same sums as area_km2, each shape projected about its own centre, but
+    for all the shapes in a few array operations instead of one Python call
+    each. Norway's land has 118,845 parts, so measuring them one at a time
+    was slow (spike S2).
+    """
+    geoms = np.asarray(geoms, dtype=object)
+    out = np.zeros(len(geoms))
+    if len(geoms) == 0:
+        return out
+    empty = shapely.is_empty(geoms)
+    live = np.nonzero(~empty)[0]
+    if len(live) == 0:
+        return out
+    seg = shapely.segmentize(geoms[live], 0.25)
+    centres = shapely.centroid(geoms[live])
+    lon0 = shapely.get_x(centres)
+    lat0 = authalic_lat(shapely.get_y(centres))
+    coords, which = shapely.get_coordinates(seg, return_index=True)
+    x, y = _laea(coords[:, 0], authalic_lat(coords[:, 1]), lon0[which], lat0[which], R_AUTHALIC_KM)
+    projected = shapely.set_coordinates(seg, np.stack([x, y], axis=1))
+    out[live] = shapely.area(projected)
+    return out
+
+
 def distance_km(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
     """Great circle distance on the mean sphere, for reports."""
     p1, p2 = math.radians(lat1), math.radians(lat2)

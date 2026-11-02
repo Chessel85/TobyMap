@@ -32,6 +32,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Land polygons: the worldwide OSM product that holds all the land in the world, with the sea removed (AD-15).
 * Land tile: one shape in the land polygons file. It is a whole small island, or a slice of a bigger island or a continent, cut along the lines of latitude and longitude at every whole degree. No land tile is bigger than one degree each way, and neighbouring land tiles overlap very slightly.
 * Reading box: a rectangle, given by its west, south, east and north edges in degrees, that says which land tiles a build reads. They are listed in the build's configuration, such as mapdata/config/s2_stage1.yaml.
+* Land index: the land polygons converted once, after each download, into a form a build can read in part: the bounding box of every land tile in one list, and the land tiles themselves one after another. A build finds the land tiles in its reading boxes from the list and reads only those. It is kept in the data folder's tobymap\working folder.
 * Bounding box: the smallest rectangle, with edges along lines of latitude and longitude, that contains a shape.
 * Trimming: removing the sea from an area by keeping only the land tiles inside it, cutting those that cross its boundary.
 

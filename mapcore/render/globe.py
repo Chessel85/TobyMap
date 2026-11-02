@@ -145,13 +145,17 @@ class GlobeGeometry:
         lat_all, lon_all = np.concatenate(lats), np.concatenate(lons)
         xyz = unit_vectors(lat_all, lon_all)
         offs = np.asarray(ring_offsets, np.intp)
-        seam = np.zeros(len(lat_all), bool)
-        for start, end in zip(offs[:-1], offs[1:]):
-            lo, la = lon_all[start:end], lat_all[start:end]
-            lo_next, la_next = np.roll(lo, -1), np.roll(la, -1)
-            on_line = (np.abs(np.abs(lo) - 180) < 1e-6) & (np.abs(np.abs(lo_next) - 180) < 1e-6)
-            at_pole = (la < -89.99) & (la_next < -89.99)
-            seam[start:end] = on_line | at_pole
+        # The next point of each point's ring, the last wrapping to the first,
+        # for every ring at once (a loop over rings was slow for countries
+        # with thousands of islands).
+        nxt = np.arange(len(lat_all), dtype=np.intp) + 1
+        full = np.diff(offs) > 0
+        nxt[offs[1:][full] - 1] = offs[:-1][full]
+        lo, la = lon_all, lat_all
+        lo_next, la_next = lon_all[nxt], lat_all[nxt]
+        on_line = (np.abs(np.abs(lo) - 180) < 1e-6) & (np.abs(np.abs(lo_next) - 180) < 1e-6)
+        at_pole = (la < -89.99) & (la_next < -89.99)
+        seam = on_line | at_pole
         return cls(xyz, offs, np.asarray(shape_offsets, np.intp),
                    shape_country, np.asarray(shape_colour, np.int64), seam)
 

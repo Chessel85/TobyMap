@@ -226,9 +226,35 @@ Two differences are expected and are not faults:
 
 The cut shapes cached on 1 November are kept, so both runs can be timed the same way: once with the cutting cached, against the 20.9 minutes, and once from scratch, against the 30 minutes.
 
+### Faster algorithms: what was done, 2 November evening
+
+Each slow step was timed on the real shapes before it was changed, and each new method was checked against the old one on the same shapes. Three of the plan's guesses were wrong, so the changes differ from the list above.
+
+1. Cutting shapes into pack tiles. Python's step-by-step handling took under 1% of the time; the cut itself took the rest. A cut made for rectangles (GEOS clip_by_rect) replaces the general one: the UK in 16 seconds instead of 52, with exactly the same pack tiles and shapes. If the rectangle cut ever gives an invalid shape, the general cut is used instead.
+2. Drawing. The globe's shapes were slow to prepare because simplifying a whole country checks every island against every other: Russia took 52 seconds, and the USA had not finished after 15 minutes. Each part is now simplified on its own: Russia in 5.5 seconds, the USA in 16.5. Whole outlines are also handed to Qt in one step, instead of one point at a time, and the artificial edges are left out by lifting the pen. Stage 3's four globe views took 27 seconds; the old code had not finished after 25 minutes. The figures match stage 3's report, with a few per cent fewer points drawn. The core's globe now finds the artificial edges for every ring at once (mapcore/render/globe.py).
+3. Cutting very big countries in parts. Tried on the UK, and slower: 310 seconds instead of 47, because joining the big parts back costs as much as the whole. The real cost was joining the land tiles, 36 of the 47 seconds. Shapely's join for separate groups (disjoint_subset_union_all) does it in 8 seconds, with exactly the same shape, because most land tiles are islands that touch no other.
+4. Measuring many parts in one call (geodesy.areas_km2). It gives the same figures as one part at a time.
+5. The land index (glossary). The land polygons are converted once after each download, in 24 seconds, into the data folder's tobymap\working folder. Europe's reading box then loads in 5 seconds, instead of a scan of the whole file, with exactly the same 86,656 land tiles as the 1 November cache.
+6. Stage 1 by the same program as stages 2 and 3: `python -m mapdata spike-s2 1`, with the settings in mapdata/config/s2_stage1_again.yaml. It has France's country units and stage 1's reading boxes, and writes to its own folders (s2-stage1-again), so the 1 November results are kept. A comparison program, `python -m mapdata spike-s2-compare`, reads both builds and writes a report of every difference, as described above.
+
+Tests: 18 new ones, each comparing a new method with the old one, or with what the download gives. All 225 Python tests pass.
+
+### Stage 1 again: not finished, because of the counties step
+
+Stage 1 was started again three times. The planet read, the land tiles and cutting all 64 countries, units and regions to the land took about a minute (67 seconds for the cutting, with 3 workers). Each time, the build then spent a long time in the counties step and was stopped.
+
+* The counties step is new work: stage 1 on 1 November made its counties from level 6 alone. Discussion point 101 also looks at levels 7 and 8 wherever level 6 leaves a gap. France has 34,874 areas at level 8.
+* After level 6, France's gap is 195,763 separate parts, mostly thin strips along the coast, with 1.4 million points. Each area that touches the gap is measured against all of it, which took over 10 seconds for each of France's arrondissements.
+* Two changes were tried: skipping areas that touch only the gap's sea, and measuring each area only against the parts of the gap near it. With them, the UK's counties step was slower than before (over 20 minutes, against about 9), and the cause was not found. The PO asked to stop and move on, so the counties step is back as it was this morning.
+* So the whole-run comparison with 1 November has not been made. The comparison program is ready for it.
+
+For Phase 1: the counties rule needs a faster way to find which areas fill a gap. It should look only at areas whose land is mostly in the gap, found without measuring each one against the whole gap. A likely first step is to drop the gap's strips under a set size before testing any area.
+
+The lesson from all of these: the slow steps were each an operation on a whole country, or a whole gap, made of many thousands of separate parts, when each step needed only the few parts nearby. That will matter far more for the whole world.
+
 ### Still to do
 
-* Faster algorithms, proved on stage 1: see the section above. This comes first.
+* Stage 1 again: finish the whole run and the comparison once the counties step is faster, or run it with the counties step timed separately.
 * Stage 3: one more run, to confirm the polar cap (the South Pole and Antarctica's area) and the two moved places, and to test the DP103 changes. Only Antarctica needs cutting again. Expected: about 30 to 40 minutes with 3 workers, against 76 minutes last time, mostly because the pictures and packs now share the work.
 * Look into Kiribati's area (35% more than Wikidata), Fiji's (2.6% more), and the 864 km² that cleaning moved between Russia's regions.
 * Make the globe check look only at edges near the 180 degree line.

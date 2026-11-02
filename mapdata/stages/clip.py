@@ -16,7 +16,7 @@ from dataclasses import dataclass
 import numpy as np
 import shapely
 
-from mapdata.stages.geodesy import area_km2
+from mapdata.stages.geodesy import areas_km2
 
 
 SEAM_TOLERANCE = 1e-9  # degrees, about 0.1 mm
@@ -61,8 +61,13 @@ def clip_to(geom, candidates: np.ndarray):
         return shapely.Polygon()
     # The OSM land pieces overlap by a thin band, about 0.0005 degrees, at
     # each split line (found in spike S2), so a full union is needed, not a
-    # coverage union.
-    out = shapely.union_all(parts)
+    # coverage union. Most land tiles are islands that touch no other, so
+    # the union for separate groups is used: it joins each group that
+    # touches on its own. For the UK it took 8 seconds instead of 36, with
+    # exactly the same result (2 November). Cutting a big country into
+    # parts in separate workers and joining them was tried and was slower,
+    # because joining the big parts costs as much as the whole.
+    out = shapely.disjoint_subset_union_all(parts)
     # Where a border crosses a piece's edge, the cut adds a point on the
     # border that its neighbour does not get, so the two no longer meet
     # exactly (AD-16 needs them to). Those points lie on the border's line,
@@ -141,10 +146,9 @@ def _slivers(gap, members: list, names: list[str], min_km2: float, name_from_km2
     if gap.is_empty:
         return found
     tree = shapely.STRtree(np.array(members, dtype=object))
-    for p in shapely.get_parts(gap):
-        if p.geom_type != "Polygon":
-            continue
-        km2 = area_km2(p)
+    parts = shapely.get_parts(gap)
+    parts = parts[shapely.get_type_id(parts) == 3]  # polygons only
+    for p, km2 in zip(parts, areas_km2(parts).tolist()):
         if km2 < min_km2:
             continue
         c = p.representative_point()

@@ -53,3 +53,13 @@ countries:
     - Sakha Republic
     - Chukotka Autonomous Okrug
     how: worked out by spike S2 stage 3 on 2 November 2026
+  osm:r62149:
+    name: United Kingdom
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Scotland
+    - England
+    how: worked out by spike S2 stage 1 on 2 November 2026

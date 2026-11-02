@@ -38,7 +38,7 @@ import yaml
 from mapdata.parallel import memory_mb
 from mapdata.paths import CONFIG_DIR, DataFolders
 from mapdata.stages import antimeridian, boundaries, clip, counties as countiesmod, land as landmod, pack_write
-from mapdata.stages.geodesy import area_km2, distance_km
+from mapdata.stages.geodesy import area_km2, areas_km2, distance_km
 from mapdata.stages.s2_stage1 import Log, cached, coverage_report, english, peak_memory_mb, pictures
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -106,8 +106,14 @@ def with_polar_cap(tiles: np.ndarray):
     return np.concatenate([tiles, np.array([cap], dtype=object)]), south
 
 
+# Stage 1 has its own program (s2_stage1.py) and settings (s2_stage1.yaml),
+# kept as they were for the 1 November baseline. Built by this program, it
+# uses s2_stage1_again.yaml.
+CONFIG_FILES = {1: "s2_stage1_again.yaml"}
+
+
 def load_config(stage: int) -> dict:
-    path = CONFIG_DIR / f"s2_stage{stage}.yaml"
+    path = CONFIG_DIR / CONFIG_FILES.get(stage, f"s2_stage{stage}.yaml")
     if not path.is_file():
         raise SystemExit(f"No settings for stage {stage}: {path} is missing.")
     return yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -186,7 +192,38 @@ def extract(config: dict, gol: Path) -> dict:
                         points.append((name, pt))
             named[country.id] = points
             lines.append(f"{english(country)}: {len(points)} named islands and islets in OSM.")
-    return {"countries": countries, "divisions": divisions, "named": named, "repairs": repairs, "lines": lines}
+    units = read_units(world, config, repairs) if config.get("units") else []
+    if units:
+        lines.append(f"Country units: {', '.join(u.tags['unit_name'] for u in units)}.")
+    return {"countries": countries, "divisions": divisions, "named": named, "repairs": repairs, "lines": lines,
+            "units": units}
+
+
+def read_units(world, config: dict, repairs: list[str]) -> list:
+    """The country units (country_units.yaml) of the stage's countries, which
+    replace them in the Countries layer (architecture 6.12, DP86)."""
+    data = yaml.safe_load((CONFIG_DIR / "country_units.yaml").read_text(encoding="utf-8"))
+    ids = {c["id"] for c in config["countries"]}
+    out = []
+    for u in data["units"]:
+        if u["replaces"] not in ids:
+            continue
+        for part in u["parts"]:
+            feature = world.relation(int(part["id"].removeprefix("osm:r")))
+            if feature is None:
+                raise SystemExit(f"{part['id']} ({part['name']}) is not in the GOL file.")
+            area = boundaries._to_area(feature, int(str(feature.tags["admin_level"]) or 3), u["replaces"], repairs)
+            area.tags["unit_name"] = part["name"]
+            area.tags["unit_type"] = part["type"]
+            area.tags["sovereign"] = u["sovereign"]
+            out.append(area)
+    return out
+
+
+def sovereigns() -> dict:
+    """Sovereign states recorded for level 2 areas that are not their own, such as Gibraltar."""
+    data = yaml.safe_load((CONFIG_DIR / "country_units.yaml").read_text(encoding="utf-8"))
+    return data.get("sovereigns") or {}
 
 
 def run_extract(stage: int, folders: DataFolders) -> int:
@@ -209,8 +246,10 @@ def extract_cache_path(config: dict, folders: DataFolders, gol: Path) -> Path:
     record = countiesmod.load_record(RECORD)
     ids = [c["id"] for c in config["countries"] if c.get("divisions")]
     rec = {i: record.get(i, {}).get("levels") for i in ids}
-    key = hashlib.sha1(json.dumps([config["countries"], config.get("region_level", 4), rec, stamp,
-                                   EXTRACT_VERSION], sort_keys=True, default=str).encode()).hexdigest()[:16]
+    parts = [config["countries"], config.get("region_level", 4), rec, stamp, EXTRACT_VERSION]
+    if config.get("units"):
+        parts.append({"units": (CONFIG_DIR / "country_units.yaml").read_text(encoding="utf-8")})
+    key = hashlib.sha1(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:16]
     return folders.working / config["name"] / f"extract-{key}.pkl"
 
 
@@ -231,10 +270,12 @@ def clip_all(land: clip.Land, items: list[tuple[str, object]], working: Path, lo
     """
     from mapdata import parallel
 
-    out, slow, todo = {}, [], []
+    out, slow, todo, seen = {}, [], [], set()
     for key_id, geom in items:
-        key = hashlib.sha1(shapely.to_wkb(geom) + VERSION.encode()).hexdigest()[:16]
-        path = working / "clipped" / f"{key_id.replace(':', '_')}-{key}.pkl"
+        if key_id in seen:
+            continue  # an area in two lists, such as a region that is also a country unit
+        seen.add(key_id)
+        path = cut_cache_path(working, key_id, geom)
         if path.is_file():
             out[key_id] = clip.polygonal(pickle.loads(path.read_bytes()))
         else:
@@ -266,6 +307,12 @@ def clip_all(land: clip.Land, items: list[tuple[str, object]], working: Path, lo
     return out
 
 
+def cut_cache_path(working: Path, key_id: str, geom) -> Path:
+    """Where an area's land is cached: by its id and a fingerprint of the shape it was cut from."""
+    key = hashlib.sha1(shapely.to_wkb(geom) + VERSION.encode()).hexdigest()[:16]
+    return working / "clipped" / f"{key_id.replace(':', '_')}-{key}.pkl"
+
+
 def cf_wait(running: dict):
     import concurrent.futures as cf
 
@@ -274,7 +321,7 @@ def cf_wait(running: dict):
 
 def island_report(name: str, named_points: list, land_geom, log: Log) -> dict:
     parts = shapely.get_parts(land_geom)
-    areas = np.array([area_km2(p) for p in parts])
+    areas = areas_km2(parts)
     order = np.argsort(-areas)
     # Each part is prepared once and tested against the named points near it.
     # Testing each point against an unprepared mainland with millions of
@@ -370,7 +417,7 @@ def far_parts(name: str, geom, regions: list, log: Log) -> list[dict]:
     parts = [p for p in shapely.get_parts(geom)]
     if not parts:
         return []
-    areas = [area_km2(p) for p in parts]
+    areas = areas_km2(parts).tolist()
     # A simplified mainland is plenty for a 1000 km test, and far faster
     # against a coast with millions of points.
     main = shapely.simplify(parts[int(np.argmax(areas))], 0.05)
@@ -600,26 +647,30 @@ def globe_pictures(out_dir: Path, views: list[dict], shapes: list, log: Log) -> 
 
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtCore import QPointF, Qt
-    from PySide6.QtGui import QBrush, QColor, QImage, QPainter, QPainterPath, QPen, QPolygonF
+    from PySide6.QtGui import QBrush, QColor, QImage, QPainter, QPen
     from PySide6.QtWidgets import QApplication
 
     from mapcore.render import globe
+    from mapdata.stages import drawing
 
     QApplication.instance() or QApplication([])
     countries = []
     for k, (cid, g) in enumerate(shapes):
-        g = shapely.simplify(g, 0.01, preserve_topology=True)
+        g = drawing.simplify_parts(g, 0.01)
         polys = []
-        for poly in shapely.get_parts(g):
-            if poly.geom_type != "Polygon" or poly.is_empty:
-                continue
-            rings = []
-            for ring in [poly.exterior, *poly.interiors]:
-                c = np.asarray(ring.coords)[:-1]
+        parts = shapely.get_parts(g)
+        parts = parts[(shapely.get_type_id(parts) == 3) & ~shapely.is_empty(parts)]
+        if len(parts):
+            # Every ring's points in one call, then split into rings.
+            rings_all = shapely.get_rings(parts, return_index=True)
+            xy, ring_of = shapely.get_coordinates(rings_all[0], return_index=True)
+            ends = np.searchsorted(ring_of, np.arange(len(rings_all[0]) + 1))
+            by_poly: dict[int, list] = {}
+            for r, p in enumerate(rings_all[1].tolist()):
+                c = xy[ends[r]:ends[r + 1] - 1]  # without the closing point
                 if len(c) >= 3:
-                    rings.append(SimpleNamespace(lat=c[:, 1], lon=c[:, 0]))
-            if rings:
-                polys.append(rings)
+                    by_poly.setdefault(p, []).append(SimpleNamespace(lat=c[:, 1], lon=c[:, 0]))
+            polys = [by_poly[p] for p in sorted(by_poly)]
         countries.append(SimpleNamespace(id=cid, polygons=polys, colour=k + 1))
     geometry = globe.GlobeGeometry.from_world(SimpleNamespace(countries=countries))
     out = []
@@ -637,32 +688,33 @@ def globe_pictures(out_dir: Path, views: list[dict], shapes: list, log: Log) -> 
         p.setBrush(QBrush(QColor("#a9cce3")))
         p.setPen(QPen(QColor("#333333"), 1))
         p.drawEllipse(QPointF(gl["cx"], gl["cy"]), gl["r"], gl["r"])
-        longest, seam_edges = 0.0, 0
         palette = ["#e8d8a9", "#c9e2b3", "#f2c6b4", "#d6c8e6", "#f6e3a1"]
-        for si in range(len(scene["shapes"]) - 1):
-            path = QPainterPath()
-            path.setFillRule(Qt.FillRule.OddEvenFill)
-            outline = []
-            for ri in range(scene["shapes"][si], scene["shapes"][si + 1]):
-                a, b = rings[ri], rings[ri + 1]
-                pts = coords[a:b]
-                path.addPolygon(QPolygonF([QPointF(float(x), float(y)) for x, y in pts]))
-                path.closeSubpath()
-                nxt = np.roll(pts, -1, axis=0)
-                lengths = np.hypot(*(nxt - pts).T)
-                s = seam[a:b]
-                seam_edges += int(s.sum())
-                ok = ~s
-                if ok.any():
-                    longest = max(longest, float(lengths[ok].max()))
-                outline.append((pts, nxt, ok))
-            p.setPen(Qt.PenStyle.NoPen)
+        coords = coords.astype(float)
+        rings = np.asarray(rings, np.intp)
+        # Each edge's length on the screen, to the next point of its ring.
+        nxt = np.arange(len(coords), dtype=np.intp) + 1
+        lengths_r = np.diff(rings)
+        full = lengths_r > 0
+        nxt[rings[1:][full] - 1] = rings[:-1][full]
+        lengths = np.hypot(*(coords[nxt] - coords).T) if len(coords) else np.zeros(0)
+        seam_edges = int(seam.sum())
+        longest = float(lengths[~seam].max()) if (~seam).any() else 0.0
+        # Each shape is filled as one path; then every outline is drawn as
+        # one path, lifting the pen at the artificial edges (drawing.py).
+        p.setPen(Qt.PenStyle.NoPen)
+        shape_starts = scene["shapes"]
+        for si in range(len(shape_starts) - 1):
+            a, b = rings[shape_starts[si]], rings[shape_starts[si + 1]]
+            if b <= a:
+                continue
+            move = np.zeros(b - a, bool)
+            move[rings[shape_starts[si]:shape_starts[si + 1]] - a] = True
             p.setBrush(QBrush(QColor(palette[scene["shape_style"][si] % len(palette)])))
-            p.drawPath(path)
-            p.setPen(QPen(QColor("#5a4a3a"), 1))
-            for pts, nxt, ok in outline:
-                for (x1, y1), (x2, y2) in zip(pts[ok], nxt[ok]):
-                    p.drawLine(QPointF(float(x1), float(y1)), QPointF(float(x2), float(y2)))
+            p.drawPath(drawing.qpath(coords[a:b], move))
+        xy, move = drawing.outline_arrays(coords, rings, seam)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(QColor("#5a4a3a"), 1))
+        p.drawPath(drawing.qpath(xy, move))
         p.end()
         file = out_dir / f"globe-{v['name']}.png"
         img.save(str(file))
@@ -732,6 +784,10 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
         log(line)
     countries: list = ex["countries"]
     divisions: dict = ex["divisions"]
+    units: list = ex.get("units", [])
+    unit_ids = {u.id for u in units}
+    replaced = {u.parent for u in units}
+    sovereign_of = sovereigns()
     log(f"Repairs: {len(ex['repairs'])}.")
     for r in ex["repairs"][:30]:
         log(f"  {r}")
@@ -762,6 +818,7 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
     log.heading("Cut to the land")
     t = time.perf_counter()
     items = [(a.id, shapes_for_land[a.id]) for a in countries]
+    items.extend((u.id, u.geom) for u in units)
     for (cid, level), divs in divisions.items():
         if level == region_level:
             items.extend((d.id, d.geom) for d in divs)
@@ -787,9 +844,8 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
         regions = [(d, g) for d, g in regions if not g.is_empty]
         cands = {lv: divisions.get((country.id, lv), []) for lv in levels}
 
-        def clip_one(g, _cache={}):
-            key = hashlib.sha1(shapely.to_wkb(g) + VERSION.encode()).hexdigest()[:16]
-            return clip.polygonal(cached(working / "clipped" / f"county-{key}.pkl", lambda: land.clip(g)))
+        def clip_one(g):
+            return clip.polygonal(cached(cut_cache_path(working, "county", g), lambda: land.clip(g)))
 
         res = countiesmod.build(country_raw, regions, cands, clip_one, levels, english=english)
         county_results[country.id] = res
@@ -912,12 +968,18 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
 
     log.heading("Pack")
     records, geoms = [], []
-    for a in countries:
-        records.append({"id": a.id, "name": english(a), "local_name": a.name, "layer": "countries",
-                        "type": "country", "sovereign": english(a), "area_km2": round(area_km2(clipped[a.id]), 3)})
+    # The Countries layer: a country with units is replaced by them (6.12).
+    country_layer = [a for a in countries if a.id not in replaced] + units
+    for a in country_layer:
+        records.append({"id": a.id, "name": a.tags.get("unit_name") or english(a), "local_name": a.name,
+                        "layer": "countries", "type": a.tags.get("unit_type", "country"),
+                        "sovereign": a.tags.get("sovereign") or sovereign_of.get(a.id, english(a)),
+                        "area_km2": round(area_km2(clipped[a.id]), 3)})
         geoms.append(clipped[a.id])
     for a in focus:
         for d in divisions[(a.id, region_level)]:
+            if d.id in unit_ids:
+                continue  # already in the Countries layer as a unit
             records.append({"id": d.id, "name": english(d), "local_name": d.name, "layer": "regions",
                             "type": f"level {d.level}", "parent": a.id, "area_km2": round(area_km2(clipped[d.id]), 3)})
             geoms.append(clipped[d.id])
@@ -943,7 +1005,7 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
     passed, total, _lines = check_places(ACCEPTANCE / config["places"], out_dir / f"{name}-compact.pack", log)
 
     log.heading("Pictures")
-    layers = {"countries": [clipped[a.id] for a in countries],
+    layers = {"countries": [clipped[a.id] for a in country_layer],
               "regions": [clipped[d.id] for a in focus for d in divisions[(a.id, region_level)]],
               "counties": [c.geom for a in focus for c in county_results[a.id].counties]}
     views = {}
@@ -971,7 +1033,7 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
 
     summary = {
         "places_passed": passed, "places": total, "islands": islands, "shared_islands": shared,
-        "far_parts": far, "antimeridian": am, "globe": globes,
+        "far_parts": far, "antimeridian": am, "globe": globes, "units": sorted(unit_ids),
         "coverage": [{k: v for k, v in c.items() if k != "simplified"} for c in cov],
         "counties": {cid: {"levels_used": r.levels_used, "regions_used": r.regions_used, "left_km2": r.left_km2,
                            "count": len(r.counties), "filled": r.filled} for cid, r in county_results.items()},

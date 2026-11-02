@@ -29,17 +29,33 @@ MAX_POINTS = 4000
 TILE_POINTS = 20000
 
 
+def cut_to_rect(geom, bounds):
+    """The part of a shape inside a rectangle.
+
+    GEOS's rectangle cut (clip_by_rect) is about three times faster than a
+    general intersection: on the UK's 2.2 million points, cutting into pack
+    tiles took 16 seconds instead of 52, with the same result (spike S2,
+    2 November). It does not promise a valid result, so in the rare case it
+    gives an invalid one, the general intersection is used instead.
+    """
+    piece = shapely.clip_by_rect(geom, *bounds)
+    if piece.is_empty or piece.is_valid:
+        return piece
+    return shapely.intersection(geom, shapely.box(*bounds))
+
+
 def _cut(geom, level: int, x: int, y: int, out: dict, index: int) -> None:
     """Cut one feature's shape into pack tiles. Tile entries keep the shape, encoded later."""
-    box = shapely.box(*archive.tile_box(level, x, y))
+    bounds = archive.tile_box(level, x, y)
+    box = shapely.box(*bounds)
     if shapely.contains_properly(geom, box):
         out[(level, x, y)].append((index, archive.COVERED, None))
         return
-    piece = shapely.intersection(geom, box)
-    piece = _areas(piece)
+    piece = _areas(cut_to_rect(geom, bounds))
     if piece is None:
         return
-    if shapely.equals(piece, box):
+    # Covered when the part left is the whole pack tile.
+    if abs(piece.area - box.area) <= 1e-12 * box.area and shapely.equals(piece, box):
         out[(level, x, y)].append((index, archive.COVERED, None))
         return
     if shapely.get_num_coordinates(piece) > MAX_POINTS and level < MAX_LEVEL:

@@ -1,6 +1,12 @@
 # Requirements Catalogue
 
-Version 0.8, 2 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.9, 3 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.9
+
+This change comes from your acceptance of Phase 0.
+
+* ACC-2: on the desktop, Tab in the menu bar moves along the menus, and Alt or Escape leaves it, as in other Windows programs. You said this normal behaviour is fine. In the web version, Tab still leaves the menu bar.
 
 ## Changes in version 0.8
 
@@ -272,7 +278,7 @@ The high level requirements document stays the product owner's own statement of 
 * Source: HLR, DP13
 * Priority: Must. Status: Agreed.
 * Acceptance criteria:
-  * Tab and Shift+Tab move through the map, the Information panel and Details, and focus always lands somewhere that is spoken. The menu bar is reached with Alt on the desktop and Ctrl+Alt+M in the web version, and Tab leaves it (DP93).
+  * Tab and Shift+Tab move through the map, the Information panel and Details, and focus always lands somewhere that is spoken. The menu bar is reached with Alt on the desktop and Ctrl+Alt+M in the web version (DP93). In the web version, Tab leaves it. On the desktop, Tab moves along the menus and Alt or Escape leaves the menu bar, as in other Windows programs (PO, Phase 0 acceptance).
   * The map region works in application (focus) mode, so arrow keys reach the application rather than the screen reader's browse mode.
 
 ### ACC-3 Remappable keys and key help

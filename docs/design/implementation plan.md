@@ -1,6 +1,18 @@
 # Implementation Plan
 
-Version 0.2, 31 October 2026, for product owner review.
+Version 0.3, 3 November 2026.
+
+## Changes in version 0.3
+
+These changes come from your acceptance of Phase 0 on 3 November. Each is recorded against its requirement in the Phase 0 report.
+
+* P1-T5 and P1-T7: distances in Nearby go to the nearest point of each area, not its label point (INF-3, INF-7). At the Canadian side of Niagara Falls, the USA is under a mile away.
+* P1-T8: keys that move to each region from any region (ACC-2, DP106).
+* P1-T10 and P1-T11: when a held arrow key is let go, no backlog of places is spoken (ANN-3). On the desktop, the Information panel tells NVDA each item's level, as well as reading the item it moves to (INF-10).
+* P1-T16: an agreed approach and time limits for building countries, regions and counties (DMT-7, DP107), before the world build.
+* P2-T7: the first label from the voice is heard, in the web version too.
+* P2-T12: a map display setting for outlines and fill colours (VIS-2, DP108).
+* Phase 1's checklist confirms that, on the desktop, Alt or Escape leaves the menu bar, and Tab moves along its menus, as in other Windows programs (ACC-2).
 
 ## Changes in version 0.2
 
@@ -142,13 +154,15 @@ SCP-1, SCP-2 (coverage test), PLT-1, PLT-2 and PLT-3 (builds), PLT-5, ACC-1, ACC
 * P1-T2 Pack format version 1 (packs): the archive writer and reader, the byte source interface (local file first), the manifest, checksums and version checks.
 * P1-T3 Pipeline skeleton (mapdata): check, fetch and build commands, configuration files for sources, layers and paths, stage caching, plain-line progress, the end summary and the log file. The licence check stops a build with an unlicensed source.
 * P1-T4 Base pack "lite": countries and first-level divisions (from Natural Earth or OSM, as decided in DP89 after spike S2), VLIZ oceans and seas, and land, tiled and written as a pack, with shared-edge simplification (AD-16). The no-gaps test proves every point has a name (LOC-6).
-* P1-T5 Store and "where am I": point queries, ranking by smallest area, and the tile cache.
+* P1-T5 Store and "where am I": point queries, ranking by smallest area, and the tile cache. The nearest point of an area to the location, for Nearby's distances (INF-3, INF-7).
 * P1-T6 World model and stepping: the location, zoom and step lists, step size and zoom keys, link step to zoom, and north-fixed stepping.
-* P1-T7 Describe: change detection, templates, "where am I", coordinates, heading information (H), repeat and history, and the tick when nothing changes. Units and bearing formats in settings.
-* P1-T8 Command registry and session: commands, default keys, F1 help, the key describer, key remapping with clash warnings, the coverage test and the screen reader key clash test.
+* P1-T7 Describe: change detection, templates, "where am I", coordinates, heading information (H), repeat and history, and the tick when nothing changes. Units and bearing formats in settings. Nearby gives each area's distance and bearing to its nearest point, not to its label point: at the Canadian side of Niagara Falls (43.08 north, 79.08 west), the USA is under 1 mile away (INF-3, INF-7, PO's Phase 0 feedback).
+* P1-T8 Command registry and session: commands, default keys, F1 help, the key describer, key remapping with clash warnings, the coverage test and the screen reader key clash test. Keys that move straight to each region from any region, as agreed in DP106 (ACC-2): in Phase 0, D worked from the map but not from the Information panel.
 * P1-T9 Map scene: the orthographic projection, the shape list, the centre cross, the heading arrow and the outline of the current feature. Click to move and wheel to zoom. Fiji and Russia draw as single shapes across the 180 degree line.
-* P1-T10 Desktop shell: the four regions, the announcer, the map widget painting the shape list, the menu built from the registry, the settings dialog, saved settings, and a stand-in audio backend that plays earcon WAVs.
-* P1-T11 Web shell: the same regions and behaviour, with the core in a Pyodide worker, the key map, focus manager, announcer, canvas painter, menu and dialogs. The pack is loaded from the site for now.
+* P1-T10 Desktop shell: the four regions, the announcer, the map widget painting the shape list, the menu built from the registry, the settings dialog, saved settings, and a stand-in audio backend that plays earcon WAVs. From the PO's Phase 0 feedback:
+  * When a held arrow key is let go, only the latest place is spoken, with no backlog of earlier ones (ANN-3). A test holds a key for 2 seconds, lets go, and checks that nothing but the final place is spoken after the release. The same test runs in the web version (P1-T11).
+  * The Information panel tells NVDA each item's level, such as "level 2", and NVDA reads the item the panel moves to after R or Shift+Space without pressing Up then Down (INF-10). Its items are changed in place, not rebuilt.
+* P1-T11 Web shell: the same regions and behaviour, including the held key test (ANN-3), with the core in a Pyodide worker, the key map, focus manager, announcer, canvas painter, menu and dialogs. The pack is loaded from the site for now.
 * P1-T12 Earcons: the sound folder, placeholder tones generated by a script, the PO's tick and blocked sounds when supplied, and custom file settings.
 * P1-T13 Listening test tool: plays a sound from a random direction and distance, records the answer in a CSV, and includes the "beyond the view" sound and the fixed tone alternative (SON-9, DP80). It uses the backend chosen in S1, and a web version if S1 shows the sounds differ.
 * P1-T14 Packaging: the Windows installer and portable zip, extended from the Phase 0 shell installer, and the web version on GitHub Pages. The first GitHub release is made when Phase 1 is accepted. No Mac download yet (AD-20).
@@ -159,6 +173,7 @@ SCP-1, SCP-2 (coverage test), PLT-1, PLT-2 and PLT-3 (builds), PLT-5, ACC-1, ACC
   * Areas held twice in one layer, such as Sevastopol, handled as agreed in DP104.
   * The area check takes away the inland water mapped in OSM before comparing with Wikidata, and reports the water separately.
   * The overlap check also finds one area wholly inside another.
+  * First, agree the approach and the time limits for building countries, regions and counties on the PO's laptop (DP107, DMT-7). Every build then reports its times against those limits. The PO asked for this in the Phase 0 acceptance.
 
 ### Automatic exit checks
 * The Phase 1 acceptance scripts pass on Windows, macOS and the web.
@@ -189,12 +204,12 @@ NAV-3, NAV-8 (coordinates), NAV-10, NAV-11, NAV-12, SCP-6, SCP-7, ANN-2, ANN-7, 
 * P2-T4 The visible rule: zoom ranges and the area size rule, used by the map scene and ready for the lists. Default zoom ranges start from the Shortbread schema (data sources, version 0.7).
 * P2-T5 Crossed and passed: along the step's path, in the background, with its earcon and its list in a simple first version of the Information panel.
 * P2-T6 Sound scene and audio backends: directions relative to the orientation, loudness from the tuned curve, muffling behind, the beyond-the-view level, and speakers mode.
-* P2-T7 Spatial voice: labels spoken by the voice chosen in spike S6 and placed in space, with history, Braille-only output on NVDA, and the setting to also speak them through the screen reader.
+* P2-T7 Spatial voice: labels spoken by the voice chosen in spike S6 and placed in space, with history, Braille-only output on NVDA, and the setting to also speak them through the screen reader. The first label must be heard: in the S6 web page in Firefox, the PO may have missed the first one, so the sound output is started, and a silent label made, before the first real label, on both the desktop and the web.
 * P2-T8 Earcons in full: every event in SON-6, each switchable, with separate volumes and master mute.
 * P2-T9 Orientation beacon, to the North Pole by default, fading near the pole.
 * P2-T10 Graticule and special lines: written into the base pack at 1 degree, with the interval set by the user, and crossing earcons in the layer definitions (AD-11).
 * P2-T11 Verbosity presets and per-event switches, and the concise Braille format.
-* P2-T12 Themes: standard, high contrast dark, high contrast light and colour-blind safe, with label size and the heading-up option. Neighbouring areas use different colours from the pipeline's colour numbers (AD-19). Contrast checked automatically. Isolating Fiji shows one compact shape (VIS-2, AD-17).
+* P2-T12 Themes: standard, high contrast dark, high contrast light and colour-blind safe, with label size and the heading-up option. Neighbouring areas use different colours from the pipeline's colour numbers (AD-19). Contrast checked automatically. Isolating Fiji shows one compact shape (VIS-2, AD-17). A map display setting for outlines and fill, such as outlines only or one colour for every country, as agreed in DP108.
 * P2-T13 Magnifier support: the map centre reported to the system so magnifiers follow it.
 
 ### Automatic exit checks

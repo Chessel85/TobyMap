@@ -64,6 +64,13 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     return 0
 
 
+def place_words(lat: float, lon: float) -> str:
+    """A point as people say it: "68.234 north, 14.568 east", "90.0 south, 0.0 east"."""
+    ns = "south" if lat < 0 else "north"
+    ew = "west" if lon < 0 else "east"
+    return f"{abs(lat)} {ns}, {abs(lon)} {ew}"
+
+
 def cmd_inspect(args: argparse.Namespace) -> int:
     """What is at a point, smallest area first, in plain lines (DMT-2, architecture 8.1)."""
     from mapcore.packs.archive import Pack
@@ -74,9 +81,9 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     finally:
         pack.close()
     if not found:
-        print(f"At {args.lat} north, {args.lon} east: sea, no land area.")
+        print(f"At {place_words(args.lat, args.lon)}: sea, no land area.")
         return 0
-    print(f"At {args.lat} north, {args.lon} east, smallest first:")
+    print(f"At {place_words(args.lat, args.lon)}, smallest first:")
     for f in found:
         extra = f", sovereign state {f['sovereign']}" if f.get("sovereign") and f["sovereign"] != f["name"] else ""
         print(f"{f['name']}: {f['layer']}, {f['type']}{extra}, {f['area_km2']:,.0f} km2.")

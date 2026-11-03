@@ -66,7 +66,7 @@ Questions such as "what borders this?" are about the current feature. To find ou
 
 ## 2. The window
 
-The window has four regions. Tab and Shift+Tab move between the first three, wrapping around from the last back to the first. Tab does not reach the menu bar (DP93): on the desktop, Alt goes to it, and in the web version, Ctrl+Alt+M goes to its first menu, Map, without opening it. From the menu bar, Tab goes to the map.
+The window has four regions. Tab and Shift+Tab move between the first three, wrapping around from the last back to the first. Tab does not reach the menu bar (DP93): on the desktop, Alt goes to it, and in the web version, Ctrl+Alt+M goes to its first menu, Map, without opening it. In the web version, Tab goes from the menu bar to the map. On the desktop, Tab moves along the menus, and Alt or Escape goes back to the map, as in other Windows programs (PO, Phase 0 acceptance).
 
 1. Map. The main region, where all the movement keys work. It runs in application (focus) mode, so the screen reader passes keys through. Sighted users see the graphical map here.
 2. Information panel. A tree view of information about the current location, grouped by relationship. Section 6 describes it.

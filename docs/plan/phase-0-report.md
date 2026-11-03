@@ -224,7 +224,7 @@ Use headphones. This is the one part of the voice not yet heard by ear.
 
 ### In the voice
 
-* On the desktop, Piper's first label took about 5 seconds. In Phase 1, a first label is made silently at start-up.
+* On the desktop, loading Piper's voice takes about 8 seconds, so it is loaded while TobyMap starts. The slow first label of about 5 seconds, seen during the spike, was the laptop being busy with a build: measured again, it took about 100 ms.
 * In the browser, each label takes about 380 ms with one thread. Four threads bring it to about 220 ms, tried in Phase 2 (DP105).
 
 ### In the S2 build

@@ -1,6 +1,14 @@
 # Requirements Catalogue
 
-Version 0.9, 3 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.10, 3 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.10
+
+These changes come from your answers to DP106 and DP108.
+
+* ACC-2: F2 goes to the map, F3 to the Information panel and F4 to Details, from any region, on the desktop and the web (DP106). Ctrl+Alt+Space is dropped.
+* INF-10: F3 goes to the Information panel, back to the item last focused there. Shift+Space (Within) and R (Nearby) are dropped. Whether the other groups keep their own keys is DP109.
+* VIS-2: a map display setting for outlines and fill colours (DP108).
 
 ## Changes in version 0.9
 
@@ -278,7 +286,7 @@ The high level requirements document stays the product owner's own statement of 
 * Source: HLR, DP13
 * Priority: Must. Status: Agreed.
 * Acceptance criteria:
-  * Tab and Shift+Tab move through the map, the Information panel and Details, and focus always lands somewhere that is spoken. The menu bar is reached with Alt on the desktop and Ctrl+Alt+M in the web version (DP93). In the web version, Tab leaves it. On the desktop, Tab moves along the menus and Alt or Escape leaves the menu bar, as in other Windows programs (PO, Phase 0 acceptance).
+  * Tab and Shift+Tab move through the map, the Information panel and Details, and focus always lands somewhere that is spoken. F2 goes to the map, F3 to the Information panel and F4 to Details, from any region, on the desktop and the web (DP106). The menu bar is reached with Alt on the desktop and Ctrl+Alt+M in the web version (DP93). In the web version, Tab leaves it. On the desktop, Tab moves along the menus and Alt or Escape leaves the menu bar, as in other Windows programs (PO, Phase 0 acceptance).
   * The map region works in application (focus) mode, so arrow keys reach the application rather than the screen reader's browse mode.
 
 ### ACC-3 Remappable keys and key help
@@ -769,7 +777,7 @@ The high level requirements document stays the product owner's own statement of 
   * bookmark
 * Acceptance criteria:
   * The panel is an accessible tree view, with level and position announced.
-  * A single key in the map region opens each group and speaks its first item.
+  * F3 goes to the panel from any region, back to the item last focused there, or to the first item of Within the first time (DP106).
   * Groups are filled when opened, so movement is never slowed by them (NFR-1).
   * The selected item is highlighted on the visual map.
   * Every list can be sorted by name, by distance, or by bearing clockwise from ahead. One key cycles the sort order and announces it. Within also offers its natural order, smallest to largest, which is its default. Nearby defaults to distance, Bordering to bearing, and the others to name.
@@ -980,6 +988,7 @@ The high level requirements document stays the product owner's own statement of 
   * The themes provided are standard, high contrast dark, high contrast light, and colour-blind safe.
   * Every text and outline colour in the high contrast themes has a contrast ratio of at least 7:1.
   * "Isolate" shows only the current feature and its outline.
+  * A map display setting chooses the fill (different colours for neighbours, the default; one colour for all; or none, for outlines only), whether borders are drawn, and the colours of the fill, the borders and the current outline. The current feature's outline is always shown (DP108).
 
 ### VIS-3 Zoom and labels
 * Outcome: A partially sighted user can enlarge the map and labels using the zoom (NAV-13), the label size setting, or their own magnifier software.

@@ -1,6 +1,12 @@
 # Architecture and High Level Design
 
-Version 0.4, 2 November 2026. Updated from the Phase 0 spikes (task P0-T11).
+Version 0.5, 3 November 2026. Updated from your acceptance of Phase 0.
+
+## Changes in version 0.5
+
+* Section 5.5: F2 goes to the map, F3 to the Information panel and F4 to Details, from any region (DP106). Ctrl+Alt+Space is dropped.
+* Section 8: the build's approach for speed, as agreed in DP107: one planet file for every country, each country kept on its own with its neighbours checked again after a rebuild, and at least two approaches tried on Belgium for each slow step, with mainland France as the regression test (implementation plan, P1-T16).
+* Section 14: DP106 to DP108 answered, and DP109 asked.
 
 ## Changes in version 0.4
 
@@ -371,9 +377,9 @@ Using a step in stepping mode as the example:
 * The map widget paints the shape list and turns keys and mouse actions into commands. It tells Windows where the centre of the map is, so magnifiers follow it (ACC-8).
 * Speech goes through one announcer, attached to a real widget, as RecallScore found was necessary.
 * Background work, such as the crossed and passed list, filling a panel group, downloading and fetching nearby tiles in advance, runs in a thread pool. Results come back to the user interface thread.
-* Tab and Shift+Tab move round the map, the Information panel and Details, but not the menu bar. Alt goes to the menu bar. Ctrl+Alt+Space goes to the map from anywhere (DP93, DP97).
+* Tab and Shift+Tab move round the map, the Information panel and Details, but not the menu bar. Alt goes to the menu bar. F2 goes to the map, F3 to the Information panel and F4 to Details, from anywhere (DP93, DP106).
 * Sound: TobyMap's own processing in NumPy, played through sounddevice (AD-10).
-* Known limitation from spike S5: when the Information panel is rebuilt, Qt 6.12 keeps an out-of-date list of its items for screen readers, so after R or Shift+Space NVDA doesn't read the item it has moved to until you arrow. In Phase 1 the panel's items are changed in place instead of being rebuilt.
+* Known limitation from spike S5: when the Information panel is rebuilt, Qt 6.12 keeps an out-of-date list of its items for screen readers, so after a key moves to it NVDA doesn't read the item until you arrow. In Phase 1 the panel's items are changed in place instead of being rebuilt.
 * Settings and personal data are stored as JSON files in the user's application data folder.
 
 ### 5.6 Web shell
@@ -953,11 +959,15 @@ A short findings document for each, written for you, in the repository's docs/sp
 ### Answered since version 0.3
 * DP103: the build uses the laptop's cores, 3 workers by default and 6 when you are away, tested on stage 3 (section 8.6).
 * DP104: areas held twice in one layer, such as Sevastopol, keep the one in the country whose outline holds it, marked as disputed (section 6.12).
-
 * DP105: the web version uses four threads for the voice, through a helper script that turns on cross-origin isolation, tried first in Phase 2 (section 4.6).
 
+### Answered since version 0.4
+* DP106: F2, F3 and F4 go to the map, the Information panel and Details from any region, on the desktop and the web (section 5.5).
+* DP107: no time limits for the build; at least two approaches are tried for each slow step, on a small dataset, and the fastest is kept (implementation plan, P1-T16).
+* DP108: a map display setting for outlines and fill colours, built with the themes in Phase 2 (VIS-2).
+
 ### New questions
-There are no new questions in this version.
+* DP109: whether the Information panel's groups keep their own keys, such as I for Contains, now that F3 goes to the panel.
 
 ---
 

@@ -178,7 +178,7 @@ def full_manifest(manifest: dict) -> dict:
     return out
 
 
-def attribution(manifest: dict) -> str:
+def spike_attribution(manifest: dict) -> str:
     lines = [f"{OSM_CREDIT}."]
     lines += [f"{s['name']}: {s['licence']}, {s['date']}." for s in manifest["sources"]]
     return "\n".join(lines) + "\n"
@@ -201,10 +201,16 @@ def spike_sources(gol: Path, land_polygons: Path) -> list[dict]:
 
 # Writing -------------------------------------------------------------------
 
-def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers: int = 1, say=print) -> dict:
+def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers: int = 1, say=print,
+          layers: list[dict] | None = None, attribution: str | None = None) -> dict:
     """Write the pack. The cutting into pack tiles and the encoding are split
     into batches run by worker processes (DP103); the main process joins the
-    results, splits full pack tiles, and writes the file.
+    results, splits full pack tiles, and writes the file. The tile entries
+    in each pack tile are put in feature order, whatever order the workers
+    finish in, so the same areas always give the same bytes (DMT-1).
+
+    layers and attribution come from the pipeline's settings; without them,
+    the spike S2 defaults are used.
 
     Returns measurements: bytes, pack tiles, tile entries, tile levels, seconds.
     """
@@ -222,6 +228,8 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
             for key, entries in part.items():
                 cut[key].extend((i, k, None if b is None else shapely.from_wkb(b)) for i, k, b in entries)
         split_full_tiles(cut)
+        for entries in cut.values():
+            entries.sort(key=lambda e: e[0])
         keys = sorted(cut)
         n_enc = max(1, min(len(keys), workers * 8))
         enc_batches = [[(key, [(i, k, None if g is None else shapely.to_wkb(g)) for i, k, g in cut[key]])
@@ -239,9 +247,10 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
         entries = [(number_of[i], kind, data) for i, kind, data in encoded[(level, x, y)]]
         entries_written += len(entries)
         writer.add_tile(level, x, y, entries)
-    layer_ids = list(dict.fromkeys(r["layer"] for r in records))
-    layers = [{"id": layer, "name": LAYER_NAMES.get(layer, layer.title())} for layer in layer_ids]
-    writer.finish(manifest, attribution(manifest), layers)
+    if layers is None:
+        layer_ids = list(dict.fromkeys(r["layer"] for r in records))
+        layers = [{"id": layer, "name": LAYER_NAMES.get(layer, layer.title())} for layer in layer_ids]
+    writer.finish(manifest, attribution if attribution is not None else spike_attribution(manifest), layers)
     levels = sorted({level for level, _x, _y in encoded})
     stats = {"bytes": path.stat().st_size, "tiles": len(encoded), "entries": entries_written, "levels": levels,
              "seconds": time.perf_counter() - start}

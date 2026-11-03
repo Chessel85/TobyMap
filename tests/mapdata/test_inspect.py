@@ -26,13 +26,13 @@ def test_inspect_reads_a_format_2_pack(tmp_path, capsys):
     w.add_tile(3, 4, 6, [(numbers["test:regions:3"], tiles.COMPACT, square),
                          (numbers["test:countries:3"], tiles.COVERED, b"")])
     w.finish(selfcheck.MANIFEST, selfcheck.ATTRIBUTION, selfcheck.LAYERS)
-    assert cmd_inspect(argparse.Namespace(pack=str(path), lat=50.0, lon=5.0)) == 0
+    assert cmd_inspect(argparse.Namespace(pack=str(path), question=["50.0", "5.0"], data=None)) == 0
     assert capsys.readouterr().out.splitlines() == [
         "At 50.0 north, 5.0 east, smallest first:",
         "Country 3: countries, test area, 1,003 km2, test:countries:3.",
         "Région 3: regions, test area, 1,003 km2, test:regions:3.",
     ]
-    assert cmd_inspect(argparse.Namespace(pack=str(path), lat=50.0, lon=12.0)) == 0
+    assert cmd_inspect(argparse.Namespace(pack=str(path), question=["at", "50.0", "12.0"], data=None)) == 0
     assert capsys.readouterr().out.splitlines() == [
         "At 50.0 north, 12.0 east, smallest first:",
         "Country 3: countries, test area, 1,003 km2, test:countries:3.",

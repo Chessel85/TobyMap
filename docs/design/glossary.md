@@ -72,6 +72,16 @@ Older documents written before this glossary, such as architecture section 6 and
 * Base pack lite: the Phase 1 world pack, with countries, first-level divisions, oceans and seas, cut to the coast. The full base pack replaces it in Phase 3.
 * Test pack: a small pack built from samples kept in the repository, so the automatic tests never need the data folder (architecture 11.1).
 
+## Building packs
+
+* Settings file: one of the files in mapdata/config that say what a build does: sources.yaml for the sources, a layers file for each group of layers, and a pack file for each pack. docs/data-manager/configuration.md describes every setting.
+* Stage: one step of a build, such as reading the samples or writing the pack. A pack's settings file lists its stages in order.
+* Fingerprint: a long number worked out from everything a stage uses: its settings, its sources, the stage before it and its code. If the fingerprint is the same as last time, the stage's kept results are used and the stage is skipped.
+* Working folder: the folder in the data folder, tobymap\working, where stages keep their results between builds.
+* Created files list: the list, in tobymap\created files.txt, of every file mapdata has made. mapdata overwrites only files on the list, and never deletes any.
+* Run switch: continue.txt, in the repository's top folder. Its first line, yes or no, says whether a long build may carry on. On no, the build stops cleanly and keeps its finished work.
+* Sample: a small file of areas kept in the repository, in tests/samples, that the test pack is built from.
+
 ## Testing
 
 * Acceptance script: a small file of key presses and the announcements expected after each, tied to requirement IDs. It runs as an automatic test, and is also turned into the PO's checklist, so both check the same thing (architecture 11.3).

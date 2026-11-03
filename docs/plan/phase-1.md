@@ -1,6 +1,6 @@
 # Phase 1 task list
 
-Phase 1 is the walking skeleton. The tasks are described in "implementation plan.md", section 4, version 0.4. This list shows what is done.
+Phase 1 is the walking skeleton. The tasks are described in "implementation plan.md", section 4, version 0.4, and in detail in phase-1-plan.md, which also raises DP110 to DP114. This list shows what is done.
 
 Started on 3 November 2026, after the PO accepted Phase 0.
 

@@ -7,45 +7,24 @@ Lambert azimuthal equal-area projection centred on the shape. Long straight
 edges are first divided into short ones, so edges along a meridian, such as
 the 180 degree line, follow the Earth (spike S2 stage 3, AD-17).
 
-Spike version: the full pipeline uses GeographicLib (AD-7).
+The sums are the core's own, in mapcore.geo.geodesy, so the pipeline and the
+application measure the Earth the same way (P1-T1, AD-7). Distances are on
+the ellipsoid with GeographicLib.
 """
 from __future__ import annotations
-
-import math
 
 import numpy as np
 import shapely
 
-A_KM = 6378.137
-F = 1 / 298.257223563
-E2 = F * (2 - F)
-E = math.sqrt(E2)
-R_KM = 6371.0088  # mean radius, for distances in reports
+from mapcore.geo import geodesy as _core
+
+A_KM = _core.A_M / 1000
+R_AUTHALIC_KM = _core.R_AUTHALIC_M / 1000
+authalic_lat = _core.authalic_lat
 
 
-def _q(sin_phi: np.ndarray) -> np.ndarray:
-    return (1 - E2) * (sin_phi / (1 - E2 * sin_phi ** 2)
-                       - (1 / (2 * E)) * np.log((1 - E * sin_phi) / (1 + E * sin_phi)))
-
-
-Q_POLE = float(_q(np.array(1.0)))
-R_AUTHALIC_KM = A_KM * math.sqrt(Q_POLE / 2)
-
-
-def authalic_lat(lat_deg: np.ndarray) -> np.ndarray:
-    """Authalic latitude in degrees."""
-    ratio = np.clip(_q(np.sin(np.radians(lat_deg))) / Q_POLE, -1.0, 1.0)
-    return np.degrees(np.arcsin(ratio))
-
-
-def _laea(lon: np.ndarray, lat: np.ndarray, lon0: float, lat0: float, radius: float):
-    lam, phi = np.radians(lon - lon0), np.radians(lat)
-    phi0 = np.radians(lat0)
-    denom = 1 + np.sin(phi0) * np.sin(phi) + np.cos(phi0) * np.cos(phi) * np.cos(lam)
-    k = np.sqrt(2 / np.maximum(denom, 1e-12))
-    x = radius * k * np.cos(phi) * np.sin(lam)
-    y = radius * k * (np.cos(phi0) * np.sin(phi) - np.sin(phi0) * np.cos(phi) * np.cos(lam))
-    return x, y
+def _laea(lon, lat, lon0, lat0, radius):
+    return _core.laea(lon, lat, lon0, lat0, radius)
 
 
 def area_km2(geom) -> float:
@@ -91,8 +70,6 @@ def areas_km2(geoms) -> np.ndarray:
 
 
 def distance_km(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
-    """Great circle distance on the mean sphere, for reports."""
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dl = math.radians(lon2 - lon1)
-    h = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * R_KM * math.asin(min(1.0, math.sqrt(h)))
+    """The shortest distance over the ellipsoid, for reports. Longitude first,
+    as in shapely."""
+    return _core.distance_m(lat1, lon1, lat2, lon2) / 1000

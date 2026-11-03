@@ -18,7 +18,8 @@ import yaml
 import mapcore
 from mapcore.commands import registry
 from mapcore.describe import say
-from mapcore.geo import sphere
+from mapcore.geo import geodesy
+from mapcore.geo import phase0_words as words
 from mapcore.render import globe
 from mapcore.store.world_sample import WorldSample
 
@@ -137,8 +138,8 @@ class MapSession:
         within = ([{"id": current.id, "label": current.name}] if current else []) + \
                  [{"id": "earth", "label": say("panel.earth")}]
         nearby = [
-            {"id": c.id, "label": say("panel.nearby_item", name=c.name, distance=sphere.distance_text(km),
-                                      direction=sphere.compass_point(b))}
+            {"id": c.id, "label": say("panel.nearby_item", name=c.name, distance=words.distance_text(km),
+                                      direction=words.compass_point(b))}
             for c, km, b in self.world.nearest(self.state.lat, self.state.lon,
                                                count=self.defaults["nearby_count"],
                                                exclude=current.id if current else None)
@@ -158,7 +159,7 @@ class MapSession:
         country = self.world.by_id(target) if target else self._current()
         if country is None:
             return "\n".join([say("details.sea"), say("details.sea_note"),
-                              say("details.centre", value=sphere.coordinates_text(s.lat, s.lon))])
+                              say("details.centre", value=words.coordinates_text(s.lat, s.lon))])
         lines = [country.name]
         if country.long_name != country.name:
             lines.append(say("details.long_name", value=country.long_name))
@@ -167,13 +168,13 @@ class MapSession:
             say("details.continent", value=country.continent),
             say("details.subregion", value=country.subregion),
             say("details.population", value=f"{country.population:,}"),
-            say("details.label_point", value=sphere.coordinates_text(country.centre_lat, country.centre_lon)),
+            say("details.label_point", value=words.coordinates_text(country.centre_lat, country.centre_lon)),
         ]
         if target and (self._current() is None or self._current().id != target):
-            km = sphere.distance_km(s.lat, s.lon, country.centre_lat, country.centre_lon)
-            b = sphere.bearing_deg(s.lat, s.lon, country.centre_lat, country.centre_lon)
-            lines.append(say("details.from_centre", distance=sphere.distance_text(km),
-                             direction=sphere.compass_point(b)))
+            km = geodesy.distance_m(s.lat, s.lon, country.centre_lat, country.centre_lon) / 1000
+            b = geodesy.bearing_deg(s.lat, s.lon, country.centre_lat, country.centre_lon)
+            lines.append(say("details.from_centre", distance=words.distance_text(km),
+                             direction=words.compass_point(b)))
         lines.append(say("details.source", value=self.world.source))
         return "\n".join(lines)
 
@@ -248,7 +249,7 @@ class MapSession:
             if pole:
                 return r.speak(say(pole, place=self._place_name()), ASSERTIVE)
         if east:
-            s.lon = round(sphere.wrap_lon(s.lon + east * step), 6)
+            s.lon = round(geodesy.wrap_lon(s.lon + east * step), 6)
         return r.speak(self._place_name(), ASSERTIVE)
 
     def _zoom(self, direction: int) -> Response:
@@ -269,17 +270,17 @@ class MapSession:
     def _where_am_i(self, **_a) -> Response:
         s = self.state
         return Response().speak(say("where_am_i", place=self._place_name(),
-                                    coordinates=sphere.coordinates_text(s.lat, s.lon), zoom=self._zoom_text()),
+                                    coordinates=words.coordinates_text(s.lat, s.lon), zoom=self._zoom_text()),
                                 ASSERTIVE)
 
     def _coordinates(self, **_a) -> Response:
-        return Response().speak(sphere.coordinates_text(self.state.lat, self.state.lon), ASSERTIVE)
+        return Response().speak(words.coordinates_text(self.state.lat, self.state.lon), ASSERTIVE)
 
     def _visible(self, **_a) -> Response:
         extent = globe.visible_extent(self._view(), *self.map_size)
         if extent is None:
             return Response().speak(say("visible_globe"), ASSERTIVE)
-        across, down = (sphere.km_number(a * sphere.EARTH_RADIUS_KM) for a in extent)
+        across, down = (words.km_number(a * geodesy.R_MEAN_M / 1000) for a in extent)
         return Response().speak(say("visible_area", width=across, height=down), ASSERTIVE)
 
     def _repeat(self, **_a) -> Response:

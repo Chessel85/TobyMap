@@ -10,6 +10,7 @@ Libraries in the desktop application
   The Qt libraries are included as separate files and can be replaced.
 * NumPy. BSD 3-Clause License.
 * PyYAML. MIT License.
+* GeographicLib for Python, by Charles Karney. MIT License.
 * NVDA Controller Client, from NV Access. GNU Lesser General Public License
   version 2.1. Included unchanged as nvdaControllerClient.dll; its licence is
   in desktop/vendor/nvdaControllerClient-license.txt.
@@ -18,6 +19,7 @@ Libraries in the web version
 
 * Pyodide. Mozilla Public License 2.0.
 * NumPy and PyYAML, as above, built for Pyodide.
+* GeographicLib for Python, as above, copied with the core.
 
 Data
 

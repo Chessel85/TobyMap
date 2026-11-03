@@ -1,6 +1,6 @@
 # Spike S2 findings: countries, coastlines and islands
 
-Task P0-T5. Architecture sections 6.12, 6.13 and 12.3. Stage 1 is complete (1 November). Stage 2 is complete, and stage 3 nearly so (2 November): see the next section. Stage 4, Argentina, is parked.
+Task P0-T5. Architecture sections 6.12, 6.13 and 12.3. Stage 1 is complete (1 November). Stage 2 is complete, and stage 3 nearly so (2 November): see the next section. Stage 4, Argentina, was parked, then dropped on 3 November; Argentina was used instead to check the speed of the counties step.
 
 ## Phase 1: build speed trials
 
@@ -105,7 +105,7 @@ The border between Germany and Luxembourg does not match, in every run. They sha
 
 ### Part 1 is done
 
-All four items left over from part 1 are in the build, with tests in tests/mapdata/test_kept_and_checks.py. What part 2 still has: stage 1's whole run and comparison, stage 4 (Argentina), and Antarctica. Two smaller items from the plan are not done: the globe check looking only at edges near the 180 degree line, and the counties rule trying level 5, which you answered in DP116.
+All four items left over from part 1 are in the build, with tests in tests/mapdata/test_kept_and_checks.py. Stage 1 again and stage 4 (Argentina) are dropped at the PO's request (3 November): stage 1 again would repeat mainland France's regression test, already dropped, and Argentina's counties were already checked in the speed trials. Two smaller items move to P1-T4, as they are part of the world build: Antarctica's area against Wikidata, and the globe check looking only at edges near the 180 degree line. The counties rule using level 5 (DP116) waits for the first pack with a counties layer, as the base pack lite has none. So P1-T16 is done.
 
 ## Stages 2 and 3, 2 November
 
@@ -420,7 +420,7 @@ The lesson from all of these: the slow steps were each an operation on a whole c
 
 ### Still to do
 
-* Stage 1 again: finish the whole run and the comparison once the counties step is faster, or run it with the counties step timed separately.
+* Stage 1 again: dropped by the PO on 3 November, with mainland France's regression run.
 * Antarctica: which definition Wikidata's area uses, and the cause of the 78 km of edges along the 180 degree line that are on one side only.
 * For the Phase 1 pipeline, agreed by the PO on 2 November:
   * Discussion point 104, recommendation accepted: the build lists areas in one layer that cover the same land, keeps the one in the country whose outline holds it (Russia's Sevastopol), marks it disputed, and keeps the other's name and country for its details (ANN-6).
@@ -429,11 +429,11 @@ The lesson from all of these: the slow steps were each an operation on a whole c
 * Fiji's remaining 1.6% is close enough, the PO says; not looked into further.
 * Make the globe check look only at edges near the 180 degree line.
 
-### Stage 4, Argentina: parked
+### Stage 4, Argentina: parked, then dropped
 
 * The PO added Argentina on 2 November, because their earlier work had trouble there with lines that crossed. It tests Tierra del Fuego, an island shared with Chile, the long Andes border, the undecided border on the Southern Patagonian Ice Field, and the Falkland Islands.
 * Its settings and check places are ready: mapdata/config/s2_stage4.yaml and tests/acceptance/coastline_places_stage4.yaml. The first try stopped twice, once on the memory guard during the planet read and once because OSM names Paraguay "Paraguay / Paraguái"; the name is corrected. Bolivia's and the Falkland Islands' names are not yet checked against OSM.
-* Parked by the PO on 2 November, to be picked up later.
+* Parked by the PO on 2 November, then dropped on 3 November. Argentina was used instead to check the speed of the counties step, in "Phase 1: build speed trials" above.
 
 Everything below this point is about stage 1, the UK, France and Spain, from 1 November.
 

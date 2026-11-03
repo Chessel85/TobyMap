@@ -1,0 +1,33 @@
+# The detail trials for the base pack lite (P1-T4, DP112): western Europe,
+# from 11 degrees west to 10 east and 35 to 61 north, which holds most of
+# spike S2's check places. It is built at 50, 100 and 250 metres by changing
+# tolerance_m, and each pack's size and check places are compared. The
+# reference for each setting is docs/data-manager/configuration.md.
+
+name: trial-detail
+title: "Trial: the base pack lite's detail, in western Europe."
+version: 0.0.1
+app_versions: {from: 0.0.1}
+coverage: {kind: region}
+layer_groups: [base]
+space_needed_mb: 5000
+
+stages:
+  - stage: osm-areas
+    source: planet
+    levels: [3, 4, 5]
+    box: [-11.0, 35.0, 10.0, 61.0]
+  - stage: squares
+    sources: [land-polygons, vliz-oceans]
+    box: [-11.0, 35.0, 10.0, 61.0]
+    tolerance_m: 100
+    condominiums:
+      - {id: "condominium:de-lu", name: Moselle condominium, countries: [osm:r51477, osm:r2171347]}
+  - stage: join
+  - stage: write
+  - stage: checks
+    box: [-11.0, 35.0, 10.0, 61.0]
+    places:
+      - tests/acceptance/coastline_places.yaml
+      - tests/acceptance/coastline_places_belgium.yaml
+      - tests/acceptance/coastline_places_stage2.yaml

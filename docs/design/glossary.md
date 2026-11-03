@@ -46,6 +46,9 @@ Older documents written before this glossary, such as architecture section 6 and
 * Gap: land in a country that is in none of the areas chosen so far for a layer. After Belgium's provinces, the Brussels-Capital Region is a gap, because it is in no province.
 * Sliver: a thin part of a gap that is there only because two outlines do not quite match, such as an area's coast in OSM and the coast of the land polygons. Slivers are measured and counted, but they are not missing areas.
 * Grid square: one square of a grid along lines of latitude and longitude. A large shape is cut along the grid so that each step works on a small part of it. In the counties step, the grid squares are a quarter of a degree each way.
+* Face: in one grid square of the base pack lite's build, a part of the grid square bounded by the outlines of the land, the countries, the regions and the oceans, with no outline crossing it. Each face is wholly inside or wholly outside each area, so it is named by testing one point inside it. Together, the faces cover the grid square with no gaps.
+* Unclaimed land: land that is in no country and is too big or too wide to be a sliver, such as Bir Tawil between Egypt and Sudan, or a small island outside every country's boundary. It is announced as "Unclaimed" (DP114), and the build lists every one for the PO to review.
+* Condominium: land that two countries hold together, such as the Moselle between Germany and Luxembourg (DP117). It is one area in the Countries layer, held by both.
 * Bounding box: the smallest rectangle, with edges along lines of latitude and longitude, that contains a shape.
 * Trimming: removing the sea from an area by keeping only the land tiles inside it, cutting those that cross its boundary.
 
@@ -72,6 +75,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Pack tile cache: the decoded shapes of pack tiles read recently, kept in memory, so a lookup nearby needs no reading or decoding.
 * Drawing level: one degree of simplification of a pack's shapes, used to draw the map at a range of zooms. Small parts are left out at each drawing level, so a frame stays quick to draw (architecture 6.9).
 * Drawing tile: a pack tile holding the simplified shapes of one drawing level. Lookups and distances never use them, only the exact shapes.
+* Base detail: how far the base pack lite's shapes are simplified, about 100 metres (DP112). No point of a border or coast moves further than that. Lookups and distances use the shapes at base detail; the drawing levels are simplified further from them.
 * Base pack lite: the Phase 1 world pack, with countries, first-level divisions, oceans and seas, cut to the coast. The full base pack replaces it in Phase 3.
 * Test pack: a small pack built from samples kept in the repository, so the automatic tests never need the data folder (architecture 11.1).
 

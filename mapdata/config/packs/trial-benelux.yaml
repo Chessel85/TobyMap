@@ -1,0 +1,29 @@
+# A small trial of the base pack lite's build (P1-T4): Belgium and its
+# neighbours, in the grid squares from 2 to 7 degrees east and 49 to 52
+# degrees north. The reference for each setting is
+# docs/data-manager/configuration.md.
+
+name: trial-benelux
+title: "Trial: the base pack lite's build, around Belgium."
+version: 0.0.1
+app_versions: {from: 0.0.1}
+coverage: {kind: region}
+layer_groups: [base]
+space_needed_mb: 500
+
+stages:
+  - stage: osm-areas
+    source: planet
+    levels: [3, 4, 5]
+    box: [2.0, 49.0, 7.0, 52.0]
+  - stage: squares
+    sources: [land-polygons, vliz-oceans]
+    box: [2.0, 49.0, 7.0, 52.0]
+    tolerance_m: 100
+    condominiums:
+      - {id: "condominium:de-lu", name: Moselle condominium, countries: [osm:r51477, osm:r2171347]}
+  - stage: join
+  - stage: write
+  - stage: checks
+    box: [2.0, 49.0, 7.0, 52.0]
+    places: [tests/acceptance/coastline_places_belgium.yaml]

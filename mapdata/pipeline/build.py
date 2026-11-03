@@ -44,6 +44,15 @@ STAGES = {
                          ("mapdata.stages.samples",)),
     "water": StageKind("taking the land out of the water layers", "mapdata.stages.water",
                        ("mapdata.stages.water",)),
+    "osm-areas": StageKind("reading the countries and divisions from the planet file", "mapdata.stages.osm_areas",
+                           ("mapdata.stages.osm_areas", "mapdata.stages.boundaries", "mapdata.stages.held_twice",
+                            "mapdata.stages.overlaps")),
+    "squares": StageKind("building the grid squares", "mapdata.stages.squares",
+                         ("mapdata.stages.squares", "mapdata.stages.grid")),
+    "join": StageKind("joining the grid squares into areas", "mapdata.stages.join",
+                      ("mapdata.stages.join", "mapdata.stages.grid", "mapdata.stages.geodesy")),
+    "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
+                        ("mapdata.stages.checks", "mapdata.stages.lookup")),
     "write": StageKind("writing the pack", "mapdata.stages.write",
                        ("mapdata.stages.write", "mapdata.stages.pack_write", "mapdata.stages.antimeridian",
                         "mapdata.stages.geodesy", "mapcore.geo.geodesy", "mapcore.packs.pack",
@@ -136,6 +145,14 @@ def build(name: str, folders: DataFolders, workers: int = 1, say=print, clock=ti
     except BuildStopped as stop:
         progress.always(f"The build stopped. {stop.message}")
         return 1
+    except Exception as error:
+        # Written to the log as well, so a fault is never only on a screen nobody is watching.
+        import traceback
+
+        progress.always(f"The build stopped because of a fault in mapdata: {type(error).__name__}: {error}. "
+                        "The details are in the log.")
+        progress.log(traceback.format_exc())
+        raise
     finally:
         progress.close()
 
@@ -156,6 +173,7 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
     out_dir = folders.output / name
     log_path = ledger.claim(out_dir / f"{name} build log.txt")
     progress.open_log(log_path)
+    progress.start_heartbeat()
     source_paths = resolve_sources(pack, folders)
     source_prints = {k: pack.sources[k].fingerprint(p) for k, p in source_paths.items()}
 
@@ -169,7 +187,10 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
     total = len(pack.stages)
     previous_print, previous_folder = "", None
     ran, skipped = [], []
+    stage_folders: list[Path] = []
     for n, stage in enumerate(pack.stages, 1):
+        if previous_folder is not None:
+            stage_folders.append(previous_folder)
         kind_name = stage["stage"]
         if kind_name not in STAGES:
             raise BuildStopped(f"Stage {n} in {pack.path.name} is {kind_name}, which mapdata does not know. "
@@ -196,9 +217,11 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
             progress.line(f"Stage {n} of {total} finished in {duration_words(took)}.")
         previous_print, previous_folder = fp, folder
 
-    built = previous_folder / pack_file_name(name)
+    stage_folders.append(previous_folder)
+    built = next((f / pack_file_name(name) for f in reversed(stage_folders) if (f / pack_file_name(name)).is_file()),
+                 previous_folder / pack_file_name(name))
     if not built.is_file():
-        raise BuildStopped(f"The last stage in {pack.path.name} did not write a pack. Make 'write' the last stage.")
+        raise BuildStopped(f"The last stage in {pack.path.name} did not write a pack. Put a 'write' stage near the end, followed only by checks.")
     target = out_dir / pack_file_name(name)
     from mapcore.packs.pack import checksum_path
 

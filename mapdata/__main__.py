@@ -55,6 +55,8 @@ def build_parser() -> argparse.ArgumentParser:
     cmp_.add_argument("--workers", type=int, default=3, help="processor cores to use (default 3)")
     ex = sub.add_parser("spike-s2-extract", help="used by spike-s2: read the planet file in its own process")
     ex.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
+    rp = sub.add_parser("read-planet", help="used by build: read the planet file in its own process (osm-areas)")
+    rp.add_argument("folder", help="the osm-areas stage's folder, holding its request")
     wx = sub.add_parser("spike-s2-water", help="used by spike-s2: read the inland water in its own process")
     wx.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
     ins = sub.add_parser("inspect", help="ask a pack about itself: its manifest, one feature, or what is at a point",
@@ -345,6 +347,9 @@ def main(argv: list[str] | None = None) -> int:
         from mapdata import parallel
         workers = parallel.AWAY_WORKERS if args.away else args.workers
         return s2_stage.run(args.stage, folders, parallel.check_workers(workers))
+    if args.command == "read-planet":
+        from mapdata.stages import osm_areas
+        return osm_areas.main(Path(args.folder))
     if args.command == "inspect":
         return cmd_inspect(args)
     if args.command == "world-sample":

@@ -40,18 +40,23 @@ import s4_bench  # noqa: E402
 RESULTS = ROOT / "docs" / "spikes" / "s4-results"
 PLACES = ROOT / "tests" / "acceptance" / "coastline_places_stage2.yaml"
 PYODIDE = ROOT / "web" / "vendor" / "pyodide"
-PACKAGES = ["numpy", "shapely"]
+PACKAGES = ["numpy", "shapely", "pyyaml"]
 CORE_FILES = [
     {"from": "mapcore/__init__.py", "to": "mapcore/__init__.py"},
     {"from": "mapcore/packs/__init__.py", "to": "mapcore/packs/__init__.py"},
-    {"from": "mapcore/packs/archive.py", "to": "mapcore/packs/archive.py"},
+    {"from": "mapcore/describe/__init__.py", "to": "mapcore/describe/__init__.py"},
+    {"from": "mapcore/describe/templates.yaml", "to": "mapcore/describe/templates.yaml"},
+    {"from": "mapcore/packs/coords.py", "to": "mapcore/packs/coords.py"},
+    {"from": "mapcore/packs/tiles.py", "to": "mapcore/packs/tiles.py"},
+    {"from": "mapcore/packs/source.py", "to": "mapcore/packs/source.py"},
+    {"from": "mapcore/packs/pack.py", "to": "mapcore/packs/pack.py"},
     {"from": "tools/spikes/s4/s4_bench.py", "to": "s4_bench.py"},
 ]
 
 
 def default_pack() -> Path:
     from mapdata.paths import resolve_data_folder
-    return resolve_data_folder(None).output / "s2-stage2" / "s2-stage2-compact.pack"
+    return resolve_data_folder(None).output / "s2-stage2" / "s2-stage2.pack"
 
 
 def check_pyodide() -> None:
@@ -87,9 +92,9 @@ def start_servers(pack: Path, places: list, ports=(0, 0)):
 
 
 def desktop_run(pack: Path, places: list) -> tuple[list[str], dict]:
-    from mapcore.packs.archive import Pack
+    from mapcore.packs.pack import Pack
     t0 = time.perf_counter()
-    p = Pack(pack)
+    p = Pack(pack, check_app=False)
     open_ms = (time.perf_counter() - t0) * 1000
     try:
         result = s4_bench.run(p, places, s4_bench.WALKS)

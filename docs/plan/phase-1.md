@@ -7,7 +7,7 @@ Started on 3 November 2026, after the PO accepted Phase 0.
 ## Tasks
 
 * [x] P1-T1 Core geodesy: distance, bearing, stepping, the poles, the 180 degree line, and formatting. Done 3 November on branch p1-t1-geodesy; macOS is confirmed by continuous integration when it is pushed.
-* [ ] P1-T2 Pack format version 1: the writer and reader, the byte source, the manifest, checksums and version checks.
+* [x] P1-T2 Pack format version 1: the writer and reader, the byte source, the manifest, checksums and version checks. Done 3 November on branch p1-t2-pack-format. Its format number is 2. The spike format, 1, was dropped at your request: the spike S2 stages, their comparison program and the spike S4 timings now use format 2, and mapdata inspect reads only format 2. The specification is docs/developer/pack-format.md. The browser tests read a pack in Pyodide in Chromium and Firefox; macOS is confirmed by continuous integration when it is pushed.
 * [ ] P1-T3 Pipeline skeleton: check, fetch and build commands, configuration, stage caching, progress, summary and log.
 * [ ] P1-T4 Base pack "lite": countries, first-level divisions, oceans and seas, and land, with no gaps (LOC-6).
 * [ ] P1-T5 Store and "where am I": point queries, the pack tile cache, and the nearest point of an area for Nearby (INF-3, INF-7).

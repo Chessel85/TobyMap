@@ -53,6 +53,11 @@ Older documents written before this glossary, such as architecture section 6 and
 * Directory: the list at the end of a pack of every record's name, where it starts and how long it is. A reader reads it first, then only the records it needs.
 * Manifest: the record that describes a pack: its name, sources, licence, and how it is laid out.
 * Feature record: what a pack holds about one area apart from its shape, such as its names, type, size and the country it is in.
+* Feature number: a feature record's number within one pack, which tile entries use to say which area they belong to. It is not the identifier, which stays the same in every pack.
+* Format number: the number at the start of a pack that says how it is laid out. Packs from Phase 1 on have format 2. Format 1, the spike S2 packs, is no longer read.
+* Check number: a short number stored for each record, worked out from its bytes. If a record is damaged, its bytes no longer give the same check number, so the damage is found when that record is read, and the rest of the pack can still be used.
+* Checksum: a long number worked out from every byte of a whole pack, kept in a small file beside it and later in the catalogue. After a download, the application works it out again; if it differs, the download is damaged or incomplete.
+* Byte source: where a pack's bytes are read from: a file on the desktop, the browser's private storage in the web version, and later the internet. The pack reader works the same with any of them.
 * Compact coordinates: the way a pack stores each point of a shape, as a whole number of ten-millionths of a degree (about 1 cm), and as the difference from the point before. It makes packs about five times smaller.
 * Read: fetching one record from a pack. In the web version, each read will be one download, so the number of reads matters.
 * Pack tile: one cell of the grid that a pack's shapes are stored in. Each pack tile is stored as one record.

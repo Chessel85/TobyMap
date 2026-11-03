@@ -68,3 +68,14 @@ dialogs:
   keys_menu_only: "{label}: in the {menu} menu"
   about_title: About TobyMap
   about_text: "TobyMap version {version}.\nThis is spike S5: the globe, the accessible window and the installer.\nCountries from Natural Earth, public domain.\nTobyMap is free software under the GNU General Public License version 3."
+
+# Why a pack was not opened, or what is wrong with it (PCK-5, NFR-4, P1-T2).
+# {name} is the pack's file name.
+packs:
+  not_a_pack: "{name} is not a TobyMap pack, so it was not opened."
+  newer_format: "{name} needs a newer version of TobyMap, so it was not opened. Update TobyMap to use it."
+  app_too_old: "{name} needs TobyMap {need} or later, and this is TobyMap {have}, so it was not opened. Update TobyMap to use it."
+  app_too_new: "{name} was made for versions of TobyMap before {before}, and this is TobyMap {have}, so it was not opened. Download the current pack instead."
+  damaged_pack: "{name} is damaged, so it was not opened. Download it again. The damage is in its {record}."
+  damaged_record: "Part of {name} is damaged, and TobyMap is carrying on without it. Download the pack again. The damaged record is {record}."
+  checksum_wrong: "{name} does not match its checksum, so it may be damaged or incomplete. Download it again."

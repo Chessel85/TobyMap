@@ -71,22 +71,30 @@ def place_words(lat: float, lon: float) -> str:
     return f"{abs(lat)} {ns}, {abs(lon)} {ew}"
 
 
+def _name(feature: dict) -> str:
+    names = feature["names"]
+    return names.get("en") or next(iter(names.values()), feature["id"])
+
+
 def cmd_inspect(args: argparse.Namespace) -> int:
     """What is at a point, smallest area first, in plain lines (DMT-2, architecture 8.1)."""
-    from mapcore.packs.archive import Pack
+    from mapcore.packs.pack import PackError
+    from mapdata.stages.lookup import Lookup, open_pack
 
-    pack = Pack(Path(args.pack))
     try:
-        found = pack.at(args.lon, args.lat)
-    finally:
-        pack.close()
+        with open_pack(args.pack) as pack:
+            found = Lookup(pack).at(args.lon, args.lat)
+    except PackError as exc:
+        print(exc.message)
+        return 1
     if not found:
         print(f"At {place_words(args.lat, args.lon)}: sea, no land area.")
         return 0
     print(f"At {place_words(args.lat, args.lon)}, smallest first:")
     for f in found:
-        extra = f", sovereign state {f['sovereign']}" if f.get("sovereign") and f["sovereign"] != f["name"] else ""
-        print(f"{f['name']}: {f['layer']}, {f['type']}{extra}, {f['area_km2']:,.0f} km2.")
+        name = _name(f)
+        extra = f", sovereign state {f['sovereign']}" if f.get("sovereign") and f["sovereign"] != name else ""
+        print(f"{name}: {f['layer']}, {f['type']}{extra}, {f['area_km2']:,.0f} km2, {f['id']}.")
     return 0
 
 

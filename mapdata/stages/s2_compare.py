@@ -12,7 +12,9 @@ difference, in plain lines (DMT-2):
 * the UK's islands: the same number of parts, named and unnamed, at each size;
 * land in no country: still none; land in no region: the same slivers;
 * neighbours: every layer still meets exactly after cleaning and simplifying;
-* the packs: the same areas found at a grid of test points.
+* the packs: the same areas found at a grid of test points, when both packs
+  are in format 2. The 1 November pack is a spike pack, which is no longer
+  read, so against it only the cut shapes are compared.
 
 Two differences are expected and are not faults (the S2 findings, "Next:
 faster algorithms, proved on stage 1"): areas are now measured on the
@@ -146,14 +148,34 @@ def _shape_job(pairs: list[tuple[str, str, str]]) -> list[tuple[str, float, floa
 
 
 def _lookup_job(old_pack: str, new_pack: str, points: list) -> list:
-    from mapcore.packs.archive import Pack
+    from mapdata.stages.lookup import Lookup, open_pack
 
-    old, new = Pack(Path(old_pack)), Pack(Path(new_pack))
+    old, new = open_pack(old_pack), open_pack(new_pack)
     try:
-        return [(where, lon, lat, old.at(lon, lat), new.at(lon, lat)) for where, lon, lat in points]
+        a, b = Lookup(old, cache=True), Lookup(new, cache=True)
+        return [(where, lon, lat, a.at(lon, lat), b.at(lon, lat)) for where, lon, lat in points]
     finally:
         old.close()
         new.close()
+
+
+def packs_comparable(old_pack: Path, new_pack: Path) -> str | None:
+    """None if both packs can be compared, otherwise why not, in plain words."""
+    from mapcore.packs import pack as pack_format
+    from mapcore.packs.source import FileSource
+
+    for which, path in (("1 November", old_pack), ("new", new_pack)):
+        if not path.is_file():
+            return f"the {which} pack, {path.name}, is missing"
+        source = FileSource(path)
+        try:
+            fmt = pack_format.read_format(source)
+        finally:
+            source.close()
+        if fmt != pack_format.FORMAT:
+            return (f"the {which} pack, {path.name}, is in format {fmt}, and only format {pack_format.FORMAT} "
+                    f"packs are read now")
+    return None
 
 
 def _lookup_batch(args: tuple) -> list:
@@ -273,12 +295,17 @@ def run(folders: DataFolders, workers: int = 3) -> int:
 
     log.heading("Coastline places")
     places = yaml.safe_load((s2_stage.ACCEPTANCE / "coastline_places.yaml").read_text(encoding="utf-8"))["places"]
-    old_pack, new_pack = old_out / f"{OLD_NAME}-compact.pack", new_out / f"{NEW_NAME}-compact.pack"
-    found = _lookup_job(str(old_pack), str(new_pack), [(p["name"], p["lon"], p["lat"]) for p in places])
-    from mapcore.packs.archive import Pack
-    op = Pack(old_pack)
-    old_ids = {f["id"] for f in op.features}
-    op.close()
+    old_pack, new_pack = old_out / f"{OLD_NAME}.pack", new_out / f"{NEW_NAME}.pack"
+    why_not = packs_comparable(old_pack, new_pack)
+    if why_not:
+        log(f"The packs are not compared place by place, because {why_not}. Each area's cut shape is compared "
+            f"above instead, which is what the packs are made from.")
+        found, old_ids = [], set()
+    else:
+        found = _lookup_job(str(old_pack), str(new_pack), [(p["name"], p["lon"], p["lat"]) for p in places])
+        from mapdata.stages.lookup import open_pack
+        with open_pack(old_pack) as op:
+            old_ids = {op.feature(n)["id"] for n in range(op.feature_count)}
     place_rows = []
     for name, _lon, _lat, a, b in found:
         verdict, added = compare_found(a, b, old_ids)
@@ -351,7 +378,9 @@ def run(folders: DataFolders, workers: int = 3) -> int:
 
     log.heading("The packs at a grid of test points")
     t = time.perf_counter()
-    points = grid_points()
+    points = [] if why_not else grid_points()
+    if why_not:
+        log(f"Not compared, because {why_not}.")
     chunks = [points[k::max(1, workers * 4)] for k in range(max(1, workers * 4))]
     counts = {"same": 0, "added": 0, "different": 0}
     examples = []
@@ -365,10 +394,12 @@ def run(folders: DataFolders, workers: int = 3) -> int:
                     examples.append(f"{where}, {lat:.4f} north, {lon:.4f} east: "
                                     f"{', '.join(f['name'] for f in a) or 'sea'} then, "
                                     f"{', '.join(f['name'] for f in b) or 'sea'} now.")
-    log(f"{len(points):,} test points, every {GRID_STEP} degrees across the three countries and every "
-        f"{SMALL_STEP} degrees in the overseas regions, Gibraltar and Ceuta, in {time.perf_counter() - t:.0f} seconds.")
-    log(f"The same areas found: {counts['same']:,}. The same apart from a county added by discussion point 101: "
-        f"{counts['added']:,}. Different: {counts['different']:,}.")
+    if points:
+        log(f"{len(points):,} test points, every {GRID_STEP} degrees across the three countries and every "
+            f"{SMALL_STEP} degrees in the overseas regions, Gibraltar and Ceuta, in "
+            f"{time.perf_counter() - t:.0f} seconds.")
+        log(f"The same areas found: {counts['same']:,}. The same apart from a county added by discussion point "
+            f"101: {counts['added']:,}. Different: {counts['different']:,}.")
     for line in examples:
         log(f"DIFFERENT: {line}")
     faults += counts["different"]

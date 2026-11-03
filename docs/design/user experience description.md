@@ -121,7 +121,7 @@ Each item gives its closest distance and its bearing from the new position.
 ### 3.3 Asking on demand
 
 * Space: "where am I". Speaks the smallest area plus its main parents, for example: "Lake, in Long Meadow, Wiltshire, England, United Kingdom".
-* Shift+Space: opens the Within group, the full list of areas containing the location (LOC-3).
+* F3: goes to the Information panel, where the Within group is the full list of areas containing the location (LOC-3).
 * C: the coordinates, for example: "50.9312 north, 1.6124 west".
 * Shift+C: the plain-language position (LOC-5), for example: "South-west England, 9 kilometres north-west of Southampton city centre".
 * H: the heading, orientation, movement mode, zoom and step, for example: "Facing 45 degrees, north-east. Free facing. Stepping. Zoom 5 kilometres, step 250 metres".
@@ -130,7 +130,7 @@ Each item gives its closest distance and its bearing from the new position.
 
 Every point on Earth has a name (LOC-6). At sea, the user hears the name of the sea or ocean they are in.
 
-Water is a hierarchy, just like land. Oceans contain seas. Seas can contain other seas, and also gulfs, bays, straits, channels and sounds. Moving from the Bay of Biscay out into the open Atlantic announces "North Atlantic Ocean", and Shift+Space in the bay lists "Bay of Biscay, North Atlantic Ocean, Atlantic Ocean".
+Water is a hierarchy, just like land. Oceans contain seas. Seas can contain other seas, and also gulfs, bays, straits, channels and sounds. Moving from the Bay of Biscay out into the open Atlantic announces "North Atlantic Ocean", and Within, in the Information panel, lists "Bay of Biscay, North Atlantic Ocean, Atlantic Ocean".
 
 Only the data that is present is announced. In an area with only the base pack installed, the user hears the base data names and nothing about missing detail. The Details panel and the pack manager show what data covers the location, for anyone who wants to check.
 
@@ -333,14 +333,14 @@ Each group is filled when it is opened, so it never slows down movement. After a
 
 ### 6.2 Getting there
 
-A key in the map region opens each group directly and speaks its first item:
+F3 goes to the Information panel from any region, back to the item you were last on there. The first time, it goes to the first item of Within (DP106).
 
-* Shift+Space: Within.
+A key in the map region opens some groups directly and speaks their first item. Whether these stay is DP109:
+
 * I: Contains.
 * N: Bordering.
 * O: Overlapping.
 * X: Crossing.
-* R: Nearby.
 * Shift+X: Crossed and passed.
 
 From there, arrow keys move through the tree. Tab returns to the map.
@@ -433,7 +433,7 @@ B switches on the orientation beacon (SON-10). It is a soft repeating sound that
 ### 8.5 Hearing where things are
 
 * "Hear its direction" on any item plays its layer's sound from that feature's direction and distance.
-* Look around (L, SON-4) plays the Nearby list as sound. Nearby (R) gives you the features as a list to read. Look around plays the same features one after another in bearing order, clockwise from ahead, each from its own direction, at most 12 of them. So anything you hear in a scan is also in Nearby when you press R. Each feature's name is spoken from the same place as its sound (SON-3, DP39).
+* Look around (L, SON-4) plays the Nearby list as sound. Nearby (R) gives you the features as a list to read. Look around plays the same features one after another in bearing order, clockwise from ahead, each from its own direction, at most 12 of them. So anything you hear in a scan is also in Nearby in the Information panel. Each feature's name is spoken from the same place as its sound (SON-3, DP39).
 * The spoken names come from a voice built into the application, because a screen reader voice cannot be placed in space (DP46). The defaults are:
   * The screen reader does not also speak the name, so you do not hear everything twice.
   * The names are added to the announcement history, so they can be reviewed afterwards.
@@ -548,15 +548,12 @@ Keys changed since version 0.3 (agreed, DP79):
 * Ctrl+Shift+Space: announcement history.
 
 ### Information panel
-* Shift+Space: Within.
 * I: Contains.
 * N: Bordering.
 * O: Overlapping.
 * X: Crossing.
-* R: Nearby.
 * Shift+X: Crossed and passed.
 * Ctrl+S, in the panel: cycle the sort order between name, distance and bearing.
-* D: details of the current feature.
 * M: measure.
 * Q: query builder.
 * V: size of the visible map, for example "Visible map: 1,140 by 890 kilometres" (DP99).
@@ -579,7 +576,9 @@ Keys changed since version 0.3 (agreed, DP79):
 ### Other
 * P: data packs.
 * F1: help.
-* Ctrl+Alt+Space: go to the map, from anywhere (DP97).
+* F2: go to the map, from anywhere (DP106).
+* F3: go to the Information panel, from anywhere, back to the item last focused there (DP106).
+* F4: go to Details, from anywhere (DP106).
 * Ctrl+Alt+M, web version only: go to the menu bar (DP93). The desktop uses Alt.
 * Ctrl+comma: settings.
 

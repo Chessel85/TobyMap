@@ -32,6 +32,9 @@ Current progress is in `docs/plan/phase-N.md`. Spike findings are in `docs/spike
 * `mapcore/describe/templates.yaml`: every word the application says or shows, including region names (3.4). The approved wording is held in `tests/mapcore/test_session.py`.
 * `mapcore/render/globe.py`: the orthographic globe and the shape list the shells paint (AD-6).
 * `mapcore/store/world_sample.py` and `mapcore/data/world_110m.json`: the Natural Earth stand-in for packs, until Phase 1.
+* `mapdata/pipeline/`: the build engine: settings, stages and their fingerprints, progress, the created files list and the run switch. Stages are in `mapdata/stages/`. The data manager's guide is `docs/data-manager/guide.md`.
+* `continue.txt` (repository top folder, not in git) is the PO's run switch: every build reads its first line before each stage and stops cleanly on "no". Never write into it. Tests pass their own switch file.
+* The test pack is built from `tests/samples/` by the `test_pack` fixture in `tests/conftest.py`.
 * `desktop/`: the PySide6 shell. `web/`: the browser shell, its worker and `bridge.py`.
 * NumPy in Pyodide is 32-bit. Use `np.intp` for any array of offsets or indexes, never `np.int64`.
 
@@ -45,6 +48,9 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe -m pytest tests/web --browser chromium --browser firefox   # browser tests
 .venv\Scripts\python.exe tools\check_licences.py                       # licence check (SCP-4)
 .venv\Scripts\python.exe -m mapdata status                             # where the data folder is
+.venv\Scripts\python.exe -m mapdata check                              # is the data folder ready: space, planet file, land polygons
+.venv\Scripts\python.exe -m mapdata build test                         # build a pack from mapdata/config/packs/test.yaml (--workers 3, --away, --wait-for-yes)
+.venv\Scripts\python.exe -m mapdata fetch --pack test                  # fetch every source a pack uses (or a source's key, or list)
 .venv\Scripts\python.exe tools\fetch_vendor.py                         # Pyodide (web) and NVDA Controller Client (desktop), not in git
 .venv\Scripts\python.exe -m desktop                                    # run the desktop application
 .venv\Scripts\python.exe tools\serve_web.py                            # stage the core and serve the web version locally
@@ -52,7 +58,7 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe -m mapdata fetch land-polygons                # download a source into <data>/tobymap/downloads
 .venv\Scripts\python.exe -m mapdata spike-s2-stage1                    # spike S2 stage 1 build and report, into <data>/tobymap/output
 .venv\Scripts\python.exe -m mapdata spike-s2 3 --away                  # spike S2 stage 2, 3 or 4; 3 workers, or 6 with --away (DP103)
-.venv\Scripts\python.exe -m mapdata inspect <pack> <lat> <lon>         # what is at a point in a pack
+.venv\Scripts\python.exe -m mapdata inspect <pack> <lat> <lon>         # what is at a point; or: manifest, feature <id>
 .venv\Scripts\python.exe tools\spikes\s1\demo.py                       # spike S1 sound demo (requirements-spikes.txt)
 .venv\Scripts\python.exe tools\spikes\s6\demo.py                       # spike S6 voice demo (requirements-spikes.txt)
 .venv\Scripts\python.exe tools\spikes\s6\web_run.py                    # spike S6 Piper in Chromium and Firefox (--serve to listen, --isolated for 4 threads; needs fetch_vendor.py --piper)

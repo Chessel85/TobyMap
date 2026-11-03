@@ -28,6 +28,8 @@ jobs:
         run: python tools/check_licences.py
       - name: Tests
         run: python -m pytest --ignore=tests/web
+      - name: Build the test pack (P1-T3, architecture 11.1)
+        run: python -m mapdata --data "${{ runner.temp }}" build test
 
   web:
     name: Browser tests in Chromium and Firefox

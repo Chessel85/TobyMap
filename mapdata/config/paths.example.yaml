@@ -3,4 +3,5 @@
 # The --data option and the MAPDATA_ROOT environment variable override it.
 # mapdata reads source files such as planet .osm.pbf and .gol files from the data folder,
 # and writes only inside its own subfolder, tobymap, which it creates.
-data_folder: D:\path\to\your\osmdata
+# Put your folder after data_folder, such as a folder on an external drive.
+data_folder: <the folder that holds your planet files>

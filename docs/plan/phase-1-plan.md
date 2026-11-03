@@ -82,8 +82,7 @@ The order in docs/plan/phase-1.md stands, with one change: the core tasks don't 
 5. P1-T5 to P1-T9, the core's store, stepping, wording, keys and map scene, on the test pack.
 6. P1-T10 and P1-T11, the two shells, then P1-T12, earcons, and P1-T13, the listening test.
 7. P1-T15, diagnostics, then P1-T14, packaging.
-8. The rest of P1-T16: stage 1's whole run and comparison, and stage 4, Argentina.
-9. The phase report and your acceptance.
+8. The phase report and your acceptance.
 
 ## Heavy runs
 
@@ -96,8 +95,6 @@ Before each one I tell you how long it should take, how many cores it uses and h
 * One continent, Europe, timed, so the world's time can be estimated (architecture 8.6).
 * The world build of the base pack lite: hours, probably with --away and 6 workers, possibly over more than one night. It can stop and carry on.
 * The world build again, from its cached steps, to prove the pack comes out byte for byte the same (DMT-1).
-* Stage 1's whole run and comparison: about 20 to 30 minutes.
-* Stage 4, Argentina: about 15 minutes.
 
 ## P1-T1 Core geodesy
 
@@ -226,13 +223,15 @@ Also before the world build, because the base pack lite needs them:
 * The overlap check also finds one area wholly inside another.
 * The globe check looks only at edges near the 180 degree line, so Alaska's straight border is no longer flagged.
 
-### Part 2, when the laptop can be left
+### Part 2, dropped or moved (3 November)
 
-* Stage 1 again, the UK, France and Spain: the whole run, compared with 1 November using `mapdata spike-s2-compare`.
-* Stage 4, Argentina: Tierra del Fuego shared with Chile, the Andes border, the undecided border on the Southern Patagonian Ice Field, and the Falkland Islands. Bolivia's and the Falklands' names are checked against OSM first.
-* Antarctica: which definition Wikidata's area uses, its own expected figure, and the cause of the 78 km of edge along the 180 degree line on one side only.
+Stage 1 again and stage 4 (Argentina) are dropped at the PO's request (3 November): stage 1 again would repeat mainland France's regression test, already dropped, and Argentina's counties were already checked in the speed trials. Two smaller items move to P1-T4, as they are part of the world build: Antarctica's area against Wikidata, and the globe check looking only at edges near the 180 degree line. The counties rule using level 5 (DP116) waits for the first pack with a counties layer, as the base pack lite has none.
 
-Done when the trials are written up, mainland France matches 1 November, the four checks above are in the build with tests, and stage 1's comparison and stage 4 are reported.
+* Dropped: stage 1 again, the UK, France and Spain: the whole run, compared with 1 November using `mapdata spike-s2-compare`.
+* Dropped: stage 4, Argentina: Tierra del Fuego shared with Chile, the Andes border, the undecided border on the Southern Patagonian Ice Field, and the Falkland Islands. Bolivia's and the Falklands' names are checked against OSM first.
+* Moved to P1-T4: Antarctica: which definition Wikidata's area uses, its own expected figure, and the cause of the 78 km of edge along the 180 degree line on one side only.
+
+Done when the trials are written up and the four checks above are in the build with tests. Done on 3 November; mainland France's regression run, stage 1 again and stage 4 were dropped at the PO's request.
 
 ## P1-T4 Base pack lite
 
@@ -260,6 +259,9 @@ The checks, written to the build's report:
 * No gaps: a grid of points over the whole Earth, every quarter of a degree, plus every S2 check place: each one has a name (LOC-6). 30 north 40 west is the North Atlantic Ocean, and 80 south 30 east is Antarctica.
 * The S2 check places from all three stages, at base detail. A place that needs full detail, such as a rock in the Solent, is marked as a check for regional packs instead, with the reason.
 * The antimeridian checks for Fiji, Russia, the USA, Kiribati and Antarctica (DAT-14), with the area check from P1-T16.
+* Antarctica, moved from P1-T16: which definition Wikidata's area uses, its own expected figure, and the cause of the 78 km of edge along the 180 degree line on one side only.
+* The globe check, moved from P1-T16, looks only at edges near the 180 degree line, so Alaska's straight border is no longer flagged.
+* Land in two countries, such as the Moselle condominium, handled as you answer DP117.
 * The size of each layer, against the target in DP112.
 * Built twice, from its cached steps, the pack is identical (DMT-1).
 

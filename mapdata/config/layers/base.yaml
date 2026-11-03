@@ -1,0 +1,11 @@
+# The base layers (SCP-7, architecture 6.4): what every world pack has.
+# The reference for each setting is docs/data-manager/configuration.md.
+#
+# rank orders what is at a point, lowest first, then smallest first (LOC-2).
+# kind is land or water. The land is taken out of water layers.
+
+layers:
+  - {id: countries, name: Countries, rank: 2, kind: land}
+  - {id: oceans, name: Oceans and seas, rank: 2, kind: water}
+  - {id: regions, name: Regions, rank: 4, kind: land}
+  - {id: counties, name: Counties, rank: 6, kind: land}

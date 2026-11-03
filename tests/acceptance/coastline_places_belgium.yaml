@@ -1,0 +1,12 @@
+# Check places for the build speed trials on Belgium (P1-T16, DP107).
+# Format as in coastline_places.yaml. A name matches an area's English name
+# or its local name.
+
+places:
+  - {name: The North Sea off Ostend, lat: 51.3500, lon: 2.8000, sea: true}
+  - {name: The beach at Ostend, lat: 51.2300, lon: 2.9200, includes: [Belgium]}
+  - {name: The Grand Place in Brussels, lat: 50.8467, lon: 4.3525, includes: [Belgium]}
+  - {name: Antwerp, lat: 51.2194, lon: 4.4025, includes: [Belgium, Flanders]}
+  - {name: Liège, lat: 50.6326, lon: 5.5797, includes: [Belgium, Wallonia]}
+  - {name: Maastricht, beside Belgium, lat: 50.8514, lon: 5.6910, includes: [Netherlands]}
+  - {name: Lille, beside Belgium, lat: 50.6292, lon: 3.0573, includes: [France]}

@@ -1,0 +1,34 @@
+# Build speed trials (P1-T16, DP107): Belgium.
+#
+# A small country with counties at three levels: provinces at level 6,
+# arrondissements at level 7 and municipalities at level 8. The Brussels-
+# Capital Region has no province, so level 6 leaves a gap that level 7
+# fills. Baarle-Hertog's enclaves inside the Netherlands test small parts
+# far from the rest. Each trial should take minutes, not hours.
+#
+# Built from the planet file of 26 October 2026, which is the one the base
+# pack lite will use. Settings as in s2_stage2.yaml.
+
+name: s2-belgium
+title: "Build speed trials: Belgium."
+source_gol: tobymap/downloads/planet-2026-10-26/planet-2026-10-26.gol   # in the data folder, read only
+places: coastline_places_belgium.yaml   # in tests/acceptance
+region_level: 4
+coverage_window_km: 5
+
+# Round Belgium, west, south, east, north. Its neighbours are kept to it,
+# enough to check the land borders.
+boxes:
+  belgium: &belgium [2.0, 49.2, 6.8, 51.8]
+
+countries:
+  - {id: osm:r52411, name: België / Belgique / Belgien, divisions: true}
+  - {id: osm:r47796, name: Nederland, land_within: [*belgium]}
+  - {id: osm:r2202162, name: France, land_within: [*belgium]}
+  - {id: osm:r51477, name: Deutschland, land_within: [*belgium]}
+  - {id: osm:r2171347, name: Lëtzebuerg, land_within: [*belgium]}
+
+pictures:
+  - {name: belgium-counties, box: [2.4, 49.4, 6.5, 51.6], layer: counties}
+  - {name: belgium-regions, box: [2.4, 49.4, 6.5, 51.6], layer: regions}
+  - {name: baarle, box: [4.85, 51.40, 5.00, 51.48], layer: countries}

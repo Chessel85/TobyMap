@@ -1,0 +1,28 @@
+# The test pack (architecture 11.1): a small world, built from the samples in
+# tests/samples, so the automatic tests never need the data folder.
+# Continuous integration builds it on every push. The reference for each
+# setting is docs/data-manager/configuration.md.
+
+name: test
+title: The test pack, a small world from the samples in the repository.
+version: 0.1.0
+app_versions: {from: 0.0.1}
+coverage: {kind: world}
+layer_groups: [base]
+space_needed_mb: 50
+
+stages:
+  # Least detailed first: each later sample wins inside its own box.
+  - stage: samples
+    samples:
+      - {source: sample-world}
+      - {source: sample-oceans}
+      - {source: sample-osm, file: england-france-channel.geojson}
+      - {source: sample-osm, file: isle-of-wight-solent.geojson}
+      - {source: sample-osm, file: fiji.geojson}
+      - {source: sample-osm, file: bering-strait.geojson}
+      - {source: sample-osm, file: antarctica-south-pole.geojson}
+      - {source: sample-osm, file: niagara-falls.geojson}
+  - stage: water
+    land_layer: countries
+  - stage: write

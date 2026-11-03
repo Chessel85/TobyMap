@@ -117,6 +117,11 @@ Each feature record holds, in Phase 1 (architecture 6.4):
 
 The writer refuses a feature record that lacks any of these, or an identifier given twice. More fields may be added; readers ignore those they don't know.
 
+Optional fields:
+
+* disputed: true for an area that OSM holds twice in one layer, one copy for each side of a dispute, such as Sevastopol (DP104, architecture 6.12). Only one copy is in the pack.
+* also_held_as: with disputed, the other copy's details: id, name, name_en and country_code, the ISO 3166-1 code its own ISO 3166-2 code names, such as UA. The details of the area describe the dispute from these (ANN-6).
+
 ### tile/L/X/Y
 
 A pack tile of exact shapes, at tile level L, column X and row Y.

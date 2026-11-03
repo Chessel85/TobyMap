@@ -1,0 +1,73 @@
+# Every source a pack can be built from (architecture 8.4, DMT-6, DAT-9, DAT-11).
+# The reference for each setting is docs/data-manager/configuration.md.
+#
+# A source with no licence or no attribution stops every build, naming the
+# source. Each source must also be in docs/design/data sources.md, with a
+# licence that allows packs to be shared under the ODbL.
+#
+# Where a source comes from is one or more of:
+#   url and file: downloaded by "mapdata fetch" into the data folder's tobymap\downloads folder, as file.
+#   find: a local copy already in the data folder, such as the planet files. The newest match is used.
+#   repo: a file or folder in this repository, such as the test samples.
+
+sources:
+  planet:
+    name: OpenStreetMap planet file, as a GeoDesk library
+    about: The whole of OpenStreetMap. Downloaded and converted by hand, as it takes some hours (P1-T16).
+    url: https://planet.openstreetmap.org/pbf/
+    find:
+      - tobymap/downloads/planet-*/planet-*.gol
+      - planet-*.gol
+    licence: ODbL 1.0
+    attribution: © OpenStreetMap contributors
+    refresh_days: 90
+
+  land-polygons:
+    name: OSM land polygons, split, in longitude and latitude
+    about: All the land in the world, with the sea taken away, used to cut areas to the coast (AD-15).
+    url: https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip
+    file: osm-land-polygons/land-polygons-split-4326.zip
+    licence: ODbL 1.0
+    attribution: © OpenStreetMap contributors
+    refresh_days: 90
+
+  vliz-oceans:
+    name: Flanders Marine Institute (VLIZ), Global Oceans and Seas, version 1
+    about: The ten oceans and ocean regions, based on IHO S-23, from VLIZ's map server (DOI 10.14284/542).
+    url: https://geo.vliz.be/geoserver/MarineRegions/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=MarineRegions:goas&outputFormat=application/json
+    file: vliz-oceans/goas.geojson
+    licence: CC-BY 4.0
+    attribution: Flanders Marine Institute (2021). Global Oceans and Seas, version 1. Available online at https://www.marineregions.org/. https://doi.org/10.14284/542
+    refresh_days: 365
+
+  naturalearth-countries-110m:
+    name: Natural Earth, admin 0 countries, 1:110 million
+    about: A simple world, for the globe spike and the test pack.
+    url: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson
+    file: naturalearth/ne_110m_admin_0_countries.geojson
+    licence: Public domain
+    attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
+    refresh_days: 365
+
+  # The test pack's samples, kept in the repository (architecture 11.1).
+  # tests/samples/README.md says how each was made.
+  sample-world:
+    name: Natural Earth, admin 0 countries, 1:110 million, test sample
+    repo: tests/samples/world-naturalearth-110m.geojson
+    date: 2026-11-03
+    licence: Public domain
+    attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
+
+  sample-oceans:
+    name: VLIZ Global Oceans and Seas, version 1, the Atlantic, test sample
+    repo: tests/samples/oceans-vliz-atlantic.geojson
+    date: 2026-11-03
+    licence: CC-BY 4.0
+    attribution: Flanders Marine Institute (2021). Global Oceans and Seas, version 1. Available online at https://www.marineregions.org/. https://doi.org/10.14284/542
+
+  sample-osm:
+    name: OpenStreetMap, small test samples
+    repo: tests/samples/osm
+    date: 2026-10-31
+    licence: ODbL 1.0
+    attribution: © OpenStreetMap contributors

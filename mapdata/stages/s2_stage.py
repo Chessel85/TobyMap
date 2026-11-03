@@ -37,7 +37,8 @@ import yaml
 
 from mapdata.parallel import memory_mb
 from mapdata.paths import CONFIG_DIR, DataFolders
-from mapdata.stages import antimeridian, boundaries, clip, counties as countiesmod, land as landmod, pack_write
+from mapdata.stages import (antimeridian, boundaries, clip, counties as countiesmod, held_twice, inland_water, kept,
+                            land as landmod, overlaps, pack_write)
 from mapdata.stages.geodesy import area_km2, areas_km2, distance_km
 from mapdata.stages.s2_stage1 import Log, cached, coverage_report, english, peak_memory_mb, pictures
 
@@ -125,10 +126,12 @@ def outline_to_the_pole(geom):
 # Stage 1 has its own program (s2_stage1.py) and settings (s2_stage1.yaml),
 # kept as they were for the 1 November baseline. Built by this program, it
 # uses s2_stage1_again.yaml.
-CONFIG_FILES = {1: "s2_stage1_again.yaml"}
+CONFIG_FILES = {"1": "s2_stage1_again.yaml", "belgium": "s2_belgium.yaml"}
+STAGES = ["1", "2", "3", "4", "belgium"]
 
 
-def load_config(stage: int) -> dict:
+def load_config(stage) -> dict:
+    stage = str(stage)
     path = CONFIG_DIR / CONFIG_FILES.get(stage, f"s2_stage{stage}.yaml")
     if not path.is_file():
         raise SystemExit(f"No settings for stage {stage}: {path} is missing.")
@@ -254,6 +257,41 @@ def run_extract(stage: int, folders: DataFolders) -> int:
     tmp.replace(path)
     print(f"Extract finished: {len(result['countries'])} countries, "
           f"{sum(len(v) for v in result['divisions'].values())} divisions.", flush=True)
+    return 0
+
+
+WATER_VERSION = "s2-water-v1"  # change to read the inland water again
+
+
+def water_cache_path(config: dict, folders: DataFolders, gol: Path) -> Path:
+    stamp = f"{gol.stat().st_size}-{gol.stat().st_mtime_ns}"
+    ids = sorted(config.get("inland_water") or [])
+    entries = [c for c in config["countries"] if c["id"] in ids]
+    key = hashlib.sha1(json.dumps([entries, stamp, WATER_VERSION, inland_water.WATER_QUERY,
+                                   inland_water.WETLAND_QUERY], sort_keys=True).encode()).hexdigest()[:16]
+    return folders.working / config["name"] / f"water-{key}.pkl"
+
+
+def run_water_extract(stage, folders: DataFolders) -> int:
+    """The entry point of the short-lived process that reads the inland water (inland_water.py)."""
+    import geodesk
+
+    config = load_config(stage)
+    gol = folders.root / config["source_gol"]
+    path = water_cache_path(config, folders, gol)
+    world = geodesk.Features(str(gol))
+    result = {}
+    for c in config["countries"]:
+        if c["id"] not in (config.get("inland_water") or []):
+            continue
+        country = boundaries.relation(world, c["id"], c["name"], 2, [])
+        result[c["id"]] = inland_water.read(world, country.geom, part_boxes(country.geom))
+        print(f"{c['id']}: {len(result[c['id']]['water'])} water areas and {len(result[c['id']]['wetland'])} "
+              f"wetlands read.", flush=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_bytes(pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL))
+    tmp.replace(path)
     return 0
 
 
@@ -619,6 +657,106 @@ def window_pieces(shapes: list, window, cell: float = 1.0) -> list:
     return out
 
 
+# Change to rebuild every kept country, for a change to how this program
+# builds a country that is not in the modules listed in country_print.
+COUNTRY_VERSION = "s2-country-v1"
+COUNTRY_CODE = ("mapdata.stages.clip", "mapdata.stages.counties", "mapdata.stages.held_twice",
+                "mapdata.stages.overlaps", "mapdata.stages.geodesy", "mapdata.stages.boundaries",
+                "mapdata.stages.s2_stage1", "mapdata.stages.kept")
+
+
+def _stamp(path: Path) -> str:
+    st = path.stat()
+    return f"{path.name}-{st.st_size}-{st.st_mtime_ns}"
+
+
+def country_print(cid: str, config: dict, settings: dict, record: dict, shapes_for_land: dict, divisions: dict,
+                  units: list, gol: Path, land_polygons: Path) -> str:
+    """The fingerprint a country is kept under (kept.py).
+
+    The counties record counts only where it is corrected by hand. A record
+    the build worked out itself is the rule's own result, which the build
+    would find again, so writing it does not rebuild the country.
+    """
+    from mapdata.pipeline.build import code_version
+
+    entry = record.get(cid) or {}
+    corrected = entry if str(entry.get("how", "")).startswith("corrected") else None
+    shapes = [shapes_for_land[cid]]
+    for (owner, level), divs in sorted(divisions.items()):
+        if owner == cid:
+            for d in divs:
+                shapes.extend([f"{level}:{d.id}:{(d.tags or {}).get('disputed', '')}", d.geom])
+    for u in units:
+        if u.parent == cid:
+            shapes.extend([u.id, u.geom])
+    return kept.fingerprint({
+        "planet": _stamp(gol), "land polygons": _stamp(land_polygons), "settings": settings[cid],
+        "stage": {k: config.get(k) for k in ("region_level", "coverage_window_km", "simplify_tolerance")},
+        "record": corrected, "shapes": kept.shapes_print(shapes),
+        "code": [COUNTRY_VERSION, VERSION, code_version(COUNTRY_CODE)],
+    })
+
+
+def disputed(record: dict, area) -> dict:
+    """A feature record with the marks of an area held twice (held_twice.py, DP104), if it has them."""
+    tags = area.tags or {}
+    if tags.get("disputed") == "yes":
+        record["disputed"] = True
+        record["also_held_as"] = tags["also_held_as"]
+    return record
+
+
+BORDER_MOVED_LIMIT_KM2 = 1.0
+
+
+def border_check(raw_a, raw_b, land_a, land_b, window_km: float, tolerance: float,
+                 moved_limit_km2: float = BORDER_MOVED_LIMIT_KM2) -> dict:
+    """Whether two neighbouring countries meet exactly along their border (AD-16), near it only.
+
+    The two countries' land within window_km of their border is cleaned and
+    simplified as one coverage, as the layer check does. Their border
+    matches when the land is a valid coverage after cleaning and after
+    simplifying, cleaning moved at most moved_limit_km2, and no land is in
+    both, including land of one wholly inside the other.
+    """
+    start = time.perf_counter()
+    band = border_window([raw_a, raw_b], window_km / 111.0)
+    if band is None:
+        return {"matches": True, "border": False, "seconds": time.perf_counter() - start}
+    pieces_a = window_pieces([land_a], band)
+    pieces_b = window_pieces([land_b], band)
+    if not pieces_a or not pieces_b:
+        return {"matches": True, "border": False, "seconds": time.perf_counter() - start}
+    found = overlaps.find(pieces_a + pieces_b)
+    both_km2 = sum(o.shared_km2 for o in found if (o.first < len(pieces_a)) != (o.second < len(pieces_a)))
+    cov = coverage_report("border", pieces_a + pieces_b, tolerance, lambda _line: None)
+    matches = (cov["valid_cleaned"] and cov["valid_after"] and cov["overlap_km2"] < 1e-9
+               and cov["cleaning_moved_km2"] <= moved_limit_km2 and both_km2 <= moved_limit_km2)
+    return {"matches": bool(matches), "border": True, "in_both_km2": both_km2,
+            "valid_before": cov["valid_before"], "valid_cleaned": cov["valid_cleaned"],
+            "valid_after": cov["valid_after"], "moved_km2": cov["cleaning_moved_km2"],
+            "overlap_after_km2": cov["overlap_km2"], "parts": len(pieces_a) + len(pieces_b),
+            "seconds": time.perf_counter() - start}
+
+
+def border_line(name_a: str, name_b: str, row) -> str:
+    r = row.result
+    if not r.get("border"):
+        text = f"{name_a} and {name_b}: no land border between them in the land read."
+    else:
+        text = (f"{name_a} and {name_b}: meet exactly: {'yes' if row.matches else 'no'}. Land in both before "
+                f"cleaning {r['in_both_km2']:,.3f} km2; cleaning moved {r['moved_km2']:,.3f} km2; valid after "
+                f"simplifying: {'yes' if r['valid_after'] else 'no'}.")
+    if row.from_store:
+        text += " Kept from an earlier run, as neither country was rebuilt."
+    if row.rebuilt:
+        text += f" Rebuilt to check again: {', '.join(row.rebuilt)}."
+    if row.still_wrong:
+        text += " Still does not match after rebuilding, so the fault is in the data or the build."
+    return text
+
+
 def check_places(places_file: Path, pack_path: Path, log: Log) -> tuple[int, int, list[str]]:
     from mapdata.stages.lookup import Lookup, open_pack
 
@@ -808,10 +946,38 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
     log(f"Repairs: {len(ex['repairs'])}.")
     for r in ex["repairs"][:30]:
         log(f"  {r}")
+    water_read = {}
+    if config.get("inland_water"):
+        wcache = water_cache_path(config, folders, gol)
+        if wcache.is_file():
+            log("The inland water was read from the cache of an earlier run.")
+        else:
+            log("Reading the inland water in a separate process, which ends when it has finished.")
+            GUARD["paused"] = True
+            try:
+                done = subprocess.run([sys.executable, "-m", "mapdata", "--data", str(folders.root),
+                                       "spike-s2-water", str(stage)], cwd=str(ROOT))
+            finally:
+                GUARD["paused"] = False
+            if done.returncode != 0 or not wcache.is_file():
+                log("The process reading the inland water failed.")
+                return 2
+        water_read = pickle.loads(wcache.read_bytes())
     timings["extract"] = time.perf_counter() - t
     by_id = {a.id: a for a in countries}
     settings = {c["id"]: c for c in config["countries"]}
     region_level = config.get("region_level", 4)
+
+    log.heading("Areas held twice (discussion point 104)")
+    held_rows = []
+    for (cid, level), divs in sorted(divisions.items()):
+        divisions[(cid, level)], held = held_twice.resolve(by_id[cid], divs)
+        for line in held_twice.report_lines(held, english, lambda i: english(by_id[i])):
+            log(f"Level {level}. {line}")
+        held_rows.extend({"country": cid, "level": level, "kept": h.kept.id, "dropped": h.dropped.id,
+                          "decided_by": h.decided_by, "km2": h.shared_km2} for h in held)
+    if not held_rows:
+        log("No area is held twice in any layer.")
 
     log.heading("Land polygons")
     t = time.perf_counter()
@@ -834,14 +1000,30 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
     land = clip.Land(tiles)
     timings["land"] = time.perf_counter() - t
 
+    log.heading("Countries kept from earlier runs")
+    record = countiesmod.load_record(RECORD)
+    store = kept.Store(working / "kept")
+    prints = {a.id: country_print(a.id, config, settings, record, shapes_for_land, divisions, units, gol, lp)
+              for a in countries}
+    bundles = {cid: store.load(cid, fp) for cid, fp in prints.items()}
+    fresh = {cid for cid, b in bundles.items() if b is None}
+    kept_names = [english(by_id[c]) for c in prints if c not in fresh]
+    log(f"Each country is kept on its own, under a fingerprint of the planet file, the land polygons, its shapes "
+        f"as read, its settings and the code. Kept from an earlier run: {', '.join(kept_names) or 'none'}. "
+        f"To build: {', '.join(english(by_id[c]) for c in prints if c in fresh) or 'none'}.")
+
     log.heading("Cut to the land")
     t = time.perf_counter()
-    items = [(a.id, shapes_for_land[a.id]) for a in countries]
-    items.extend((u.id, u.geom) for u in units)
+    clipped = {}
+    for cid, b in bundles.items():
+        if b is not None:
+            clipped.update(b["land"])
+    items = [(a.id, shapes_for_land[a.id]) for a in countries if a.id in fresh]
+    items.extend((u.id, u.geom) for u in units if u.parent in fresh)
     for (cid, level), divs in divisions.items():
-        if level == region_level:
+        if level == region_level and cid in fresh:
             items.extend((d.id, d.geom) for d in divs)
-    clipped = clip_all(land, items, working, log, workers)
+    clipped.update(clip_all(land, items, working, log, workers))
     timings["clip"] = time.perf_counter() - t
     log(f"Cut {len(items)} areas to the land in {timings['clip']:.0f} seconds.")
     for a in countries:
@@ -850,12 +1032,16 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
 
     log.heading("Counties (discussion point 101)")
     t = time.perf_counter()
-    record = countiesmod.load_record(RECORD)
     county_results = {}
     for c in config["countries"]:
         if not c.get("divisions"):
             continue
         country = by_id[c["id"]]
+        if bundles[country.id] is not None:
+            res = county_results[country.id] = bundles[country.id]["counties"]
+            log(f"{english(country)}: kept from an earlier run, {len(res.counties)} counties from level"
+                f"{'s' if len(res.levels_used) != 1 else ''} {', '.join(map(str, res.levels_used)) or 'none'}.")
+            continue
         levels, from_record = countiesmod.levels_for(record, country.id)
         cboxes = c.get("county_boxes")
         country_raw = limited(shapes_for_land[country.id], cboxes)
@@ -880,7 +1066,8 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
             log(f"  and {len(res.filled) - 20} more.")
         region_names = {d.id: english(d) for d, _g in regions}
         countiesmod.update_record(RECORD, country.id, english(country), res, region_names, f"spike S2 stage {stage}")
-    log(f"The counties record is updated: {RECORD.relative_to(ROOT).as_posix()}.")
+    if any(c.get("divisions") and c["id"] in fresh for c in config["countries"]):
+        log(f"The counties record is updated: {RECORD.relative_to(ROOT).as_posix()}.")
     timings["counties"] = time.perf_counter() - t
 
     log.heading("Land in no country, and in no region")
@@ -925,7 +1112,7 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
         regs = [(d, clipped[d.id]) for d in divisions[(a.id, region_level)]]
         far[a.id] = far_parts(english(a), clipped[a.id], regs, log)
 
-    log.heading("Neighbours after simplifying (AD-16)")
+    log.heading("Each country's own layers: neighbours after simplifying, and overlaps (AD-16)")
     t = time.perf_counter()
     cov = []
     tol = config.get("simplify_tolerance", 0.005)
@@ -947,28 +1134,92 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
                 f"(Memory: this build {mine:,.0f} MB, free {free:,.0f} MB.)")
         return land_shapes
 
+    # Each country's own layers, its regions and counties, are checked only
+    # when it is built; a kept country's results are kept with it.
+    layer_checks: dict[str, dict] = {a.id: {"lines": [], "coverage": [], "overlaps": []} for a in focus}
     jobs = []
-    if config.get("country_layer_check", True) and len(countries) > 1:
-        jobs.append(("Countries", [clipped[a.id] for a in countries], [shapes_for_land[a.id] for a in countries]))
     for a in focus:
+        if a.id not in fresh:
+            continue
         divs = divisions[(a.id, region_level)]
-        jobs.append((f"{english(a)} level {region_level}", [clipped[d.id] for d in divs], [d.geom for d in divs]))
+        jobs.append((a.id, f"{english(a)} level {region_level}", [clipped[d.id] for d in divs],
+                     [d.geom for d in divs]))
         cs = county_results[a.id].counties
-        jobs.append((f"{english(a)} counties", [c.geom for c in cs], [c.area.geom for c in cs]))
+        jobs.append((a.id, f"{english(a)} counties", [c.geom for c in cs], [c.area.geom for c in cs]))
     from mapdata import parallel
-    log(f"The {len(jobs)} layers are checked {min(workers, len(jobs))} at a time.")
-    with parallel.pool(min(workers, max(1, len(jobs)))) as executor:
-        futures = []
-        for layer_name, land_shapes, raw_shapes in jobs:
-            shapes = prepare(layer_name, land_shapes, raw_shapes)
-            if shapes is not None:
-                futures.append(executor.submit(_coverage_job, layer_name, shapes, tol))
-        for future in futures:
-            lines, result = future.result()
-            for line in lines:
-                log(line)
-            cov.append(result)
+    if jobs:
+        log(f"The {len(jobs)} layers of the countries built are checked {min(workers, len(jobs))} at a time.")
+        with parallel.pool(min(workers, max(1, len(jobs)))) as executor:
+            futures = []
+            for owner, layer_name, land_shapes, raw_shapes in jobs:
+                shapes = prepare(layer_name, land_shapes, raw_shapes)
+                if shapes is not None:
+                    futures.append((owner, executor.submit(_coverage_job, layer_name, shapes, tol)))
+            for owner, future in futures:
+                lines, result = future.result()
+                layer_checks[owner]["lines"].extend(lines)
+                layer_checks[owner]["coverage"].append(result)
+        # The wider overlap check, on each layer's land: areas with the same
+        # land, or one wholly inside another, as well as partly overlapping.
+        for owner, layer_name, land_shapes, raw_shapes in jobs:
+            names = ([english(d) for d in divisions[(owner, region_level)]] if "level" in layer_name
+                     else [english(c.area) for c in county_results[owner].counties])
+            found = overlaps.find(land_shapes, min_km2=0.001)
+            lines: list[str] = []
+            layer_checks[owner]["overlaps"].extend(overlaps.report(layer_name, found, names, lines.append))
+            layer_checks[owner]["lines"].extend(lines)
+    for a in focus:
+        if a.id not in fresh:
+            layer_checks[a.id] = bundles[a.id]["checks"]
+            log(f"{english(a)}: its layers are kept from an earlier run, with their checks:")
+        for line in layer_checks[a.id]["lines"]:
+            log(line)
+        cov.extend(layer_checks[a.id]["coverage"])
+    overlap_rows = [r for a in focus for r in layer_checks[a.id]["overlaps"]]
+
+    # Keep each country built in this run on its own.
+    for a in countries:
+        if a.id not in fresh:
+            continue
+        own = [a.id] + [d.id for d in divisions.get((a.id, region_level), []) if a.id in {x.id for x in focus}]
+        own += [u.id for u in units if u.parent == a.id]
+        store.save(a.id, prints[a.id], {"land": {k: clipped[k] for k in own if k in clipped},
+                                         "counties": county_results.get(a.id),
+                                         "checks": layer_checks.get(a.id, {"lines": [], "coverage": [],
+                                                                           "overlaps": []})})
     timings["coverage"] = time.perf_counter() - t
+
+    log.heading("Borders between neighbouring countries (AD-16)")
+    t = time.perf_counter()
+    ids = [a.id for a in countries]
+    pairs = kept.neighbours(ids, [shapes_for_land[i] for i in ids])
+    limit = config.get("border_moved_limit_km2", BORDER_MOVED_LIMIT_KM2)
+    log(f"Each pair of neighbours is checked within about {window_km or 5} km of their border, again only when "
+        f"one of them was built in this run. Pairs of neighbours: {len(pairs)}. A border matches when the land "
+        f"is a valid coverage after cleaning and simplifying, and cleaning moves at most {limit} km2.")
+
+    def check_pair(x, y):
+        return border_check(shapes_for_land[x], shapes_for_land[y], clipped[x], clipped[y], window_km or 5, tol,
+                            limit)
+
+    def rebuild(cid):
+        log(f"{english(by_id[cid])}'s border does not match, so it is cut to the land again, without its kept copy.")
+        clipped[cid] = clip.polygonal(land.clip(shapes_for_land[cid]))
+        b = store.load(cid, prints[cid]) or {"land": {}, "counties": county_results.get(cid),
+                                             "checks": layer_checks.get(cid)}
+        b["land"][cid] = clipped[cid]
+        store.save(cid, prints[cid], b)
+        return prints[cid]
+
+    border_rows = kept.recheck_borders(pairs, prints, set(fresh), store, check_pair, rebuild,
+                                       extra=f"{window_km}-{tol}-{limit}")
+    for row in border_rows:
+        log(border_line(english(by_id[row.first]), english(by_id[row.second]), row))
+    wrong = [r for r in border_rows if not r.matches]
+    log(f"Borders that match: {len(border_rows) - len(wrong)} of {len(border_rows)}. Checked in this run: "
+        f"{sum(not r.from_store for r in border_rows)}; kept from an earlier run: "
+        f"{sum(r.from_store for r in border_rows)}.")
+    timings["borders"] = time.perf_counter() - t
 
     am = []
     if config.get("antimeridian"):
@@ -985,6 +1236,28 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
             log(f"{english(by_id[cid])}: {ours:,.0f} km2 of land, Wikidata gives {km2:,.0f} km2, "
                 f"a difference of {(ours - km2) / km2 * 100:+.1f}%.")
 
+    area_rows = []
+    if water_read:
+        log.heading("Areas against Wikidata, without the inland water")
+        t = time.perf_counter()
+        log("The land polygons count lakes, lagoons, reservoirs and wide rivers as land. Here the inland water "
+            "mapped in OSM is measured on each country's land and taken away before comparing with Wikidata.")
+        explained = config.get("area_explained") or {}
+        for cid in config["inland_water"]:
+            km2 = (config.get("wikidata_km2") or {}).get(cid)
+            if not km2:
+                log(f"{english(by_id[cid])}: no Wikidata area in the settings, so it is not compared.")
+                continue
+            got = water_read.get(cid, {"water": [], "wetland": []})
+            check = inland_water.AreaCheck(english(by_id[cid]), area_km2(clipped[cid]),
+                                           inland_water.on_land(clipped[cid], got["water"]),
+                                           inland_water.on_land(clipped[cid], got["wetland"]), km2,
+                                           explained.get(cid))
+            for line in check.lines():
+                log(line)
+            area_rows.append(check.row())
+        timings["areas"] = time.perf_counter() - t
+
     log.heading("Pack")
     records, geoms = [], []
     # The Countries layer: a country with units is replaced by them (6.12).
@@ -999,14 +1272,15 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
         for d in divisions[(a.id, region_level)]:
             if d.id in unit_ids:
                 continue  # already in the Countries layer as a unit
-            records.append({"id": d.id, "name": english(d), "local_name": d.name, "layer": "regions",
-                            "type": f"level {d.level}", "parent": a.id, "area_km2": round(area_km2(clipped[d.id]), 3)})
+            records.append(disputed({"id": d.id, "name": english(d), "local_name": d.name, "layer": "regions",
+                                     "type": f"level {d.level}", "parent": a.id,
+                                     "area_km2": round(area_km2(clipped[d.id]), 3)}, d))
             geoms.append(clipped[d.id])
         for c in county_results[a.id].counties:
-            records.append({"id": c.area.id + ("#county" if c.region_fill else ""), "name": english(c.area),
-                            "local_name": c.area.name, "layer": "counties",
-                            "type": "region used as county" if c.region_fill else f"level {c.level}",
-                            "parent": a.id, "area_km2": round(area_km2(c.geom), 3)})
+            records.append(disputed({"id": c.area.id + ("#county" if c.region_fill else ""), "name": english(c.area),
+                                     "local_name": c.area.name, "layer": "counties",
+                                     "type": "region used as county" if c.region_fill else f"level {c.level}",
+                                     "parent": a.id, "area_km2": round(area_km2(c.geom), 3)}, c.area))
             geoms.append(c.geom)
     keep = [i for i, g in enumerate(geoms) if not g.is_empty]
     records, geoms = [records[i] for i in keep], [geoms[i] for i in keep]
@@ -1056,8 +1330,20 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
         "no_country": [vars(s) for s in no_country],
         "region_gaps": {k: [vars(s) for s in v] for k, v in level_gaps.items()},
         "repairs": ex["repairs"], "peak_memory_mb": peak_memory_mb(), "total_seconds": total_s, "pictures": pics,
+        "held_twice": held_rows, "overlaps": overlap_rows, "areas_without_water": area_rows,
+        "kept": {"built": sorted(fresh), "kept": sorted(set(prints) - fresh)},
+        "borders": [{"first": r.first, "second": r.second, "matches": r.matches, "from_store": r.from_store,
+                     "rebuilt": r.rebuilt, "still_wrong": r.still_wrong, **r.result} for r in border_rows],
     }
+    failed = []
+    if passed != total:
+        failed.append(f"{total - passed} of {total} places")
+    if wrong:
+        failed.append(f"{len(wrong)} borders between neighbours")
+    if any(not r["passed"] for r in area_rows):
+        failed.append(f"{sum(not r['passed'] for r in area_rows)} areas against Wikidata")
+    log(f"Checks that failed: {', '.join(failed)}." if failed else "Every check passed.")
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
     (out_dir / "report.txt").write_text("\n".join(log.lines) + "\n", encoding="utf-8")
     log(f"Report: {out_dir / 'report.txt'}")
-    return 0 if passed == total else 1
+    return 0 if not failed else 1

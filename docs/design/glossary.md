@@ -43,6 +43,9 @@ Older documents written before this glossary, such as architecture section 6 and
 * Land tile: one shape in the land polygons file. It is a whole small island, or a slice of a bigger island or a continent, cut along the lines of latitude and longitude at every whole degree. No land tile is bigger than one degree each way, and neighbouring land tiles overlap very slightly.
 * Reading box: a rectangle, given by its west, south, east and north edges in degrees, that says which land tiles a build reads. They are listed in the build's configuration, such as mapdata/config/s2_stage1.yaml.
 * Land index: the land polygons converted once, after each download, into a form a build can read in part: the bounding box of every land tile in one list, and the land tiles themselves one after another. A build finds the land tiles in its reading boxes from the list and reads only those. It is kept in the data folder's tobymap\working folder.
+* Gap: land in a country that is in none of the areas chosen so far for a layer. After Belgium's provinces, the Brussels-Capital Region is a gap, because it is in no province.
+* Sliver: a thin part of a gap that is there only because two outlines do not quite match, such as an area's coast in OSM and the coast of the land polygons. Slivers are measured and counted, but they are not missing areas.
+* Grid square: one square of a grid along lines of latitude and longitude. A large shape is cut along the grid so that each step works on a small part of it. In the counties step, the grid squares are a quarter of a degree each way.
 * Bounding box: the smallest rectangle, with edges along lines of latitude and longitude, that contains a shape.
 * Trimming: removing the sea from an area by keeping only the land tiles inside it, cutting those that cross its boundary.
 
@@ -71,6 +74,16 @@ Older documents written before this glossary, such as architecture section 6 and
 * Drawing tile: a pack tile holding the simplified shapes of one drawing level. Lookups and distances never use them, only the exact shapes.
 * Base pack lite: the Phase 1 world pack, with countries, first-level divisions, oceans and seas, cut to the coast. The full base pack replaces it in Phase 3.
 * Test pack: a small pack built from samples kept in the repository, so the automatic tests never need the data folder (architecture 11.1).
+
+## Building packs
+
+* Settings file: one of the files in mapdata/config that say what a build does: sources.yaml for the sources, a layers file for each group of layers, and a pack file for each pack. docs/data-manager/configuration.md describes every setting.
+* Stage: one step of a build, such as reading the samples or writing the pack. A pack's settings file lists its stages in order.
+* Fingerprint: a long number worked out from everything a stage uses: its settings, its sources, the stage before it and its code. If the fingerprint is the same as last time, the stage's kept results are used and the stage is skipped.
+* Working folder: the folder in the data folder, tobymap\working, where stages keep their results between builds.
+* Created files list: the list, in tobymap\created files.txt, of every file mapdata has made. mapdata overwrites only files on the list, and never deletes any.
+* Run switch: continue.txt, in the repository's top folder. Its first line, yes or no, says whether a long build may carry on. On no, the build stops cleanly and keeps its finished work.
+* Sample: a small file of areas kept in the repository, in tests/samples, that the test pack is built from.
 
 ## Testing
 

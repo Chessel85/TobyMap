@@ -1,6 +1,111 @@
 # Spike S2 findings: countries, coastlines and islands
 
-Task P0-T5. Architecture sections 6.12, 6.13 and 12.3. Stage 1 is complete (1 November). Stage 2 is complete, and stage 3 nearly so (2 November): see the next section. Stage 4, Argentina, is parked.
+Task P0-T5. Architecture sections 6.12, 6.13 and 12.3. Stage 1 is complete (1 November). Stage 2 is complete, and stage 3 nearly so (2 November): see the next section. Stage 4, Argentina, was parked, then dropped on 3 November; Argentina was used instead to check the speed of the counties step.
+
+## Phase 1: build speed trials
+
+Task P1-T16, part 1, as agreed in DP107: for each slow step, at least two approaches are tried on a small dataset, and the fastest that gives the right result is kept. The aim is a faster method, not more cores.
+
+### How the trials were run
+
+* Belgium is the trial dataset. Its settings are in mapdata/config/s2_belgium.yaml, with its check places in tests/acceptance/coastline_places_belgium.yaml. It is built from the planet file of 26 October 2026, which was downloaded and made into a GeoDesk library on 3 November. Reading Belgium and its four neighbours from it took 30 seconds.
+* Mainland France, with Corsica, is the harder test. It uses stage 1's cached read of the planet file of October 2025, so no planet file was opened. It has 97 areas at level 6, 320 at level 7 and 34,745 at level 8.
+* A new command times the counties step of one country with each method, and each part of it: `python -m mapdata spike-s2-counties belgium`, or for mainland France, `python -m mapdata spike-s2-counties 1 --country osm:r2202162 --within -5.5 41.0 10.0 51.5`. Each method trims areas afresh, not from the cache, so the times can be compared. Each report is kept in the stage's output folder, named by its date and time.
+* Every method's counties are compared with spike S2's method, or with nearby-gap where spike S2's did not finish: the same areas, from the same levels, with land the same to within a square metre, and the same land left in no county. Every method passed this, on both countries.
+* The trials ran on one core, using a few GB of memory, one at a time.
+
+### The counties step
+
+Belgium was too easy to show a difference. Level 6 leaves only Brussels, which level 7 fills, so level 8 is never looked at. Every method took between 2 and 6 seconds, most of it finding the gap.
+
+Mainland France, with the times on the laptop:
+
+1. Spike S2's method, whole-gap, measures each area against the whole gap after trimming it. It was stopped after 15 minutes. By then it had spent 9.4 minutes measuring areas against the gap and 4.5 minutes finding and trimming the gap.
+2. Nearby-gap measures each area against only the grid squares of the gap it touches. 4.7 to 6.6 minutes over four runs.
+3. Covered-first is nearby-gap, but first passes over any area wholly inside one already chosen. 7.3 minutes. Testing 35,000 municipalities against the areas already chosen cost 206 seconds, more than it saved.
+4. Gap-land trims the gap once and measures areas as read against it. Its first version took 9.3 minutes, and its final one 2.2 minutes. Gap-land is now the method the build uses.
+
+Why France was slow, found by timing each part:
+
+* After level 6, mainland France's gap holds only 26 km² of land. But that land is in 186,891 slivers along the coast, with 1.2 million points. They are the strip between the départements' coasts in OSM and the land polygons' coast.
+* Spike S2 measured every area that touched the gap against all of it at once. Kept as one shape for each grid square, measuring one arrondissement still took about a second.
+* Most of the slivers do not meet an area's edge exactly. Cutting the gap makes new points along its edges, which match the areas' own edges only to within rounding. So a test for slivers wholly inside an area, or only touching its edge, could not pass any of them over. In Brittany, 56,255 slivers counted as crossing the region's edge but held 0.29 km² inside it.
+
+What gap-land does, each change timed on mainland France and kept because it was faster:
+
+* The areas already chosen are joined with the union made for shapes that meet only along their edges. If any two overlap, the general union is used instead. Belgium's provinces were joined in 0.1 seconds instead of 0.9.
+* The gap is worked out once, and again only when a level adds a county. Finding the gap fell from 105 seconds to 4.
+* The gap is trimmed once, one grid square at a time, and each sliver gets its own place in a spatial index.
+* An area's land in the gap is found from its outline as read: the areas already chosen near it are taken away, and only what is left is measured against the gap's land. Trimming only removes sea, so this gives exactly the same figure. An area with no land in the gap is never trimmed at all: 99 areas were trimmed instead of about 1,000.
+* With one or two areas chosen nearby, each is taken away in turn, first cut to a rectangle round the area. With more, as for a region, they are joined first. Measuring the areas fell from 45 seconds to 34, and the regions take 14 seconds.
+
+Where mainland France's 2.2 minutes go now:
+
+* trimming the 97 départements: 44 seconds. The full build needs these anyway, keeps them in its cache, and can spread them over its worker processes;
+* measuring 900 areas against the gap: 34 seconds;
+* trimming the gap: 31 seconds;
+* the regions: 14 seconds;
+* everything else: under 10 seconds.
+
+Tried and dropped: cutting each outline into grid squares by halving it repeatedly, instead of one square at a time. It made no difference, because the time was going elsewhere.
+
+### The other steps, on Belgium
+
+The whole Belgium stage took 18 seconds, with a peak of 337 MB of memory, and all 7 check places passed. No step took more than 4 seconds: checking that neighbours meet 4 seconds, the counties 3, land in no country or division 3, the pack 2. So, as the plan says, none of them gets its own trials on Belgium. Checking that neighbours meet was the slowest step of stage 3, mostly the USA's 15,577 counties. It will be timed again on mainland France and in the Europe run, and trialled there if it is still slow.
+
+### Argentina, the check on a country not used in the trials
+
+Mainland France was used to develop gap-land, so the PO chose Argentina as the check instead (3 November): a country the method was not tuned on, which should take about its share of time for its size. Stage 4's settings now use the planet file of 26 October 2026. Reading Argentina, Chile and their neighbours from it took 3 minutes 15 seconds.
+
+* Argentina has 24 regions and, at levels 6, 7 and 8, 658, 1,959 and 2,012 areas.
+* Gap-land took 139 and 151 seconds in two runs, against mainland France's 130. Argentina has 2.78 million km² of land, 5.1 times France's 549,000, so pro rata it could have taken about 11 minutes. It took 1.1 times as long as France, or about a fifth of France's time for each km².
+* France takes longer for its size because of its coast. Its gap is tens of thousands of slivers along a detailed coast, and most of its time goes on trimming. Argentina's time is mostly trimming the gap, 75 to 80 seconds, and the regions, 32 to 38.
+* Nearby-gap took 165 seconds. It chose the same 2,558 counties, with the same land to within a square metre. The only difference was the land left in no county: 47.265 km² against gap-land's 47.281, from rounding in sums of 1.2 million km². The comparison now allows for that.
+
+Argentina's counties also showed a fault in the counties rule, not in the speed. OSM puts Argentina's 528 departamentos and partidos at level 5, which the rule never looks at. So its counties layer is a mix of 2,540 municipalities from levels 6, 7 and 8, with 18 of its 24 provinces used whole where nothing else covers them, such as Buenos Aires and Santa Cruz. This is discussion point 116.
+
+### Each country kept on its own, 3 November
+
+The build program now keeps each country on its own, in the working folder's "kept" folder for the stage. A country is kept under a fingerprint of the planet file, the land polygons, its shapes as read, its settings and the code. A country's kept results are its land, its regions' land, its counties and the checks of its own layers. Its entry in the counties record counts only when it has been corrected by hand, because a record the build worked out itself would be found again.
+
+Borders between countries are now checked one pair of neighbours at a time, within 5 km of their border, instead of the whole Countries layer at once. A border matches when the two countries' land is a valid coverage after cleaning and after simplifying, and cleaning moves at most 1 km². Each pair's result is kept too. After a country is rebuilt, its border with each neighbour is checked again. If a border does not match, the neighbour is cut to the land again without its kept copy, and the border is checked again.
+
+Three runs of Belgium, from the planet file of 26 October 2026:
+
+1. The first run built all five countries and checked all 8 pairs of neighbours, in 48 seconds, 33 of them reading the planet file.
+2. The second run, with nothing changed, kept all five countries and all 8 border checks. It took 6 seconds, most of it finding land in no country and writing the pack.
+3. The third run changed one setting for Luxembourg only, its reading box, without changing its land. Only Luxembourg was rebuilt. Its three borders were checked again; its border with Germany did not match, so Germany was rebuilt and its borders checked again too. Two border checks were kept: France with Belgium, and the Netherlands with Belgium. The setting was then put back.
+
+The border between Germany and Luxembourg does not match, in every run. They share 6.988 km² of land, in two long, thin strips: along the Moselle and the Sauer, from 49.47 to 49.93 degrees north, and along the Our, from 49.95 to 50.13 north. This is the German and Luxembourg condominium: the two countries hold those rivers together, and OSM puts them inside both. It is the same 6.988 km² that cleaning moved in the Countries layer in Belgium's speed trials earlier today, which was not looked into then. Rebuilding cannot change it, and the report says so. How to handle it is discussion point 117.
+
+### Areas held twice (DP104)
+
+* Before anything is cut to the land, each country's areas at each level are searched for two with the same land: each holding at least 99% of the other. Only pairs whose bounding boxes nearly match are measured, so this takes a hundredth of a second for Russia's 86 regions.
+* The copy kept is the one that belongs to the country whose outline holds it, told from its ISO 3166-2 code: the country's own code first, then no code, then another country's code. If the codes cannot tell, the lower identifier is kept and the report says so.
+* The copy kept is marked disputed, and the other's identifier, name and country code are kept with it. In the pack these are two new fields of the feature record, disputed and also_held_as (docs/developer/pack-format.md), for the details to describe the dispute (ANN-6).
+* On stage 3's planet read, from November 2025: Russia's two Sevastopols are found, 3,097 km² inside their outlines as read, including sea. Russia's federal city, osm:r3788485, which has no code, is kept, and Ukraine's city, osm:r1574364, with the code UA-40, is dropped. No other level of Fiji, Kiribati, Russia or the USA holds an area twice.
+
+### The wider overlap check
+
+* The check now finds every pair of areas in a layer whose insides meet, and says which kind: the same land, one wholly inside the other, or partly overlapping, with the land they share. Areas that only touch along their borders are not counted. Spike S2's check missed Sevastopol because it looked only for partly overlapping areas.
+* It runs on each country's regions and counties, and the check of each pair of neighbours measures any land in both countries, including one wholly inside the other. The check after simplifying also counts one area inside another now.
+* On Russia's regions as read in stage 3, it finds exactly one pair, the two Sevastopols, with the same land. On Belgium, no two regions or counties share land.
+
+### Inland water in the area check
+
+* The inland water mapped in OSM is read in its own short-lived process, as the planet file is: natural=water, which covers lakes, lagoons, ponds, reservoirs and rivers mapped as areas, and the older waterway=riverbank and landuse=reservoir. Wetlands are read too, and reported, but not taken away, because they are partly land.
+* The water is measured on the country's land one grid square at a time, so water mapped twice, such as a river that is also a riverbank, is counted once, and water at sea is not counted.
+* A country passes when its land without the water is within 1% of Wikidata's figure, or when its difference is explained in the settings, with the reason in the report.
+* Stage 3's settings read the water for Fiji and Kiribati only. Russia's and the USA's lakes would take a long read, and their Wikidata figures include water anyway.
+* Reading the water for both took under a second. With stage 3's land, from the planet file of November 2025:
+  * Fiji: 18,757 km² of land, of which 78.8 km² is inland water. Without it, 18,678 km², 2.2% more than Wikidata's 18,274. 96 km² of wetlands. The difference is explained in the settings, as you accepted on 2 November, so it passes.
+  * Kiribati: 1,097 km² of land, of which 236.7 km² is inland water. Without it, 861 km², 6.1% more than Wikidata's 811, against 35.3% with it. 21 km² of wetlands. It is not explained, so it fails. That is discussion point 118.
+* These match the spike's own figures for the water, 79 km² for Fiji and 237 km² for Kiribati.
+* This was measured with a short script on stage 3's kept land, not a whole stage 3 run, which would keep the laptop busy for about a quarter of an hour. The next stage 3 run reports it itself.
+
+### Part 1 is done
+
+All four items left over from part 1 are in the build, with tests in tests/mapdata/test_kept_and_checks.py. Stage 1 again and stage 4 (Argentina) are dropped at the PO's request (3 November): stage 1 again would repeat mainland France's regression test, already dropped, and Argentina's counties were already checked in the speed trials. Two smaller items move to P1-T4, as they are part of the world build: Antarctica's area against Wikidata, and the globe check looking only at edges near the 180 degree line. The counties rule using level 5 (DP116) waits for the first pack with a counties layer, as the base pack lite has none. So P1-T16 is done.
 
 ## Stages 2 and 3, 2 November
 
@@ -315,7 +420,7 @@ The lesson from all of these: the slow steps were each an operation on a whole c
 
 ### Still to do
 
-* Stage 1 again: finish the whole run and the comparison once the counties step is faster, or run it with the counties step timed separately.
+* Stage 1 again: dropped by the PO on 3 November, with mainland France's regression run.
 * Antarctica: which definition Wikidata's area uses, and the cause of the 78 km of edges along the 180 degree line that are on one side only.
 * For the Phase 1 pipeline, agreed by the PO on 2 November:
   * Discussion point 104, recommendation accepted: the build lists areas in one layer that cover the same land, keeps the one in the country whose outline holds it (Russia's Sevastopol), marks it disputed, and keeps the other's name and country for its details (ANN-6).
@@ -324,11 +429,11 @@ The lesson from all of these: the slow steps were each an operation on a whole c
 * Fiji's remaining 1.6% is close enough, the PO says; not looked into further.
 * Make the globe check look only at edges near the 180 degree line.
 
-### Stage 4, Argentina: parked
+### Stage 4, Argentina: parked, then dropped
 
 * The PO added Argentina on 2 November, because their earlier work had trouble there with lines that crossed. It tests Tierra del Fuego, an island shared with Chile, the long Andes border, the undecided border on the Southern Patagonian Ice Field, and the Falkland Islands.
 * Its settings and check places are ready: mapdata/config/s2_stage4.yaml and tests/acceptance/coastline_places_stage4.yaml. The first try stopped twice, once on the memory guard during the planet read and once because OSM names Paraguay "Paraguay / Paraguái"; the name is corrected. Bolivia's and the Falkland Islands' names are not yet checked against OSM.
-* Parked by the PO on 2 November, to be picked up later.
+* Parked by the PO on 2 November, then dropped on 3 November. Argentina was used instead to check the speed of the counties step, in "Phase 1: build speed trials" above.
 
 Everything below this point is about stage 1, the UK, France and Spain, from 1 November.
 

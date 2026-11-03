@@ -177,8 +177,8 @@ SCP-1, SCP-2 (coverage test), PLT-1, PLT-2 and PLT-3 (builds), PLT-5, ACC-1, ACC
 * P1-T14 Packaging: the Windows installer and portable zip, extended from the Phase 0 shell installer, and the web version on GitHub Pages. The first GitHub release is made when Phase 1 is accepted. No Mac download yet (AD-20).
 * P1-T15 Diagnostics: the test trace and "copy diagnostics" command (architecture 10.3).
 * P1-T16 Carried over from spike S2 (docs/spikes/S2-countries-coastlines.md), moved here by the PO on 2 November:
-  * Make the counties step faster (DP101), then finish stage 1's whole run (the UK, France and Spain) and compare it with the 1 November results, using `mapdata spike-s2-compare`.
-  * Stage 4, Argentina: Tierra del Fuego shared with Chile, the Andes border, the undecided border on the Southern Patagonian Ice Field, and the Falkland Islands. Parked by the PO; its settings are ready.
+  * Make the counties step faster (DP101), then finish stage 1's whole run (the UK, France and Spain) and compare it with the 1 November results, using `mapdata spike-s2-compare`. The comparison was dropped by the PO on 3 November, with mainland France's regression run.
+  * Stage 4, Argentina: Tierra del Fuego shared with Chile, the Andes border, the undecided border on the Southern Patagonian Ice Field, and the Falkland Islands. Parked by the PO, then dropped on 3 November: Argentina's counties were checked in the speed trials instead.
   * Areas held twice in one layer, such as Sevastopol, handled as agreed in DP104.
   * The area check takes away the inland water mapped in OSM before comparing with Wikidata, and reports the water separately.
   * The overlap check also finds one area wholly inside another.

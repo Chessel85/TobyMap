@@ -27,6 +27,14 @@ Older documents written before this glossary, such as architecture section 6 and
 * Artificial edge: an edge of a shape that is only there because the shape was split, along the 180 degree line or at the South Pole. It is never a border or coast, never announced and never outlined (AD-17).
 * Counties record: the list, in mapdata/config/county_levels.yaml, of which levels make up each country's Counties layer (DP101). The build writes it once per country; a corrected entry is never overwritten.
 
+## OpenStreetMap data
+
+* Node: one point in OSM, with its latitude and longitude.
+* Way: a line in OSM, made of nodes in order. A stretch of border between two counties is one way.
+* Relation: a group of ways in OSM, together with what they make. A county's boundary is one relation, made of the ways around it.
+* Planet file: the whole of OpenStreetMap in one download, made each week and named by its date, such as the planet file of 26 October 2026. It is about 96 GB, and is kept in the data folder.
+* GeoDesk library: a copy of one planet file, converted by the GeoDesk program so that a build can search it quickly. A build can then find, for example, every country's boundary without reading the whole planet file. It is one file ending in .gol, of about 140 GB, and is made once for each planet file. Making it takes some hours and most of the laptop's memory.
+
 ## The land polygons
 
 * Land polygons: the worldwide OSM product that holds all the land in the world, with the sea removed (AD-15).
@@ -40,13 +48,26 @@ Older documents written before this glossary, such as architecture section 6 and
 
 * Pack: one file of map data that the application reads (AD-5).
 * Record: one named, compressed item in a pack, such as the manifest, the list of areas, or one pack tile. The application reads a pack one record at a time, from disk or later over the internet.
+* Directory: the list at the end of a pack of every record's name, where it starts and how long it is. A reader reads it first, then only the records it needs.
+* Manifest: the record that describes a pack: its name, sources, licence, and how it is laid out.
+* Feature record: what a pack holds about one area apart from its shape, such as its names, type, size and the country it is in.
+* Compact coordinates: the way a pack stores each point of a shape, as a whole number of ten-millionths of a degree (about 1 cm), and as the difference from the point before. It makes packs about five times smaller.
 * Read: fetching one record from a pack. In the web version, each read will be one download, so the number of reads matters.
 * Pack tile: one cell of the grid that a pack's shapes are stored in. Each pack tile is stored as one record.
 * Tile level: the size of a pack tile. At tile level 3, a pack tile is 45 degrees wide and 22.5 degrees tall. Each level up halves both, so one pack tile is split into four. A pack tile is split only where a shape in it has more than 4,000 points, so pack tiles are small where coasts are detailed and big elsewhere.
-* Tile entry: what one pack tile holds for one area. It is either the part of the area's shape inside the tile, or a note that the area covers the whole tile.
+* Tile entry: what one pack tile holds for one area. It is either the part of the area's shape inside the pack tile, or a covered note.
+* Covered note: a tile entry that says an area covers the whole of a pack tile, so no shape needs storing there.
 * Lookup: finding every area at a point. It reads at most one pack tile at each tile level.
 * Decoding: turning a pack tile's stored bytes back into shapes that can be tested against a point. Compact coordinates must be decoded before use.
 * Pack tile cache: the decoded shapes of pack tiles read recently, kept in memory, so a lookup nearby needs no reading or decoding.
+* Drawing level: one degree of simplification of a pack's shapes, used to draw the map at a range of zooms. Small parts are left out at each drawing level, so a frame stays quick to draw (architecture 6.9).
+* Drawing tile: a pack tile holding the simplified shapes of one drawing level. Lookups and distances never use them, only the exact shapes.
+* Base pack lite: the Phase 1 world pack, with countries, first-level divisions, oceans and seas, cut to the coast. The full base pack replaces it in Phase 3.
+* Test pack: a small pack built from samples kept in the repository, so the automatic tests never need the data folder (architecture 11.1).
+
+## Testing
+
+* Acceptance script: a small file of key presses and the announcements expected after each, tied to requirement IDs. It runs as an automatic test, and is also turned into the PO's checklist, so both check the same thing (architecture 11.3).
 
 ## Hosting and the browser
 

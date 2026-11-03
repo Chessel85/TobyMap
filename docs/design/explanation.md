@@ -97,3 +97,225 @@ Sharing the work between cores helps, but on 2 November the biggest gains came f
 * matching Norway's 150,000 island names to its land: from over 25 minutes to seconds, by preparing each part of the land once;
 * checking that neighbours meet: from over half an hour per layer to under two minutes, by checking only within 5 km of the land borders;
 * looking up a place in the pack: from 0.75 seconds to 0.02 seconds, by not letting one pack tile hold too many points.
+
+## How map data gets from the planet file into a pack
+
+### The short version
+
+1. OpenStreetMap publishes the whole map every week as one planet file.
+2. The GeoDesk program converts the planet file once into a GeoDesk library, which can be searched quickly.
+3. A build asks the GeoDesk library for the areas it needs, such as every country, and adds other sources, such as the land polygons and the VLIZ seas.
+4. The build trims, cleans and checks the areas, works out facts about each one, and writes them into a pack.
+5. The application reads the pack. It never reads the planet file or the GeoDesk library.
+
+### Words used in this section
+
+These are defined in full in the glossary.
+
+* Node: one point in OSM, with its latitude and longitude.
+* Way: a line in OSM, made of nodes in order.
+* Relation: a group of ways, together with what they make, such as a county's boundary.
+* Planet file: the whole of OSM in one download.
+* GeoDesk library: a planet file converted so that it can be searched quickly.
+* Layer: all the areas of one kind in a pack, such as the Countries layer.
+
+### Step 1: the planet file
+
+* The planet file is the whole of OpenStreetMap in one compressed file. The one dated 26 October 2026 is 95.6 GB, and it took 53 minutes to download on 3 November.
+* OSM doesn't store finished shapes. It stores nodes, ways and relations, each with labels called tags that say what it is. For example:
+  * Hampshire is one relation, tagged as an administrative boundary at level 6, with the name Hampshire;
+  * its members are the ways around its edge. The way along the border with Dorset is one of them, and the same way is also a member of Dorset's relation. That's why neighbouring areas in OSM meet exactly: they share the same line;
+  * each way is a list of nodes, and only the nodes have positions.
+* So to get Hampshire's shape, a program must find the relation, find each of its ways, find each node of each way, and join the ways end to end into a closed outline.
+* The planet file is arranged for copying, not for searching. Finding Hampshire in it means reading the whole file from start to end.
+
+### Step 2: the GeoDesk library
+
+* GeoDesk is a free program for searching OSM data quickly. Its command `gol build` reads the planet file once and writes a GeoDesk library, a file ending in .gol.
+* It files every node, way and relation by where it is on the map, the way a library files books by subject, so a search can go straight to one part of the world.
+* A build can then ask, for example, "every area tagged as an administrative boundary at level 2, in the Europe reading box". GeoDesk finds the relations, follows them to their ways and nodes, and gives back each country's finished outline.
+* It takes a few hours and most of the laptop's memory, and the result is about 140 GB. It is made once for each planet file, and every build after that uses it.
+* The GeoDesk library leaves out some details a build never needs, such as who last edited each feature.
+
+### Step 3: picking out the areas
+
+For the base pack lite in Phase 1, the build asks the GeoDesk library for:
+
+* every country, at OSM level 2;
+* every first-level division, at OSM level 4, such as England, Scotland, Wales and Northern Ireland, or Spain's autonomous communities.
+
+Each one comes back as an outline that includes the sea out to 12 nautical miles. Some need repair first. For example, a mapper may have left a small gap where two ways should meet, so the outline doesn't close. The build closes small gaps like this and lists every repair in its report.
+
+### Step 4: adding the other sources
+
+OSM's boundaries aren't enough on their own, so the build adds:
+
+* the land polygons: all the land in the world, made by OSM from the coastlines. They are used to remove the sea from each area;
+* the VLIZ seas: the names and shapes of the oceans and seas, such as the English Channel and the North Atlantic Ocean. Without them, a point at sea would have no name.
+
+Each source's licence and date are recorded, and go into the pack's attribution. The planet file and the land polygons should be from close dates, so that the coastline in one matches the coastline in the other. That's why the planet file of 26 October 2026 was downloaded on 3 November, to go with the land polygons of 31 October 2026.
+
+### Step 5: trimming and cleaning
+
+* Each area is trimmed to the coast with the land polygons. The section "How the build trims countries to the coastline" explains this.
+* The seas get the land taken away, so a sea and the land beside it meet exactly at the coast.
+* Each layer is cleaned, so that neighbours meet with no gaps and no overlaps. For example, where OSM's borders of Burgos and Soria in Spain overlap, the overlap is given to the one that shares the longer border with it.
+* Every point on Earth must end up in a country or a sea (LOC-6). Discussion point 114 asks what you should hear where the data gives no name, such as Bir Tawil, which no country claims.
+
+### Step 6: working out facts about each area
+
+The build works out what the application needs to know about each area, without measuring anything while you're using it. For example, for Hampshire:
+
+* its name, and its type, such as "county";
+* its size: 3,674 square kilometres of land;
+* the areas it is in: England and the United Kingdom;
+* a colour number different from every neighbour's, so neighbours look different on the map;
+* a point on its land, used when you jump to it.
+
+### Step 7: simplifying for drawing
+
+The exact shapes have far too many points to draw the whole world quickly. The UK alone has 2.2 million. So the build also makes simpler copies for drawing, at several drawing levels. At the simplest, used when the whole world is on screen, the UK keeps its main islands and leaves out the thousands of rocks. These simple copies are only ever used for drawing. Where you are, and how far away things are, always come from the exact shapes.
+
+### Step 8: writing the pack
+
+The build cuts every shape into pack tiles and writes the pack, with its manifest, attribution and checksum. The next section explains what is inside.
+
+### Step 9: checking
+
+Before a pack is finished, the build checks it and writes a report. For example:
+
+* a grid of points over the whole Earth, every quarter of a degree: each point must be in a named country or sea;
+* check places with known answers, such as a point 2 km off Brittany, which must be in the sea, and points either side of the 180 degree line in Fiji;
+* building it twice from the same sources gives exactly the same file.
+
+### Saving work between builds
+
+Each step keeps its results in the data folder's tobymap\working folder. If a step's sources and settings haven't changed since last time, the next build reuses its results and skips it. So a change to the colours doesn't mean reading the GeoDesk library again.
+
+## What is inside a pack
+
+### Words used in this section
+
+These are defined in full in the glossary.
+
+* Pack: one file of map data that the application reads.
+* Record: one stored item in a pack, compressed separately from the others.
+* Directory: the list of every record's name and where it is in the file.
+* Manifest: the record that describes the pack.
+* Feature record: what the pack knows about one area, apart from its shape.
+* Pack tile: one rectangle of a grid over the world, holding the shapes inside it. Each pack tile is one record.
+* Tile level: the size of a pack tile. Each level up halves the width and height.
+* Tile entry: what one pack tile holds for one area: either the part of its shape inside the pack tile, or a covered note.
+* Covered note: a tile entry that says the area covers the whole pack tile.
+
+### The example used in this section
+
+The examples are taken from a real pack: the one from spike S2, stage 1, built on 2 November 2026. It holds the UK, France, Spain and their neighbours: 21 countries, 42 regions and 287 counties. It is 38.4 MB. The Phase 1 pack format adds more records, but the ideas are the same.
+
+### One file, many records
+
+A pack is like a reference book with its contents page at the back.
+
+* The pages are the records. Each record is compressed on its own, so any one of them can be read without reading the rest.
+* The contents page is the directory. It lists every record by name, with where it starts in the file and how long it is.
+* To open a pack, the application reads the last few bytes of the file, which say where the directory is. Then it reads the directory, and after that only the records it needs.
+
+The example pack has 5,318 records:
+
+* the manifest;
+* the feature records, as one list;
+* 5,316 pack tiles.
+
+This matters most in the web version. There, each read can be one download, so the browser fetches only the few records for where you are, not the whole pack.
+
+### The manifest
+
+The manifest describes the pack. In the example pack it says:
+
+* its name, s2-stage1;
+* its source, the GeoDesk library made from the planet file;
+* its licence, ODbL 1.0, OpenStreetMap contributors;
+* that shapes are stored in compact coordinates;
+* its tile levels, 3 to 17.
+
+The Phase 1 manifest adds the pack's version and date, the application versions it works with, every source with its licence and date, its layers, and its drawing levels.
+
+### Feature records
+
+Each area has one feature record. Two from the example pack:
+
+* the United Kingdom: identifier osm:r62149, in the Countries layer, of type country, 243,533 square kilometres;
+* Hampshire: identifier osm:r172799, in the Counties layer, 3,674 square kilometres, and in the United Kingdom.
+
+The identifier is the area's number in OSM, so osm:r62149 means OSM relation 62149. It stays the same in every pack, so a bookmark to it keeps working. In Phase 1, each record also holds the other facts from step 6, such as the colour number and a point on the land.
+
+### Pack tiles: a grid over the world
+
+The pack's shapes are stored in a grid of rectangles over the world, made of lines of latitude and longitude.
+
+* At tile level 3, the world is split into 8 columns, each 45 degrees wide, and 8 rows, each 22.5 degrees tall, so 64 pack tiles in all. For example, the level 3 pack tile around Winchester runs from 45 degrees west to the Greenwich meridian, and from 45 to 67.5 degrees north. It holds Ireland, most of Great Britain, Iceland, the Faroe Islands and a large part of the North Atlantic.
+* Each level up splits every pack tile into four, by halving its width and its height. Around Winchester:
+  * at level 4, a pack tile is 22.5 degrees by 11.25;
+  * at level 9, it is about 49 km east to west by 39 km north to south;
+  * at level 10, about 24 km by 20 km;
+  * at level 17, the smallest in the example pack, about 190 metres by 150.
+* Pack tiles are rectangles in degrees, not squares. On the ground they get narrower towards the poles, because the lines of longitude come closer together. A level 10 pack tile is about 39 km wide at the equator but 24 km wide at Winchester.
+* A pack tile is stored only where something is in it. A pack holding only Europe has no pack tiles over the Pacific.
+
+### How a shape is placed into pack tiles
+
+Each area's shape is put into the grid by one rule: a tile entry may hold at most 4,000 points.
+
+1. The build starts at level 3, with the part of the shape inside each level 3 pack tile.
+2. If that part has 4,000 points or fewer, it is stored whole as a tile entry in that pack tile.
+3. If it has more, it is cut into the four smaller pack tiles at the next level, and each of those is checked in the same way.
+4. If a pack tile lies wholly inside the area, there is no shape to store. Its tile entry is just a covered note, which says "this area covers all of this pack tile".
+
+Three examples from the example pack:
+
+* Aberdeen City is a small area with a simple shape of 3,416 points. It is stored whole, in the level 3 pack tile.
+* Hampshire has more than 4,000 points, so it is cut into smaller pack tiles. Around Winchester, the level 10 pack tile, 24 km by 20 km, lies wholly inside Hampshire. Its tile entry is a covered note, and that whole pack tile takes 15 bytes in the file.
+* The UK has 2.2 million points, mostly along its coast. Around Winchester, far from the coast, it is a covered note at level 9. Around Skye, the coast is so detailed that the shapes are cut down to level 11, where a pack tile is about 11 km by 10 km. That pack tile holds a 276-point stretch of Skye's coast three times: once for the UK, once for Scotland and once for Highland.
+
+So pack tiles are large where shapes are simple, such as inland or over open sea, and small along detailed coasts. In the example pack, most pack tiles are at levels 10 to 12.
+
+A second rule was added after the example pack was made: a pack tile is also split when all its tile entries together hold more than 20,000 points. Without it, one pack tile in southern Norway held 332 municipalities, and every lookup there took three quarters of a second. In the example pack, the level 3 pack tile around Winchester holds 42 whole shapes of small counties and cities, 360 KB in all. In a Phase 1 pack it would be split.
+
+### Compact coordinates
+
+Each point of a shape is a latitude and a longitude. A pack stores them in compact coordinates:
+
+* each number is a whole number of ten-millionths of a degree, which is about 1 cm. So 51.063 degrees north is stored as 510,630,000;
+* each point after the first is stored as the difference from the one before. Points along a coast are close together, so the differences are small numbers, such as 412, and small numbers take only one or two bytes instead of eight.
+
+In spike S2, this made packs about five times smaller. The UK, France and Spain took 38.4 MB instead of 172.3 MB.
+
+### Finding what is at a point: Winchester
+
+Here is what the application does to find what is at Winchester, 51.063 north and 1.308 west, in the example pack.
+
+1. For each tile level from 3 to 17, it works out which pack tile contains Winchester, and looks for that pack tile in the directory. At 7 of the 15 levels a pack tile exists there, so it reads 7 records. At the others there is nothing to read.
+2. It goes through every tile entry in those pack tiles:
+   * a covered note counts at once. The level 9 pack tile has covered notes for the UK and England, and the level 10 pack tile has one for Hampshire;
+   * a shape is tested to see whether Winchester is inside it. Most aren't, because a pack tile holds every area with a shape anywhere in it. For example, the level 8 pack tile holds a shape of the Isle of Wight, and the level 6 pack tile holds Warrington. Both answer no.
+3. It sorts what it found, smallest first: Hampshire, England, United Kingdom.
+
+On 3 November this took about 85 milliseconds, while the laptop was busy building the GeoDesk library. Most of that time went on the 42 shapes in the level 3 pack tile. With the second rule above, spike S2 measured about 20 milliseconds for a lookup. The pack tiles it read are kept in memory, in the pack tile cache, so the next step near Winchester needs few or no new reads.
+
+### Finding what is at a point: the sea off Dorset
+
+At 50.6 north, 1.9 west, a few kilometres off the Dorset coast:
+
+* the level 7 pack tile there holds the UK's south coast, as a shape of 3,733 points;
+* the point is outside it, and outside every other shape in the pack tiles read;
+* so the example pack answers "sea, no land area".
+
+The base pack lite also has the VLIZ seas, so the same point will be in a sea, and you will hear "English Channel".
+
+### Drawing tiles
+
+A Phase 1 pack also holds drawing tiles. They are pack tiles holding the simplified shapes from step 7, one set for each drawing level. They are used only to draw the map. Finding what is at a point, as above, always uses the exact shapes.
+
+### Packs in later phases
+
+The base pack lite covers the whole world, with a few layers. Later phases add other packs. A pack can cover a smaller area, such as Great Britain, and hold other layers, such as roads, and both are stored in the same way, as records, pack tiles and tile entries. Where two installed packs cover the same place, the application uses the more detailed one there (AD-14).

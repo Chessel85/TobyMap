@@ -64,10 +64,48 @@ Mainland France was used to develop gap-land, so the PO chose Argentina as the c
 
 Argentina's counties also showed a fault in the counties rule, not in the speed. OSM puts Argentina's 528 departamentos and partidos at level 5, which the rule never looks at. So its counties layer is a mix of 2,540 municipalities from levels 6, 7 and 8, with 18 of its 24 provinces used whole where nothing else covers them, such as Buenos Aires and Santa Cruz. This is discussion point 116.
 
-### Still to do in part 1
+### Each country kept on its own, 3 November
 
-* Each country built and kept on its own, with its neighbours' borders checked again after a rebuild.
-* Areas held twice (DP104), the inland water in the area check, and the wider overlap check.
+The build program now keeps each country on its own, in the working folder's "kept" folder for the stage. A country is kept under a fingerprint of the planet file, the land polygons, its shapes as read, its settings and the code. A country's kept results are its land, its regions' land, its counties and the checks of its own layers. Its entry in the counties record counts only when it has been corrected by hand, because a record the build worked out itself would be found again.
+
+Borders between countries are now checked one pair of neighbours at a time, within 5 km of their border, instead of the whole Countries layer at once. A border matches when the two countries' land is a valid coverage after cleaning and after simplifying, and cleaning moves at most 1 km². Each pair's result is kept too. After a country is rebuilt, its border with each neighbour is checked again. If a border does not match, the neighbour is cut to the land again without its kept copy, and the border is checked again.
+
+Three runs of Belgium, from the planet file of 26 October 2026:
+
+1. The first run built all five countries and checked all 8 pairs of neighbours, in 48 seconds, 33 of them reading the planet file.
+2. The second run, with nothing changed, kept all five countries and all 8 border checks. It took 6 seconds, most of it finding land in no country and writing the pack.
+3. The third run changed one setting for Luxembourg only, its reading box, without changing its land. Only Luxembourg was rebuilt. Its three borders were checked again; its border with Germany did not match, so Germany was rebuilt and its borders checked again too. Two border checks were kept: France with Belgium, and the Netherlands with Belgium. The setting was then put back.
+
+The border between Germany and Luxembourg does not match, in every run. They share 6.988 km² of land, in two long, thin strips: along the Moselle and the Sauer, from 49.47 to 49.93 degrees north, and along the Our, from 49.95 to 50.13 north. This is the German and Luxembourg condominium: the two countries hold those rivers together, and OSM puts them inside both. It is the same 6.988 km² that cleaning moved in the Countries layer in Belgium's speed trials earlier today, which was not looked into then. Rebuilding cannot change it, and the report says so. How to handle it is discussion point 117.
+
+### Areas held twice (DP104)
+
+* Before anything is cut to the land, each country's areas at each level are searched for two with the same land: each holding at least 99% of the other. Only pairs whose bounding boxes nearly match are measured, so this takes a hundredth of a second for Russia's 86 regions.
+* The copy kept is the one that belongs to the country whose outline holds it, told from its ISO 3166-2 code: the country's own code first, then no code, then another country's code. If the codes cannot tell, the lower identifier is kept and the report says so.
+* The copy kept is marked disputed, and the other's identifier, name and country code are kept with it. In the pack these are two new fields of the feature record, disputed and also_held_as (docs/developer/pack-format.md), for the details to describe the dispute (ANN-6).
+* On stage 3's planet read, from November 2025: Russia's two Sevastopols are found, 3,097 km² inside their outlines as read, including sea. Russia's federal city, osm:r3788485, which has no code, is kept, and Ukraine's city, osm:r1574364, with the code UA-40, is dropped. No other level of Fiji, Kiribati, Russia or the USA holds an area twice.
+
+### The wider overlap check
+
+* The check now finds every pair of areas in a layer whose insides meet, and says which kind: the same land, one wholly inside the other, or partly overlapping, with the land they share. Areas that only touch along their borders are not counted. Spike S2's check missed Sevastopol because it looked only for partly overlapping areas.
+* It runs on each country's regions and counties, and the check of each pair of neighbours measures any land in both countries, including one wholly inside the other. The check after simplifying also counts one area inside another now.
+* On Russia's regions as read in stage 3, it finds exactly one pair, the two Sevastopols, with the same land. On Belgium, no two regions or counties share land.
+
+### Inland water in the area check
+
+* The inland water mapped in OSM is read in its own short-lived process, as the planet file is: natural=water, which covers lakes, lagoons, ponds, reservoirs and rivers mapped as areas, and the older waterway=riverbank and landuse=reservoir. Wetlands are read too, and reported, but not taken away, because they are partly land.
+* The water is measured on the country's land one grid square at a time, so water mapped twice, such as a river that is also a riverbank, is counted once, and water at sea is not counted.
+* A country passes when its land without the water is within 1% of Wikidata's figure, or when its difference is explained in the settings, with the reason in the report.
+* Stage 3's settings read the water for Fiji and Kiribati only. Russia's and the USA's lakes would take a long read, and their Wikidata figures include water anyway.
+* Reading the water for both took under a second. With stage 3's land, from the planet file of November 2025:
+  * Fiji: 18,757 km² of land, of which 78.8 km² is inland water. Without it, 18,678 km², 2.2% more than Wikidata's 18,274. 96 km² of wetlands. The difference is explained in the settings, as you accepted on 2 November, so it passes.
+  * Kiribati: 1,097 km² of land, of which 236.7 km² is inland water. Without it, 861 km², 6.1% more than Wikidata's 811, against 35.3% with it. 21 km² of wetlands. It is not explained, so it fails. That is discussion point 118.
+* These match the spike's own figures for the water, 79 km² for Fiji and 237 km² for Kiribati.
+* This was measured with a short script on stage 3's kept land, not a whole stage 3 run, which would keep the laptop busy for about a quarter of an hour. The next stage 3 run reports it itself.
+
+### Part 1 is done
+
+All four items left over from part 1 are in the build, with tests in tests/mapdata/test_kept_and_checks.py. What part 2 still has: stage 1's whole run and comparison, stage 4 (Argentina), and Antarctica. Two smaller items from the plan are not done: the globe check looking only at edges near the 180 degree line, and the counties rule trying level 5, which you answered in DP116.
 
 ## Stages 2 and 3, 2 November
 

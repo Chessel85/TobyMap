@@ -246,8 +246,10 @@ def coverage_report(layer_name: str, shapes: list, tolerance: float, log: Log) -
     valid_after = bool(shapely.coverage_is_valid(simplified))
     overlap = 0.0
     tree = shapely.STRtree(simplified)
-    for i, j in zip(*tree.query(simplified, predicate="overlaps")):
-        if i < j:
+    # Insides meeting, not just "overlaps", so one area wholly inside another
+    # counts too (P1-T16, the wider overlap check).
+    for i, j in zip(*tree.query(simplified, predicate="intersects")):
+        if i < j and shapely.relate_pattern(simplified[i], simplified[j], "T********"):
             overlap += area_km2(shapely.intersection(simplified[i], simplified[j]))
     took = time.perf_counter() - start
     before = int(shapely.get_num_coordinates(arr).sum())

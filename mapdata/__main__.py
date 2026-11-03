@@ -55,6 +55,8 @@ def build_parser() -> argparse.ArgumentParser:
     cmp_.add_argument("--workers", type=int, default=3, help="processor cores to use (default 3)")
     ex = sub.add_parser("spike-s2-extract", help="used by spike-s2: read the planet file in its own process")
     ex.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
+    wx = sub.add_parser("spike-s2-water", help="used by spike-s2: read the inland water in its own process")
+    wx.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
     ins = sub.add_parser("inspect", help="ask a pack about itself: its manifest, one feature, or what is at a point",
                          description="Examples: inspect test manifest; inspect test feature osm:r62149; "
                                      "inspect test at 50.7 -1.3; inspect test 50.7 -1.3.")
@@ -329,7 +331,7 @@ def main(argv: list[str] | None = None) -> int:
         methods = args.method or ["whole-gap", "nearby-gap", "covered-first", "gap-land"]
         return county_trials.run(args.stage, folders, methods, args.country, args.within, args.give_up,
                                  parallel.check_workers(args.workers))
-    if args.command in ("spike-s2", "spike-s2-extract"):
+    if args.command in ("spike-s2", "spike-s2-extract", "spike-s2-water"):
         from mapdata.stages import s2_stage
         try:
             folders = resolve_data_folder(args.data)
@@ -338,6 +340,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         if args.command == "spike-s2-extract":
             return s2_stage.run_extract(args.stage, folders)
+        if args.command == "spike-s2-water":
+            return s2_stage.run_water_extract(args.stage, folders)
         from mapdata import parallel
         workers = parallel.AWAY_WORKERS if args.away else args.workers
         return s2_stage.run(args.stage, folders, parallel.check_workers(workers))

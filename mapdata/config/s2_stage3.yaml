@@ -51,6 +51,20 @@ wikidata_km2:
   osm:r148838: 9826675
   osm:r2186646: 13720000
 
+# Before comparing with Wikidata, take away the inland water mapped in OSM
+# (lakes, lagoons, ponds, reservoirs and rivers), and report it separately
+# (P1-T16). Read for the small countries only: Russia's and the USA's lakes
+# would take a long read, and their Wikidata figures include water anyway.
+inland_water: [osm:r571747, osm:r571178]
+
+# Countries whose difference from Wikidata is known, with the reason. The
+# area check passes for them, and the report gives the reason.
+area_explained:
+  osm:r571747: >-
+    The rest is very likely the coastline drawn on the seaward side of mangroves and river mouths, with more
+    detail than the maps the published figure came from. The PO accepted it as close enough on 2 November 2026
+    (spike S2).
+
 pictures:
   - {name: bering-strait, box: [-172.5, 64.5, -166.0, 67.0], layer: countries}
   - {name: taveuni, box: [179.7, -17.1, 180.0, -16.6], layer: counties}

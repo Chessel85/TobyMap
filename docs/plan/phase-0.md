@@ -2,6 +2,8 @@
 
 Phase 0 is Foundations and spikes. The tasks are described in "implementation plan.md", section 3. This list shows what is done.
 
+The PO accepted Phase 0 on 3 November 2026. Their comments, and where each goes in the Phase 1 and Phase 2 plans, are in phase-0-report.md, section "Your acceptance".
+
 ## Tasks
 
 * [x] P0-T1 Repository: TobyMap created, with the licence, README, CLAUDE.md, .gitignore, the folder layout, and the design documents in docs/design.
@@ -24,4 +26,4 @@ Phase 0 is Foundations and spikes. The tasks are described in "implementation pl
 * The PO's original "Solution Design" folder stays on the laptop but is not in git. The live copies of the design documents are now in docs/design.
 * Spike S5 found that Pyodide's NumPy is 32-bit, so the core uses np.intp for array offsets.
 * Firefox and Chrome both support ariaNotify now. Architecture 4.4 was updated in P0-T11.
-* The version is 0.0.5 for the S5 test build. A draft of the phase report is in docs/plan/phase-0-report.md.
+* The version was 0.0.5 for the S5 test build, and is 0.0.7 for the build the PO accepts the phase on (0.0.6 was the undone experiment in S5). The phase report is in docs/plan/phase-0-report.md.

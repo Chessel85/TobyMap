@@ -125,10 +125,12 @@ def outline_to_the_pole(geom):
 # Stage 1 has its own program (s2_stage1.py) and settings (s2_stage1.yaml),
 # kept as they were for the 1 November baseline. Built by this program, it
 # uses s2_stage1_again.yaml.
-CONFIG_FILES = {1: "s2_stage1_again.yaml"}
+CONFIG_FILES = {"1": "s2_stage1_again.yaml", "belgium": "s2_belgium.yaml"}
+STAGES = ["1", "2", "3", "4", "belgium"]
 
 
-def load_config(stage: int) -> dict:
+def load_config(stage) -> dict:
+    stage = str(stage)
     path = CONFIG_DIR / CONFIG_FILES.get(stage, f"s2_stage{stage}.yaml")
     if not path.is_file():
         raise SystemExit(f"No settings for stage {stage}: {path} is missing.")

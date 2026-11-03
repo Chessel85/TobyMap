@@ -21,7 +21,7 @@ Started on 3 November 2026, after the PO accepted Phase 0.
 * [ ] P1-T13 Listening test tool.
 * [ ] P1-T14 Packaging: the installer, the portable zip, the web version on GitHub Pages, and the first GitHub release when the phase is accepted.
 * [ ] P1-T15 Diagnostics: the test trace and "copy diagnostics".
-* [ ] P1-T16 Carried over from spike S2: build speed first (DP107), then stage 1's comparison, stage 4 (Argentina), areas held twice (DP104), inland water in the area check, and the wider overlap check.
+* [ ] P1-T16 Carried over from spike S2: build speed first (DP107), then stage 1's comparison, stage 4 (Argentina), areas held twice (DP104), inland water in the area check, and the wider overlap check. In progress on branch p1-t16-build-speed. The counties step's trials are done (3 November): of four methods, gap-land is the fastest. Mainland France's counties take 2.2 minutes, against more than 15 with spike S2's method, and give the same counties. The whole Belgium stage takes 18 seconds, with no step slow enough for its own trials. Argentina, which the method was not tuned on, took 2.3 to 2.5 minutes for 5.1 times France's land, well inside its share, with the same counties as nearby-gap. Argentina's counties showed that the counties rule misses level 5 (DP116). The trials are written up in the S2 findings, "Phase 1: build speed trials". Mainland France's regression run is dropped at the PO's request, because France was used to develop the method.
 
 ## Suggested order
 

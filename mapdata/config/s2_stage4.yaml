@@ -8,7 +8,7 @@
 
 name: s2-stage4
 title: "Spike S2, stage 4: Argentina and its neighbours."
-source_gol: planet-latest.gol
+source_gol: tobymap/downloads/planet-2026-10-26/planet-2026-10-26.gol   # in the data folder, read only
 places: coastline_places_stage4.yaml
 region_level: 4
 

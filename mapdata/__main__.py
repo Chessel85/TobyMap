@@ -34,16 +34,27 @@ def build_parser() -> argparse.ArgumentParser:
                     help="if continue.txt says no, wait until it says yes, then carry on (otherwise stop)")
     sub.add_parser("spike-s2-stage1", help="spike S2 stage 1: the UK, France and Spain, with its report")
     st = sub.add_parser("spike-s2", help="spike S2 stage 1 again (the UK, France and Spain, with the faster "
-                                         "methods), 2 (Norway and Sweden), 3 (the 180 degree line) or 4 (Argentina)")
-    st.add_argument("stage", type=int, choices=[1, 2, 3, 4])
+                                         "methods), 2 (Norway and Sweden), 3 (the 180 degree line), 4 (Argentina), "
+                                         "or belgium (the build speed trials)")
+    st.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
     st.add_argument("--workers", type=int, default=3,
                     help="processor cores to use for the slowest steps (default 3, which leaves the laptop usable)")
     st.add_argument("--away", action="store_true",
                     help="use 6 worker processes, for when nobody is using the laptop (DP103)")
+    ct = sub.add_parser("spike-s2-counties", help="build speed trials (P1-T16): the counties step of one stage, "
+                                                  "timed with each method, from the stage's caches")
+    ct.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
+    ct.add_argument("--method", action="append", choices=["whole-gap", "nearby-gap", "covered-first", "gap-land"],
+                    help="a method to try; give it more than once to compare them (default: all of them)")
+    ct.add_argument("--country", help="only this country, by its identifier, such as osm:r2202162")
+    ct.add_argument("--within", type=float, nargs=4, metavar=("WEST", "SOUTH", "EAST", "NORTH"),
+                    help="only the land in this rectangle, in degrees, such as mainland France's")
+    ct.add_argument("--give-up", type=float, metavar="MINUTES", help="stop a method after this many minutes")
+    ct.add_argument("--workers", type=int, default=3, help="processor cores for cutting regions not yet cached")
     cmp_ = sub.add_parser("spike-s2-compare", help="compare stage 1 built again with the build of 1 November")
     cmp_.add_argument("--workers", type=int, default=3, help="processor cores to use (default 3)")
     ex = sub.add_parser("spike-s2-extract", help="used by spike-s2: read the planet file in its own process")
-    ex.add_argument("stage", type=int, choices=[1, 2, 3, 4])
+    ex.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
     ins = sub.add_parser("inspect", help="ask a pack about itself: its manifest, one feature, or what is at a point",
                          description="Examples: inspect test manifest; inspect test feature osm:r62149; "
                                      "inspect test at 50.7 -1.3; inspect test 50.7 -1.3.")
@@ -307,6 +318,17 @@ def main(argv: list[str] | None = None) -> int:
             print(exc)
             return 2
         return s2_compare.run(folders, parallel.check_workers(args.workers))
+    if args.command == "spike-s2-counties":
+        from mapdata import parallel
+        from mapdata.stages import county_trials
+        try:
+            folders = resolve_data_folder(args.data)
+        except DataFolderNotSet as exc:
+            print(exc)
+            return 2
+        methods = args.method or ["whole-gap", "nearby-gap", "covered-first", "gap-land"]
+        return county_trials.run(args.stage, folders, methods, args.country, args.within, args.give_up,
+                                 parallel.check_workers(args.workers))
     if args.command in ("spike-s2", "spike-s2-extract"):
         from mapdata.stages import s2_stage
         try:

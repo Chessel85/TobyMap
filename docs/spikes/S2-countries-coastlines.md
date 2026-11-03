@@ -2,6 +2,73 @@
 
 Task P0-T5. Architecture sections 6.12, 6.13 and 12.3. Stage 1 is complete (1 November). Stage 2 is complete, and stage 3 nearly so (2 November): see the next section. Stage 4, Argentina, is parked.
 
+## Phase 1: build speed trials
+
+Task P1-T16, part 1, as agreed in DP107: for each slow step, at least two approaches are tried on a small dataset, and the fastest that gives the right result is kept. The aim is a faster method, not more cores.
+
+### How the trials were run
+
+* Belgium is the trial dataset. Its settings are in mapdata/config/s2_belgium.yaml, with its check places in tests/acceptance/coastline_places_belgium.yaml. It is built from the planet file of 26 October 2026, which was downloaded and made into a GeoDesk library on 3 November. Reading Belgium and its four neighbours from it took 30 seconds.
+* Mainland France, with Corsica, is the harder test. It uses stage 1's cached read of the planet file of October 2025, so no planet file was opened. It has 97 areas at level 6, 320 at level 7 and 34,745 at level 8.
+* A new command times the counties step of one country with each method, and each part of it: `python -m mapdata spike-s2-counties belgium`, or for mainland France, `python -m mapdata spike-s2-counties 1 --country osm:r2202162 --within -5.5 41.0 10.0 51.5`. Each method trims areas afresh, not from the cache, so the times can be compared. Each report is kept in the stage's output folder, named by its date and time.
+* Every method's counties are compared with spike S2's method, or with nearby-gap where spike S2's did not finish: the same areas, from the same levels, with land the same to within a square metre, and the same land left in no county. Every method passed this, on both countries.
+* The trials ran on one core, using a few GB of memory, one at a time.
+
+### The counties step
+
+Belgium was too easy to show a difference. Level 6 leaves only Brussels, which level 7 fills, so level 8 is never looked at. Every method took between 2 and 6 seconds, most of it finding the gap.
+
+Mainland France, with the times on the laptop:
+
+1. Spike S2's method, whole-gap, measures each area against the whole gap after trimming it. It was stopped after 15 minutes. By then it had spent 9.4 minutes measuring areas against the gap and 4.5 minutes finding and trimming the gap.
+2. Nearby-gap measures each area against only the grid squares of the gap it touches. 4.7 to 6.6 minutes over four runs.
+3. Covered-first is nearby-gap, but first passes over any area wholly inside one already chosen. 7.3 minutes. Testing 35,000 municipalities against the areas already chosen cost 206 seconds, more than it saved.
+4. Gap-land trims the gap once and measures areas as read against it. Its first version took 9.3 minutes, and its final one 2.2 minutes. Gap-land is now the method the build uses.
+
+Why France was slow, found by timing each part:
+
+* After level 6, mainland France's gap holds only 26 km² of land. But that land is in 186,891 slivers along the coast, with 1.2 million points. They are the strip between the départements' coasts in OSM and the land polygons' coast.
+* Spike S2 measured every area that touched the gap against all of it at once. Kept as one shape for each grid square, measuring one arrondissement still took about a second.
+* Most of the slivers do not meet an area's edge exactly. Cutting the gap makes new points along its edges, which match the areas' own edges only to within rounding. So a test for slivers wholly inside an area, or only touching its edge, could not pass any of them over. In Brittany, 56,255 slivers counted as crossing the region's edge but held 0.29 km² inside it.
+
+What gap-land does, each change timed on mainland France and kept because it was faster:
+
+* The areas already chosen are joined with the union made for shapes that meet only along their edges. If any two overlap, the general union is used instead. Belgium's provinces were joined in 0.1 seconds instead of 0.9.
+* The gap is worked out once, and again only when a level adds a county. Finding the gap fell from 105 seconds to 4.
+* The gap is trimmed once, one grid square at a time, and each sliver gets its own place in a spatial index.
+* An area's land in the gap is found from its outline as read: the areas already chosen near it are taken away, and only what is left is measured against the gap's land. Trimming only removes sea, so this gives exactly the same figure. An area with no land in the gap is never trimmed at all: 99 areas were trimmed instead of about 1,000.
+* With one or two areas chosen nearby, each is taken away in turn, first cut to a rectangle round the area. With more, as for a region, they are joined first. Measuring the areas fell from 45 seconds to 34, and the regions take 14 seconds.
+
+Where mainland France's 2.2 minutes go now:
+
+* trimming the 97 départements: 44 seconds. The full build needs these anyway, keeps them in its cache, and can spread them over its worker processes;
+* measuring 900 areas against the gap: 34 seconds;
+* trimming the gap: 31 seconds;
+* the regions: 14 seconds;
+* everything else: under 10 seconds.
+
+Tried and dropped: cutting each outline into grid squares by halving it repeatedly, instead of one square at a time. It made no difference, because the time was going elsewhere.
+
+### The other steps, on Belgium
+
+The whole Belgium stage took 18 seconds, with a peak of 337 MB of memory, and all 7 check places passed. No step took more than 4 seconds: checking that neighbours meet 4 seconds, the counties 3, land in no country or division 3, the pack 2. So, as the plan says, none of them gets its own trials on Belgium. Checking that neighbours meet was the slowest step of stage 3, mostly the USA's 15,577 counties. It will be timed again on mainland France and in the Europe run, and trialled there if it is still slow.
+
+### Argentina, the check on a country not used in the trials
+
+Mainland France was used to develop gap-land, so the PO chose Argentina as the check instead (3 November): a country the method was not tuned on, which should take about its share of time for its size. Stage 4's settings now use the planet file of 26 October 2026. Reading Argentina, Chile and their neighbours from it took 3 minutes 15 seconds.
+
+* Argentina has 24 regions and, at levels 6, 7 and 8, 658, 1,959 and 2,012 areas.
+* Gap-land took 139 and 151 seconds in two runs, against mainland France's 130. Argentina has 2.78 million km² of land, 5.1 times France's 549,000, so pro rata it could have taken about 11 minutes. It took 1.1 times as long as France, or about a fifth of France's time for each km².
+* France takes longer for its size because of its coast. Its gap is tens of thousands of slivers along a detailed coast, and most of its time goes on trimming. Argentina's time is mostly trimming the gap, 75 to 80 seconds, and the regions, 32 to 38.
+* Nearby-gap took 165 seconds. It chose the same 2,558 counties, with the same land to within a square metre. The only difference was the land left in no county: 47.265 km² against gap-land's 47.281, from rounding in sums of 1.2 million km². The comparison now allows for that.
+
+Argentina's counties also showed a fault in the counties rule, not in the speed. OSM puts Argentina's 528 departamentos and partidos at level 5, which the rule never looks at. So its counties layer is a mix of 2,540 municipalities from levels 6, 7 and 8, with 18 of its 24 provinces used whole where nothing else covers them, such as Buenos Aires and Santa Cruz. This is discussion point 116.
+
+### Still to do in part 1
+
+* Each country built and kept on its own, with its neighbours' borders checked again after a rebuild.
+* Areas held twice (DP104), the inland water in the area check, and the wider overlap check.
+
 ## Stages 2 and 3, 2 November
 
 ### What was built

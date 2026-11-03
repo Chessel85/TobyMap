@@ -23,6 +23,13 @@ countries:
     - Jan Mayen
     - Svalbard
     how: worked out by spike S2 stage 2 on 2 November 2026
+  osm:r52411:
+    name: Belgium
+    levels:
+    - 6
+    - 7
+    regions_used: []
+    how: worked out by spike S2 stage belgium on 3 November 2026
   osm:r52822:
     name: Sweden
     levels:

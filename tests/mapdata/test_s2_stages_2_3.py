@@ -235,22 +235,20 @@ def test_layer_check_in_a_worker_returns_its_report():
 
 
 def test_full_pack_tiles_are_split_and_lookups_still_find_every_area(tmp_path, monkeypatch):
-    from mapcore.packs.archive import Pack
-    from mapdata.stages import pack_write
+    from mapdata.stages import lookup, pack_write
 
     monkeypatch.setattr(pack_write, "TILE_POINTS", 50)
     # 16 small squares side by side, each with 20 points: far too many for one pack tile at 50 points.
     geoms = [shapely.box(i, 0, i + 0.9, 0.9).segmentize(0.2) for i in range(16)]
-    records = [{"id": f"osm:r{i}", "name": f"Area {i}", "area_km2": float(i)} for i in range(16)]
-    stats = pack_write.write(tmp_path / "t.pack", {"name": "t"}, records, geoms, "compact", say=lambda s: None)
+    records = [{"id": f"osm:r{i}", "name": f"Area {i}", "layer": "counties", "type": "level 6",
+                "area_km2": float(i)} for i in range(16)]
+    manifest = {"name": "t", "sources": [{"name": "Test", "licence": "ODbL 1.0", "date": "2026-10-26"}]}
+    stats = pack_write.write(tmp_path / "t.pack", manifest, records, geoms, say=lambda s: None)
     assert max(stats["levels"]) > pack_write.START_LEVEL
-    pack = Pack(tmp_path / "t.pack")
-    try:
+    with lookup.open_pack(tmp_path / "t.pack") as pack:
         for i in range(16):
-            assert [f["name"] for f in pack.at(i + 0.45, 0.45)] == [f"Area {i}"]
-        assert pack.at(i + 0.95, 0.45) == []
-    finally:
-        pack.close()
+            assert [f["name"] for f in lookup.at(pack, i + 0.45, 0.45)] == [f"Area {i}"]
+        assert lookup.at(pack, i + 0.95, 0.45) == []
 
 
 def test_far_parts_allow_for_the_180_degree_line():
@@ -286,28 +284,6 @@ def test_an_outline_round_the_pole_that_stops_short_is_taken_to_the_pole():
     for g in (shapely.box(-70, -85, -60, -50), shapely.box(-180, -90, 180, -60), shapely.box(10, 50, 11, 51)):
         same, south = outline_to_the_pole(g)
         assert south is None and same is g
-
-
-def test_both_packs_written_at_once_match_the_packs_written_one_by_one(tmp_path):
-    from mapcore.packs.archive import Pack
-    from mapdata.stages import pack_write
-
-    geoms = [shapely.box(i, 0, i + 0.9, 0.9).segmentize(0.05) for i in range(6)] + [shapely.box(-10, -10, 20, 20)]
-    records = [{"id": f"osm:r{i}", "name": f"Area {i}", "area_km2": float(i)} for i in range(len(geoms))]
-    quiet = lambda s: None
-    one = {e: pack_write.write(tmp_path / f"one-{e}.pack", {"name": "t"}, records, geoms, e, say=quiet)
-           for e in ("wkb", "compact")}
-    both = pack_write.write_both({e: tmp_path / f"both-{e}.pack" for e in ("wkb", "compact")}, {"name": "t"},
-                                 records, geoms, workers=2, say=quiet)
-    for e in ("wkb", "compact"):
-        assert both[e]["tiles"] == one[e]["tiles"] and both[e]["pieces"] == one[e]["pieces"]
-        a, b = Pack(tmp_path / f"one-{e}.pack"), Pack(tmp_path / f"both-{e}.pack")
-        try:
-            for lon, lat in [(0.5, 0.5), (3.45, 0.45), (5.95, 0.5), (15, 15), (30, 30)]:
-                assert [f["id"] for f in a.at(lon, lat)] == [f["id"] for f in b.at(lon, lat)]
-        finally:
-            a.close()
-            b.close()
 
 
 def test_pictures_are_drawn_in_workers(tmp_path):

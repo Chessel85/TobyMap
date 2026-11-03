@@ -1,1 +1,6 @@
-"""Pack files (AD-5). Phase 0 has the spike S2 archive format only."""
+"""Pack files (AD-5).
+
+Pack format 2 is in pack.py, with its byte sources (source.py), compact
+coordinates (coords.py) and pack tiles (tiles.py). The specification is
+docs/developer/pack-format.md.
+"""

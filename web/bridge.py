@@ -70,3 +70,10 @@ def scene(width: int, height: int):
 
 def frame_painted(paint_ms: float) -> None:
     _session.frame_painted(paint_ms)
+
+
+def pack_selfcheck():
+    """The pack format's self-check in Pyodide (P1-T2): a list of problems, empty when all is well."""
+    from mapcore.packs import selfcheck
+
+    return _js(selfcheck.run())

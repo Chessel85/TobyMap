@@ -1,33 +1,45 @@
-"""Write a spike S2 pack (architecture 8.2 stage 16, AD-5).
+"""Write a pack in format 2 (architecture 8.2 stage 16, AD-5, docs/developer/pack-format.md).
 
-Each feature's exact shape is cut into tiles of the quadtree. A piece with
-more than MAX_POINTS points is cut again into its four smaller tiles, so a
+Each feature's exact shape is cut into pack tiles. A tile entry with more
+than MAX_POINTS points is cut again into its four smaller pack tiles, so a
 point test never decodes a large shape, however many islands a country has
-(architecture 6.3, 6.12). A tile that lies wholly inside a feature stores only
-a "covered" note.
+(architecture 6.3, 6.12). A pack tile that lies wholly inside a feature
+stores only a covered note. Shapes are stored in compact coordinates.
 
-The same features can be written with either shape encoding, so spike S2 can
-compare WKB with compact coordinates (architecture 6.1).
+The spike S2 stages give feature records with a name, a local name, a layer,
+a type and an area; feature_record() adds what format 2 asks for. The
+colour number is left empty until the base pack lite works it out (P1-T4,
+AD-19).
 """
 from __future__ import annotations
 
+import math
 import time
 from collections import defaultdict
 from pathlib import Path
 
 import shapely
 
-from mapcore.packs import archive
+from mapcore.geo import geodesy
+from mapcore.packs import coords, tiles
+from mapcore.packs.pack import PackWriter
+from mapdata.stages import antimeridian
 
 START_LEVEL = 3
-MAX_LEVEL = 18
-MAX_POINTS = 4000
+MAX_LEVEL = tiles.MAX_TILE_LEVEL
+MAX_POINTS = tiles.ENTRY_POINTS
 # A pack tile is also split when all its tile entries together have more
 # than this many points. Without it, spike S2 stage 2 put 332 of Norway's
 # municipalities, 690,000 points and 2.9 MB, into one pack tile, and every
 # lookup in southern Norway took 0.75 seconds.
-TILE_POINTS = 20000
+TILE_POINTS = tiles.TILE_POINTS
+SHAPE, COVERED = tiles.COMPACT, tiles.COVERED
+RANKS = {"countries": 2, "regions": 4, "counties": 6}
+LAYER_NAMES = {"countries": "Countries", "regions": "Regions", "counties": "Counties"}
+OSM_CREDIT = "© OpenStreetMap contributors"
 
+
+# Cutting into pack tiles ------------------------------------------------------
 
 def cut_to_rect(geom, bounds):
     """The part of a shape inside a rectangle.
@@ -38,52 +50,52 @@ def cut_to_rect(geom, bounds):
     2 November). It does not promise a valid result, so in the rare case it
     gives an invalid one, the general intersection is used instead.
     """
-    piece = shapely.clip_by_rect(geom, *bounds)
-    if piece.is_empty or piece.is_valid:
-        return piece
+    part = shapely.clip_by_rect(geom, *bounds)
+    if part.is_empty or part.is_valid:
+        return part
     return shapely.intersection(geom, shapely.box(*bounds))
 
 
 def _cut(geom, level: int, x: int, y: int, out: dict, index: int) -> None:
     """Cut one feature's shape into pack tiles. Tile entries keep the shape, encoded later."""
-    bounds = archive.tile_box(level, x, y)
+    bounds = tiles.tile_box(level, x, y)
     box = shapely.box(*bounds)
     if shapely.contains_properly(geom, box):
-        out[(level, x, y)].append((index, archive.COVERED, None))
+        out[(level, x, y)].append((index, COVERED, None))
         return
-    piece = _areas(cut_to_rect(geom, bounds))
-    if piece is None:
+    inside = _areas(cut_to_rect(geom, bounds))
+    if inside is None:
         return
     # Covered when the part left is the whole pack tile.
-    if abs(piece.area - box.area) <= 1e-12 * box.area and shapely.equals(piece, box):
-        out[(level, x, y)].append((index, archive.COVERED, None))
+    if abs(inside.area - box.area) <= 1e-12 * box.area and shapely.equals(inside, box):
+        out[(level, x, y)].append((index, COVERED, None))
         return
-    if shapely.get_num_coordinates(piece) > MAX_POINTS and level < MAX_LEVEL:
+    if shapely.get_num_coordinates(inside) > MAX_POINTS and level < MAX_LEVEL:
         for dx in (0, 1):
             for dy in (0, 1):
-                _cut(piece, level + 1, 2 * x + dx, 2 * y + dy, out, index)
+                _cut(inside, level + 1, 2 * x + dx, 2 * y + dy, out, index)
         return
-    out[(level, x, y)].append((index, archive.WKB, piece))
+    out[(level, x, y)].append((index, SHAPE, inside))
 
 
-def split_full_tiles(tiles: dict) -> None:
+def split_full_tiles(cut: dict) -> None:
     """Split every pack tile whose tile entries together have more than TILE_POINTS points."""
     for level in range(START_LEVEL, MAX_LEVEL):
-        for key in [k for k in tiles if k[0] == level]:
-            entries = tiles[key]
-            total = sum(shapely.get_num_coordinates(g) for _i, kind, g in entries if kind != archive.COVERED)
+        for key in [k for k in cut if k[0] == level]:
+            entries = cut[key]
+            total = sum(shapely.get_num_coordinates(g) for _i, kind, g in entries if kind != COVERED)
             if total <= TILE_POINTS:
                 continue
-            del tiles[key]
+            del cut[key]
             _level, x, y = key
             for index, kind, g in entries:
                 for dx in (0, 1):
                     for dy in (0, 1):
                         child = (level + 1, 2 * x + dx, 2 * y + dy)
-                        if kind == archive.COVERED:
-                            tiles[child].append((index, archive.COVERED, None))
+                        if kind == COVERED:
+                            cut[child].append((index, COVERED, None))
                         else:
-                            _cut(g, level + 1, child[1], child[2], tiles, index)
+                            _cut(g, level + 1, child[1], child[2], cut, index)
 
 
 def _areas(geom):
@@ -101,132 +113,140 @@ def _areas(geom):
     return shapely.MultiPolygon(parts) if len(parts) > 1 else parts[0]
 
 
-def encoder(name: str):
-    if name == "wkb":
-        return lambda g: (archive.WKB, shapely.to_wkb(g))
-    if name == "compact":
-        return lambda g: (archive.COMPACT, archive.encode_compact(g))
-    raise ValueError(name)
-
-
-def write(path: Path, manifest: dict, records: list[dict], geoms: list, encoding: str, say=print) -> dict:
-    """Write the pack. Returns measurements: size, tiles, pieces, seconds."""
-    start = time.perf_counter()
-    tiles: dict = defaultdict(list)
-    enc = encoder(encoding)
-    for index, geom in enumerate(geoms):
-        west, south, east, north = geom.bounds
-        x0, y0 = archive.tile_of(west, south, START_LEVEL)
-        x1, y1 = archive.tile_of(east, north, START_LEVEL)
-        shapely.prepare(geom)
-        for x in range(x0, x1 + 1):
-            for y in range(y0, y1 + 1):
-                _cut(geom, START_LEVEL, x, y, tiles, index)
-    split_full_tiles(tiles)
-    levels = sorted({level for level, _x, _y in tiles})
-    writer = archive.Writer(path)
-    writer.put_json("manifest", {**manifest, "encoding": encoding, "tile_levels": levels,
-                                 "max_points_per_piece": MAX_POINTS})
-    writer.put_json("features", records)
-    pieces = 0
-    for (level, x, y) in sorted(tiles):
-        entries = sorted(((index, archive.COVERED, b"") if kind == archive.COVERED else (index, *enc(g)))
-                         for index, kind, g in tiles[(level, x, y)])
-        pieces += len(entries)
-        writer.put(archive.tile_key(level, x, y), archive.encode_tile(entries))
-    writer.close()
-    stats = {"bytes": path.stat().st_size, "tiles": len(tiles), "pieces": pieces, "levels": levels,
-             "seconds": time.perf_counter() - start}
-    say(f"Wrote {path.name}: {stats['bytes'] / 1e6:.1f} MB, {stats['tiles']} pack tiles, {pieces} tile entries, "
-        f"{stats['seconds']:.0f} seconds.")
-    return stats
-
-
-# Both encodings at once, in worker processes (DP103) ---------------------------
-
 def _cut_batch(items: list) -> dict:
     """Cut a batch of features into pack tiles, in a worker: {tile: [(index, kind, WKB or None)]}."""
-    tiles: dict = defaultdict(list)
+    cut: dict = defaultdict(list)
     for index, wkb in items:
         geom = shapely.from_wkb(wkb)
         west, south, east, north = geom.bounds
-        x0, y0 = archive.tile_of(west, south, START_LEVEL)
-        x1, y1 = archive.tile_of(east, north, START_LEVEL)
+        x0, y0 = tiles.tile_of(west, south, START_LEVEL)
+        x1, y1 = tiles.tile_of(east, north, START_LEVEL)
         shapely.prepare(geom)
         for x in range(x0, x1 + 1):
             for y in range(y0, y1 + 1):
-                _cut(geom, START_LEVEL, x, y, tiles, index)
+                _cut(geom, START_LEVEL, x, y, cut, index)
     return {key: [(i, k, None if g is None else shapely.to_wkb(g)) for i, k, g in entries]
-            for key, entries in tiles.items()}
+            for key, entries in cut.items()}
 
 
 def _encode_batch(batch: list) -> list:
-    """Encode a batch of pack tiles both ways, in a worker: [(tile, WKB record, compact record, entries)]."""
-    wkb_enc, compact_enc = encoder("wkb"), encoder("compact")
+    """Encode a batch of pack tiles in compact coordinates, in a worker: [(tile, entries)]."""
     out = []
     for key, entries in batch:
-        a, b = [], []
-        for index, kind, blob in entries:
-            if kind == archive.COVERED:
-                a.append((index, archive.COVERED, b""))
-                b.append((index, archive.COVERED, b""))
-            else:
-                g = shapely.from_wkb(blob)
-                a.append((index, *wkb_enc(g)))
-                b.append((index, *compact_enc(g)))
-        out.append((key, archive.encode_tile(sorted(a)), archive.encode_tile(sorted(b)), len(entries)))
+        out.append((key, [(index, COVERED, b"") if kind == COVERED
+                          else (index, SHAPE, coords.encode(coords.rings_of(shapely.from_wkb(blob))))
+                          for index, kind, blob in entries]))
     return out
 
 
-def write_both(paths: dict, manifest: dict, records: list[dict], geoms: list, workers: int = 1, say=print) -> dict:
-    """Write the pack with WKB and with compact coordinates, cutting the shapes only once.
+# Feature records and the manifest ---------------------------------------------
 
-    paths: {"wkb": path, "compact": path}. The cutting into pack tiles and
-    the encoding are each split into batches run by worker processes; the
-    main process joins the results, splits full pack tiles, and writes both
-    files. Returns measurements for each encoding.
+def feature_record(record: dict, geom) -> dict:
+    """A spike S2 feature record with the fields format 2 asks for (architecture 6.4).
+
+    The record's own fields are kept, so the S2 checks still find "name" and
+    "local_name". The names are English, and "local" for the name in the
+    area's own language where it differs.
+    """
+    out = dict(record)
+    layer = record["layer"]
+    out.setdefault("source", record["id"].split(":")[0])
+    names = {"en": record["name"]}
+    if record.get("local_name") and record["local_name"] != record["name"]:
+        names["local"] = record["local_name"]
+    out.setdefault("names", names)
+    out.setdefault("rank", RANKS.get(layer, 8))
+    box = antimeridian.wrap_box(geom)
+    out.setdefault("bbox", [round(v, 7) for v in (box.west, box.south, box.east, box.north)])
+    mid = (box.south + box.north) / 2
+    across = geodesy.parallel_radius_m(mid) * math.radians(box.width)
+    up = geodesy.distance_m(box.south, 0.0, box.north, 0.0)
+    out.setdefault("width_km", round(max(across, up) / 1000, 3))
+    out.setdefault("colour", None)  # worked out from P1-T4 (AD-19)
+    point = shapely.point_on_surface(geom)
+    out.setdefault("point", [round(point.x, 7), round(point.y, 7)])
+    out.setdefault("parents", [record["parent"]] if record.get("parent") else [])
+    return out
+
+
+def full_manifest(manifest: dict) -> dict:
+    """The stage's manifest with the defaults for a spike S2 build."""
+    out = {"version": "spike-s2", "coverage": {"kind": "region"}, "app_versions": {"from": "0.0.1"},
+           "drawing_levels": [], **manifest}
+    if not out.get("sources"):
+        raise ValueError("a pack's manifest lists its sources, each with a name, licence and date")
+    return out
+
+
+def attribution(manifest: dict) -> str:
+    lines = [f"{OSM_CREDIT}."]
+    lines += [f"{s['name']}: {s['licence']}, {s['date']}." for s in manifest["sources"]]
+    return "\n".join(lines) + "\n"
+
+
+def source_date(path: Path) -> str:
+    """A source file's date, as YYYY-MM-DD, from when it was last changed."""
+    import datetime as dt
+
+    return dt.datetime.fromtimestamp(Path(path).stat().st_mtime, dt.timezone.utc).date().isoformat()
+
+
+def spike_sources(gol: Path, land_polygons: Path) -> list[dict]:
+    """The sources of a spike S2 build: the GeoDesk library and the land polygons."""
+    return [{"name": f"OpenStreetMap, GeoDesk library {Path(gol).name}", "licence": "ODbL 1.0",
+             "date": source_date(gol)},
+            {"name": f"OSM land polygons, {Path(land_polygons).name}", "licence": "ODbL 1.0",
+             "date": source_date(land_polygons)}]
+
+
+# Writing -------------------------------------------------------------------
+
+def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers: int = 1, say=print) -> dict:
+    """Write the pack. The cutting into pack tiles and the encoding are split
+    into batches run by worker processes (DP103); the main process joins the
+    results, splits full pack tiles, and writes the file.
+
+    Returns measurements: bytes, pack tiles, tile entries, tile levels, seconds.
     """
     from mapdata import parallel
 
     start = time.perf_counter()
+    path = Path(path)
+    manifest = full_manifest(manifest)
     order = sorted(range(len(geoms)), key=lambda i: -shapely.get_num_coordinates(geoms[i]))
     n_batches = max(1, min(len(order), workers * 4))
     batches = [[(i, shapely.to_wkb(geoms[i])) for i in order[k::n_batches]] for k in range(n_batches)]
-    tiles: dict = defaultdict(list)
+    cut: dict = defaultdict(list)
     with parallel.pool(workers) as executor:
-        for part in executor_map(executor, _cut_batch, batches, workers):
+        for part in executor_map(executor, _cut_batch, [b for b in batches if b], workers):
             for key, entries in part.items():
-                tiles[key].extend((i, k, None if b is None else shapely.from_wkb(b)) for i, k, b in entries)
-        split_full_tiles(tiles)
-        levels = sorted({level for level, _x, _y in tiles})
-        keys = sorted(tiles)
+                cut[key].extend((i, k, None if b is None else shapely.from_wkb(b)) for i, k, b in entries)
+        split_full_tiles(cut)
+        keys = sorted(cut)
         n_enc = max(1, min(len(keys), workers * 8))
-        enc_batches = [[(key, [(i, k, None if g is None else shapely.to_wkb(g)) for i, k, g in tiles[key]])
+        enc_batches = [[(key, [(i, k, None if g is None else shapely.to_wkb(g)) for i, k, g in cut[key]])
                         for key in keys[j::n_enc]] for j in range(n_enc)]
-        tiles.clear()
+        cut.clear()
         encoded = {}
-        for result in executor_map(executor, _encode_batch, enc_batches, workers):
-            for key, rec_wkb, rec_compact, count in result:
-                encoded[key] = (rec_wkb, rec_compact, count)
-    stats = {}
-    for slot, encoding in ((0, "wkb"), (1, "compact")):
-        path = paths[encoding]
-        writer = archive.Writer(path)
-        writer.put_json("manifest", {**manifest, "encoding": encoding, "tile_levels": levels,
-                                     "max_points_per_piece": MAX_POINTS, "max_points_per_tile": TILE_POINTS})
-        writer.put_json("features", records)
-        pieces = 0
-        for (level, x, y) in sorted(encoded):
-            rec = encoded[(level, x, y)]
-            pieces += rec[2]
-            writer.put(archive.tile_key(level, x, y), rec[slot])
-        writer.close()
-        stats[encoding] = {"bytes": path.stat().st_size, "tiles": len(encoded), "pieces": pieces, "levels": levels,
-                           "seconds": time.perf_counter() - start}
-        say(f"Wrote {path.name}: {stats[encoding]['bytes'] / 1e6:.1f} MB, {len(encoded)} pack tiles, "
-            f"{pieces} tile entries.")
-    say(f"Both packs written in {time.perf_counter() - start:.0f} seconds, with {workers} worker "
-        f"process{'es' if workers != 1 else ''}, cutting each shape once.")
+        for result in executor_map(executor, _encode_batch, [b for b in enc_batches if b], workers):
+            for key, entries in result:
+                encoded[key] = entries
+    writer = PackWriter(path)
+    numbers = writer.add_features([feature_record(r, g) for r, g in zip(records, geoms)])
+    number_of = [numbers[r["id"]] for r in records]
+    entries_written = 0
+    for (level, x, y) in sorted(encoded):
+        entries = [(number_of[i], kind, data) for i, kind, data in encoded[(level, x, y)]]
+        entries_written += len(entries)
+        writer.add_tile(level, x, y, entries)
+    layer_ids = list(dict.fromkeys(r["layer"] for r in records))
+    layers = [{"id": layer, "name": LAYER_NAMES.get(layer, layer.title())} for layer in layer_ids]
+    writer.finish(manifest, attribution(manifest), layers)
+    levels = sorted({level for level, _x, _y in encoded})
+    stats = {"bytes": path.stat().st_size, "tiles": len(encoded), "entries": entries_written, "levels": levels,
+             "seconds": time.perf_counter() - start}
+    say(f"Wrote {path.name}: {stats['bytes'] / 1e6:.1f} MB, {stats['tiles']} pack tiles, {entries_written} tile "
+        f"entries, in {stats['seconds']:.0f} seconds with {workers} worker process{'es' if workers != 1 else ''}.")
     return stats
 
 

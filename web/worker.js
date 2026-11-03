@@ -57,6 +57,7 @@ self.onmessage = async (event) => {
     else if (type === "run") out = finish(bridge.run(JSON.stringify(commands), width, height));
     else if (type === "scene") out = finish(bridge.scene(width, height));
     else if (type === "painted") { bridge.frame_painted(paintMs); out = { result: null, transfer: [] }; }
+    else if (type === "packcheck") out = { result: bridge.pack_selfcheck(), transfer: [] };
     else throw new Error(`Unknown message ${type}`);
     self.postMessage({ id, ok: true, result: out.result }, out.transfer);
   } catch (error) {

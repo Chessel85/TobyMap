@@ -217,3 +217,25 @@ def test_v_says_the_size_of_the_visible_map(session):
     assert spoken(session.run("where.visible")) == ["Visible map: 1,140 by 890 kilometres."]
     session.scene(450, 700)  # the globe is sized to the narrower side, so more is visible
     assert spoken(session.run("where.visible")) == ["Visible map: 890 by 1,380 kilometres."]
+
+
+def test_pack_messages():
+    # Why a pack was not opened, or what is damaged (PCK-5, NFR-4, P1-T2).
+    from mapcore.describe import say
+
+    assert say("packs.not_a_pack", name="a.pack") == "a.pack is not a TobyMap pack, so it was not opened."
+    assert say("packs.newer_format", name="a.pack") == (
+        "a.pack needs a newer version of TobyMap, so it was not opened. Update TobyMap to use it.")
+    assert say("packs.app_too_old", name="a.pack", need="0.2.0", have="0.1.0") == (
+        "a.pack needs TobyMap 0.2.0 or later, and this is TobyMap 0.1.0, so it was not opened. "
+        "Update TobyMap to use it.")
+    assert say("packs.app_too_new", name="a.pack", before="0.2.0", have="0.2.1") == (
+        "a.pack was made for versions of TobyMap before 0.2.0, and this is TobyMap 0.2.1, so it was not "
+        "opened. Download the current pack instead.")
+    assert say("packs.damaged_pack", name="a.pack", record="directory") == (
+        "a.pack is damaged, so it was not opened. Download it again. The damage is in its directory.")
+    assert say("packs.damaged_record", name="a.pack", record="tile/5/3/4") == (
+        "Part of a.pack is damaged, and TobyMap is carrying on without it. Download the pack again. "
+        "The damaged record is tile/5/3/4.")
+    assert say("packs.checksum_wrong", name="a.pack") == (
+        "a.pack does not match its checksum, so it may be damaged or incomplete. Download it again.")

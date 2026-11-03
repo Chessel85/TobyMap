@@ -22,7 +22,8 @@ import time
 import numpy as np
 import shapely
 
-from mapcore.packs import archive
+from mapcore.packs import coords, tiles
+from mapcore.packs.pack import Pack
 
 KM_PER_DEGREE = 111.32
 
@@ -40,36 +41,32 @@ def walk_points(start_lat: float, start_lon: float, bearing_deg: float, step_km:
 
 
 class Lookup:
-    """Pack.at, with each part timed, and an optional pack tile cache.
+    """What is at a point, with each part timed, and an optional pack tile cache.
 
-    It gives the same answers as Pack.at (checked by a test), but records how
-    long reading, decoding and testing took.
+    It gives the same answers as mapdata's lookup (checked by a test), but
+    records how long reading, decoding and testing took. Since P1-T2 it reads
+    pack format 2.
     """
 
-    def __init__(self, pack: archive.Pack, cache: bool):
+    def __init__(self, pack: Pack, cache: bool):
         self.pack = pack
         self.cache = {} if cache else None
         self.read_ms = self.decode_ms = self.test_ms = 0.0
         self.tiles_read = 0
 
-    def _entries(self, key: str):
+    def _entries(self, key: tuple):
         if self.cache is not None and key in self.cache:
             return self.cache[key]
         t0 = time.perf_counter()
-        data = self.pack.get(key)
+        reads = self.pack.reads
+        stored = self.pack.tile(*key)
         t1 = time.perf_counter()
         self.read_ms += (t1 - t0) * 1000
-        if data is None:
+        if self.pack.reads == reads:
             entries = None
         else:
             self.tiles_read += 1
-            entries = []
-            for index, kind, blob in archive.decode_tile(data):
-                if kind == archive.COVERED:
-                    entries.append((index, None))
-                else:
-                    geom = shapely.from_wkb(blob) if kind == archive.WKB else archive.decode_compact(blob)
-                    entries.append((index, geom))
+            entries = [(e.feature, None if e.kind == tiles.COVERED else coords.to_shape(e.data)) for e in stored]
             self.decode_ms += (time.perf_counter() - t1) * 1000
         if self.cache is not None:
             self.cache[key] = entries
@@ -78,14 +75,14 @@ class Lookup:
     def at(self, lon: float, lat: float) -> list[dict]:
         point = shapely.Point(lon, lat)
         found = []
-        for level in self.pack.levels:
-            entries = self._entries(archive.tile_key(level, *archive.tile_of(lon, lat, level)))
+        for level in self.pack.tile_levels:
+            entries = self._entries((level, *tiles.tile_of(lon, lat, level)))
             if not entries:
                 continue
             t0 = time.perf_counter()
             for index, geom in entries:
                 if geom is None or shapely.intersects(geom, point):
-                    found.append(self.pack.features[index])
+                    found.append(self.pack.feature(index))
             self.test_ms += (time.perf_counter() - t0) * 1000
         found.sort(key=lambda f: (f["area_km2"], f["id"]))
         return found
@@ -105,7 +102,7 @@ def place_ok(place: dict, found: list[dict]) -> bool:
     return all(n in known for n in place.get("includes", []))
 
 
-def run(pack: archive.Pack, places: list[dict], walks: list[dict]) -> dict:
+def run(pack: Pack, places: list[dict], walks: list[dict]) -> dict:
     """All the timings, as plain values (so the worker can pass them to the page)."""
     out = {"places": [], "walks": []}
 

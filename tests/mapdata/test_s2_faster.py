@@ -9,7 +9,7 @@ import pytest
 import shapely
 import yaml
 
-from mapcore.packs import archive
+from mapcore.packs import tiles as grid
 from mapdata.stages import clip, drawing, land, pack_write, s2_compare, s2_stage
 from mapdata.stages.geodesy import area_km2, areas_km2
 
@@ -29,29 +29,29 @@ def wiggly(cx, cy, r, n=3000, holes=True):
 
 def _old_cut(geom, level, x, y, out, index):
     """The cut as it was on 1 November, with the general intersection."""
-    box = shapely.box(*archive.tile_box(level, x, y))
+    box = shapely.box(*grid.tile_box(level, x, y))
     if shapely.contains_properly(geom, box):
-        out[(level, x, y)].append((index, archive.COVERED, None))
+        out[(level, x, y)].append((index, pack_write.COVERED, None))
         return
     piece = pack_write._areas(shapely.intersection(geom, box))
     if piece is None:
         return
     if shapely.equals(piece, box):
-        out[(level, x, y)].append((index, archive.COVERED, None))
+        out[(level, x, y)].append((index, pack_write.COVERED, None))
         return
     if shapely.get_num_coordinates(piece) > pack_write.MAX_POINTS and level < pack_write.MAX_LEVEL:
         for dx in (0, 1):
             for dy in (0, 1):
                 _old_cut(piece, level + 1, 2 * x + dx, 2 * y + dy, out, index)
         return
-    out[(level, x, y)].append((index, archive.WKB, piece))
+    out[(level, x, y)].append((index, pack_write.SHAPE, piece))
 
 
 def _cut_all(cut, geom):
     tiles = defaultdict(list)
     w, s, e, n = geom.bounds
-    x0, y0 = archive.tile_of(w, s, pack_write.START_LEVEL)
-    x1, y1 = archive.tile_of(e, n, pack_write.START_LEVEL)
+    x0, y0 = grid.tile_of(w, s, pack_write.START_LEVEL)
+    x1, y1 = grid.tile_of(e, n, pack_write.START_LEVEL)
     for x in range(x0, x1 + 1):
         for y in range(y0, y1 + 1):
             cut(geom, pack_write.START_LEVEL, x, y, tiles, 0)

@@ -103,7 +103,7 @@ async function main(config, fresh) {
   t0 = performance.now();
   pyodide.runPython(`
 import json, js
-from mapcore.packs.archive import Pack
+from mapcore.packs.pack import Pack
 
 class PrivateStorage:
     """The pack's bytes from the browser's private storage."""
@@ -111,7 +111,7 @@ class PrivateStorage:
     def read(self, offset, length):
         return bytes(js.s4ReadAt(offset, length).to_py())
 
-pack = Pack(PrivateStorage())
+pack = Pack(PrivateStorage(), check_app=False)
 `);
   timings.open_ms = ms(t0);
   line(`The pack opened (its directory, manifest and areas read) in ${timings.open_ms} ms.`);

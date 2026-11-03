@@ -8,21 +8,22 @@ import shapely
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "spikes" / "s4"))
 
 import s4_bench  # noqa: E402
-from mapcore.packs import archive  # noqa: E402
 
 pytest.importorskip("mapdata")
-from mapdata.stages import pack_write  # noqa: E402
+from mapdata.stages import lookup, pack_write  # noqa: E402
 
 
 @pytest.fixture
 def pack(tmp_path):
     land = shapely.segmentize(shapely.box(5, 58, 15, 70), 0.01).difference(shapely.box(9, 63, 10, 64))
     fjord_town = shapely.box(9.2, 63.2, 9.8, 63.8)
-    records = [{"id": "t:land", "name": "Land", "area_km2": 2.0},
-               {"id": "t:town", "name": "Town", "local_name": "By", "area_km2": 1.0}]
+    records = [{"id": "t:land", "name": "Land", "layer": "countries", "type": "country", "area_km2": 2.0},
+               {"id": "t:town", "name": "Town", "local_name": "By", "layer": "regions", "type": "town",
+                "area_km2": 1.0}]
     path = tmp_path / "t.pack"
-    pack_write.write(path, {"name": "test"}, records, [land, fjord_town], "compact", say=lambda s: None)
-    p = archive.Pack(path)
+    manifest = {"name": "test", "sources": [{"name": "Test", "licence": "ODbL 1.0", "date": "2026-10-26"}]}
+    pack_write.write(path, manifest, records, [land, fjord_town], say=lambda s: None)
+    p = lookup.open_pack(path)
     yield p
     p.close()
 
@@ -32,7 +33,7 @@ def test_timed_lookup_answers_as_the_core_does(pack):
     for cache in (False, True):
         lk = s4_bench.Lookup(pack, cache=cache)
         for lat, lon in points:
-            assert lk.at(lon, lat) == pack.at(lon, lat)
+            assert lk.at(lon, lat) == lookup.at(pack, lon, lat)
     assert lk.decode_ms > 0 and lk.tiles_read > 0
 
 

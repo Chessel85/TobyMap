@@ -620,16 +620,17 @@ def window_pieces(shapes: list, window, cell: float = 1.0) -> list:
 
 
 def check_places(places_file: Path, pack_path: Path, log: Log) -> tuple[int, int, list[str]]:
-    from mapcore.packs.archive import Pack
+    from mapdata.stages.lookup import Lookup, open_pack
 
     places = yaml.safe_load(places_file.read_text(encoding="utf-8"))["places"]
-    pack = Pack(pack_path)
+    pack = open_pack(pack_path)
+    look = Lookup(pack)
     passed, lines, times = 0, [], []
     try:
         for p in places:
             start = time.perf_counter()
             reads_before = pack.reads
-            found = pack.at(p["lon"], p["lat"])
+            found = look.at(p["lon"], p["lat"])
             times.append((time.perf_counter() - start) * 1000)
             names = [f["name"] for f in found]
             known = set(names) | {f.get("local_name") for f in found}
@@ -1009,18 +1010,15 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
             geoms.append(c.geom)
     keep = [i for i, g in enumerate(geoms) if not g.is_empty]
     records, geoms = [records[i] for i in keep], [geoms[i] for i in keep]
-    manifest = {"name": name, "source": gol.name, "licence": "ODbL 1.0, OpenStreetMap contributors"}
-    packs = {}
+    manifest = {"name": name, "sources": pack_write.spike_sources(gol, lp)}
     t = time.perf_counter()
-    packs = pack_write.write_both({e: out_dir / f"{name}-{e}.pack" for e in ("wkb", "compact")}, manifest,
-                                  records, geoms, workers, say=log)
+    packs = pack_write.write(out_dir / f"{name}.pack", manifest, records, geoms, workers, say=log)
     timings["pack"] = time.perf_counter() - t
-    log(f"Compact coordinates make the pack {packs['wkb']['bytes'] / packs['compact']['bytes']:.1f} times smaller.")
 
     log.heading("Coastline places")
-    log("Each line looks up one place in the compact pack. \"Pack tiles read\" is how many records the lookup "
+    log("Each line looks up one place in the pack. \"Pack tiles read\" is how many records the lookup "
         "fetched from the pack. See docs/design/glossary.md.")
-    passed, total, _lines = check_places(ACCEPTANCE / config["places"], out_dir / f"{name}-compact.pack", log)
+    passed, total, _lines = check_places(ACCEPTANCE / config["places"], out_dir / f"{name}.pack", log)
 
     log.heading("Pictures")
     layers = {"countries": [clipped[a.id] for a in country_layer],
@@ -1046,8 +1044,7 @@ def run(stage: int, folders: DataFolders, workers: int = 3) -> int:
     for k, v in timings.items():
         log(f"  {k}: {v:.0f} seconds.")
     working_mb = sum(f.stat().st_size for f in working.rglob("*") if f.is_file()) / 1e6
-    log(f"Working folder: {working_mb:,.0f} MB. Packs: WKB {packs['wkb']['bytes'] / 1e6:.1f} MB, "
-        f"compact {packs['compact']['bytes'] / 1e6:.1f} MB.")
+    log(f"Working folder: {working_mb:,.0f} MB. Pack: {packs['bytes'] / 1e6:.1f} MB.")
 
     summary = {
         "places_passed": passed, "places": total, "islands": islands, "shared_islands": shared,

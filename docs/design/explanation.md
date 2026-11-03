@@ -218,7 +218,7 @@ A pack is like a reference book with its contents page at the back.
 
 * The pages are the records. Each record is compressed on its own, so any one of them can be read without reading the rest.
 * The contents page is the directory. It lists every record by name, with where it starts in the file and how long it is.
-* To open a pack, the application reads the last few bytes of the file, which say where the directory is. Then it reads the directory, and after that only the records it needs.
+* To open a pack, the application reads the first 40 bytes of the file, the header, which say where the directory is. Then it reads the directory, and after that only the records it needs.
 
 The example pack has 5,318 records:
 
@@ -315,6 +315,18 @@ The base pack lite also has the VLIZ seas, so the same point will be in a sea, a
 ### Drawing tiles
 
 A Phase 1 pack also holds drawing tiles. They are pack tiles holding the simplified shapes from step 7, one set for each drawing level. They are used only to draw the map. Finding what is at a point, as above, always uses the exact shapes.
+
+### How a pack is checked
+
+Phase 1 packs, in format 2, are checked in three ways.
+
+* A check number for every record. The directory holds a short number worked out from each record's bytes. When the application reads a record, it works the number out again. If one byte of a pack tile is damaged, say by a failing disk, the numbers differ, and that pack tile is reported as damaged. The application carries on without it, and everything else in the pack still works (NFR-4).
+* A checksum for the whole pack. The build writes a small file beside the pack, such as base-lite.pack.sha256, holding a long number worked out from every byte. After a download, the application works it out again. If it differs, the download is damaged or incomplete, and you are asked to download it again (PCK-5).
+* The versions it works with. The manifest says which application versions the pack is for. An older TobyMap opening a pack that needs a newer one says so and asks you to update, rather than misreading it.
+
+Every message for these comes from the templates, so each is clear when spoken, for example: "world.pack needs TobyMap 0.2.0 or later, and this is TobyMap 0.1.4, so it was not opened. Update TobyMap to use it."
+
+Building the same pack twice from the same sources gives exactly the same file, byte for byte (DMT-1). That is why the build date in the manifest is the date of the newest source, not the day of the build.
 
 ### Packs in later phases
 

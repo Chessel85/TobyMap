@@ -111,7 +111,7 @@ def test_tree_items_take_real_focus(app):
     app.keyboard.press("ArrowRight")
     app.keyboard.press("ArrowRight")
     first_nearby = app.evaluate("document.activeElement.textContent")
-    assert first_nearby == "Belgium, 420 kilometres east"
+    assert first_nearby == "Belgium, 430 kilometres east"  # on the ellipsoid since P1-T1
     app.wait_for_function("document.getElementById('details').value.startsWith('Belgium')")
 
 

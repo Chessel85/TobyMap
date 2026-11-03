@@ -319,3 +319,40 @@ A Phase 1 pack also holds drawing tiles. They are pack tiles holding the simplif
 ### Packs in later phases
 
 The base pack lite covers the whole world, with a few layers. Later phases add other packs. A pack can cover a smaller area, such as Great Britain, and hold other layers, such as roads, and both are stored in the same way, as records, pack tiles and tile entries. Where two installed packs cover the same place, the application uses the more detailed one there (AD-14).
+
+## How TobyMap measures the Earth and moves you on it
+
+This is task P1-T1, core geodesy. It is the arithmetic that every other part of the application relies on when it deals with a position. It isn't about map data: it doesn't know about countries or seas. It answers questions about points on the Earth.
+
+### Words used in this section
+
+* Ellipsoid and move path, as in the glossary.
+* Bearing: the direction from one place to another, in degrees clockwise from north.
+* The core: the Python shared by the desktop and web versions.
+
+### What it answers
+
+* How far is it from here to there? London to Paris is 343.8 km over the Earth's surface.
+* In which direction? From London, Paris is at a bearing of 148 degrees.
+* Where do I land if I step 10 km north, or east? A step north or south follows the meridian, the line of longitude. A step east or west follows the line of latitude, so you stay at the same latitude however far you go.
+* Can I step at all? A step north that would reach or pass the North Pole is refused, and so is a step south past the South Pole, so the application can play the blocked sound.
+* What happens at the 180 degree line? A step east from 179.9 degrees east lands at 179.9 degrees west, in Fiji or the Bering Strait, just as it would anywhere else.
+* How big is a country that crosses that line, such as Fiji, and where is its middle? Its parts on both sides are treated as one shape, so its bounding box is a few degrees wide, not nearly the whole world, and its middle is in Fiji.
+
+### Why the ellipsoid, not a ball
+
+The Earth is slightly flattened. Working it out on a perfect ball is wrong by up to about half a percent, which can change a spoken distance. For example, from the start position, Belgium's label point was 424 km on the ball, said as 420 kilometres. On the ellipsoid it is 426 km, said as 430. The application now uses the ellipsoid, through a free library called GeographicLib (MIT licence). It is written in plain Python, so the web version runs exactly the same sums in the browser.
+
+### Numbers, not words
+
+The last part turns a measurement into what should be said, in your chosen style, but only as a number and a short code. For example:
+
+* 344,000 metres in metric is the number 340 and the code for kilometres. In imperial it is 210 and the code for miles.
+* A bearing of 47 degrees is 47 exactly, about 50 when rounded to 10 degrees, 2 for 2 o'clock, or the code for north-east with 8, 16 or 32 compass points.
+* Coordinates are given to 5 decimal places, about 1 metre, or in degrees, minutes and seconds.
+
+The words themselves, such as "kilometres" and "north-east", are added by the templates in task P1-T7. So every word the application says stays in one file, where it can be checked and, one day, translated.
+
+### What you will notice
+
+Nothing yet, apart from some distances in the Information panel's Nearby group, which may differ by 10 km from version 0.0.7 because they are now worked out on the ellipsoid. Stepping in metres and kilometres, "where am I", and the formats you choose in the settings are built on this in tasks P1-T5 to P1-T9.

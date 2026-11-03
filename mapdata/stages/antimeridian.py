@@ -13,26 +13,11 @@ from dataclasses import dataclass
 import numpy as np
 import shapely
 
+from mapcore.geo import geodesy as _core
 from mapdata.stages.geodesy import distance_km
 
-LINE_TOLERANCE = 1e-7  # degrees
-
-
-@dataclass
-class WrapBox:
-    west: float    # may be greater than east when the box crosses the line
-    south: float
-    east: float
-    north: float
-    width: float   # degrees of longitude covered, 360 for a shape round the pole
-
-    @property
-    def crosses(self) -> bool:
-        return self.west > self.east
-
-    @property
-    def round_the_world(self) -> bool:
-        return self.width >= 359.999
+LINE_TOLERANCE = _core.LINE_TOLERANCE
+WrapBox = _core.WrapBox  # the core's box, shared with the application (P1-T1)
 
 
 def _intervals(geom) -> list[tuple[float, float]]:
@@ -44,27 +29,10 @@ def _intervals(geom) -> list[tuple[float, float]]:
 
 
 def wrap_box(geom) -> WrapBox:
-    """The smallest box in longitude, allowed to cross the 180 degree line.
-
-    The longitudes covered by the parts are merged; the largest stretch of
-    longitude with no part is left outside the box.
-    """
+    """The smallest box in longitude, allowed to cross the 180 degree line
+    (mapcore.geo.geodesy.wrap_box, over the spans of the shape's parts)."""
     _w, south, _e, north = geom.bounds
-    merged: list[list[float]] = []
-    for w, e in _intervals(geom):
-        if merged and w <= merged[-1][1]:
-            merged[-1][1] = max(merged[-1][1], e)
-        else:
-            merged.append([w, e])
-    if not merged:
-        return WrapBox(0, 0, 0, 0, 0)
-    # Gaps between merged stretches, including the one round the back across the line.
-    gaps = [(merged[i + 1][0] - merged[i][1], merged[i][1], merged[i + 1][0]) for i in range(len(merged) - 1)]
-    gaps.append((merged[0][0] + 360 - merged[-1][1], merged[-1][1], merged[0][0]))
-    size, gap_start, gap_end = max(gaps)
-    if size <= LINE_TOLERANCE:
-        return WrapBox(-180.0, south, 180.0, north, 360.0)
-    return WrapBox(gap_end, south, gap_start, north, 360.0 - size)
+    return _core.wrap_box(_intervals(geom), south, north)
 
 
 def shifted(geom, box: WrapBox | None = None):
@@ -82,7 +50,7 @@ def shifted(geom, box: WrapBox | None = None):
 
 
 def normalise_lon(lon: float) -> float:
-    return ((lon + 180.0) % 360.0) - 180.0
+    return ((lon + 180.0) % 360.0) - 180.0  # -180 kept as -180, unlike the core's wrap_lon
 
 
 @dataclass
@@ -103,13 +71,9 @@ def centre(geom, box: WrapBox | None = None) -> Centre:
     is what hierarchy mode or a search would jump to.
     """
     box = box or wrap_box(geom)
-    if box.round_the_world:
-        lat = -89.999 if box.south < -89 else (89.999 if box.north > 89 else (box.south + box.north) / 2)
-        lon = 0.0
-    else:
-        east = box.east + 360 if box.crosses else box.east
-        lon = normalise_lon((box.west + east) / 2)
-        lat = (box.south + box.north) / 2
+    lat, lon = _core.box_centre(box)
+    # Just off the pole itself, which lies on the edge of a shape cut there.
+    lat = min(89.999, max(-89.999, lat))
     pt = shapely.Point(lon, lat)
     if shapely.intersects(geom, pt):
         return Centre(lon, lat, True, lon, lat, 0.0)

@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from mapcore.geo import sphere
+from mapcore.geo import geodesy
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DEFAULT_FILE = DATA_DIR / "world_110m.json"
@@ -103,7 +103,7 @@ class WorldSample:
         return self._by_id.get(cid)
 
     def country_at(self, lat: float, lon: float) -> Country | None:
-        lon = sphere.wrap_lon(lon)
+        lon = geodesy.wrap_lon(lon)
         for c in self.countries:
             if c.contains(lat, lon):
                 return c
@@ -111,11 +111,17 @@ class WorldSample:
 
     def nearest(self, lat: float, lon: float, count: int = 8, exclude: str | None = None):
         """The nearest countries by distance to their label point: (country, km, bearing)."""
+        # Ranked quickly on the sphere, then measured exactly on the ellipsoid (AD-7).
+        candidates = [c for c in self.countries if c.id != exclude]
+        rough = geodesy.rough_distances_m(lat, lon, [c.centre_lat for c in candidates],
+                                          [c.centre_lon for c in candidates])
+        # The sphere is within half a percent, so anything within 1% of the
+        # count-th rough distance could still be among the nearest.
+        limit = np.sort(rough)[min(count, len(rough)) - 1] * 1.01 if count and len(rough) else -1.0
+        keep = [c for c, d in zip(candidates, rough) if d <= limit]
         found = []
-        for c in self.countries:
-            if c.id == exclude:
-                continue
-            km = sphere.distance_km(lat, lon, c.centre_lat, c.centre_lon)
-            found.append((km, c.name, c))
+        for c in keep:
+            metres, bearing, _ = geodesy.inverse(lat, lon, c.centre_lat, c.centre_lon)
+            found.append((metres / 1000, c.name, c, bearing))
         found.sort(key=lambda t: (t[0], t[1]))
-        return [(c, km, sphere.bearing_deg(lat, lon, c.centre_lat, c.centre_lon)) for km, _n, c in found[:count]]
+        return [(c, km, bearing) for km, _n, c, bearing in found[:count]]

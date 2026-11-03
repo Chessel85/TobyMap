@@ -6,7 +6,7 @@ Started on 3 November 2026, after the PO accepted Phase 0.
 
 ## Tasks
 
-* [ ] P1-T1 Core geodesy: distance, bearing, stepping, the poles, the 180 degree line, and formatting.
+* [x] P1-T1 Core geodesy: distance, bearing, stepping, the poles, the 180 degree line, and formatting. Done 3 November on branch p1-t1-geodesy; macOS is confirmed by continuous integration when it is pushed.
 * [ ] P1-T2 Pack format version 1: the writer and reader, the byte source, the manifest, checksums and version checks.
 * [ ] P1-T3 Pipeline skeleton: check, fetch and build commands, configuration, stage caching, progress, summary and log.
 * [ ] P1-T4 Base pack "lite": countries, first-level divisions, oceans and seas, and land, with no gaps (LOC-6).

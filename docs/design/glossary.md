@@ -25,6 +25,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Shared island: an island whose land is in two countries, with a border across it, such as Märket, shared by Sweden and Finland.
 * The 180 degree line: the meridian at 180 degrees east and west (the antimeridian). OSM splits every shape that crosses it, so Fiji's shape has parts either side.
 * Artificial edge: an edge of a shape that is only there because the shape was split, along the 180 degree line or at the South Pole. It is never a border or coast, never announced and never outlined (AD-17).
+* Ellipsoid: the shape the application uses for the Earth, a ball slightly flattened at the poles, called WGS 84. Every distance, bearing and step is worked out on it (AD-7). A perfect ball, the sphere, is wrong by up to about half a percent.
+* Move path: the line a step follows, as a list of positions no more than 10 km apart, so it bends with the Earth. Phase 2 uses it to find what a step crossed and passed.
 * Counties record: the list, in mapdata/config/county_levels.yaml, of which levels make up each country's Counties layer (DP101). The build writes it once per country; a corrected entry is never overwritten.
 
 ## OpenStreetMap data

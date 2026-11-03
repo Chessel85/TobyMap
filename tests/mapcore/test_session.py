@@ -109,7 +109,8 @@ def test_panel_groups(session):
     assert [i["label"] for i in within] == ["United Kingdom", "Earth"]
     nearby = groups[1]["items"]
     assert len(nearby) == 8
-    assert nearby[0]["label"] == "Belgium, 420 kilometres east"
+    # 425.6 km on the ellipsoid (P1-T1); the Phase 0 sphere gave 424.4, said as 420.
+    assert nearby[0]["label"] == "Belgium, 430 kilometres east"
     assert groups[2]["items"] == [] and groups[2]["empty"] == "Nothing yet. This group is filled from Phase 2."
 
 

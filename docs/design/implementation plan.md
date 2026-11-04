@@ -262,6 +262,7 @@ LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, AN
 * P3-T13 Pack manager first version: the catalogue, install, remove, checksum checks, and the first-run offer of the base pack. Packs downloaded from GitHub Releases, or the fall-back chosen in DP83 for the web.
 * P3-T14 Pipeline quality reports and the publish command (DMT-3, DMT-5).
 * P3-T15 Help: the user guide, the key reference, the glossary and the data sources page (DAT-9).
+* P3-T16 Lists of disputed and unclaimed areas: the user can list or search for all disputed areas, and all unclaimed areas (DP119, DP120). Disputed areas include land OSM holds twice (such as Sevastopol), land in two countries (the 15 places in DP119, once Phase 3 can give both parties equal credit), and the West Bank and the Ilemi Triangle, which the base pack lite already marks disputed. Unclaimed areas include Bir Tawil, the small islands in no country, and any other land in no country. Done with search (P3-T8) and browse by category (P3-T9).
 
 ### Automatic exit checks
 * The Phase 3 acceptance scripts pass, including the coverage test of sample places worldwide (DAT-1), Switzerland's five neighbours (INF-2), "Sao Paulo" (SRB-1), and the Bay of Biscay hierarchy (DAT-4).

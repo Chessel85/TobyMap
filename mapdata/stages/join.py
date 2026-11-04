@@ -23,7 +23,10 @@ Settings:
 
 * sliver_width_m: land thinner than this on average is a sliver, 200 by default.
 * sliver_km2: land smaller than this is a sliver, whatever its shape, 0.1 by default.
-* unclaimed: known unclaimed land, each with name, point [longitude, latitude] and note.
+* unclaimed: known unclaimed land, each with name, point [longitude, latitude] and note. An entry with
+  disputed: true is land that more than one party claims, such as the West Bank: it keeps its name, its type
+  is "disputed land" and its record is marked disputed, so it can be listed with the other disputed areas
+  (DP119, DP120). Any other entry is unclaimed land.
 * named_waters: water with no ocean beside it, each with id, name and point.
 """
 from __future__ import annotations
@@ -218,15 +221,17 @@ def run(ctx) -> None:
         known = next((u for u in unclaimed_list
                       if any(shapely.intersects(g, shapely.Point(u["point"])) for g in comp)), None)
         if known:
-            uid, name, note = f"unclaimed:{known['name'].lower().replace(' ', '-')}", known["name"], known.get("note")
+            kind = "disputed" if known.get("disputed") else "unclaimed"
+            uid, name, note = f"{kind}:{known['name'].lower().replace(' ', '-')}", known["name"], known.get("note")
         else:
+            kind = "unclaimed"
             uid, name, note = f"unclaimed:{p.y:.2f}:{p.x:.2f}", "Unclaimed", None
         lab = ("land", uid, None)
         shapes.setdefault(lab, []).extend(comp)
-        new_records[uid] = {"id": uid, "name": name, "kind": "unclaimed", "note": note}
+        new_records[uid] = {"id": uid, "name": name, "kind": kind, "note": note}
         if best is not None:
             pairs.add(tuple(sorted((lab, best), key=str)))
-        line = (f"Unclaimed land: {name}, {km2:,.2f} km2, at {p.y:.3f} north, {p.x:.3f} east"
+        line = (f"{'Disputed' if kind == 'disputed' else 'Unclaimed'} land: {name}, {km2:,.2f} km2, at {p.y:.3f} north, {p.x:.3f} east"
                 + (f", beside {by_id.get(best[1], {}).get('name', best[1])}" if best else ", an island")
                 + ("." if known else ". It is not on the list of unclaimed land in the settings yet."))
         if best is None and not known and km2 < SMALL_ISLAND_KM2:
@@ -308,8 +313,10 @@ def run(ctx) -> None:
                 rec.update(name=src["name"], type="territory")
                 if src.get("note"):
                     rec["note"] = src["note"]
-            elif src.get("kind") == "unclaimed":
-                rec.update(name=src["name"], type="unclaimed land")
+            elif src.get("kind") in ("unclaimed", "disputed"):
+                rec.update(name=src["name"], type=f"{src['kind']} land")
+                if src["kind"] == "disputed":
+                    rec["disputed"] = True
                 if src.get("note"):
                     rec["note"] = src["note"]
             else:

@@ -53,3 +53,6 @@ playwright-report/
 # Screen-reader convenience files
 stuff.txt
 taskInfo.txt
+
+# Pages the PO generates from the markdown documents with pandoc
+/docs/**/*.html

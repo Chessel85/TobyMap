@@ -23,6 +23,9 @@ stages:
   - stage: join
     unclaimed:
       - {name: Bir Tawil, point: [33.75, 21.87], note: "Land between Egypt and Sudan that neither country claims."}
+      # More than one party claims these, so they are disputed, not unclaimed (DP120).
+      - {name: West Bank, point: [35.29, 31.68], disputed: true, note: "Land that Israel and Palestine both claim."}
+      - {name: Ilemi Triangle, point: [35.22, 4.81], disputed: true, note: "Land that South Sudan and Kenya both claim; Ethiopia has also claimed part of it."}
     named_waters:
       - {id: "water:caspian-sea", name: Caspian Sea, point: [50.5, 41.5]}
   - stage: write

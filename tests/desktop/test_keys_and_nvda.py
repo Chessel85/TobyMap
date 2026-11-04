@@ -19,7 +19,6 @@ def press(key, mods=Qt.KeyboardModifier.NoModifier):
     (Qt.Key.Key_Space, Qt.KeyboardModifier.ShiftModifier, "Shift+Space"),
     (Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier, "Ctrl+Space"),
     (Qt.Key.Key_R, Qt.KeyboardModifier.NoModifier, "R"),
-    (Qt.Key.Key_Comma, Qt.KeyboardModifier.ControlModifier, "Ctrl+,"),
     (Qt.Key.Key_F1, Qt.KeyboardModifier.NoModifier, "F1"),
     (Qt.Key.Key_Up, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier, "Ctrl+Shift+Up"),
 ])

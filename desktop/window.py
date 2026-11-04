@@ -1,41 +1,50 @@
 """The main window: the four regions (UX section 2) around one map session.
 
 Tab and Shift+Tab move between the map, the Information panel and Details,
-wrapping round. Alt reaches the menu bar, and Tab leaves it (DP93). Every key
-and menu entry comes from the command registry (AD-3), and every word from the
-core's templates (3.4). This module only translates: keys and clicks into
-commands, responses into speech, sound, painting and focus.
-
-Keys are handled in one place, an application-wide key filter, which asks the
-session what a key means in the focused region. So remapped keys, the key
-describer and F1 for the focused region all work the same everywhere.
-
-Holding an arrow key (ANN-3): the first press is described at once; the
-repeats are carried out with speech held back, and when the key is let go only
-the final place is spoken.
+wrapping round. Alt reaches the menu bar, and Tab leaves it (DP93). Every key and menu entry comes from the command
+registry (AD-3), and every word from the core's templates (3.4). This module
+only translates: keys and clicks into commands, responses into speech,
+painting and focus.
 """
 from __future__ import annotations
 
-import time
-from pathlib import Path
-
 from PySide6.QtCore import QEvent, QObject, Qt
-from PySide6.QtGui import QAccessible, QAccessibleTableModelChangeEvent, QAction, QGuiApplication
-from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, QMenu, QPlainTextEdit, QSplitter,
-                               QTreeWidget, QTreeWidgetItem)
+from PySide6.QtGui import QAccessible, QAccessibleTableModelChangeEvent, QAction, QKeySequence
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QMainWindow, QMenu, QPlainTextEdit, QSplitter,
+                               QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import ListDialog, SettingsDialog, TextDialog
-from desktop.keys import key_name
 from desktop.map_widget import MapWidget
-from desktop.sounds import SoundPlayer
-from mapcore.commands import registry
-from mapcore.session import MapSession, Response
+from mapcore.session import MapSession
 
 ITEM_ID = Qt.ItemDataRole.UserRole
-TOGGLES = {"step.link": lambda s: s.world.link, "sound.mute": lambda s: s.settings["mute"],
-           "help.describer": lambda s: s.describing}
+
+
+def qt_shortcut(key: str) -> QKeySequence:
+    """Registry key names to Qt's own names, for menu shortcuts."""
+    return QKeySequence(key.replace("Page Up", "PgUp").replace("Page Down", "PgDown"))
+
+
+class TextDialog(QDialog):
+    """A read-only text with a Close button, so Escape is never needed (ACC-7)."""
+
+    def __init__(self, parent, title: str, text: str, close_label: str):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        layout = QVBoxLayout(self)
+        self.text = QPlainTextEdit(text)
+        self.text.setReadOnly(True)
+        self.text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByKeyboard
+                                          | Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.text.setTabChangesFocus(True)
+        self.text.setAccessibleName(title)
+        layout.addWidget(self.text)
+        buttons = QDialogButtonBox()
+        self.close_button = buttons.addButton(close_label, QDialogButtonBox.ButtonRole.RejectRole)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.resize(560, 420)
+        self.text.setFocus()
 
 
 class _MenuTabFilter(QObject):
@@ -55,42 +64,17 @@ class _MenuTabFilter(QObject):
         return False
 
 
-class _KeyFilter(QObject):
-    """Every key press and release in the main window goes through here."""
-
-    def __init__(self, window: "MainWindow"):
-        super().__init__(window)
-        self._window = window
-
-    def eventFilter(self, obj, event):
-        kind = event.type()
-        if kind not in (QEvent.Type.KeyPress, QEvent.Type.KeyRelease):
-            return False
-        window = self._window
-        if QApplication.activeWindow() is not window or QApplication.activePopupWidget() is not None \
-                and kind == QEvent.Type.KeyRelease:
-            return False
-        if kind == QEvent.Type.KeyRelease:
-            return window.key_released(event)
-        return window.key_pressed(event)
-
-
 class MainWindow(QMainWindow):
     REGIONS = ("map", "panel", "details")  # Tab never goes to the menu bar (DP93)
 
-    def __init__(self, session: MapSession | None = None, announcer=None, sounds=None, data_folder=None,
-                 install_filter: bool = True):
+    def __init__(self, session: MapSession | None = None, announcer=None):
         super().__init__()
-        self.data_folder = data_folder
-        self.session = session or self._new_session()
+        self.session = session or MapSession(platform="desktop")
         self.words = self.session.words()
         self.setWindowTitle(self.words["window_title"])
         self.announcer = announcer or Announcer(self)
-        self.sounds = sounds if sounds is not None else SoundPlayer()
         self._registry = self.session.registry()
         self._dialogs: list[QDialog] = []
-        self._held_key: str | None = None
-        self.spoken_times: list[float] = []
 
         self.map = MapWidget(self, self.session)
         self.tree = QTreeWidget()
@@ -131,52 +115,32 @@ class MainWindow(QMainWindow):
         self.menuBar().setAccessibleName(self.words["menu_bar"])
         self.resize(1200, 800)
 
-        self._key_filter = _KeyFilter(self)
-        if install_filter:
-            QApplication.instance().installEventFilter(self._key_filter)
-
         self.handle(self.session.start())
         self.map.setFocus()
-
-    def _new_session(self) -> MapSession:
-        saved = storage.load(self.data_folder)
-        return MapSession(platform="desktop", packs=storage.find_packs(self.data_folder),
-                          settings=saved.get("settings"), saved_state=saved.get("state"))
-
-    def closeEvent(self, event):
-        self.save()
-        QApplication.instance().removeEventFilter(self._key_filter)
-        self.session.store.close()
-        super().closeEvent(event)
-
-    def save(self) -> None:
-        """Settings, changed keys and the last place, zoom and step (PLT-5)."""
-        storage.save(self.session.save(), self.data_folder)
 
     # Menus, from the registry -------------------------------------------
 
     def _build_menus(self):
-        self.menuBar().clear()
-        self.actions_by_name.clear()
+        global_keys = self._registry["keymap"]["global"]
         for menu in self._registry["menus"]:
             qmenu: QMenu = self.menuBar().addMenu(self._with_access(menu["label"], menu.get("access", "")))
             qmenu.installEventFilter(self._menu_filter)
             for item in menu["items"]:
                 name = item["name"]
-                text = f"{item['label']}\t{item['key']}" if item["key"] else item["label"]
-                action = QAction(text, self)
-                if item["toggle"]:
-                    action.setCheckable(True)
-                    action.setChecked(bool(TOGGLES[name](self.session)))
+                if item["key"] and global_keys.get(item["key"]) == name:
+                    # Global keys work anywhere, through the action.
+                    action = QAction(item["label"], self)
+                    action.setShortcut(qt_shortcut(item["key"]))
+                    action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+                elif item["key"]:
+                    # Map keys are only shown after a tab, and handled by the map
+                    # itself, so they never act in the tree or inside a menu.
+                    action = QAction(f"{item['label']}\t{item['key']}", self)
+                else:
+                    action = QAction(item["label"], self)
                 action.triggered.connect(lambda _checked=False, n=name: self._menu_command(n))
                 qmenu.addAction(action)
                 self.actions_by_name[name] = action
-
-    def _refresh_toggles(self):
-        for name, getter in TOGGLES.items():
-            action = self.actions_by_name.get(name)
-            if action is not None:
-                action.setChecked(bool(getter(self.session)))
 
     @staticmethod
     def _with_access(label: str, letter: str) -> str:
@@ -228,70 +192,25 @@ class MainWindow(QMainWindow):
         self.focus_region(self.REGIONS[(i + (1 if forward else -1)) % len(self.REGIONS)])
         return True
 
-    # Keys -----------------------------------------------------------------
-
-    def key_pressed(self, event) -> bool:
-        """Returns True when the key was ours. Keys in dialogs and other windows are never touched."""
-        name = key_name(event)
-        if name is None or name in ("Tab", "Shift+Tab"):
-            return False
-        region = self.region_of(QApplication.focusWidget()) or "map"
-        started = time.time()
-        command = registry.command_for_key("desktop", name, region, self.session.settings.keys)
-        if command is None and not self.session.describing:
-            return False
-        if command is not None and not self.session.describing and command.held:
-            if event.isAutoRepeat():
-                if self._held_key == command.name:
-                    self.handle(self.session.run(command.name, held=True))
-                return True
-            self._held_key = command.name
-        response = self.session.press(name, region)
-        if response is None:
-            return False
-        self.handle(response, key_at=started)
-        return True
-
-    def key_released(self, event) -> bool:
-        if event.isAutoRepeat() or self._held_key is None:
-            return False
-        key = key_name(event)
-        command = registry.command_for_key("desktop", key, "map", self.session.settings.keys) if key else None
-        if command is not None and command.name == self._held_key:
-            self.release_held()
-        return False
-
-    def release_held(self) -> None:
-        """The held key or the drag ended: only the final place is spoken, and it interrupts older speech (ANN-3)."""
-        self._held_key = None
-        self.handle(self.session.release())
-
     # Commands and responses ---------------------------------------------
 
     def dispatch_key(self, key: str, region: str) -> bool:
-        response = self.session.press(key, region)
-        if response is None:
+        name = self._registry["keymap"].get(region, {}).get(key)
+        if not name:
             return False
-        self.handle(response)
+        self.dispatch(name)
         return True
 
     def dispatch(self, name: str, **args):
         self.handle(self.session.run(name, **args))
 
-    def handle(self, response, key_at: float | None = None):
+    def handle(self, response):
         for a in response.announcements:
             if a["channel"] == "braille":
                 if not self.announcer.braille(a["text"]):
                     self.announcer.speak(a["fallback"], "polite")
             else:
                 self.announcer.speak(a["text"], a["priority"])
-                self.spoken_times.append(time.time())
-        for event in response.earcons:
-            self._play(event)
-        if response.announcements or response.earcons:
-            from mapcore import diagnostics
-
-            diagnostics.add_shell(self.session, key_pressed_at=key_at, handed_over_at=time.time())
         if response.redraw:
             self.map.update()
         if response.panel_stale:
@@ -299,22 +218,12 @@ class MainWindow(QMainWindow):
             self._fill_tree()
         if response.details_stale:
             self.details.setPlainText(self.session.details())
-        if response.settings_changed:
-            self.save()
-            self._registry = self.session.registry()
-            self._build_menus()
-        self._refresh_toggles()
         if response.focus:
             self._apply_focus(response.focus)
         if response.dialog:
             self._open_dialog(response.dialog)
         if response.action == "exit":
             self.close()
-
-    def _play(self, event: str) -> None:
-        played, custom_failed = self.sounds.play(self.session.earcon_file(event))
-        if custom_failed:
-            self.handle(self.session.earcon_failed(event))
 
     def _apply_focus(self, focus: dict):
         if focus["region"] == "map":
@@ -324,34 +233,15 @@ class MainWindow(QMainWindow):
             self.details.moveCursor(self.details.textCursor().MoveOperation.Start)
             self.details.setFocus(Qt.FocusReason.OtherFocusReason)
             return
-        if focus["region"] == "menu":
-            self.focus_region("menu")
-            return
         if focus["region"] == "panel":
-            target = self._item_by_id(focus.get("item")) if focus.get("item") else None
-            if target is None:
-                group = self._group_item(focus.get("group") or "within")
-                target = group.child(0) if group is not None and group.childCount() else group
-            if target is not None:
-                if target.parent() is not None:
-                    target.parent().setExpanded(True)
-                self.tree.setCurrentItem(target)
+            group = self._group_item(focus.get("group"))
+            if group is not None:
+                group.setExpanded(True)
+                self.tree.setCurrentItem(group.child(0) if group.childCount() else group)
             self.tree.setFocus(Qt.FocusReason.OtherFocusReason)
 
-    # Dialogs --------------------------------------------------------------
-
     def _open_dialog(self, dialog: dict):
-        kind = dialog.get("kind", "text")
-        if dialog.get("copy"):
-            QGuiApplication.clipboard().setText(dialog["copy"])
-        if kind == "settings":
-            box = SettingsDialog(self, self.session, self.words, export_cb=self._export_settings,
-                                 import_cb=self._import_settings)
-            box.finished.connect(lambda _r, b=box: [self.handle(r) for r in b.responses])
-        elif kind == "history":
-            box = ListDialog(self, dialog["title"], dialog["lines"], self.words["close"])
-        else:
-            box = TextDialog(self, dialog["title"], dialog["text"], self.words["close"])
+        box = TextDialog(self, dialog["title"], dialog["text"], self.words["close"])
         self._dialogs.append(box)
         box.finished.connect(lambda _r, b=box: self._dialog_closed(b))
         box.open()
@@ -360,27 +250,6 @@ class MainWindow(QMainWindow):
         if box in self._dialogs:
             self._dialogs.remove(box)
         self.map.setFocus()
-
-    def _export_settings(self):
-        path, _ = QFileDialog.getSaveFileName(self, self.words["export"], "tobymap-settings.json", "JSON (*.json)")
-        if path:
-            storage.export_to(self.session.save(), Path(path))
-
-    def _import_settings(self):
-        path, _ = QFileDialog.getOpenFileName(self, self.words["import"], "", "JSON (*.json)")
-        if not path:
-            return
-        try:
-            data = storage.import_from(Path(path))
-        except (OSError, ValueError):
-            return
-        storage.save(data, self.data_folder)
-        saved = storage.load(self.data_folder)
-        self.session.settings = type(self.session.settings).from_dict(saved.get("settings"))
-        self.session.world.restore(saved.get("state", self.session.world.to_dict()))
-        self.session.areas = self.session._here()
-        self.handle(self.session.run("where.am_i"))
-        self.handle(Response(redraw=True, panel_stale=True, details_stale=True, settings_changed=True))
 
     # The Information panel ------------------------------------------------
 
@@ -391,42 +260,25 @@ class MainWindow(QMainWindow):
                 return item
         return None
 
-    def _item_by_id(self, item_id: str):
-        for i in range(self.tree.topLevelItemCount()):
-            group = self.tree.topLevelItem(i)
-            for j in range(group.childCount()):
-                if group.child(j).data(0, ITEM_ID) == item_id:
-                    return group.child(j)
-        return None
-
     def _fill_tree(self):
-        """Bring the tree up to date in place: existing items keep their identity and only
-        change their words, so NVDA reads the item F3 moves to without Up then Down."""
-        groups = self.session.panel()
+        expanded = {self.tree.topLevelItem(i).data(0, ITEM_ID)
+                    for i in range(self.tree.topLevelItemCount()) if self.tree.topLevelItem(i).isExpanded()}
         self.tree.blockSignals(True)
         try:
-            while self.tree.topLevelItemCount() > len(groups):
-                self.tree.takeTopLevelItem(self.tree.topLevelItemCount() - 1)
-            for gi, group in enumerate(groups):
-                if gi < self.tree.topLevelItemCount():
-                    g = self.tree.topLevelItem(gi)
-                else:
-                    g = QTreeWidgetItem()
-                    self.tree.addTopLevelItem(g)
-                    g.setExpanded(group["id"] == "within")
-                g.setText(0, group["label"])
+            self.tree.clear()
+            for group in self.session.panel():
+                g = QTreeWidgetItem([group["label"]])
                 g.setData(0, ITEM_ID, f"group:{group['id']}")
-                items = group["items"] or ([{"id": None, "label": group["empty"]}] if group["empty"] else [])
-                while g.childCount() > len(items):
-                    g.takeChild(g.childCount() - 1)
-                for ii, item in enumerate(items):
-                    child = g.child(ii) if ii < g.childCount() else None
-                    if child is None:
-                        child = QTreeWidgetItem()
-                        g.addChild(child)
-                    if child.text(0) != item["label"]:
-                        child.setText(0, item["label"])
+                for item in group["items"]:
+                    child = QTreeWidgetItem([item["label"]])
                     child.setData(0, ITEM_ID, item["id"])
+                    g.addChild(child)
+                if not group["items"] and group["empty"]:
+                    child = QTreeWidgetItem([group["empty"]])
+                    child.setData(0, ITEM_ID, None)
+                    g.addChild(child)
+                self.tree.addTopLevelItem(g)
+                g.setExpanded(g.data(0, ITEM_ID) in expanded)
         finally:
             self.tree.blockSignals(False)
 

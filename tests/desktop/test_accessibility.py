@@ -14,16 +14,13 @@ from PySide6.QtGui import QAccessible
 from PySide6.QtWidgets import QApplication
 
 from desktop.announcer import RecordingAnnouncer
-from desktop.sounds import RecordingSounds
 from desktop.window import MainWindow
-from mapcore.session import MapSession
 
 
 @pytest.fixture
-def window(qtbot, test_pack, tmp_path):
+def window(qtbot):
     QAccessible.setActive(True)
-    session = MapSession(packs=[test_pack], saved_state={"lat": 51.2, "lon": 1.2, "zoom_m": 25000, "step_m": 25000})
-    w = MainWindow(session=session, announcer=RecordingAnnouncer(), sounds=RecordingSounds(), data_folder=tmp_path)
+    w = MainWindow(announcer=RecordingAnnouncer())
     qtbot.addWidget(w)
     w.show()
     qtbot.waitExposed(w)
@@ -44,17 +41,17 @@ def focus_name(widget):
 def test_map_is_a_pane_named_after_the_place(window):
     iface = QAccessible.queryAccessibleInterface(window.map)
     assert iface.role() == QAccessible.Role.Pane
-    assert iface.text(QAccessible.Text.Name) == "Kent, England, United Kingdom"
+    assert iface.text(QAccessible.Text.Name) == "United Kingdom"
 
 
 def test_map_name_changes_only_while_it_does_not_have_focus(window, qtbot):
     window.map.setFocus()
     QApplication.processEvents()
-    window.dispatch("move.south")
-    assert window.map.accessibleName() == "Kent, England, United Kingdom"  # unchanged while focused
+    window.dispatch("globe.south")
+    assert window.map.accessibleName() == "United Kingdom"  # unchanged while focused
     window.focus_region("panel")
     QApplication.processEvents()
-    assert window.map.accessibleName() == "North Atlantic Ocean"           # updated on leaving
+    assert window.map.accessibleName() == "Spain"           # updated on leaving
 
 
 def test_tree_items_are_right_after_a_group_is_closed(window):
@@ -65,14 +62,16 @@ def test_tree_items_are_right_after_a_group_is_closed(window):
     within = tree.topLevelItem(0)
     within.setExpanded(True)
     QApplication.processEvents()
-    assert names(tree)[1:4] == ["Within", "Kent", "England"]
-    count_open = len(names(tree))
+    assert names(tree)[1:] == ["Within", "United Kingdom", "Earth", "Nearby", "Crossed and passed"]
     within.setExpanded(False)
     QApplication.processEvents()
-    assert len(names(tree)) == count_open - within.childCount()
+    assert names(tree)[1:] == ["Within", "Nearby", "Crossed and passed"]
     assert focus_name(tree) == "Nearby"
+    tree.setCurrentItem(tree.topLevelItem(2))
+    QApplication.processEvents()
+    assert focus_name(tree) == "Crossed and passed"
 
 
 def test_alt_letters_open_the_menus(window):
     texts = [a.text() for a in window.menuBar().actions()]
-    assert texts == ["&Map", "&Speech", "Se&ttings", "&Help"]
+    assert texts == ["&Map", "&Speech", "&Help"]

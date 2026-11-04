@@ -3,8 +3,6 @@
 # PySide6 is always the latest release, checked at the start of each phase (4.2).
 PySide6==6.12.0
 numpy==2.5.4
-# The store reads shapes and answers "where am I" with it (P1-T5). BSD-3-Clause. Pyodide has it too.
-shapely==2.2.0
 PyYAML==6.0.3
 # Geodesy on the WGS 84 ellipsoid (AD-7). MIT. Pure Python; tools/stage_web.py copies it for the web version.
 geographiclib==2.1

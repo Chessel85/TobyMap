@@ -56,5 +56,9 @@ taskInfo.txt
 
 # Pages the PO generates from the markdown documents with pandoc
 /docs/**/*.html
+
+# PO local files and generated sounds
+/actions.txt
+/continue.txt
+/toRun.txt
 /web/sounds/
-/web/packs/

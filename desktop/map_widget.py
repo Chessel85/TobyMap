@@ -1,14 +1,14 @@
 """The map region: paints the core's shape list (AD-6) and turns keys and clicks into commands."""
 from __future__ import annotations
 
-import math
 import time
 
 import numpy as np
-from PySide6.QtCore import QEvent, QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QAccessible, QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
 from PySide6.QtWidgets import QAccessibleWidget, QWidget
 
+from desktop.keys import key_name
 
 
 def _add_outline(path: QPainterPath, points: list, seam) -> None:
@@ -78,22 +78,11 @@ def paint_scene(painter: QPainter, scene: dict) -> None:
         painter.drawPath(outlines[si])
     painter.setClipping(False)
 
-    c = scene.get("cross")
-    if c:
-        for colour, width in ((c["halo"], 4), (c["colour"], 2)):
-            painter.setPen(QPen(QColor(colour), width))
-            painter.drawLine(QPointF(c["x"] - c["size"], c["y"]), QPointF(c["x"] + c["size"], c["y"]))
-            painter.drawLine(QPointF(c["x"], c["y"] - c["size"]), QPointF(c["x"], c["y"] + c["size"]))
-    h = scene.get("heading")
-    if h:   # the heading arrow at the centre (LOC-7)
-        angle = math.radians(h["degrees"])
-        tip = QPointF(h["x"] + h["length"] * math.sin(angle), h["y"] - h["length"] * math.cos(angle))
-        left = QPointF(h["x"] + 9 * math.sin(angle - 2.5), h["y"] - 9 * math.cos(angle - 2.5))
-        right = QPointF(h["x"] + 9 * math.sin(angle + 2.5), h["y"] - 9 * math.cos(angle + 2.5))
-        arrow = QPolygonF([tip, left, QPointF(h["x"], h["y"]), right])
-        painter.setPen(QPen(QColor(h["halo"]), 3))
-        painter.setBrush(QBrush(QColor(h["colour"])))
-        painter.drawPolygon(arrow)
+    c = scene["cross"]
+    for colour, width in ((c["halo"], 4), (c["colour"], 2)):
+        painter.setPen(QPen(QColor(colour), width))
+        painter.drawLine(QPointF(c["x"] - c["size"], c["y"]), QPointF(c["x"] + c["size"], c["y"]))
+        painter.drawLine(QPointF(c["x"], c["y"] - c["size"]), QPointF(c["x"], c["y"] + c["size"]))
 
 
 def _accessible_factory(_key, obj):
@@ -127,9 +116,6 @@ class MapWidget(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMinimumSize(300, 300)
         self.last_paint_ms: float | None = None
-        self.setMouseTracking(True)
-        self.grabGesture(Qt.GestureType.PinchGesture)
-        self._last = None
 
     def paintEvent(self, _event):
         scene = self._session.scene(self.width(), self.height())
@@ -161,61 +147,18 @@ class MapWidget(QWidget):
         if not self.hasFocus():
             self.setAccessibleName(self._session.map_label())
 
-    def event(self, event):
-        if event.type() == QEvent.Type.Gesture:
-            pinch = event.gesture(Qt.GestureType.PinchGesture)
-            if pinch is not None and pinch.state() == Qt.GestureState.GestureFinished:
-                scale = pinch.totalScaleFactor()
-                if scale > 1.2 or scale < 0.83:  # a pinch changes the zoom to the next in the list (NAV-13)
-                    self._window.dispatch("map.zoom_to", direction=-1 if scale > 1 else 1)
-            return True
-        return super().event(event)
-
     def keyPressEvent(self, event):
-        # Keys are handled once, for the whole window, by MainWindow's key filter (AD-3).
+        name = key_name(event)
+        if name and self._window.dispatch_key(name, region="map"):
+            event.accept()
+            return
         super().keyPressEvent(event)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.setFocus()
-            self._press = event.position()
-            self._last = event.position()
-            self._dragged = False
+            p = event.position()
+            self._window.dispatch("map.click", x=p.x(), y=p.y(), width=self.width(), height=self.height())
             event.accept()
             return
         super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() & Qt.MouseButton.LeftButton and getattr(self, "_last", None) is not None:
-            p = event.position()
-            dx, dy = p.x() - self._last.x(), p.y() - self._last.y()
-            if self._dragged or abs(p.x() - self._press.x()) + abs(p.y() - self._press.y()) > 4:
-                self._dragged = True
-                self._last = p
-                self._window.dispatch("map.drag", dx=dx, dy=dy, width=self.width(), height=self.height())
-            event.accept()
-            return
-        if self._session.settings["hover_announce"]:
-            p = event.position()
-            self._window.dispatch("map.hover", x=p.x(), y=p.y(), width=self.width(), height=self.height())
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and getattr(self, "_last", None) is not None:
-            if self._dragged:
-                self._window.release_held()
-            else:
-                p = event.position()
-                self._window.dispatch("map.click", x=p.x(), y=p.y(), width=self.width(), height=self.height())
-            self._last = None
-            event.accept()
-            return
-        super().mouseReleaseEvent(event)
-
-    def wheelEvent(self, event):
-        delta = event.angleDelta().y()
-        if delta:
-            self._window.dispatch("map.zoom_to", direction=-1 if delta > 0 else 1)  # wheel up zooms in
-            event.accept()
-            return
-        super().wheelEvent(event)

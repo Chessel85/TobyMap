@@ -27,64 +27,22 @@ export class Tree {
     });
   }
 
-  // Bring the tree up to date in place: existing items keep their identity and only change their
-  // words, so the screen reader reads the item that has focus without Up then Down (INF-10).
   fill(groups) {
-    const lists = [...this.el.children];
-    while (this.el.children.length > groups.length) this.el.lastElementChild.remove();
+    const currentId = this.current ? this.current.dataset.id : null;
+    this.el.textContent = "";
     groups.forEach((group, gi) => {
-      let g = this.el.children[gi];
-      if (!g) {
-        g = this._item(`group:${group.id}`, group.label, 1, gi + 1, groups.length);
-        const list = document.createElement("ul");
-        list.setAttribute("role", "group");
-        g.appendChild(list);
-        g.setAttribute("aria-expanded", String(this.expanded.has(group.id)));
-        this.el.appendChild(g);
-      }
-      this._label(g, group.label);
-      g.dataset.id = `group:${group.id}`;
-      g.setAttribute("aria-setsize", String(groups.length));
-      const list = g.querySelector(':scope > [role="group"]');
+      const g = this._item(`group:${group.id}`, group.label, 1, gi + 1, groups.length);
+      const open = this.expanded.has(group.id);
+      g.setAttribute("aria-expanded", String(open));
+      const list = document.createElement("ul");
+      list.setAttribute("role", "group");
       const items = group.items.length ? group.items : (group.empty ? [{ id: "", label: group.empty }] : []);
-      while (list.children.length > items.length) {
-        const last = list.lastElementChild;
-        if (last === this.current) this._setCurrent(g, false, true);
-        last.remove();
-      }
-      items.forEach((item, ii) => {
-        let li = list.children[ii];
-        if (!li) { li = this._item(item.id, item.label, 2, ii + 1, items.length); list.appendChild(li); }
-        this._label(li, item.label);
-        li.dataset.id = item.id;
-        li.setAttribute("aria-setsize", String(items.length));
-      });
+      items.forEach((item, ii) => list.appendChild(this._item(item.id, item.label, 2, ii + 1, items.length)));
+      g.appendChild(list);
+      this.el.appendChild(g);
     });
-    if (!this.current || !this.el.contains(this.current)) {
-      this._setCurrent(this.el.querySelector('[role="treeitem"]'), false, true);
-    }
-  }
-
-  // The words are the item's first child text node, replaced only when they change.
-  _label(li, label) {
-    const node = li.firstChild;
-    if (node.textContent !== label) node.textContent = label;
-    if (li.hasAttribute("aria-expanded")) li.setAttribute("aria-label", label);
-  }
-
-  // F3: go to an item by its id (the item last focused, or Within's first), opening its group.
-  focusItem(id, groupId) {
-    let item = id ? this._byId(id) : null;
-    if (!item && groupId) {
-      const g = this._byId(`group:${groupId}`);
-      if (g) { this._expand(g, true); item = g.querySelector('[role="group"] > [role="treeitem"]') || g; }
-    }
-    if (!item) item = this.current;
-    if (!item) return;
-    const parent = item.parentElement.closest('[role="treeitem"]');
-    if (parent) this._expand(parent, true);
-    this._setCurrent(item, true);
-    item.focus();
+    const again = currentId !== null && this._byId(currentId);
+    this._setCurrent(again || this.el.querySelector('[role="treeitem"]'), false, true);
   }
 
   focusCurrent() {

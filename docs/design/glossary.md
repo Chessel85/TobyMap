@@ -110,15 +110,3 @@ Older documents written before this glossary, such as architecture section 6 and
 
 * Phonemes: the separate sounds of speech, such as the five in Berlin: "b", "er", "l", "i" and "n". Piper is given phonemes, not letters. eSpeak NG works them out from the text.
 * Label: a short piece of speech from the spatial voice, such as "Berlin", placed in space.
-
-## Using the application
-
-* Earcon: a short sound that tells you something happened without speech, such as the tick or the blocked sound (SON-6).
-* Tick: the earcon for a step that changed nothing.
-* Blocked sound: the earcon for a step that could not be taken, such as at a pole. Nothing is spoken with it.
-* Held key: an arrow key kept pressed so that it repeats. The steps are all made, but only the place where you let go is spoken (ANN-3).
-* Key describer: a mode, switched on and off with Shift+F1, in which each key you press is described and nothing is carried out.
-* Announcement history: the list of what the application has said, newest first, kept to at least 50 entries (ANN-4).
-* Hearing range: the distance at which a sound reaches the edge of the view. It is the zoom distance, and the distance curve is measured against it (SON-9).
-* Distance curve: how loud and how muffled a sound is for its distance within the hearing range.
-* Test trace: the core's record of every command, announcement and earcon with the time each took. "Copy diagnostics" puts the last five minutes of it on the clipboard.

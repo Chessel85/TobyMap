@@ -49,10 +49,6 @@ def stage() -> list[str]:
     files.append("version.txt")
     shutil.copyfile(ROOT / "web" / "bridge.py", OUT / "tobymap_bridge.py")
     files.append("tobymap_bridge.py")
-    sounds = ROOT / "web" / "sounds"
-    sounds.mkdir(exist_ok=True)
-    for wav in sorted((ROOT / "sounds").glob("*.wav")):   # the earcons, served with the page (SON-8)
-        shutil.copyfile(wav, sounds / wav.name)
     (OUT / "manifest.json").write_text(json.dumps({"files": files}, indent=1), encoding="utf-8")
     return files
 

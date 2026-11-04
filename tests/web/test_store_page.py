@@ -15,7 +15,6 @@ def test_store_selfcheck_in_the_worker(page, site_url):
     problems = page.evaluate("""() => new Promise((resolve, reject) => {
         const worker = new Worker('worker.js', { type: 'module' });
         worker.onmessage = (event) => {
-            if (event.data.notice !== undefined) return;   // the map download's progress, not the answer
             worker.terminate();
             if (event.data.ok) resolve(event.data.result);
             else reject(new Error(event.data.error));

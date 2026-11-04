@@ -5,41 +5,19 @@ JavaScript objects, never Python objects. It contains no map logic: it only
 converts. Numeric arrays are returned as bytes with their type, so the worker
 can turn them into typed arrays and pass them to the page without copying.
 
-The packs are read through JavaScript handles the worker gives it: the
-browser's private storage (a synchronous access handle), or bytes in memory
-where that is not available.
-
 tools/stage_web.py copies this file to web/py/tobymap_bridge.py.
 """
 from __future__ import annotations
 
 import json
 
-from js import Object, Uint8Array
+from js import Object
 from pyodide.ffi import to_js
 
-from mapcore.describe import say
 from mapcore.session import MapSession
 
 _session: MapSession | None = None
 _ARRAYS = {"coords": "f32", "rings": "i32", "shapes": "i32", "shape_style": "i32", "seam": "u8"}
-
-
-class HandleSource:
-    """A pack's bytes from a JavaScript object with getSize() and read(buffer, {at})."""
-
-    def __init__(self, handle, name: str):
-        self.handle = handle
-        self.name = name
-        self.size = int(handle.getSize())
-
-    def read(self, offset: int, length: int) -> bytes:
-        buffer = Uint8Array.new(length)
-        got = int(self.handle.read(buffer, to_js({"at": offset}, dict_converter=Object.fromEntries)))
-        return bytes(buffer.to_py())[:got]
-
-    def close(self) -> None:
-        pass
 
 
 def _js(value):
@@ -53,60 +31,20 @@ def _scene(width: int, height: int) -> dict:
     return scene
 
 
-def progress_text(percent: int) -> str:
-    return say("packs.downloading", percent=str(percent))
-
-
-def words_text(key: str) -> str:
-    """A template from the core by its dotted name, for the few messages the worker itself triggers."""
-    return say(key)
-
-
-def _extras(response, out: dict, width: int, height: int) -> dict:
-    out["response"] = response.to_dict()
-    out["describing"] = _session.describing
-    out["earcons"] = [_session.earcon_file(e) for e in response.earcons]
-    if response.panel_stale:
-        out["panel"] = _session.panel()
-        out["map_label"] = _session.map_label()
-    if response.details_stale:
-        out["details"] = _session.details()
-    if response.redraw:
-        out["scene"] = _scene(width, height)
-    if response.settings_changed:
-        out["registry"] = _session.registry()
-    out["save"] = json.dumps(_session.save())
-    return out
-
-
-def start(width: int, height: int, startup_ms: float, packs, saved_json: str):
+def start(width: int, height: int, startup_ms: float):
     global _session
-    saved = json.loads(saved_json) if saved_json else {}
-    sources = [HandleSource(p.handle, str(p.name)) for p in packs]
-    _session = MapSession(platform="web", packs=[_pack(s) for s in sources],
-                          settings=saved.get("settings"), saved_state=saved.get("state"))
+    _session = MapSession(platform="web")
     _session.startup_took(startup_ms)
     response = _session.start()
-    out = {"registry": _session.registry(), "words": _session.words()}
-    out["map_label"] = _session.map_label()
-    out["details"] = _session.details()
-    out["panel"] = _session.panel()
-    out["scene"] = _scene(width, height)
-    return _js(_extras_start(response, out))
-
-
-def _pack(source):
-    from mapcore.packs.pack import Pack
-
-    return Pack(source)
-
-
-def _extras_start(response, out: dict) -> dict:
-    out["response"] = response.to_dict()
-    out["describing"] = False
-    out["earcons"] = []
-    out["save"] = json.dumps(_session.save())
-    return out
+    return _js({
+        "registry": _session.registry(),
+        "words": _session.words(),
+        "response": response.to_dict(),
+        "panel": _session.panel(),
+        "details": _session.details(),
+        "map_label": _session.map_label(),
+        "scene": _scene(width, height),
+    })
 
 
 def run(commands_json: str, width: int, height: int):
@@ -115,44 +53,23 @@ def run(commands_json: str, width: int, height: int):
     speaks only the last (ANN-3)."""
     commands = [(name, args) for name, args in json.loads(commands_json)]
     response = _session.run_many(commands)
-    return _js(_extras(response, {}, width, height))
-
-
-def press(key: str, region: str, width: int, height: int):
-    """A key while the key describer is on: described, never carried out."""
-    response = _session.press(key, region)
-    return _js(_extras(response, {}, width, height)) if response is not None else None
-
-
-def release(width: int, height: int):
-    """The held movement key was let go: only the final place is spoken (ANN-3)."""
-    return _js(_extras(_session.release(), {}, width, height))
+    out = {"response": response.to_dict()}
+    if response.panel_stale:
+        out["panel"] = _session.panel()
+        out["map_label"] = _session.map_label()
+    if response.details_stale:
+        out["details"] = _session.details()
+    if response.redraw:
+        out["scene"] = _scene(width, height)
+    return _js(out)
 
 
 def scene(width: int, height: int):
     return _js({"scene": _scene(width, height)})
 
 
-def settings_schema():
-    return _js(_session.settings_schema())
-
-
-def earcon_failed(event: str, width: int, height: int):
-    return _js(_extras(_session.earcon_failed(event), {}, width, height))
-
-
 def frame_painted(paint_ms: float) -> None:
     _session.frame_painted(paint_ms)
-
-
-def shell_times(key_ms: float, handed_ms: float) -> None:
-    """The page reports when the key was pressed and when the text was handed to the screen reader (P1-T15)."""
-    from mapcore import diagnostics
-    import time
-
-    now = time.time()
-    diagnostics.add_shell(_session, key_pressed_at=now - key_ms / 1000 if key_ms is not None else None,
-                          handed_over_at=now - handed_ms / 1000 if handed_ms is not None else None)
 
 
 def pack_selfcheck():

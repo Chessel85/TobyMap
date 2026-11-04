@@ -51,31 +51,13 @@ export function paintScene(canvas, scene) {
   ctx.restore();
 
   const c = scene.cross;
-  if (c) {
-    for (const [colour, width] of [[c.halo, 4], [c.colour, 2]]) {
-      ctx.beginPath();
-      ctx.moveTo(c.x - c.size, c.y); ctx.lineTo(c.x + c.size, c.y);
-      ctx.moveTo(c.x, c.y - c.size); ctx.lineTo(c.x, c.y + c.size);
-      ctx.lineWidth = width;
-      ctx.strokeStyle = colour;
-      ctx.stroke();
-    }
-  }
-  const h = scene.heading;   // the heading arrow at the centre (LOC-7)
-  if (h) {
-    const a = (h.degrees * Math.PI) / 180;
-    const point = (len, turn) => [h.x + len * Math.sin(a + turn), h.y - len * Math.cos(a + turn)];
+  for (const [colour, width] of [[c.halo, 4], [c.colour, 2]]) {
     ctx.beginPath();
-    ctx.moveTo(...point(h.length, 0));
-    ctx.lineTo(...point(9, -2.5));
-    ctx.lineTo(h.x, h.y);
-    ctx.lineTo(...point(9, 2.5));
-    ctx.closePath();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = h.halo;
+    ctx.moveTo(c.x - c.size, c.y); ctx.lineTo(c.x + c.size, c.y);
+    ctx.moveTo(c.x, c.y - c.size); ctx.lineTo(c.x, c.y + c.size);
+    ctx.lineWidth = width;
+    ctx.strokeStyle = colour;
     ctx.stroke();
-    ctx.fillStyle = h.colour;
-    ctx.fill();
   }
   return performance.now() - start;
 }

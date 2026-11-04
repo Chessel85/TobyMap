@@ -13,7 +13,6 @@ export class WorkerClient {
     this.inFlight = null;
     this.nextId = 1;
     this.latestOnly = new Set();
-    this.onNotice = () => {};   // progress messages from the worker, such as the map download
   }
 
   send(message) {
@@ -45,7 +44,6 @@ export class WorkerClient {
   }
 
   _answer(data) {
-    if (data.notice !== undefined) { this.onNotice(data.notice); return; }
     const entry = this.inFlight;
     this.inFlight = null;
     if (entry) {

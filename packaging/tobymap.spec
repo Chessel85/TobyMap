@@ -15,10 +15,6 @@ for name in ("nvdaControllerClient.dll", "nvdaControllerClient-license.txt"):
     if not path.is_file():
         raise SystemExit(f"{path} is missing. Run: python tools/fetch_vendor.py --nvda")
     datas.append((str(path), "desktop/vendor"))
-# The earcons (P1-T12). They are made by tools/make_placeholder_sounds.py, which build.ps1 runs first.
-for wav in sorted((ROOT / "sounds").glob("*.wav")):
-    datas.append((str(wav), "sounds"))
-datas.append((str(ROOT / "sounds" / "CREDITS.md"), "sounds"))
 datas.append((str(ROOT / "LICENSE"), "."))
 datas.append((str(ROOT / "packaging" / "THIRD_PARTY_NOTICES.txt"), "."))
 
@@ -26,11 +22,11 @@ datas.append((str(ROOT / "packaging" / "THIRD_PARTY_NOTICES.txt"), "."))
 excludes = [
     "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick", "PySide6.QtWebChannel",
     "PySide6.QtQml", "PySide6.QtQuick", "PySide6.QtQuickWidgets", "PySide6.QtQuick3D", "PySide6.Qt3DCore",
-    "PySide6.QtMultimediaWidgets", "PySide6.QtPdf", "PySide6.QtPdfWidgets",
+    "PySide6.QtMultimedia", "PySide6.QtMultimediaWidgets", "PySide6.QtPdf", "PySide6.QtPdfWidgets",
     "PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtGraphs", "PySide6.QtNetwork",
     "PySide6.QtSql", "PySide6.QtTest", "PySide6.QtSvg", "PySide6.QtOpenGL", "PySide6.QtOpenGLWidgets",
     "PySide6.QtBluetooth", "PySide6.QtPositioning", "PySide6.QtLocation", "PySide6.QtSerialPort",
-    "tkinter", "unittest", "pydoc", "playwright", "pytest", "pytestqt", "mapdata",
+    "tkinter", "unittest", "pydoc", "playwright", "pytest", "pytestqt", "shapely", "mapdata",
 ]
 
 a = Analysis(

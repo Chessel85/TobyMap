@@ -10,7 +10,6 @@ Libraries in the desktop application
   The Qt libraries are included as separate files and can be replaced.
 * NumPy. BSD 3-Clause License.
 * PyYAML. MIT License.
-* Shapely, with GEOS. BSD 3-Clause License (Shapely) and GNU Lesser General Public License version 2.1 (GEOS, included as a separate library).
 * GeographicLib for Python, by Charles Karney. MIT License.
 * NVDA Controller Client, from NV Access. GNU Lesser General Public License
   version 2.1. Included unchanged as nvdaControllerClient.dll; its licence is
@@ -19,16 +18,9 @@ Libraries in the desktop application
 Libraries in the web version
 
 * Pyodide. Mozilla Public License 2.0.
-* NumPy, PyYAML and Shapely, as above, built for Pyodide.
+* NumPy and PyYAML, as above, built for Pyodide.
 * GeographicLib for Python, as above, copied with the core.
 
 Data
 
-* The map data in the base pack lite. Every attribution and licence is also in the application, under Help, About the data.
-  * OpenStreetMap: countries, first-level divisions and the land. (c) OpenStreetMap contributors, Open Database Licence 1.0. https://www.openstreetmap.org/copyright
-  * Flanders Marine Institute (VLIZ), Global Oceans and Seas, version 1, 2021. CC-BY 4.0. https://www.marineregions.org/ https://doi.org/10.14284/542
-* Natural Earth, public domain, https://www.naturalearthdata.com. Used in the automatic tests only.
-
-Sounds
-
-* The earcons are placeholder tones made by tools/make_placeholder_sounds.py, under the GNU General Public License version 3. Each sound's source and licence is in sounds/CREDITS.md.
+* Natural Earth countries, 1:110 million. Public domain. https://www.naturalearthdata.com

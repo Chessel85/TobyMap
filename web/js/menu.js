@@ -10,12 +10,6 @@ export class MenuBar {
     this.el = element;
     this.onCommand = onCommand;
     this.onTab = onTab;
-    this.build(menus);
-  }
-
-  // Built again when a key changes, so the keys shown are right.
-  build(menus) {
-    this.el.textContent = "";
     this.tops = [];
     this.popups = [];
     menus.forEach((menu, mi) => {
@@ -34,8 +28,7 @@ export class MenuBar {
       popup.hidden = true;
       menu.items.forEach((item) => {
         const li = document.createElement("li");
-        li.setAttribute("role", item.toggle ? "menuitemcheckbox" : "menuitem");
-        if (item.toggle) li.setAttribute("aria-checked", "false");
+        li.setAttribute("role", "menuitem");
         li.tabIndex = -1;
         li.dataset.command = item.name;
         const label = document.createElement("span");
@@ -60,13 +53,6 @@ export class MenuBar {
       this.popups.push(popup);
     });
     this.el.hidden = false;
-  }
-
-  // The tick of the toggles (Link step to zoom, Mute, Key describer).
-  setChecked(states) {
-    for (const li of this.el.querySelectorAll('[role="menuitemcheckbox"]')) {
-      if (li.dataset.command in states) li.setAttribute("aria-checked", String(!!states[li.dataset.command]));
-    }
   }
 
   // Ctrl+Alt+M goes to the first menu, Map, without opening it (DP93).
@@ -95,7 +81,7 @@ export class MenuBar {
     popup.hidden = false;
     top.setAttribute("aria-expanded", "true");
     this.tops.forEach((t, i) => (t.tabIndex = i === mi ? 0 : -1));
-    const items = popup.querySelectorAll('[role^="menuitem"]');
+    const items = popup.querySelectorAll('[role="menuitem"]');
     if (focusFirstItem && items.length) items[0].focus();
   }
 
@@ -125,7 +111,7 @@ export class MenuBar {
   }
 
   _menuKey(e, mi) {
-    const items = [...this.popups[mi].querySelectorAll('[role^="menuitem"]')];
+    const items = [...this.popups[mi].querySelectorAll('[role="menuitem"]')];
     const i = items.indexOf(document.activeElement);
     const n = this.tops.length;
     let handled = true;

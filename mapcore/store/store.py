@@ -1,0 +1,421 @@
+"""The store over the installed packs: "where am I" and Nearby (P1-T5).
+
+* at(lat, lon): every area at a point, from every layer, whatever the zoom
+  (ANN-7), most specific first: by rank (a higher rank is more specific, such
+  as a county above a country), then smallest area first (LOC-2).
+* nearby(lat, lon, radius_m): the areas within a radius, each with its
+  nearest point, and the distance and bearing to it (INF-3, INF-7).
+* feature(id): a feature record by its identifier.
+
+Phase 1 has one pack. The store keeps a list of packs and asks which of them
+covers a point, so Phase 4 can add pack tile coverage and let the most
+detailed pack win (AD-14).
+
+A damaged record is noted in `problems` and the store carries on without it
+(NFR-4).
+
+Exact shapes are used for an area up to NEAR_EXACT_M away. Further away the
+simplified drawing shapes are used when the pack has them, because a few
+hundred metres of difference matters little against a distance of hundreds of
+kilometres. An area the drawing shapes left out for being small uses its exact
+shapes within the search box.
+"""
+from __future__ import annotations
+
+import math
+import threading
+from dataclasses import dataclass
+
+import numpy as np
+
+from mapcore.geo import geodesy
+from mapcore.packs import tiles
+from mapcore.packs.pack import DamagedRecord, Pack
+from mapcore.store.cache import TileCache, TileData
+from mapcore.store.projection import Flat
+
+NEAR_EXACT_M = 50_000.0
+FIRST_SEARCH_M = 2_000.0   # the first search box for an area's nearest point
+SEARCH_GROWTH = 3.0
+M_PER_DEG_LAT_MIN = 110_574.0  # the shortest degree of latitude, at the equator
+
+
+@dataclass(frozen=True)
+class Area:
+    """A feature at a point, with its record (docs/developer/pack-format.md)."""
+    pack: int
+    number: int
+    record: dict
+
+    @property
+    def id(self) -> str:
+        return self.record["id"]
+
+    @property
+    def layer(self) -> str:
+        return self.record["layer"]
+
+    @property
+    def rank(self) -> int:
+        return self.record["rank"]
+
+    @property
+    def area_km2(self) -> float:
+        return self.record["area_km2"]
+
+    @property
+    def names(self) -> dict:
+        return self.record["names"]
+
+    @property
+    def name(self) -> str:
+        names = self.record["names"]
+        return names.get("en") or next(iter(names.values()), self.record["id"])
+
+
+@dataclass(frozen=True)
+class Near:
+    """An area near the location: its nearest point, and the distance and
+    bearing to it, measured on the ellipsoid. An area the location is inside
+    has distance 0, the location as its nearest point, bearing 0 (there
+    is no direction to take) and inside True."""
+    area: Area
+    distance_m: float
+    bearing_deg: float
+    lat: float
+    lon: float
+    inside: bool
+
+
+def _intervals(west: float, east: float) -> list[tuple[float, float]]:
+    """A span of longitude, possibly across the 180 degree line, as spans that do not."""
+    if west <= east:
+        return [(west, east)]
+    return [(west, 180.0), (-180.0, east)]
+
+
+def _meet(a: list[tuple[float, float]], b: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    out = []
+    for w1, e1 in a:
+        for w2, e2 in b:
+            w, e = max(w1, w2), min(e1, e2)
+            if w <= e:
+                out.append((w, e))
+    return out
+
+
+class _PackIndex:
+    """What the store keeps about one pack: its features' boxes, and which pack tiles exist."""
+
+    def __init__(self, pack: Pack, problems):
+        self.pack = pack
+        self.problems = problems
+        self._boxes = None
+        self._tile_index: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
+        by_kind: dict[tuple[str, int], list[tuple[int, int]]] = {}
+        for key in pack.keys():
+            parts = key.split("/")
+            if parts[0] in ("tile", "draw") and len(parts) == 4:
+                by_kind.setdefault((parts[0], int(parts[1])), []).append((int(parts[2]), int(parts[3])))
+        for k, xy in by_kind.items():
+            arr = np.array(xy, dtype=np.intp).reshape(-1, 2)
+            self._tile_index[k] = (arr[:, 0], arr[:, 1])
+        levels = sorted(pack.drawing_levels.values(), key=lambda d: d.get("view_km", 0))
+        self.finest_drawing = levels[0] if levels else None
+        self._stored_sets: dict[tuple[str, int], set] = {}
+
+    def stored(self, kind: str, level: int) -> set:
+        """The (x, y) of the pack tiles ("tile") or drawing tiles ("draw") that exist at a level."""
+        key = (kind, level)
+        if key not in self._stored_sets:
+            found = self._tile_index.get(key)
+            self._stored_sets[key] = set() if found is None else set(zip(found[0].tolist(), found[1].tolist()))
+        return self._stored_sets[key]
+
+    @property
+    def boxes(self):
+        """Arrays of the features' numbers and boxes: west, south, east, north."""
+        if self._boxes is None:
+            numbers, box = [], []
+            for g, start in enumerate(self.pack.group_starts):
+                try:
+                    group = self.pack._group(g)
+                except DamagedRecord as exc:
+                    self.problems.append(exc.message)
+                    continue
+                for i, record in enumerate(group):
+                    numbers.append(start + i)
+                    box.append(record["bbox"])
+            self._boxes = (np.array(numbers, dtype=np.intp), np.array(box, dtype=np.float64).reshape(-1, 4))
+        return self._boxes
+
+    def tiles_in(self, kind: str, level: int, x0: int, x1: int, y0: int, y1: int):
+        """The (x, y) of stored tiles at a level within the ranges, both ends included."""
+        found = self._tile_index.get((kind, level))
+        if found is None:
+            return []
+        xs, ys = found
+        keep = (xs >= x0) & (xs <= x1) & (ys >= y0) & (ys <= y1)
+        return list(zip(xs[keep].tolist(), ys[keep].tolist()))
+
+
+class Store:
+    """Questions about the places in the installed packs.
+
+    `packs` are Pack objects or paths. Questions may come from any thread.
+    """
+
+    def __init__(self, packs, cache_bytes: int | None = None):
+        self.problems: list[str] = []
+        self.cache = TileCache(cache_bytes) if cache_bytes else TileCache()
+        self._indexes: list[_PackIndex] = []
+        self._lock = threading.RLock()
+        for p in packs if isinstance(packs, (list, tuple)) else [packs]:
+            pack = p if isinstance(p, Pack) else Pack(p)
+            self._indexes.append(_PackIndex(pack, self.problems))
+
+    @property
+    def packs(self) -> list[Pack]:
+        return [i.pack for i in self._indexes]
+
+    def close(self) -> None:
+        for i in self._indexes:
+            i.pack.close()
+
+    def _note(self, exc: DamagedRecord) -> None:
+        if exc.message not in self.problems:
+            self.problems.append(exc.message)
+
+    # Reading tiles -------------------------------------------------------------
+
+    def _covering(self, lat: float, lon: float) -> list[int]:
+        """The packs that cover a point, the one to use first. Phase 1: a
+        world pack covers everywhere, and the first one installed is used."""
+        return list(range(len(self._indexes)))
+
+    def _tile(self, p: int, kind: str, level: int, x: int, y: int) -> TileData:
+        """The tile entries of a pack tile ("tile") or drawing tile ("draw"), cached."""
+        index = self._indexes[p]
+
+        def load() -> TileData:
+            try:
+                read = index.pack.tile if kind == "tile" else index.pack.drawing_tile
+                return TileData(read(level, x, y))
+            except DamagedRecord as exc:
+                self._note(exc)
+                return TileData([])
+
+        return self.cache.get((p, kind, level, x, y), load)
+
+    def warm(self, lat: float, lon: float, around: int = 1) -> int:
+        """Read the pack tiles round a point into the cache, at every tile
+        level. Returns how many were read."""
+        lon = geodesy.wrap_lon(lon)
+        count = 0
+        for p in self._covering(lat, lon)[:1]:
+            for level in self._indexes[p].pack.tile_levels:
+                x, y = tiles.tile_of(lon, lat, level)
+                n = 2 ** level
+                for dx in range(-around, around + 1):
+                    for dy in range(-around, around + 1):
+                        tx, ty = (x + dx) % n, y + dy
+                        if 0 <= ty < n and (tx, ty) in self._indexes[p].stored("tile", level):
+                            self._tile(p, "tile", level, tx, ty)
+                            count += 1
+        return count
+
+    def prefetch(self, lat: float, lon: float):
+        """Warm the cache round a point in the background, where threads exist
+        (not in the browser, where the caller warms it between steps).
+        Returns the thread, or None."""
+        try:
+            thread = threading.Thread(target=self.warm, args=(lat, lon), daemon=True)
+            thread.start()
+            return thread
+        except (RuntimeError, OSError):
+            return None
+
+    # Feature records -------------------------------------------------------------
+
+    def feature(self, identifier: str) -> Area | None:
+        """The area with this identifier, or None."""
+        for p in range(len(self._indexes)):
+            pack = self._indexes[p].pack
+            try:
+                number = pack.feature_number(identifier)
+                if number is not None:
+                    return Area(p, number, pack.feature(number))
+            except DamagedRecord as exc:
+                self._note(exc)
+        return None
+
+    def _area(self, p: int, number: int) -> Area | None:
+        try:
+            return Area(p, number, self._indexes[p].pack.feature(number))
+        except DamagedRecord as exc:
+            self._note(exc)
+            return None
+
+    # What is at a point ------------------------------------------------------------
+
+    def at(self, lat: float, lon: float, layers=None) -> list[Area]:
+        """Every area at the point, most specific first (LOC-2): by rank, higher
+        first, then smallest area. `layers` limits the answer to some layer ids."""
+        import shapely
+
+        lon = geodesy.wrap_lon(lon)
+        found: dict[tuple[int, int], Area] = {}
+        for p in self._covering(lat, lon)[:1]:
+            index = self._indexes[p]
+            for level in index.pack.tile_levels:
+                x, y = tiles.tile_of(lon, lat, level)
+                if (x, y) not in self._indexes[p].stored("tile", level):
+                    continue
+                data = self._tile(p, "tile", level, x, y)
+                for i, entry in enumerate(data.entries):
+                    if (p, entry.feature) in found:
+                        continue
+                    if entry.kind != tiles.COVERED:
+                        shape = data.shape(i)
+                        if not shapely.intersects_xy(shape, lon, lat):
+                            continue
+                    area = self._area(p, entry.feature)
+                    if area is not None and (layers is None or area.layer in layers):
+                        found[(p, entry.feature)] = area
+        return sorted(found.values(), key=lambda a: (-a.rank, a.area_km2, a.id))
+
+    # Nearby ------------------------------------------------------------------------
+
+    def nearby(self, lat: float, lon: float, radius_m: float, limit: int = 20,
+               layers=None, exclude=()) -> list[Near]:
+        """The areas within radius_m of the point, nearest first, at most `limit`.
+
+        Each has its nearest point, found in a flat view round the location
+        and then measured on the ellipsoid (INF-3, INF-7). Areas the point is
+        inside come first with distance 0; callers that want only the
+        surroundings leave them out. `exclude` is a collection of identifiers.
+        """
+        lon = geodesy.wrap_lon(lon)
+        flat = Flat(lat, lon)
+        results: list[Near] = []
+        for p in self._covering(lat, lon)[:1]:
+            numbers, boxes = self._indexes[p].boxes
+            bound = self._box_distance_m(boxes, lat, lon)
+            order = np.argsort(bound, kind="stable")
+            for k in order.tolist():
+                if bound[k] > radius_m:
+                    break
+                if len(results) >= limit and results[limit - 1].distance_m <= bound[k]:
+                    break
+                area = self._area(p, int(numbers[k]))
+                if area is None or area.id in exclude or (layers is not None and area.layer not in layers):
+                    continue
+                found = self._nearest(p, area, flat, lat, lon, float(bound[k]), radius_m)
+                if found is not None:
+                    results.append(found)
+                    results.sort(key=lambda n: (n.distance_m, n.area.id))
+        return results[:limit]
+
+    @staticmethod
+    def _box_distance_m(boxes: np.ndarray, lat: float, lon: float) -> np.ndarray:
+        """About how far each box is from the point: the least it can be, to
+        within a few percent. Used to choose which areas to look at, and in
+        what order."""
+        west, south, east, north = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+        dlat = np.maximum(np.maximum(south - lat, lat - north), 0.0)
+        crosses = west > east
+        inside = np.where(crosses, (lon >= west) | (lon <= east), (lon >= west) & (lon <= east))
+        gap = np.minimum((west - lon) % 360.0, (lon - east) % 360.0)
+        gap = np.where(inside, 0.0, np.minimum(gap, 180.0))
+        near_lat = np.clip(lat, south, north)
+        east_west = gap * 111_320.0 * np.cos(np.radians(near_lat)) * 0.9
+        return np.hypot(dlat * M_PER_DEG_LAT_MIN, east_west)
+
+    def _search_box(self, lat: float, lon: float, r: float, bbox) -> list[tuple[float, float, float, float]]:
+        """The boxes (west, south, east, north), not crossing the 180 degree
+        line, where tiles are looked at: a box round the point of half-width r
+        metres, meeting the area's own box."""
+        dlat = r / M_PER_DEG_LAT_MIN
+        south, north = max(-90.0, lat - dlat), min(90.0, lat + dlat)
+        worst = math.cos(math.radians(min(89.9, max(abs(south), abs(north)))))
+        dlon = math.degrees(r / (geodesy.A_M * worst)) if worst > 1e-6 else 360.0
+        if dlon >= 180.0 or max(abs(south), abs(north)) >= 89.0:
+            spans = [(-180.0, 180.0)]
+        else:
+            spans = _intervals(geodesy.wrap_lon(lon - dlon), geodesy.wrap_lon(lon + dlon))
+        w, s, e, n = bbox
+        both = _meet(spans, _intervals(w, e))
+        s, n = max(s, south), min(n, north)
+        if s > n:
+            return []
+        return [(sw, s, se, n) for sw, se in both]
+
+    def _nearest(self, p: int, area: Area, flat: Flat, lat: float, lon: float,
+                 lower: float, radius_m: float) -> Near | None:
+        r = max(lower * 1.25, FIRST_SEARCH_M)
+        while True:
+            r = min(r, radius_m)
+            best = self._search(p, area, flat, lat, lon, r, lower)
+            if best is not None and best[0] <= r:
+                break
+            if r >= radius_m:
+                return None
+            r *= SEARCH_GROWTH
+        _, x, y = best
+        if best[0] == 0.0:
+            n_lat, n_lon = lat, lon
+        else:
+            n_lat, n_lon = (float(v) for v in flat.inverse(x, y))
+        inside = best[0] == 0.0
+        distance, bearing, _arrival = geodesy.inverse(lat, lon, n_lat, n_lon)
+        if distance > radius_m:
+            return None
+        return Near(area, distance, 0.0 if inside else bearing, n_lat, n_lon, inside)
+
+    def _search(self, p: int, area: Area, flat: Flat, lat: float, lon: float, r: float, lower: float):
+        """The nearest point of the area's shapes in tiles within r metres:
+        (distance in the flat view, x, y), or None if there is none."""
+        import shapely
+
+        index = self._indexes[p]
+        draw = index.finest_drawing
+        if draw is not None and lower > NEAR_EXACT_M and area.area_km2 >= draw.get("min_km2", 0):
+            kinds = [("draw", draw["id"], draw["tile_level"])]
+        else:
+            kinds = [("tile", level, level) for level in index.pack.tile_levels]
+        origin = shapely.Point(0.0, 0.0)
+        best = None
+        for west, south, east, north in self._search_box(lat, lon, r, area.record["bbox"]):
+            for kind, ident, level in kinds:
+                x0, y0 = tiles.tile_of(west, south, level)
+                x1, y1 = tiles.tile_of(east, north, level)
+                for x, y in index.tiles_in(kind, ident, x0, x1, y0, y1):
+                    data = self._tile(p, kind, ident, x, y)
+                    for i in data.by_feature.get(area.number, ()):
+                        found = self._part_distance(data, i, (x, y, level), flat, lat, lon, origin)
+                        if found is not None and (best is None or found[0] < best[0]):
+                            best = found
+        return best
+
+    def _part_distance(self, data: TileData, i: int, where, flat: Flat, lat: float, lon: float, origin):
+        import shapely
+
+        x, y, level = where
+        entry = data.entries[i]
+        if entry.kind == tiles.COVERED:
+            west, south, east, north = tiles.tile_box(level, x, y)
+            n_lat = min(max(lat, south), north)
+            if west <= lon <= east:
+                n_lon = lon
+            else:
+                n_lon = west if ((west - lon) % 360.0) <= ((lon - east) % 360.0) else east
+            px, py = (float(v) for v in flat.forward(n_lat, n_lon))
+            return math.hypot(px, py), px, py
+        shape = data.shape(i)
+        if shapely.intersects_xy(shape, lon, lat):
+            return 0.0, 0.0, 0.0
+        projected = flat.transform(shape)
+        distance = float(shapely.distance(origin, projected))
+        line = shapely.shortest_line(origin, projected)
+        x1, y1 = shapely.get_coordinates(line)[-1]
+        return distance, float(x1), float(y1)

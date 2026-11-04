@@ -10,6 +10,7 @@ A source may also have a `name`, used in messages, and `close()`.
 """
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 
@@ -21,10 +22,12 @@ class FileSource:
         self.name = self.path.name
         self.file = open(self.path, "rb")
         self.size = self.path.stat().st_size
+        self._lock = threading.Lock()  # seek and read together, so threads do not mix them up
 
     def read(self, offset: int, length: int) -> bytes:
-        self.file.seek(offset)
-        return self.file.read(length)
+        with self._lock:
+            self.file.seek(offset)
+            return self.file.read(length)
 
     def close(self) -> None:
         self.file.close()

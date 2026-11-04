@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-GB" xml:lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Phase 1 task list</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<h1 id="phase-1-task-list">Phase 1 task list</h1>
+<p>Phase 1 is the walking skeleton. The tasks are described in
+"implementation plan.md", section 4, version 0.4, and in detail in
+phase-1-plan.md, which also raises DP110 to DP114. This list shows what
+is done.</p>
+<p>Started on 3 November 2026, after the PO accepted Phase 0.</p>
+<h2 id="tasks">Tasks</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />P1-T1 Core geodesy: distance,
+bearing, stepping, the poles, the 180 degree line, and
+formatting.</label></li>
+<li><label><input type="checkbox" />P1-T2 Pack format version 1: the
+writer and reader, the byte source, the manifest, checksums and version
+checks.</label></li>
+<li><label><input type="checkbox" />P1-T3 Pipeline skeleton: check,
+fetch and build commands, configuration, stage caching, progress,
+summary and log.</label></li>
+<li><label><input type="checkbox" />P1-T4 Base pack "lite": countries,
+first-level divisions, oceans and seas, and land, with no gaps
+(LOC-6).</label></li>
+<li><label><input type="checkbox" />P1-T5 Store and "where am I": point
+queries, the pack tile cache, and the nearest point of an area for
+Nearby (INF-3, INF-7).</label></li>
+<li><label><input type="checkbox" />P1-T6 World model and stepping,
+north-fixed.</label></li>
+<li><label><input type="checkbox" />P1-T7 Describe: announcements,
+coordinates, heading, repeat and history. Nearby measured to each area's
+nearest point, with the Niagara Falls test.</label></li>
+<li><label><input type="checkbox" />P1-T8 Command registry and session:
+F1 help, the key describer, remapping, clash tests, and F2, F3 and F4 to
+the regions (DP106).</label></li>
+<li><label><input type="checkbox" />P1-T9 Map scene: the projection, the
+shape list, the centre cross, the heading arrow and the current
+outline.</label></li>
+<li><label><input type="checkbox" />P1-T10 Desktop shell: the four
+regions, settings, and the stand-in audio. No backlog of speech after a
+held key (ANN-3), and the panel's levels read by NVDA
+(INF-10).</label></li>
+<li><label><input type="checkbox" />P1-T11 Web shell: the same, in the
+browser, with the held key test.</label></li>
+<li><label><input type="checkbox" />P1-T12 Earcons.</label></li>
+<li><label><input type="checkbox" />P1-T13 Listening test
+tool.</label></li>
+<li><label><input type="checkbox" />P1-T14 Packaging: the installer, the
+portable zip, the web version on GitHub Pages, and the first GitHub
+release when the phase is accepted.</label></li>
+<li><label><input type="checkbox" />P1-T15 Diagnostics: the test trace
+and "copy diagnostics".</label></li>
+<li><label><input type="checkbox" />P1-T16 Carried over from spike S2:
+build speed first (DP107), then stage 1's comparison, stage 4
+(Argentina), areas held twice (DP104), inland water in the area check,
+and the wider overlap check.</label></li>
+</ul>
+<h2 id="suggested-order">Suggested order</h2>
+<ol type="1">
+<li>P1-T1 and P1-T2, the core's geodesy and pack format, which
+everything else uses.</li>
+<li>P1-T3, the pipeline skeleton.</li>
+<li>P1-T16's build speed work, on Belgium, with mainland France as the
+regression test (DP107). The PO is told before any heavy run.</li>
+<li>P1-T4, the base pack, built with the faster methods.</li>
+<li>P1-T5 to P1-T9, the core's store, stepping, wording, keys and map
+scene.</li>
+<li>P1-T10 and P1-T11, the two shells, then P1-T12 and P1-T13, the
+sounds and the listening test.</li>
+<li>P1-T15, diagnostics, then P1-T14, packaging, last.</li>
+<li>The rest of P1-T16, such as stage 4, when the laptop can be left for
+heavy runs.</li>
+</ol>
+<h2 id="notes-at-the-start-of-the-phase">Notes at the start of the
+phase</h2>
+<ul>
+<li>PySide6 6.12.0 and Pyodide 314.0.7 are still the latest releases,
+checked on 3 November, so nothing is upgraded.</li>
+<li>Discussion points 106 to 108 are answered and built into the plan.
+DP109, whether the Information panel's groups keep their own keys, is
+open; it holds nothing up in Phase 1.</li>
+</ul>
+</body>
+</html>

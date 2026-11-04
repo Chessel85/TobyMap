@@ -77,3 +77,10 @@ def pack_selfcheck():
     from mapcore.packs import selfcheck
 
     return _js(selfcheck.run())
+
+
+def store_selfcheck():
+    """The store's self-check in Pyodide (P1-T5): a list of problems, empty when all is well."""
+    from mapcore.store import selfcheck
+
+    return _js(selfcheck.run())

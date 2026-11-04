@@ -400,3 +400,43 @@ A map frame must stay near 10,000 points to be painted in time (VIS-1). So the p
 ### What you will notice
 
 Nothing yet. The application reads this pack from task P1-T5.
+
+
+## How "where am I" and Nearby find places in a pack
+
+This explains how the application asks a pack what is at a point and what is near it (task P1-T5, requirements LOC-2, INF-3 and INF-7). The code is `mapcore/store`.
+
+### What is at a point
+
+1. The point is turned into a pack tile at each tile level the pack has. A point is in one pack tile at each level.
+2. Those pack tiles are read, unless they are already in the pack tile cache. A pack tile that has nothing in it is not stored, so it costs nothing.
+3. Each tile entry is either a covered note, which means the area covers the whole pack tile, or part of an area's shape. For a shape, the application asks whether the point is inside it. A point exactly on a border is inside both areas.
+4. The areas found are put in order. The more specific kind of area comes first: a county before a region, a region before a country. Areas of the same kind go smallest first. So the first is the one that is announced as where you are, and the Within group lists the rest in order.
+
+Every layer is searched, whatever the zoom (ANN-7). The 180 degree line and the poles are not special: a point on the line is looked up as 180 degrees east, and the shapes on both sides of the line are stored on their own side.
+
+### What is near
+
+Nearby gives, for each area near you, the nearest point of that area, and the distance and bearing to it. It does not use the area's label point, which is why at the Canadian side of Niagara Falls the USA is a quarter of a mile away and not hundreds of miles.
+
+1. Every area's bounding box is kept in the pack. The distance to each box tells which areas could be near, and in what order to look at them.
+2. For each candidate, starting with the nearest, the application looks at the pack tiles in a small search box round you. If it finds a nearest point no further away than the search box is wide, that point is the answer. If not, the search box grows and it looks again.
+3. The nearest point is chosen on a flat view of the ground round you, in metres. Within 10 degrees of a pole a different flat view is used, because lines of longitude all meet there. The distance and bearing that are announced are then measured again on the Earth's ellipsoid, so they are exact.
+4. It stops once it has the number of areas asked for, and the next candidate is further away than the last of them.
+5. An area that you are inside is listed with distance 0 and your own position as its nearest point. The describing code leaves these out of Nearby, because they belong to Within.
+
+Areas more than 50 km away use the pack's simplified drawing shapes where it has them. The difference is a few hundred metres, against a distance of tens of kilometres or more. Areas under 50 km away use the exact shapes.
+
+### The pack tile cache
+
+Reading and decoding a pack tile is the slow part. The cache keeps the pack tiles read recently, with their decoded shapes, up to 96 MB. When it is full, the one used longest ago goes first. The pack tiles round your position, and the ones next to them, can be read in advance in the background, so a step rarely waits. In the browser there are no background threads, so the web version reads them between steps.
+
+On the test pack, "where am I" at Niagara Falls took 2.4 ms with nothing cached and 0.04 ms with the pack tiles cached. On the world pack, the same lookup took 75 ms with nothing cached, 0.1 ms cached, and the 20 nearest areas to Niagara Falls took 42 ms. The limit is 150 ms (NFR-1) for a lookup, and 1 second for Nearby (INF-7).
+
+### A damaged pack
+
+If one record of a pack is damaged, the application notes which, and carries on without it. The places in that pack tile are missing from the answer until the pack is downloaded again (NFR-4).
+
+### What you will notice
+
+Nothing yet. The shells use this from task P1-T8 on. When Nearby is built in task P1-T7, its distances will be to each area's nearest point.

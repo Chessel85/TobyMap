@@ -10,7 +10,7 @@ let startupMs = 0;
 const ready = (async () => {
   const t0 = performance.now();
   const pyodide = await loadPyodide({ indexURL: new URL("./vendor/pyodide/", import.meta.url).href });
-  await pyodide.loadPackage(["numpy", "pyyaml"], { messageCallback: () => {} });
+  await pyodide.loadPackage(["numpy", "pyyaml", "shapely"], { messageCallback: () => {} });
   const manifest = await (await fetch(new URL("./py/manifest.json", import.meta.url))).json();
   const texts = await Promise.all(manifest.files.map(async (f) => {
     const response = await fetch(new URL(`./py/${f}`, import.meta.url));
@@ -58,6 +58,7 @@ self.onmessage = async (event) => {
     else if (type === "scene") out = finish(bridge.scene(width, height));
     else if (type === "painted") { bridge.frame_painted(paintMs); out = { result: null, transfer: [] }; }
     else if (type === "packcheck") out = { result: bridge.pack_selfcheck(), transfer: [] };
+    else if (type === "storecheck") out = { result: bridge.store_selfcheck(), transfer: [] };
     else throw new Error(`Unknown message ${type}`);
     self.postMessage({ id, ok: true, result: out.result }, out.transfer);
   } catch (error) {

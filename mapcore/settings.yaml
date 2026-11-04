@@ -1,0 +1,77 @@
+# The settings dialog, as data (P1-T8, P1-T10). The core owns what is in it, so
+# the desktop and the web version show the same settings. Each field has an id,
+# a label, a kind (choice, number or yes_no), its default and, for a choice, its
+# choices as [value, label]. The words are the dialog's own (architecture 3.4).
+
+tabs:
+  - id: units
+    label: Units
+    fields:
+      - id: units
+        label: Distances
+        kind: choice
+        default: metric
+        choices: [[metric, Metric], [imperial, Imperial], [nautical, "Nautical miles at sea"]]
+      - id: bearing
+        label: Directions
+        kind: choice
+        default: points8
+        choices:
+          - [exact, Exact degrees]
+          - [round5, Degrees rounded to 5]
+          - [round10, Degrees rounded to 10]
+          - [clock, Clock face]
+          - [points4, Compass with 4 points]
+          - [points8, Compass with 8 points]
+          - [points16, Compass with 16 points]
+          - [points32, Compass with 32 points]
+      - id: coordinates
+        label: Coordinates
+        kind: choice
+        default: decimal
+        choices: [[decimal, Decimal degrees], [dms, "Degrees, minutes and seconds"]]
+  - id: movement
+    label: Movement
+    fields:
+      - id: link
+        label: Link step to zoom
+        kind: yes_no
+        default: false
+      - id: nearby_count
+        label: Number of nearby items
+        kind: number
+        default: 8
+        min: 1
+        max: 30
+      - id: nearby_radius_km
+        label: Nearby search distance in kilometres
+        kind: number
+        default: 500
+        min: 1
+        max: 5000
+  - id: sound
+    label: Sound
+    fields:
+      - id: mute
+        label: Mute all of TobyMap's sound
+        kind: yes_no
+        default: false
+      - id: earcon_tick
+        label: "Your own sound file for the tick (empty for the default)"
+        kind: text
+        default: ""
+      - id: earcon_blocked
+        label: "Your own sound file for blocked (empty for the default)"
+        kind: text
+        default: ""
+  - id: display
+    label: Display
+    fields:
+      - id: centre_cross
+        label: Show the cross at the centre of the map
+        kind: yes_no
+        default: true
+      - id: hover_announce
+        label: Announce places when the mouse moves over the map
+        kind: yes_no
+        default: false

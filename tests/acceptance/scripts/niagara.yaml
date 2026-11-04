@@ -1,0 +1,9 @@
+title: Nearby at Niagara Falls, the United States under a mile away
+requirements: [INF-3, INF-7, LOC-2]
+pack: test
+start: {lat: 43.08, lon: -79.08, zoom_m: 5000, step_m: 100}
+steps:
+  - {press: Space, say: ["Niagara Region, Ontario, Canada"]}
+  - {run: settings.set, args: {field: units, value: imperial}, say: []}
+  - {run: settings.set, args: {field: bearing, value: clock}, say: []}
+  - {panel_has: ["United States, 0.3 miles 3 o'clock"]}

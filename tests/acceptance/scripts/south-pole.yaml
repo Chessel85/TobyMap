@@ -1,0 +1,8 @@
+title: Blocked at the South Pole
+requirements: [NAV-1]
+pack: test
+start: {lat: -89.9, lon: 0, zoom_m: 250000, step_m: 25000}
+steps:
+  - {press: Down, earcons: [blocked], say: []}
+  - {press: Down, earcons: [blocked], say: []}
+  - {press: Space, say: ["Antarctica"]}

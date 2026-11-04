@@ -1,0 +1,11 @@
+title: Across the 180 degree line in Fiji
+requirements: [NAV-1, ANN-1, LOC-2]
+pack: test
+start: {lat: -16.5, lon: 179.99, zoom_m: 1000, step_m: 1000}
+steps:
+  - {press: Right, earcons: [tick]}
+  - {press: Right, earcons: [tick], lon: -179.9913}
+  - {press: Right, earcons: [tick]}
+  - {press: Left, earcons: [tick]}
+  - {press: Left, earcons: [tick], lon: 179.9994}
+  - {press: Space, say: ["Cakaudrove, Northern, Fiji"]}

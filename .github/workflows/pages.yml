@@ -1,0 +1,59 @@
+# The web version on GitHub Pages (P1-T14, PLT-3).
+#
+# READY BUT NOT SWITCHED ON. It runs only when someone starts it by hand, and it needs three things first:
+#   1. the PO's answer to DP110 (when to publish), and the phase accepted;
+#   2. GitHub Pages switched on for the repository, with "GitHub Actions" as the source;
+#   3. the base pack lite published as a release asset, whose address goes in PACK_URL below.
+# Nothing here is published until then.
+name: Publish the web version
+
+on:
+  workflow_dispatch:
+    inputs:
+      pack_url:
+        description: "Address of world.pack (a GitHub release asset). Empty publishes the page without a map."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: python -m pip install -r requirements.txt
+      - name: Fetch Pyodide
+        run: python tools/fetch_vendor.py --web
+      - name: Make the earcons and stage the core
+        run: |
+          python tools/make_placeholder_sounds.py
+          python tools/stage_web.py
+      - name: Fetch the map pack
+        if: ${{ inputs.pack_url != '' }}
+        run: |
+          mkdir -p web/packs
+          curl -L --fail -o web/packs/world.pack "${{ inputs.pack_url }}"
+          python - <<'EOF'
+          import json, pathlib
+          p = pathlib.Path("web/packs/world.pack")
+          pathlib.Path("web/packs/packs.json").write_text(json.dumps({"packs": [{"file": "world.pack", "bytes": p.stat().st_size}]}))
+          EOF
+      - name: Leave out what the page does not need
+        run: rm -rf web/vendor/piper web/vendor/axe
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: web
+      - id: deploy
+        uses: actions/deploy-pages@v4

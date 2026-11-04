@@ -1,0 +1,27 @@
+# Keys no default may use (ACC-4): they belong to screen readers or the browser, or cannot be trusted
+# across browsers. Checked by tests/mapcore/test_registry.py.
+exact:
+  - Insert
+  - Caps Lock
+  - F10
+  - Alt
+  - Ctrl+Alt+N
+  - Ctrl+L
+  - Ctrl+T
+  - Ctrl+W
+  - Ctrl+N
+  - Ctrl+R
+  - Ctrl+Tab
+  - Ctrl+Shift+Tab
+  - Tab
+  - Shift+Tab
+  - F5
+  - F6
+  - F7
+  - F11
+  - F12
+  - Alt+F4
+web_only:
+  - Escape
+digits_with_ctrl: true     # Ctrl+1 to Ctrl+9 switch browser tabs
+no_modifier_words: [NVDA, Insert, Option, Meta, Win, Cmd]

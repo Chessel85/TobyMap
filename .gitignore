@@ -56,3 +56,5 @@ taskInfo.txt
 
 # Pages the PO generates from the markdown documents with pandoc
 /docs/**/*.html
+/web/sounds/
+/web/packs/

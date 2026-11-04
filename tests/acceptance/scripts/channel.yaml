@@ -1,0 +1,13 @@
+title: Across the Channel from England to France, then out into the Atlantic
+requirements: [ANN-1, LOC-2, NAV-1, NAV-2]
+pack: test
+start: {lat: 51.2, lon: 1.2, zoom_m: 25000, step_m: 25000}
+steps:
+  - {press: Down, say: ["North Atlantic Ocean"]}
+  - {press: Right, earcons: [tick]}
+  - {press: Right, say: ["Pas-de-Calais, Hauts-de-France, France"]}
+  - {press: Down, earcons: [tick]}
+  - {press: Down, earcons: [tick]}
+  - {press: Down, say: ["Somme"]}
+  - {press: Left, earcons: [tick]}
+  - {press: Left, say: ["North Atlantic Ocean"]}

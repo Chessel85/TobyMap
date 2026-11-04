@@ -311,3 +311,10 @@ These are not map data, but they are used to build or play TobyMap, so their lic
 * [Copernicus DEM on AWS](https://registry.opendata.aws/copernicus-dem/)
 * [Shortbread vector tile schema](https://shortbread-tiles.org/schema/)
 * [GitHub releases limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)
+
+## Added in Phase 1
+
+* Piper voice Alba (Scottish English female), from rhasspy/piper-voices on Hugging Face. CC-BY 4.0. Used by the desktop listening test for spoken labels. Kept in voices/piper, not in git. Credit: "Voice: Alba, Scottish English female, from Piper voices, CC-BY 4.0."
+* MIT KEMAR head-related impulse responses (Gardner and Martin, MIT Media Lab, 1994), provided without usage restrictions. Used by the listening test; not in git.
+* The earcons are generated tones from tools/make_placeholder_sounds.py, GPL-3.0, credited in sounds/CREDITS.md.
+* axe-core 4.14.0 (MPL-2.0), a test tool only, never distributed, fetched by tools/fetch_vendor.py --axe.

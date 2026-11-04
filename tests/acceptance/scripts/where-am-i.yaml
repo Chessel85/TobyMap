@@ -1,0 +1,12 @@
+title: Where am I, the coordinates in both formats, and the heading
+requirements: [LOC-1, LOC-2, LOC-7, ANN-5]
+pack: test
+start: {lat: 51.2, lon: 1.2, zoom_m: 5000, step_m: 250}
+steps:
+  - {press: Space, say: ["Kent, England, United Kingdom"]}
+  - {press: C, say: ["51.20000 degrees north, 1.20000 degrees east"]}
+  - {run: settings.set, args: {field: coordinates, value: dms}, say: []}
+  - {press: C, say: ["51 degrees 12 minutes 0.0 seconds north, 1 degrees 12 minutes 0.0 seconds east"]}
+  - {press: H, say: ["Facing north. North-fixed. Stepping. Zoom 5 kilometres, step 250 metres."]}
+  - {run: settings.set, args: {field: units, value: imperial}, say: []}
+  - {press: H, say: ["Facing north. North-fixed. Stepping. Zoom 3.1 miles, step 270 yards."]}

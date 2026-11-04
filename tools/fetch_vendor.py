@@ -14,7 +14,7 @@
 Each download is checked against a pinned SHA-256, so a changed file is never
 used silently. Already-present files are kept.
 
-Run: python tools/fetch_vendor.py [--web] [--nvda] [--piper]   (--web and --nvda if none is given)
+Run: python tools/fetch_vendor.py [--web] [--nvda] [--piper] [--axe]   (--web and --nvda if none is given)
 Standard library only.
 """
 from __future__ import annotations
@@ -69,6 +69,12 @@ PIPER_NOTICE = """Third-party files for Piper in the browser, fetched by tools/f
 * phonemizer.js 1.2.1, Xenova, Apache-2.0 (github.com/xenova/phonemizer.js), see phonemizer-LICENSE.txt.
   It has the eSpeak NG library and its data built in, GPL-3.0 (github.com/espeak-ng/espeak-ng).
 """
+
+
+# axe-core, the automatic accessibility checker used by the browser tests only (MPL-2.0, never distributed).
+AXE_URL = "https://registry.npmjs.org/axe-core/-/axe-core-4.14.0.tgz"
+AXE_SHA256 = "2277b0a3ef47af9b52497faa3e71598e86e0a0e5e6eb295207a5657ede4709af"
+AXE_DIR = ROOT / "web" / "vendor" / "axe"
 
 
 def download(url: str) -> bytes:
@@ -141,19 +147,33 @@ def fetch_piper() -> None:
     print(f"ONNX Runtime Web and phonemizer.js are in {PIPER_DIR}")
 
 
+def fetch_axe() -> None:
+    if not (AXE_DIR / "axe.min.js").is_file():
+        data = download(AXE_URL)
+        check(data, AXE_SHA256, "axe-core 4.14.0 (MPL-2.0, test tool only)")
+        AXE_DIR.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+            (AXE_DIR / "axe.min.js").write_bytes(tar.extractfile("package/axe.min.js").read())
+            (AXE_DIR / "LICENSE.txt").write_bytes(tar.extractfile("package/LICENSE").read())
+    print(f"axe-core is in {AXE_DIR}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Fetch third-party files that are not kept in git.")
     parser.add_argument("--web", action="store_true", help="Pyodide for the web shell")
     parser.add_argument("--nvda", action="store_true", help="the NVDA Controller Client for the desktop")
     parser.add_argument("--piper", action="store_true", help="ONNX Runtime Web and phonemizer.js, for Piper in the browser")
+    parser.add_argument("--axe", action="store_true", help="axe-core, for the browser tests' accessibility check (test tool only)")
     args = parser.parse_args(argv)
-    both = not (args.web or args.nvda or args.piper)
+    both = not (args.web or args.nvda or args.piper or args.axe)
     if args.web or both:
         fetch_pyodide()
     if args.nvda or both:
         fetch_nvda()
     if args.piper:
         fetch_piper()
+    if args.axe:
+        fetch_axe()
     return 0
 
 

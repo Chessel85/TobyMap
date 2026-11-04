@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TobyMap listening test, web version</title>
+<style>
+  body { font: 18px/1.5 system-ui, sans-serif; margin: 2em; max-width: 40em; }
+  input { font: inherit; width: 6em; }
+  :focus-visible { outline: 3px solid #0b57d0; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<!-- P1-T13: blocks 1 and 3 of the listening test in the browser, so Firefox's sound can be compared by ear
+     with the desktop's. Open it from a local server:  python -m http.server --directory tools/listening_test/web
+     then go to http://localhost:8000/ . The same keys as the desktop test: Space plays, type the clock hour and
+     Enter, then the distance 1 to 5 and Enter, R plays again. Results are downloaded as a CSV file at the end. -->
+<h1>TobyMap listening test, web version</h1>
+<p id="instructions" aria-live="assertive">Press the Start button, then Space to hear each sound.</p>
+<p><button id="start" type="button">Start</button></p>
+<p><label for="answer">Your answer</label> <input id="answer" type="text" autocomplete="off" inputmode="numeric"></p>
+<p><button id="close" type="button">Close</button></p>
+<script src="test.js"></script>
+</body>
+</html>

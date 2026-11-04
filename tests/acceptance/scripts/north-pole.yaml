@@ -1,0 +1,7 @@
+title: Blocked at the North Pole
+requirements: [NAV-1]
+pack: world
+start: {lat: 89.9, lon: 0, zoom_m: 250000, step_m: 25000}
+steps:
+  - {press: Up, earcons: [blocked], say: []}
+  - {press: Up, earcons: [blocked], say: []}

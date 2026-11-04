@@ -15,3 +15,11 @@ zooms:
   - {scale: 16, step: 0.5}
 
 nearby_count: 8
+
+# Phase 1 world model (NAV-2, NAV-13). Metres. Settings can replace both lists.
+zoom_list_m: [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000, 10000000]
+step_list_m: [10, 25, 50, 100, 250, 500, 1000, 5000, 25000, 100000, 250000, 1000000]
+world:
+  zoom_m: 5000
+  step_m: 100
+  link_step_to_zoom: false

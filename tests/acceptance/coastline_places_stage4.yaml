@@ -14,6 +14,7 @@ places:
   - {name: Montevideo, lat: -34.9011, lon: -56.1645, includes: [Uruguay]}
   - {name: Stanley in the Falkland Islands, lat: -51.6977, lon: -57.8605, includes: [Falkland Islands]}
   - {name: The Atlantic off Mar del Plata, lat: -38.10, lon: -57.30, sea: true}
-  - {name: The Beagle Channel off Ushuaia, lat: -54.87, lon: -68.25, sea: true}
+  # Moved from -54.87 on 4 November: that point is on a 1 km2 islet in the OSM land polygons (checked), not in the water.
+  - {name: The Beagle Channel off Ushuaia, lat: -54.85, lon: -68.25, sea: true}
   - {name: The Strait of Magellan, lat: -52.60, lon: -69.80, sea: true}
   - {name: The Pacific off Valparaíso, lat: -33.00, lon: -71.90, sea: true}

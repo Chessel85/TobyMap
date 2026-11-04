@@ -1,0 +1,55 @@
+# The base pack lite: the whole world (P1-T4, DP112). Countries, first-level
+# divisions, and oceans and seas, cut to the real coast, with no gaps (LOC-6).
+# The base detail is 100 metres, as the PO chose on 3 November (DP112).
+# The reference for each setting is docs/data-manager/configuration.md.
+
+name: world
+title: "Base pack lite: countries, first-level divisions, and oceans and seas, for the whole world."
+version: 0.1.0
+app_versions: {from: 0.0.1}
+coverage: {kind: world}
+layer_groups: [base]
+space_needed_mb: 40000
+
+stages:
+  - stage: osm-areas
+    source: planet
+    levels: [3, 4, 5]
+  - stage: squares
+    sources: [land-polygons, vliz-oceans]
+    tolerance_m: 100
+    condominiums:
+      - {id: "condominium:de-lu", name: Moselle condominium, countries: [osm:r51477, osm:r2171347]}
+  - stage: join
+    unclaimed:
+      - {name: Bir Tawil, point: [33.75, 21.87], note: "Land between Egypt and Sudan that neither country claims."}
+    named_waters:
+      - {id: "water:caspian-sea", name: Caspian Sea, point: [50.5, 41.5]}
+  - stage: write
+    drawing_levels:
+      # The zoom each serves is the view radius in kilometres (architecture 6.9). The core picks the finest
+      # level whose view_km is not more than the view radius, and the exact pack tiles when there is none.
+      # Each level serves a frame of about 10,000 points a layer (VIS-1). The first build (5 km, 1 km and 200 m)
+      # gave 77,000 points for the countries alone at world zoom and a pack of 170 MB, so these are coarser.
+      - {tolerance_m: 40000, min_km2: 20000, tile_level: 1, view_km: 4000}
+      - {tolerance_m: 8000, min_km2: 1000, tile_level: 3, view_km: 1000}
+      - {tolerance_m: 1500, min_km2: 40, tile_level: 5, view_km: 150}
+  - stage: checks
+    places:
+      - tests/acceptance/coastline_places.yaml
+      - tests/acceptance/coastline_places_belgium.yaml
+      - tests/acceptance/coastline_places_stage2.yaml
+      - tests/acceptance/coastline_places_stage3.yaml
+      - tests/acceptance/coastline_places_stage4.yaml
+    line_180: true
+    area_checks:
+      # Wikidata's figures for area (P2046), the preferred one first. Wikidata's areas include inland
+      # water for most countries, and the pack's are land cut to the coast, so a small difference is expected.
+      - {name: Antarctica, wikidata_km2: [13720000, 14000000, 14200000], tolerance_pct: 2,
+         note: "Wikidata's preferred figure, 13,720,000 km2, is the land without ice shelves."}
+      - {name: Fiji, wikidata_km2: [18274], tolerance_pct: 5}
+      - {name: Russia, wikidata_km2: [17075400], tolerance_pct: 5}
+      - {name: United States, wikidata_km2: [9826675], tolerance_pct: 8}
+      # Listed as explained (DP118): atolls have wide reef flats and sand that are land at low tide, and the check
+      # here does not take away inland water as the spike S2 check did (that left Kiribati 6.1% over).
+      - {name: Kiribati, wikidata_km2: [811], tolerance_pct: 40, note: "Explained (DP118): reef flats and sand, and lagoons not taken away."}

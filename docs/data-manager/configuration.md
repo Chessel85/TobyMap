@@ -51,9 +51,13 @@ One file per pack, such as `packs\test.yaml`. The file name is the pack's name.
 
 * samples: reads small GeoJSON files, for the test pack. Its setting samples lists them, least detailed first, each with source, the source's key, and file, for a file inside a source that is a folder. Each feature in a sample has id, name, layer and type, and may have local_name, parent, sovereign and replaces. A sample may have a box, a list of rectangles as west, south, east, north; inside it, the sample wins over the samples before it. tests/samples/README.md says more.
 * water: takes the land out of every water layer. Its setting land_layer names the layer that is the land, countries if not given.
-* write: writes the pack, with its manifest, attribution, licence and checksum. It must be the last stage.
+* osm-areas: reads the countries and their divisions from the planet file, in a short-lived process of its own. Settings: source (planet), levels (the division levels to read, such as 3, 4 and 5), and box (west, south, east, north), for a trial on one part of the world only. The world build has no box.
+* squares: builds the world one grid square at a time, from the land polygons, the areas just read and the VLIZ oceans, and keeps each finished grid square, so a stopped build carries on from there. Settings: sources (land-polygons and vliz-oceans), square_degrees (1 by default), tolerance_m (the base detail in metres; the PO chose 100 on 3 November, DP112), box, and condominiums (land two countries hold together, each with id, name and the two countries).
+* join: joins the grid squares into whole areas, gives land in no country to its neighbour or names it "Unclaimed", gives water in no ocean to the ocean beside it, works out the colour numbers, and checks that every quarter of a degree is in a country or a sea (LOC-6). Settings: sliver_width_m and sliver_km2 (what counts as a sliver), unclaimed (known unclaimed land, each with name, point and note) and named_waters (water with no ocean beside it, such as the Caspian Sea, each with id, name and point).
+* write: writes the pack, with its manifest, attribution, licence and checksum. Its setting drawing_levels is a list of levels, each with tolerance_m (how far the outline may move), min_km2 (parts smaller than this are left out, but each area keeps its largest part), tile_level (the tile level of its drawing tiles) and view_km (it serves views at least this wide). Each layer is simplified as one coverage at each level, so neighbours meet at every level. Without drawing_levels the pack has none.
+* checks: looks up the check places in the pack just written. It must come straight after write. Settings: places (the files in tests/acceptance), box, line_180 (true to check both sides of the 180 degree line, and that no edge jumps across the globe), and area_checks (countries compared with Wikidata's areas, each with name, wikidata_km2, tolerance_pct and note).
 
-More stages come with P1-T4 and P1-T16: reading the planet file, cutting areas to the land, the counties, checks, and drawing levels.
+The write stage must come last, or be followed only by checks.
 
 ## Other files
 

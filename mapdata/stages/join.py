@@ -43,7 +43,52 @@ from mapdata.stages.geodesy import area_km2
 from mapdata.stages.squares import AREAS, SQUARES
 
 SMALL_ISLAND_KM2 = 1.0  # unclaimed islands smaller than this are counted in the report, and listed in the log
+ANTARCTICA_ID = "territory:antarctica"
+ANTARCTIC_LATITUDE = -60.0  # land in no country south of this is Antarctica's (the Antarctic Treaty area)
 GRID_STEP = 0.25  # the no-gaps check, every quarter of a degree (LOC-6)
+
+
+UNJOINED: list[str] = []  # the areas whose parts could not be dissolved into one shape, for the report
+
+
+def union_parts(geoms, what: str = "an area"):
+    """The parts joined into one shape. Parts from neighbouring grid squares meet exactly, so the quick coverage
+    union is tried first. Where a vertex on a shared edge is missing on one side it refuses ("incorrectly noded"),
+    and joining on a fixed grid instead took hours on the world's coasts, so the parts are kept side by side in one
+    multi-part shape, which holds the same land or water, and the area is listed in the report."""
+    try:
+        return shapely.coverage_union_all(geoms)
+    except shapely.errors.GEOSException:
+        UNJOINED.append(what)
+        flat = [p for g in geoms for p in shapely.get_parts(g) if not p.is_empty]
+        return shapely.MultiPolygon(flat) if len(flat) > 1 else (flat[0] if flat else shapely.Polygon())
+
+
+def clusters(parts: list) -> list[list]:
+    """Parts that touch one another, in groups, without joining them: joining thousands of coastal strips with
+    millions of points took hours, and nothing needs the join, only the group's area, its neighbour and its name."""
+    if not parts:
+        return []
+    arr = np.empty(len(parts), dtype=object)
+    arr[:] = parts
+    tree = shapely.STRtree(arr)
+    a, b = tree.query(arr, predicate="intersects")
+    parent = list(range(len(parts)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for i, j in zip(a.tolist(), b.tolist()):
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            parent[max(ri, rj)] = min(ri, rj)
+    groups: dict[int, list] = defaultdict(list)
+    for i in range(len(parts)):
+        groups[find(i)].append(parts[i])
+    return [groups[k] for k in sorted(groups)]
 
 
 def key_of(label) -> tuple:
@@ -78,6 +123,7 @@ def colours(ids: list[str], pairs: set[tuple[str, str]]) -> dict[str, int]:
 
 def run(ctx) -> None:
     s = ctx.settings
+    UNJOINED.clear()
     areas = json.loads((ctx.previous / AREAS).read_text(encoding="utf-8"))
     by_id = {r["id"]: r for r in areas["records"]}
     condos = {c["id"]: c for c in areas.get("condominiums") or []}
@@ -124,13 +170,15 @@ def run(ctx) -> None:
         return keys, (shapely.STRtree(geoms_) if geoms_ else None), geoms_
 
     def best_neighbour(comp, keys, tree, geoms_):
-        """The area sharing the longest edge with comp, found among the parts near it."""
+        """The area sharing the longest edge with comp (one shape, or a list of touching parts), found among the
+        parts near it."""
         if tree is None:
             return None
         shared: dict[tuple, float] = defaultdict(float)
-        edge = comp.boundary
-        for i in tree.query(comp, predicate="intersects").tolist():
-            shared[keys[i]] += shapely.intersection(edge, geoms_[i].boundary).length
+        for part in (comp if isinstance(comp, list) else [comp]):
+            edge = part.boundary
+            for i in tree.query(part, predicate="intersects").tolist():
+                shared[keys[i]] += shapely.intersection(edge, geoms_[i].boundary).length
         shared = {k: v for k, v in shared.items() if v > 0}
         if not shared:
             return None
@@ -145,23 +193,36 @@ def run(ctx) -> None:
     given = 0
     given_km2 = 0.0
     small_islands: list[float] = []
-    comps = list(shapely.get_parts(shapely.coverage_union_all(waiting))) if waiting else []
+    # Antarctica is no country, and OSM has no outline for it, so land in no country south of ANTARCTIC_LATITUDE
+    # (the Antarctic Treaty area) is the territory of Antarctica: the ice sheet, the ice shelves and the islands.
+    antarctica = ("land", ANTARCTICA_ID, None)
+    to_antarctica = 0
+    to_antarctica_km2 = 0.0
+    comps = clusters(waiting)
     for comp in comps:
-        km2 = area_km2(comp)
+        km2 = sum(area_km2(g) for g in comp)
+        biggest = max(comp, key=lambda g: g.area)
+        p = shapely.point_on_surface(biggest)
+        if p.y < ANTARCTIC_LATITUDE:
+            shapes.setdefault(antarctica, []).extend(comp)
+            to_antarctica += 1
+            to_antarctica_km2 += km2
+            continue
         best = best_neighbour(comp, l_keys, l_tree, l_geoms)
-        p = shapely.point_on_surface(comp)
-        if best is not None and (km2 < sliver_a or width_m(comp) < sliver_w):
-            shapes[best].append(comp)
+        whole = shapely.MultiPolygon([q for g in comp for q in shapely.get_parts(g)])
+        if best is not None and (km2 < sliver_a or width_m(whole) < sliver_w):
+            shapes[best].extend(comp)
             given += 1
             given_km2 += km2
             continue
-        known = next((u for u in unclaimed_list if shapely.intersects(comp, shapely.Point(u["point"]))), None)
+        known = next((u for u in unclaimed_list
+                      if any(shapely.intersects(g, shapely.Point(u["point"])) for g in comp)), None)
         if known:
             uid, name, note = f"unclaimed:{known['name'].lower().replace(' ', '-')}", known["name"], known.get("note")
         else:
             uid, name, note = f"unclaimed:{p.y:.2f}:{p.x:.2f}", "Unclaimed", None
         lab = ("land", uid, None)
-        shapes.setdefault(lab, []).append(comp)
+        shapes.setdefault(lab, []).extend(comp)
         new_records[uid] = {"id": uid, "name": name, "kind": "unclaimed", "note": note}
         if best is not None:
             pairs.add(tuple(sorted((lab, best), key=str)))
@@ -173,6 +234,11 @@ def run(ctx) -> None:
             ctx.progress.log(line)
         else:
             report.append(line)
+    if to_antarctica:
+        new_records[ANTARCTICA_ID] = {"id": ANTARCTICA_ID, "name": "Antarctica", "kind": "territory",
+                                      "note": "No country holds Antarctica; the Antarctic Treaty governs it."}
+        ctx.progress.line(f"Land in no country south of {-ANTARCTIC_LATITUDE:g} degrees south is Antarctica: "
+                          f"{to_antarctica} groups, {to_antarctica_km2:,.0f} km2 in all.")
     ctx.progress.line(f"Slivers of land in no country given to their neighbour: {given}, {given_km2:,.2f} km2 in all.")
     if small_islands:
         report.append(f"Small islands in no country, each under {SMALL_ISLAND_KM2:g} km2, named Unclaimed: "
@@ -184,12 +250,14 @@ def run(ctx) -> None:
     w_keys, w_tree, w_geoms = part_tree(water_labels)
     given = 0
     given_km2 = 0.0
-    comps = list(shapely.get_parts(shapely.coverage_union_all(waiting))) if waiting else []
-    ctx.progress.line(f"Water in no VLIZ ocean: {len(comps)} parts, each to be given to the ocean beside it.")
+    comps = clusters(waiting)
+    ctx.progress.line(f"Water in no VLIZ ocean: {len(waiting)} parts in {len(comps)} groups, each group to be given "
+                      "to the ocean beside it.")
     for comp in comps:
-        km2 = area_km2(comp)
-        p = shapely.point_on_surface(comp)
-        known = next((w for w in named if shapely.intersects(comp, shapely.Point(w["point"]))), None)
+        km2 = sum(area_km2(g) for g in comp)
+        p = shapely.point_on_surface(max(comp, key=lambda g: g.area))
+        known = next((w for w in named
+                      if any(shapely.intersects(g, shapely.Point(w["point"])) for g in comp)), None)
         best = None if known else best_neighbour(comp, w_keys, w_tree, w_geoms)
         if known:
             lab = ("water", known["id"], None)
@@ -202,11 +270,11 @@ def run(ctx) -> None:
         else:
             if w_tree is None:
                 raise BuildStopped(f"Water at {p.y:.3f} north, {p.x:.3f} east is in no ocean, and no ocean was read.")
-            lab = w_keys[int(w_tree.query_nearest(comp)[0])]
+            lab = w_keys[int(w_tree.query_nearest(max(comp, key=lambda g: g.area))[0])]
             report.append(f"Water in no ocean and not beside one, {km2:,.1f} km2 at {p.y:.3f} north, {p.x:.3f} east, "
                           f"is given to the nearest, {by_id[lab[1]]['name']}. Add it to the named waters in the "
                           "settings if it has its own name.")
-        shapes.setdefault(lab, []).append(comp)
+        shapes.setdefault(lab, []).extend(comp)
     ctx.progress.line(f"Water in no VLIZ ocean given to the ocean beside it: {given} parts, {given_km2:,.0f} km2.")
 
     # The layers: each area joined once, from all its parts.
@@ -226,7 +294,9 @@ def run(ctx) -> None:
     records, geoms = [], []
     layer_ids: dict[str, list[str]] = defaultdict(list)
     for (layer, fid), gs in sorted(layer_parts.items()):
-        g = gs[0] if len(gs) == 1 else shapely.coverage_union_all(gs)
+        g = gs[0] if len(gs) == 1 else union_parts(gs, f"{layer} {fid}")
+        if g.geom_type == "GeometryCollection":
+            g = grid.polygonal(g)
         src = by_id.get(fid) or new_records.get(fid) or {}
         rec = {"id": fid, "layer": layer}
         if layer == "countries":
@@ -234,6 +304,10 @@ def run(ctx) -> None:
                 c = condos[fid]
                 names = [by_id[i]["name"] for i in c["countries"] if i in by_id]
                 rec.update(name=c["name"], type="condominium", sovereign=" and ".join(names))
+            elif src.get("kind") == "territory":
+                rec.update(name=src["name"], type="territory")
+                if src.get("note"):
+                    rec["note"] = src["note"]
             elif src.get("kind") == "unclaimed":
                 rec.update(name=src["name"], type="unclaimed land")
                 if src.get("note"):
@@ -258,6 +332,12 @@ def run(ctx) -> None:
         records.append({k: v for k, v in rec.items() if v is not None})
         geoms.append(g)
         layer_ids[layer].append(fid)
+
+    if UNJOINED:
+        ctx.progress.line(f"Areas kept as touching parts, as the parts could not be dissolved into one shape: "
+                          f"{len(UNJOINED)}. The log lists them.")
+        for what in UNJOINED:
+            ctx.progress.log(f"Kept as touching parts: {what}.")
 
     # Colour numbers (AD-19).
     layer_pairs: dict[str, set] = defaultdict(set)
@@ -303,12 +383,15 @@ def run(ctx) -> None:
 
 
 def no_gaps(ctx, paths, records, geoms) -> None:
-    """Every quarter of a degree in the grid squares built is in a country or a sea (LOC-6)."""
+    """Every quarter of a degree in the grid squares built is in a country or a sea (LOC-6).
+
+    The points of all the grid squares are found first, then tested against the countries and seas in one
+    pass: testing 16 points at a time against shapes of millions of points, 64,800 times, took far longer."""
+    import time
+
+    t = time.perf_counter()
     named = [g for r, g in zip(records, geoms) if r["layer"] in ("countries", "oceans")]
-    shapely.prepare(named)  # each point is tested against whole areas, so they are prepared once
-    tree = shapely.STRtree(named)
-    missing = []
-    total = 0
+    xs_all, ys_all = [], []
     for p in paths:
         r = pickle.loads(p.read_bytes())
         w, s, e, n = shapely.total_bounds(shapely.from_wkb(np.array(r["shapes"], dtype=object)))
@@ -317,15 +400,27 @@ def no_gaps(ctx, paths, records, geoms) -> None:
         if len(xs) == 0 or len(ys) == 0:
             continue
         gx, gy = np.meshgrid(xs, ys)
-        pts = shapely.points(gx.ravel(), gy.ravel())
-        total += len(pts)
-        hit = np.zeros(len(pts), bool)
-        found = tree.query(pts, predicate="intersects")[0]
-        hit[found] = True
-        missing.extend(pts[~hit].tolist())
+        xs_all.append(gx.ravel())
+        ys_all.append(gy.ravel())
+    x, y = np.concatenate(xs_all), np.concatenate(ys_all)
+    pts = shapely.points(x, y)
+    ctx.progress.line(f"The no-gaps check: {len(pts):,} points found in {time.perf_counter() - t:.0f} seconds; "
+                      "testing them against the countries and seas.")
+    hit = np.zeros(len(pts), bool)
+    for n, g in enumerate(named, 1):  # one area at a time, so the work is prepared once and progress is seen
+        shapely.prepare(g)
+        todo = np.flatnonzero(~hit & (x >= g.bounds[0]) & (x <= g.bounds[2]) & (y >= g.bounds[1]) & (y <= g.bounds[3]))
+        if len(todo):
+            hit[todo[shapely.intersects(g, pts[todo])]] = True
+        if n % 50 == 0:
+            ctx.progress.line(f"The no-gaps check: {n} of {len(named)} areas tested, {int(hit.sum()):,} of "
+                              f"{len(pts):,} points found a place.")
+        shapely.destroy_prepared(g)
+    total = len(pts)
+    missing = pts[~hit].tolist()
     if missing:
         where = "; ".join(f"{q.y:.2f} north, {q.x:.2f} east" for q in missing[:10])
         raise BuildStopped(f"The no-gaps check failed (LOC-6): {len(missing)} of {total:,} points are in no "
                            f"country and no sea, such as {where}. This is a fault in the build; please report it.")
     ctx.progress.line(f"The no-gaps check passed (LOC-6): all {total:,} points, every quarter of a degree, are in a "
-                      "country or a sea.")
+                      f"country or a sea. It took {time.perf_counter() - t:.0f} seconds.")

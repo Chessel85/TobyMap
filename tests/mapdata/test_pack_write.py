@@ -104,3 +104,40 @@ def test_a_cache_gives_the_same_answers(tmp_path):
         plain, cached = lookup.Lookup(p), lookup.Lookup(p, cache=True)
         for lon, lat in ((0, 50), (5, 45), (0.1, 50.1), (5, 45)):
             assert cached.at(lon, lat) == plain.at(lon, lat)
+
+
+def drawing_pack(path, workers):
+    from mapdata.stages import drawing_levels
+
+    records, geoms = big_and_small()
+    geoms[0] = shapely.segmentize(geoms[0], 0.05)
+    levels = [{"id": 0, "tile_level": 2, "tolerance_m": 20000, "min_km2": 10, "view_km": 2000},
+              {"id": 1, "tile_level": 4, "tolerance_m": 2000, "min_km2": 1, "view_km": 200}]
+    shapes = {lv["id"]: [None] * 2 for lv in levels}
+    for lv in levels:
+        for layer in ("countries", "regions"):
+            idx = [i for i, r in enumerate(records) if r["layer"] == layer]
+            for i, g in zip(idx, drawing_levels.simplify_layer([geoms[i] for i in idx], lv["tolerance_m"],
+                                                               lv["min_km2"])):
+                shapes[lv["id"]][i] = g
+    manifest = {"name": "test", "sources": SOURCES, "drawing_levels": levels}
+    pack_write.write(path, manifest, records, geoms, workers, say=lambda s: None, drawing_geoms=shapes)
+    return levels
+
+
+def test_drawing_levels_are_written_and_read_back(tmp_path):
+    # P1-T4: simplified shapes in drawing tiles, fewer points than the exact shape, the same bytes whatever the workers.
+    from mapcore.packs import coords
+
+    drawing_pack(tmp_path / "a.pack", 1)
+    drawing_pack(tmp_path / "b.pack", 2)
+    assert (tmp_path / "a.pack").read_bytes() == (tmp_path / "b.pack").read_bytes()
+    with lookup.open_pack(tmp_path / "a.pack") as p:
+        assert [d["id"] for d in p.manifest["drawing_levels"]] == [0, 1]
+        coarse = p.drawing_tile(0, 2, 2)
+        fine = p.drawing_tile(1, 8, 12)
+        assert coarse and fine
+        exact = [e for key in p.keys() if key.startswith("tile/") for e in p.tile(*map(int, key.split("/")[1:]))
+                 if e.kind == tiles.COMPACT]
+        points = lambda es: sum(coords.point_count(e.data) for e in es if e.kind == tiles.COMPACT)
+        assert points(coarse) < points(exact)

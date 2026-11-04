@@ -65,6 +65,20 @@ continue.txt, in the repository's top folder, is the switch for long builds. Its
 
 A build reads the switch before each stage. Long stages, such as building the world country by country, also read it between countries.
 
+## Building the world pack
+
+`mapdata build world --workers 8 --wait-for-yes` builds the base pack lite, from `mapdata\config\packs\world.yaml`. It takes several hours. The laptop is sluggish while it runs; change continue.txt to no to pause it.
+
+1. Reading the planet file: about 5 minutes, and about 24 GB of memory is mapped until that step ends.
+2. Building the grid squares: the long step. The world is 64,800 grid squares of 1 degree; open sea is written at once, and the rest are built by the workers. Each finished grid square is kept, so a stopped build carries on from there. A line saying the build is still running is written to the log every 5 minutes.
+3. Joining the grid squares: the areas, the colour numbers, and the no-gaps check.
+4. Writing the pack: the exact shapes in pack tiles, and the drawing levels in drawing tiles.
+5. The checks: the check places from the spike S2 stages, each country in the area checks against Wikidata, and both sides of the 180 degree line.
+
+The report to read afterwards is the build log, `world build log.txt`, in `tobymap\output\world`. Lines starting FAIL need a decision. The lines on overlaps, on unclaimed land and on water in no ocean are the ones that become discussion points.
+
+To prove the pack is the same every time (DMT-1), build the write stage again from its kept results and compare the two files byte for byte: `toolsuild_twice.py world`.
+
 ## mapdata inspect
 
 Answers questions about a built pack, so it can be checked without a map. The pack is a pack file, or the name of a pack in the output folder.

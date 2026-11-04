@@ -107,3 +107,15 @@ def test_cut_to_squares_by_halving():
 def test_the_polar_cap():
     assert grid.polar_cap((10, -86, 11, -85), -85.05).bounds == (10, -86, 11, -85.05)
     assert grid.polar_cap((10, -80, 11, -79), -85.05) is None
+
+
+def test_union_parts_joins_neighbours_that_share_an_edge():
+    # The world build met grid squares whose shared edge was noded differently on each side (P1-T4).
+    import shapely
+
+    from mapdata.stages.join import union_parts
+
+    a = shapely.Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
+    b = shapely.Polygon([(1, 0), (2, 0), (2, 1), (1, 1), (1, 0.5)])  # a vertex on the shared edge, a has none
+    u = union_parts([a, b])
+    assert abs(u.area - 2.0) < 1e-9

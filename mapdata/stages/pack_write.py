@@ -202,7 +202,8 @@ def spike_sources(gol: Path, land_polygons: Path) -> list[dict]:
 # Writing -------------------------------------------------------------------
 
 def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers: int = 1, say=print,
-          layers: list[dict] | None = None, attribution: str | None = None) -> dict:
+          layers: list[dict] | None = None, attribution: str | None = None,
+          drawing_geoms: dict[int, list] | None = None) -> dict:
     """Write the pack. The cutting into pack tiles and the encoding are split
     into batches run by worker processes (DP103); the main process joins the
     results, splits full pack tiles, and writes the file. The tile entries
@@ -211,6 +212,10 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
 
     layers and attribution come from the pipeline's settings; without them,
     the spike S2 defaults are used.
+
+    drawing_geoms, if given, has the simplified shape of every feature (in
+    the order of geoms) for each drawing level in the manifest, by level id;
+    they are cut into drawing tiles (mapdata.stages.drawing_levels).
 
     Returns measurements: bytes, pack tiles, tile entries, tile levels, seconds.
     """
@@ -239,6 +244,21 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
         for result in executor_map(executor, _encode_batch, [b for b in enc_batches if b], workers):
             for key, entries in result:
                 encoded[key] = entries
+        drawn = {}
+        if drawing_geoms:
+            from mapdata.stages import drawing_levels
+
+            tile_levels = {d["id"]: d["tile_level"] for d in manifest["drawing_levels"]}
+            for level_id, shapes in sorted(drawing_geoms.items()):
+                items = [(i, shapely.to_wkb(g)) for i, g in enumerate(shapes) if g is not None and not g.is_empty]
+                items.sort(key=lambda it: -len(it[1]))
+                nb = max(1, min(len(items), workers * 8))
+                jobs = [(items[k::nb], tile_levels[level_id]) for k in range(nb) if items[k::nb]]
+                level_tiles: dict = defaultdict(list)
+                for part in executor_map(executor, drawing_levels.cut_batch, jobs, workers):
+                    for key, entries in part.items():
+                        level_tiles[key].extend(entries)
+                drawn[level_id] = level_tiles
     writer = PackWriter(path)
     numbers = writer.add_features([feature_record(r, g) for r, g in zip(records, geoms)])
     number_of = [numbers[r["id"]] for r in records]
@@ -247,12 +267,18 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
         entries = [(number_of[i], kind, data) for i, kind, data in encoded[(level, x, y)]]
         entries_written += len(entries)
         writer.add_tile(level, x, y, entries)
+    drawing_entries = 0
+    for level_id in sorted(drawn):
+        for (x, y) in sorted(drawn[level_id]):
+            entries = sorted(drawn[level_id][(x, y)], key=lambda e: e[0])
+            drawing_entries += len(entries)
+            writer.add_drawing_tile(level_id, x, y, [(number_of[i], kind, data) for i, kind, data in entries])
     if layers is None:
         layer_ids = list(dict.fromkeys(r["layer"] for r in records))
         layers = [{"id": layer, "name": LAYER_NAMES.get(layer, layer.title())} for layer in layer_ids]
     writer.finish(manifest, attribution if attribution is not None else spike_attribution(manifest), layers)
     levels = sorted({level for level, _x, _y in encoded})
-    stats = {"bytes": path.stat().st_size, "tiles": len(encoded), "entries": entries_written, "levels": levels,
+    stats = {"bytes": path.stat().st_size, "tiles": len(encoded), "drawing_entries": drawing_entries, "entries": entries_written, "levels": levels,
              "seconds": time.perf_counter() - start}
     say(f"Wrote {path.name}: {stats['bytes'] / 1e6:.1f} MB, {stats['tiles']} pack tiles, {entries_written} tile "
         f"entries, in {stats['seconds']:.0f} seconds with {workers} worker process{'es' if workers != 1 else ''}.")

@@ -368,3 +368,35 @@ The words themselves, such as "kilometres" and "north-east", are added by the te
 ### What you will notice
 
 Nothing yet, apart from some distances in the Information panel's Nearby group, which may differ by 10 km from version 0.0.7 because they are now worked out on the ellipsoid. Stepping in metres and kilometres, "where am I", and the formats you choose in the settings are built on this in tasks P1-T5 to P1-T9.
+
+
+## How the world pack is built, one grid square at a time
+
+This explains how the base pack lite, the pack of the whole world, is made (task P1-T4). It is built by `mapdata build world`.
+
+### The idea
+
+The world is cut into 64,800 grid squares of one degree each. Each grid square is built on its own, from the land polygons, the countries and first-level divisions read from the planet file, and the ocean regions. In each grid square, all of them are made into one set of faces that covers the grid square with no gaps and no overlaps, and the faces are simplified together. The edge of each grid square is held fixed, so a coast or a border that crosses from one grid square to the next meets exactly. That is how there are no gaps in the world (LOC-6).
+
+### The steps
+
+1. Read the planet file, in a short-lived process, for the countries and the divisions. This takes about 4 minutes.
+2. Build the grid squares, 8 at a time. Open sea is written at once. The other 28,142 took 46 minutes. Each is kept as it is finished, so a stopped build carries on from there.
+3. Join the grid squares into whole areas. Land that no country holds is named. Water that no ocean holds is given to the ocean beside it. Every area gets a colour number that none of its neighbours has. A check then looks at every quarter of a degree of the Earth and finds a country or a sea at each of the 1,036,800 points.
+4. Write the pack: the exact shapes in pack tiles, and three drawing levels in drawing tiles. About 25 minutes.
+5. Check the pack: the check places, each country's area against Wikidata, and both sides of the 180 degree line.
+
+### What the build had to decide
+
+* Antarctica is not a country in OpenStreetMap, so it had no outline. All land south of 60 degrees south that no country holds is one territory, Antarctica, 13.95 million square kilometres, within 0.3 per cent of one of Wikidata's three figures for it.
+* Where OpenStreetMap puts land in two countries, the smaller area keeps it. The build report lists all 15 places (DP119).
+* Land in no country is named Unclaimed, except Bir Tawil, which is on a list in the settings (DP114, DP120).
+* Water with no ocean beside it, such as the Caspian Sea, is named from a list in the settings.
+
+### The drawing levels
+
+A map frame must stay near 10,000 points to be painted in time (VIS-1). So the pack holds three simplified copies of every shape, each with the parts too small to see left out, but never the largest part of an area. They serve views of at least 4,000, 1,000 and 150 kilometres across. Closer in, the exact shapes are drawn. The exact shapes are what "where am I" and distances always use, so a simplified copy never changes what you hear.
+
+### What you will notice
+
+Nothing yet. The application reads this pack from task P1-T5.

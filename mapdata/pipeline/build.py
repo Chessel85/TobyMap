@@ -54,7 +54,7 @@ STAGES = {
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
                         ("mapdata.stages.checks", "mapdata.stages.lookup")),
     "write": StageKind("writing the pack", "mapdata.stages.write",
-                       ("mapdata.stages.write", "mapdata.stages.pack_write", "mapdata.stages.antimeridian",
+                       ("mapdata.stages.write", "mapdata.stages.pack_write", "mapdata.stages.drawing_levels", "mapdata.stages.antimeridian",
                         "mapdata.stages.geodesy", "mapcore.geo.geodesy", "mapcore.packs.pack",
                         "mapcore.packs.coords", "mapcore.packs.tiles")),
 }

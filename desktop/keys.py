@@ -10,6 +10,7 @@ _NAMED = {
     Qt.Key.Key_End: "End", Qt.Key.Key_Space: "Space", Qt.Key.Key_Return: "Enter", Qt.Key.Key_Enter: "Enter",
     Qt.Key.Key_Backspace: "Backspace", Qt.Key.Key_Delete: "Delete", Qt.Key.Key_Escape: "Escape",
     Qt.Key.Key_Tab: "Tab", Qt.Key.Key_Backtab: "Tab", Qt.Key.Key_Insert: "Insert",
+    Qt.Key.Key_Comma: ",",
     **{getattr(Qt.Key, f"Key_F{i}"): f"F{i}" for i in range(1, 13)},
 }
 _MODIFIER_KEYS = {Qt.Key.Key_Control, Qt.Key.Key_Shift, Qt.Key.Key_Alt, Qt.Key.Key_Meta, Qt.Key.Key_AltGr}

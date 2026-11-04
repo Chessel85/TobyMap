@@ -20,3 +20,9 @@ def say(template: str, /, **values) -> str:
     for part in template.split("."):
         node = node[part]
     return node.format(**values) if values else node
+
+
+@lru_cache(maxsize=1)
+def earcon_list() -> tuple[dict, ...]:
+    """Every earcon: event, file name, label and meaning (SON-6, SON-8)."""
+    return tuple(yaml.safe_load((Path(__file__).resolve().parent / "earcons.yaml").read_text(encoding="utf-8")))

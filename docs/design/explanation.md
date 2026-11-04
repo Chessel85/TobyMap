@@ -440,3 +440,38 @@ If one record of a pack is damaged, the application notes which, and carries on 
 ### What you will notice
 
 Nothing yet. The shells use this from task P1-T8 on. When Nearby is built in task P1-T7, its distances will be to each area's nearest point.
+
+## How a step is announced, and how a held key works
+
+This is what happens from the moment you press an arrow key to the moment you hear the place.
+
+1. The shell turns your key press into a key name, such as "Down", and asks the core what it means in the region you are in. The core looks the key up in the command registry, with any keys you have changed, so the desktop and the web version always agree.
+2. The command "step south" moves you by the step size along the line of longitude. At the poles it does nothing and the core answers with the blocked sound and no words.
+3. The core asks the store for every area at the new place, smallest first. It compares them with the areas at the last place it described.
+4. If any area is new, it speaks the new areas from smallest to largest, for example "Pas-de-Calais, Hauts-de-France, France" after crossing from the sea. Areas you were already in are not repeated. If no area is new, nothing is spoken and the tick plays (ANN-1).
+5. The shell hands the words to the screen reader at high priority, so they cut in on anything older, and plays any earcon at the same moment.
+
+### Holding a key
+
+When you keep an arrow key pressed, the first press is announced as above. The repeats that follow are made, so you really move, but the core is told they are "held" and does not look anything up or speak. When you let go, the shell tells the core, and the core describes the place where you ended, compared with the last place it described. So holding Down from Kent to France says "France" once, however many steps it took.
+
+If keys arrive faster than the core can answer, the web version joins them in the same way: the core carries them all out and describes only the last.
+
+### The key describer
+
+Shift+F1 turns the key describer on. While it is on, every key goes to the core as a question: "what does this key do?" The core answers with the command's name and nothing is carried out. Shift+F1 again turns it off. Escape is never needed.
+
+### Changing a key
+
+In Settings, on the Keys tab, you choose a command and press the key you want. The core refuses a key that is already used where the two commands would meet, and says which command has it. Your keys are kept with your other settings.
+
+## How the map picture is chosen
+
+The map is drawn from the pack, not from a separate picture. The core chooses what to read from the zoom, which is a distance across the smaller side of the map window, so a smaller window shows the same area, drawn smaller.
+
+* A wide view (more than 25 km across) uses a drawing level, the coarsest one that is still good for that width. The base pack lite has three, for views up to 4,000, 1,000 and 150 km across.
+* A close view uses the exact pack tiles at every tile level, because the drawing levels are too rough for it.
+* Only the tiles that touch the view are read. Their shapes are then cut to the part of the world in view, so a country's whole outline never has to be drawn to show a corner of it.
+* Points less than about a pixel apart are joined into one, which is why a picture stays near 10,000 to 25,000 points.
+* The edges that exist only because a shape was cut along a pack tile, the 180 degree line or the South Pole are marked. They are filled in but never outlined, so Fiji and Russia look whole across the line.
+* Oceans are drawn first, then countries, then first-level divisions on top. The area you are in has a thicker outline, and the item chosen in the Information panel is highlighted.

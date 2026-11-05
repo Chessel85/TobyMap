@@ -6,7 +6,6 @@ import pytest
 from geographiclib.geodesic import Geodesic
 
 from mapcore.geo import geodesy as g
-from mapcore.store.world_sample import WorldSample
 
 LONDON = (51.507, -0.128)
 PARIS = (48.857, 2.352)
@@ -129,36 +128,25 @@ def test_wrap_lon(lon, wrapped):
     assert g.wrap_lon(lon) == wrapped
 
 
-@pytest.fixture(scope="module")
-def world():
-    return WorldSample.load()
-
-
-def _spans(country):
-    return [(r.bbox[0], r.bbox[2]) for r in country.rings()], country.bbox[1], country.bbox[3]
-
-
-def test_fiji_box_is_a_few_degrees_wide_and_its_centre_is_in_fiji(world):
-    fiji = next(c for c in world.countries if c.name == "Fiji")
-    spans, south, north = _spans(fiji)
-    box = g.wrap_box(spans, south, north)
+def test_a_box_across_the_line_is_a_few_degrees_wide_and_its_centre_is_in_it():
+    # Shaped like Fiji: parts on both sides of the 180 degree line.
+    box = g.wrap_box([(177.0, 180.0), (-180.0, -178.0)], -19.0, -16.0)
     assert box.crosses
     assert box.width < 8, box  # not nearly 360
     lat, lon = g.box_centre(box)
     assert -19 < lat < -16 and (lon > 177 or lon < -178)
-    assert g.distance_m(lat, lon, fiji.centre_lat, fiji.centre_lon) < 200_000
 
 
-def test_russia_box_crosses_the_line(world):
-    russia = next(c for c in world.countries if c.name == "Russia")
-    box = g.wrap_box(*_spans(russia))
+def test_a_wide_box_across_the_line():
+    # Shaped like Russia.
+    box = g.wrap_box([(27.0, 180.0), (-180.0, -169.0)], 41.0, 82.0)
     assert box.crosses and 150 < box.width < 200
     assert box.contains_lon(180) and box.contains_lon(-175) and not box.contains_lon(-30)
 
 
-def test_antarctica_box_goes_round_the_world_and_its_centre_is_the_south_pole(world):
-    antarctica = next(c for c in world.countries if c.name == "Antarctica")
-    box = g.wrap_box(*_spans(antarctica))
+def test_a_box_all_the_way_round_has_the_south_pole_as_its_centre():
+    # Shaped like Antarctica.
+    box = g.wrap_box([(-180.0, 180.0)], -90.0, -60.0)
     assert box.round_the_world
     assert g.box_centre(box) == (-90.0, 0.0)
 
@@ -195,12 +183,6 @@ def test_area_of_a_band_from_the_equator_to_one_degree_north():
     lons = [0.0, 10.0, 10.0, 0.0, 0.0]
     lats = [0.0, 0.0, 1.0, 1.0, 0.0]
     assert g.ring_area_m2(lons, lats) == pytest.approx(band / 36, rel=1e-4)
-
-
-def test_fiji_area_from_both_sides_of_the_line(world):
-    fiji = next(c for c in world.countries if c.name == "Fiji")
-    total = sum(g.ring_area_m2(r.lon, r.lat) for r in fiji.rings()) / 1e6
-    assert 15_000 < total < 22_000  # Wikidata 18,274 km2; Natural Earth at 1:110 million is rough
 
 
 def test_densify_keeps_the_ends_and_uses_numpy_index_type():

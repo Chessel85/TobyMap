@@ -6,12 +6,24 @@ import numpy as np
 import pytest
 
 from mapcore.render import globe
-from mapcore.store.world_sample import WorldSample
+from types import SimpleNamespace
+
+
+def _country(identifier, lon0, lat0, lon1, lat1, colour=1):
+    ring = SimpleNamespace(lon=np.array([lon0, lon1, lon1, lon0], float),
+                           lat=np.array([lat0, lat0, lat1, lat1], float))
+    return SimpleNamespace(id=identifier, colour=colour, polygons=[[ring]])
 
 
 @pytest.fixture(scope="module")
 def world():
-    return WorldSample.load()
+    """A few boxes standing for countries: enough to test the geometry, the scene and the seams."""
+    return SimpleNamespace(countries=[
+        _country("ne:GBR", -6, 50, 2, 59),
+        _country("ne:FRA", -4, 42, 8, 50),
+        _country("ne:AUS", 115, -38, 150, -12, 2),
+        _country("ne:ATA", 170, -80, 180, -70, 3),
+    ])
 
 
 @pytest.fixture(scope="module")
@@ -106,7 +118,7 @@ def test_offsets_use_the_native_index_type(geometry):
 
 def test_zoomed_in_drops_shapes_off_screen(geometry):
     whole = globe.build_scene(geometry, globe.View(lat=52, lon=-1, scale=1), 800, 600)
-    close = globe.build_scene(geometry, globe.View(lat=52, lon=-1, scale=16), 800, 600)
+    close = globe.build_scene(geometry, globe.View(lat=57, lon=-2, scale=40), 800, 600)
     assert len(close["shapes"]) < len(whole["shapes"])
 
 

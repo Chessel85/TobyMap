@@ -5,7 +5,7 @@ start: {lat: 51.2, lon: 1.2, zoom_m: 25000, step_m: 25000}
 steps:
   - {press: Down, say: ["North Atlantic Ocean"]}
   - {press: Space, say: ["North Atlantic Ocean"]}
-  - {press: Ctrl+Space, say: ["North Atlantic Ocean"]}
+  - {press: Shift+Space, say: ["North Atlantic Ocean"]}
   - {press: Ctrl+M, say: ["Sound muted."]}
   - {press: Down, earcons: []}
   - {press: Ctrl+M, say: ["Sound on."]}

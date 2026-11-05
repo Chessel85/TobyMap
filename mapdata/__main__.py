@@ -1,6 +1,6 @@
 """The mapdata command line program (architecture section 8).
 
-check, fetch, build and inspect (P1-T3), status, world-sample for the globe spike (S5), and the spike S2
+check, fetch, build and inspect (P1-T3), status, and the spike S2
 commands, which stay until P1-T16 is finished. Output is plain lines, suited to a screen reader (DMT-2). The data
 manager's guide is docs/data-manager/guide.md.
 """
@@ -64,9 +64,6 @@ def build_parser() -> argparse.ArgumentParser:
                                      "inspect test at 50.7 -1.3; inspect test 50.7 -1.3.")
     ins.add_argument("pack", help="the pack file, or the name of a pack in the output folder")
     ins.add_argument("question", nargs="+", help="manifest, feature <identifier>, at <lat> <lon>, or <lat> <lon>")
-    ws = sub.add_parser("world-sample", help="write the Natural Earth world sample used by the globe spike")
-    ws.add_argument("--scale", default="110m", choices=["110m", "50m", "10m"])
-    ws.add_argument("--out", help="output file; default mapcore/data/world_<scale>.json in the repository")
     return parser
 
 
@@ -256,29 +253,6 @@ def inspect_point(pack, lat: float, lon: float) -> int:
     return 0
 
 
-def cmd_world_sample(args: argparse.Namespace) -> int:
-    from mapdata.stages import world_sample
-
-    try:
-        folders = resolve_data_folder(args.data)
-    except DataFolderNotSet as exc:
-        print(exc)
-        return 2
-    name = f"ne_{args.scale}_admin_0_countries.geojson"
-    source = folders.downloads / "naturalearth" / name
-    if not source.is_file():
-        print(f"Natural Earth file not found: {source}")
-        print("Download it from https://github.com/nvkelso/natural-earth-vector, geojson folder, into that folder.")
-        return 1
-    out = Path(args.out) if args.out else REPO / "mapcore" / "data" / f"world_{args.scale}.json"
-    sample = world_sample.convert(json.loads(source.read_text(encoding="utf-8")),
-                                  source_name=f"Natural Earth 1:{args.scale[:-1]} million admin 0 countries")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(world_sample.dumps(sample), encoding="utf-8", newline="\n")
-    print(f"Wrote {len(sample['countries'])} countries to {out}, {out.stat().st_size // 1024} KB.")
-    return 0
-
-
 def cmd_status(args: argparse.Namespace) -> int:
     try:
         folders = resolve_data_folder(args.data)
@@ -352,8 +326,6 @@ def main(argv: list[str] | None = None) -> int:
         return osm_areas.main(Path(args.folder))
     if args.command == "inspect":
         return cmd_inspect(args)
-    if args.command == "world-sample":
-        return cmd_world_sample(args)
     return 1
 
 

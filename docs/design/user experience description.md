@@ -544,7 +544,7 @@ Keys changed since version 0.3 (agreed, DP79):
 * C: coordinates.
 * Shift+C: plain-language position.
 * H: heading, orientation, movement mode, zoom and step.
-* Ctrl+Space: repeat the last announcement.
+* Shift+Space: repeat the last announcement (Ctrl+Space if Shift+Space gets in the way of typing).
 * Ctrl+Shift+Space: announcement history.
 
 ### Information panel

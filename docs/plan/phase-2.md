@@ -8,7 +8,7 @@ Not started yet. The plan was written on 5 November 2026, after you accepted Pha
 
 * [x] P2-T0a Versions: check for newer PySide6 and Pyodide, and upgrade if every test passes. Done on 5 November 2026: PySide6 6.12.0 and Pyodide 314.0.7 are still the latest, so nothing was upgraded.
 * [x] P2-T0b Delete the obsolete Phase 0 code (DP122). Branch p2-t0-remove-phase0. Deleted: mapcore/store/world_sample.py, mapcore/geo/phase0_words.py, mapcore/data/world_110m.json, mapdata/stages/world_sample.py with its world-sample command, and the tests that covered only them (test_phase0_words, test_world_store, test_world_sample). Kept, with the reason: the GlobeGeometry and build_scene code in mapcore/render/globe.py, because spike S2 (mapdata/stages/s2_stage.py) and test_s2_faster still use it. The globe, geodesy tests now use small made-up countries instead of the Natural Earth file.
-* [ ] P2-T0c The key list: every command, its key now, the key proposed, and a column for the key you want, as a CSV file (DP109).
+* [x] P2-T0c The key list: every command, its key now, the key proposed, and a column for the key you want, as a CSV file (DP109). Branch p2-t0-key-list. The file is docs/plan/phase-2-keys.csv, made by tools/make_key_list.py. It has 59 lines, plus a Notes column. Waiting for you to fill in the column "Your key"; then the keys go into the registry and the key clash test (ACC-4) is run on them.
 
 ## Tasks
 

@@ -52,6 +52,7 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe -m mapdata build test                         # build a pack from mapdata/config/packs/test.yaml (--workers 3, --away, --wait-for-yes)
 .venv\Scripts\python.exe -m mapdata fetch --pack test                  # fetch every source a pack uses (or a source's key, or list)
 .venv\Scripts\python.exe tools\fetch_vendor.py                         # Pyodide (web) and NVDA Controller Client (desktop), not in git
+.venv\Scripts\python.exe tools\make_key_list.py                                  # make docs/plan/phase-2-keys.csv from the command registry
 .venv\Scripts\python.exe -m desktop                                    # run the desktop application
 .venv\Scripts\python.exe tools\serve_web.py                            # stage the core and serve the web version locally
 .\packaging\build.ps1                                                  # Windows installer and portable zip, into dist_installer

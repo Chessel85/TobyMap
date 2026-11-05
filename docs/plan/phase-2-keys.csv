@@ -1,0 +1,60 @@
+Command,Where it works,Phase,Key now,Key proposed,Your key,Notes
+Step north,the map,1,Up,Up,,
+Step south,the map,1,Down,Down,,
+Step west,the map,1,Left,Left,,
+Step east,the map,1,Right,Right,,
+Zoom out,the map,1,Page Up,Page Up,,
+Zoom in,the map,1,Page Down,Page Down,,
+Larger step,the map,1,Shift+Page Up,Shift+Page Up,,
+Smaller step,the map,1,Shift+Page Down,Shift+Page Down,,
+Link step to zoom,anywhere,1,,,,On or off.
+Where am I,the map,1,Space,Space,,
+Coordinates,the map,1,C,C,,
+Heading,the map,1,H,H,,
+Size of the visible map,the map,1,V,V,,
+Go to the map,anywhere,1,F2,F2,,
+Go to the Information panel,anywhere,1,F3,F3,,
+Go to Details,anywhere,1,F4,F4,,
+Exit,anywhere,1,,,,Only in the desktop version.
+Repeat the last announcement,anywhere,1,Ctrl+Space,Ctrl+Space,,
+Announcement history,anywhere,1,Ctrl+Shift+Space,Ctrl+Shift+Space,,
+Mute all sound,anywhere,1,Ctrl+M,Ctrl+M,,On or off.
+Send a Braille-only message,anywhere,1,,,,
+Settings,anywhere,1,"Ctrl+,","Ctrl+,",,
+Keys for this region,anywhere,1,F1,F1,,
+Key describer,anywhere,1,Shift+F1,Shift+F1,,On or off.
+About TobyMap,anywhere,1,,,,
+About the data,anywhere,1,,,,
+The sounds,anywhere,1,,,,
+Copy diagnostics,anywhere,1,,,,
+Drawing speed,anywhere,1,,,,
+Go to the menu bar,anywhere,1,Ctrl+Alt+M,Ctrl+Alt+M,,Only in the web version.
+Move the location to a clicked point,the map,1,,,,"Sent by the mouse, touch or a list; it has no key."
+Zoom with the wheel or a pinch,the map,1,,,,"Sent by the mouse, touch or a list; it has no key."
+Turn the globe by dragging,the map,1,,,,"Sent by the mouse, touch or a list; it has no key."
+Describe the point under the mouse,the map,1,,,,"Sent by the mouse, touch or a list; it has no key."
+Select an item in the Information panel,anywhere,1,,,,"Sent by the mouse, touch or a list; it has no key."
+Change the key of a command,anywhere,1,,,,"Sent by the mouse, touch or a list; it has no key."
+Play a sound from the list of sounds,anywhere,1,,,,"Sent by the mouse, touch or a list; it has no key."
+Change a setting,anywhere,1,,,,"Sent by the mouse, touch or a list; it has no key."
+"Cycle the orientation: north-fixed, cardinal facing, free facing",the map,2,,F,,P2-T1
+Turn 90 degrees left,the map,2,,Shift+Left,,P2-T1
+Turn 90 degrees right,the map,2,,Shift+Right,,P2-T1
+"Fine turn left, in free facing",the map,2,,Ctrl+Left,,P2-T1
+"Fine turn right, in free facing",the map,2,,Ctrl+Right,,P2-T1
+Type a bearing,the map,2,,A,,P2-T1
+Go to coordinates,the map,2,,G,,P2-T2
+Back through the position history,the map,2,,Backspace,,P2-T2
+Forward through the position history,the map,2,,Shift+Backspace,,P2-T2
+Go back to a place from the announcement history,the history list,2,,Enter,,P2-T15. In the announcement history.
+Layers list,anywhere,2,,Shift+L,,P2-T3
+Orientation beacon on or off,the map,2,,B,,P2-T9
+Hear its direction,the Information panel,2,,Ctrl+Enter,,"DP143, P2-T7. On Nearby and Crossed and passed items."
+"Isolate the current feature, and again to show everything",the map,2,,Ctrl+I,,"P2-T12. New, proposed by me; no key was set in the design."
+Next verbosity preset,anywhere,2,,Ctrl+Shift+V,,"P2-T11. New, proposed by me; no key was set in the design."
+Next theme,anywhere,2,,Ctrl+Shift+T,,"P2-T12. New, proposed by me; no key was set in the design."
+Panel group: Contains,the Information panel,2,,,,Proposed to be dropped (DP109). The key in the design is I. Write it in Your key to keep it.
+Panel group: Bordering,the Information panel,2,,,,Proposed to be dropped (DP109). The key in the design is N. Write it in Your key to keep it.
+Panel group: Overlapping,the Information panel,2,,,,Proposed to be dropped (DP109). The key in the design is O. Write it in Your key to keep it.
+Panel group: Crossing,the Information panel,2,,,,Proposed to be dropped (DP109). The key in the design is X. Write it in Your key to keep it.
+Panel group: Crossed and passed,the Information panel,2,,,,Proposed to be dropped (DP109). The key in the design is Shift+X. Write it in Your key to keep it.

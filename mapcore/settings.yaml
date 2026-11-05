@@ -30,6 +30,11 @@ tabs:
         kind: choice
         default: decimal
         choices: [[decimal, Decimal degrees], [dms, "Degrees, minutes and seconds"]]
+      - id: coordinate_places
+        label: Decimal places in coordinates
+        kind: choice
+        default: step
+        choices: [[step, "Fit the step size"], [fixed, "Always 5, or a tenth of a second"]]
   - id: movement
     label: Movement
     fields:

@@ -24,7 +24,9 @@
 </main>
 <dialog id="dialog" aria-labelledby="dialog-title">
   <h2 id="dialog-title"></h2>
-  <textarea id="dialog-text" readonly spellcheck="false"></textarea>
+  <!-- wrap="off": one line of text is one line on screen, so the screen reader
+       moves a line at a time (PO feedback on checklist 2). -->
+  <textarea id="dialog-text" readonly spellcheck="false" wrap="off"></textarea>
   <button id="dialog-close" type="button">Close</button>
 </dialog>
 <!-- The settings dialog and the key dialog are built by the page from what the core gives it,

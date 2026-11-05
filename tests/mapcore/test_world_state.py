@@ -108,3 +108,15 @@ def test_save_and_restore():
     w2 = make()
     w2.restore(d)
     assert (w2.lat, w2.lon, w2.zoom_m, w2.step_m) == (12.5, -179.5, w.zoom_m, w.step_m)
+
+
+def test_parse_lat_lon_reads_the_start_option():
+    import pytest
+
+    from mapcore.world.state import parse_lat_lon
+
+    assert parse_lat_lon("43.08,-79.08") == (43.08, -79.08)
+    assert parse_lat_lon(" -16.5 , 179.99 ") == (-16.5, 179.99)
+    for bad in ("", "43.08", "1,2,3", "north,east", "91,0", "0,181"):
+        with pytest.raises(ValueError):
+            parse_lat_lon(bad)

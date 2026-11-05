@@ -28,6 +28,19 @@ def nearest_index(values, target: float) -> int:
     return min(range(len(values)), key=lambda i: (abs(values[i] - target), values[i]))
 
 
+def parse_lat_lon(text: str) -> tuple[float, float]:
+    """"51.2,1.2" (latitude then longitude, in decimal degrees, south and west negative)
+    as numbers. Raises ValueError for anything else. Used by the shells' start option
+    for testing, --at on the desktop and ?at= in the web address."""
+    parts = [p.strip() for p in str(text).split(",")]
+    if len(parts) != 2:
+        raise ValueError(f"expected latitude,longitude, not {text!r}")
+    lat, lon = float(parts[0]), float(parts[1])
+    if not -90.0 <= lat <= 90.0 or not -180.0 <= lon <= 180.0:
+        raise ValueError(f"latitude or longitude out of range: {text!r}")
+    return lat, lon
+
+
 @dataclass
 class StepResult:
     """What one move did. moved is False when blocked (the blocked sound, no speech)."""

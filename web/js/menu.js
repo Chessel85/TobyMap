@@ -2,14 +2,15 @@
 // menubar pattern with real focus on each item.
 // On the bar: Left and Right move, Enter, Space or Down open a menu.
 // In a menu: Up and Down move, Enter or Space choose, Left and Right switch
-// menus, Escape goes back to the bar. Tab leaves the menu bar for the next
-// region, so Escape is never needed (ACC-7).
+// menus, Escape goes back to the bar. On the bar, Escape goes back to the map.
+// Tab leaves the menu bar for the next region, so Escape is never needed (ACC-7).
 
 export class MenuBar {
-  constructor(element, menus, onCommand, onTab) {
+  constructor(element, menus, onCommand, onTab, onEscape) {
     this.el = element;
     this.onCommand = onCommand;
     this.onTab = onTab;
+    this.onEscape = onEscape;
     this.build(menus);
   }
 
@@ -45,7 +46,7 @@ export class MenuBar {
           li.setAttribute("aria-keyshortcuts", item.key.replace(/ /g, ""));
           const key = document.createElement("span");
           key.className = "key";
-          key.textContent = item.key;
+          key.textContent = item.key_text;   // "Ctrl+Comma", not "Ctrl+,"
           li.appendChild(key);
         }
         li.addEventListener("click", () => this._choose(li));
@@ -114,6 +115,7 @@ export class MenuBar {
       case "Home": this._focusTop(0); break;
       case "End": this._focusTop(n - 1); break;
       case "Tab": this.closeAll(false); this.onTab(e.shiftKey ? -1 : 1); break;
+      case "Escape": this.closeAll(false); this.onEscape(); break;   // checklist 2.4
       default: handled = false;
     }
     if (handled) { e.preventDefault(); e.stopPropagation(); }

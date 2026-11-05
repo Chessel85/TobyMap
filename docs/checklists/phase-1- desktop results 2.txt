@@ -1,0 +1,38 @@
+To start at a location:
+%LOCALAPPDATA%\Programs\TobyMap\TobyMap.exe --at 43.08,-79.08
+
+
+
+
+ 
+
+
+Results 2, second sweep.
+
+Set 1: All pass
+Set2: The first line of the keys dialogue (f1) is 3 lines long and I have to arrow down 3 times to get past it. I Each time i down arrow but within the first line, it reads out the entirety  of the line. should only have to arrow down once.
+Having settings as control + comma does not come out well on a screen reader since my verbosity does not announce the comma.   Punctuation should be written as a word.  This needs to be generalised so that if I change a shortcut to another symbol that the screen reader does not announce, it is still spoken properly.
+Otherwise all passes.
+Set 3: Your directions were not accurate.  But in general I did get a click sound when nothing had changed and new places were announced.
+Ah, I am on imperial units rather than metric which probably explains why your directions didn't work for me.
+set 4: all pass.
+When I check the coordindates with C, it quotes them to a large number of decimal places.  Would be neater if the number of decimal places was proportional to the step size e.g. 100km step size is just under one degree so 1dp is suitable.  Moving in 1km steps will need more dp.
+Could have a setting for "Adaptive decimal places" or "Fixed number of dp" which the user can set.
+Set 5:  Difficult to recreate this every time, but the first arrow left played the click sound but it was very quiet, or perhaps was just playing the very tail end of it.  All subsequent clicks were fine.
+On further testing, on first starting up TobyMap, pressing an arrow key at this given location produced the place name.  Pressing left again played the click very quietly. After this, all works as expected.
+This might be a "feature" of NVDA, but when on the map and I press H, it correctly announces my heading info. pressing space announces my location but precedes it with H. e.g. "H Atlantic Ocean".  Can we remove the keystroke from the queue so things like H don't get announced? I have my NVDA configured to echo at the word level i.e. It only announces what I type when I press space (have completed a word).
+Otherwise this set passes.
+Set 6: Passes.
+But note to self, I need to improve the bump sound.
+Set 7: When I change the zoom  or step size, I get told both zoom and step.  I want to be told only what I am changing.
+But the set passes.
+Set 8: all pass
+Set 9: All pass perfectly. Well done.
+Set 10: all pass
+Set 11: The settings dialogue, the cancel and ok keys are the wrong way around in the tab order.
+At a repeat rate of 6, the clicks I hear are slightly irregular.  I'm guessing that the map is redrawing  and the map must finish redrawing before the next click is played.  I don't think this is wrong but perhaps a future task is optimizing rendering of the map e.g. Is it possible to store the map, slide it across, and only redraw the newly exposed part?
+Set 12: In the announcement history, a future feature is to jump to the location when enter is pressed on a list entry.
+In "The sounds" dialogue, enter does play the sound but space does not. I think space should play the sound as well.
+Otherwise all pass.
+Set 13. Skipped but happy to accept.
+Set 14: passes

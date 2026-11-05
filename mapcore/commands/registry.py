@@ -38,9 +38,38 @@ class Command:
     toggle: bool = False
 
 
-def valid_key(key: str) -> bool:
+def split_key(key: str) -> tuple[list[str], str]:
+    """"Ctrl+Shift+Page Up" as (["Ctrl", "Shift"], "Page Up"). The plus key itself
+    is the last "+": "Ctrl++" is (["Ctrl"], "+")."""
+    if key.endswith("+") and (len(key) == 1 or key[-2] == "+"):
+        mods = key[:-2].split("+") if len(key) > 1 else []
+        return [m for m in mods if m], "+"
     parts = key.split("+")
-    mods, base = parts[:-1], parts[-1]
+    return parts[:-1], parts[-1]
+
+
+def key_text(key: str) -> str:
+    """A key as it is said and shown: a symbol becomes a word, so a screen reader
+    that does not say punctuation still says it: "Ctrl+," is "Ctrl+Comma" (PO
+    feedback on checklist 2, second pass). Any symbol works: one not in the
+    templates is named from its Unicode name."""
+    if not key:
+        return key
+    from mapcore.describe import templates
+
+    mods, base = split_key(key)
+    if len(base) == 1 and not base.isalnum():
+        word = templates().get("key_names", {}).get(base)
+        if word is None:
+            import unicodedata
+
+            word = unicodedata.name(base, base).capitalize()
+        base = word
+    return "+".join(mods + [base])
+
+
+def valid_key(key: str) -> bool:
+    mods, base = split_key(key)
     if any(m not in MODIFIERS for m in mods) or len(set(mods)) != len(mods):
         return False
     if mods != sorted(mods, key=MODIFIERS.index):
@@ -121,10 +150,11 @@ def clash(platform: str, command: str, key: str, overrides: dict | None = None) 
 
 
 def menus(platform: str, overrides: dict | None = None) -> list[dict]:
-    """The menu bar: [{label, access, items: [{name, label, key, toggle}]}], in registry order."""
+    """The menu bar: [{label, access, items: [{name, label, key, key_text, toggle}]}], in registry order."""
     out = []
     for menu in _raw()["menus"]:
-        items = [{"name": c.name, "label": c.label, "key": key_of(c, overrides), "toggle": c.toggle}
+        items = [{"name": c.name, "label": c.label, "key": key_of(c, overrides),
+                  "key_text": key_text(key_of(c, overrides)), "toggle": c.toggle}
                  for c in for_platform(platform) if c.menu == menu["label"]]
         if items:
             out.append({"label": menu["label"], "access": menu.get("access", ""), "items": items})

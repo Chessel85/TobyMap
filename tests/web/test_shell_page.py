@@ -107,7 +107,7 @@ def test_arrow_keys_step_and_speak_and_tick(app):
     assert len(said(app)) == 2          # a step that changes nothing is only the tick
     app.keyboard.press("PageDown")
     wait_said(app, 3)
-    assert said(app)[-1] == "Zoom 10 kilometres, step 25 kilometres."
+    assert said(app)[-1] == "Zoom 10 kilometres."      # only what changed (checklist 7, second pass)
 
 
 def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(app):
@@ -127,7 +127,8 @@ def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(app):
     assert app.evaluate("window.tobymap.announcements.at(-1).priority") == "assertive"
 
 
-def test_ten_rapid_taps_make_every_step_but_speech_keeps_up(app):
+def test_ten_rapid_taps_make_every_step_but_speech_keeps_up(page, site_url):
+    app = open_app(page, site_url, values={"coordinate_places": "fixed"})   # every place, to see each step
     for _ in range(10):
         app.keyboard.press("ArrowDown")
     app.keyboard.press("c")
@@ -213,6 +214,10 @@ def test_menu_bar_from_the_registry_with_toggles(app):
     app.keyboard.press("Enter")
     assert app.locator('.menu:not([hidden]) [role=menuitemcheckbox]').count() == 1   # Link step to zoom
     app.keyboard.press("Escape")
+    assert app.locator(".menu:not([hidden])").count() == 0 and region(app) == "menu"
+    app.keyboard.press("Escape")                       # Escape on the bar goes back to the map (web checklist 2.4)
+    app.wait_for_function("document.activeElement.id === 'map'")
+    go_to_menu_bar(app)
     app.keyboard.press("ArrowRight")
     app.keyboard.press("ArrowDown")
     app.keyboard.press("ArrowDown")
@@ -281,8 +286,14 @@ def test_settings_dialog_has_ok_and_cancel_and_the_settings_are_kept(app, page, 
     app.keyboard.press("Control+,")
     app.wait_for_function("document.getElementById('settings').open")
     assert app.locator("#settings-ok").text_content() == "OK" and app.locator("#settings-cancel").text_content() == "Cancel"
+    tabs = app.locator("#settings [role=tab]").all_text_contents()
+    assert tabs == ["Units", "Movement", "Sound", "Display", "Keys"]   # pages, not one long dialog (web checklist 2)
+    assert app.evaluate("document.activeElement.textContent") == "Units"
+    assert app.locator("#settings [role=tabpanel]:not([hidden])").count() == 1
+    app.keyboard.press("Tab")
+    assert app.evaluate("document.activeElement.dataset.field") == "units"
     app.select_option("#settings select[data-field=units]", "imperial")
-    app.click("#settings-ok")
+    app.keyboard.press("Enter")                        # Enter is OK (web checklist 5)
     app.wait_for_function("!document.getElementById('settings').open")
     app.keyboard.press("h")
     app.wait_for_function("window.tobymap.announcements.some(a => a.text.includes('miles'))")
@@ -295,10 +306,32 @@ def test_settings_dialog_has_ok_and_cancel_and_the_settings_are_kept(app, page, 
     app.wait_for_function("window.tobymap.announcements.some(a => a.text.includes('miles'))")
 
 
+def test_number_fields_are_chosen_on_arrival_and_tab_stays_on_the_page(app):
+    """Web checklist 8: typing replaces the number. The hidden pages are not reached by Tab."""
+    app.keyboard.press("Control+,")
+    app.wait_for_function("document.getElementById('settings').open")
+    app.keyboard.press("ArrowRight")
+    assert app.evaluate("document.activeElement.textContent") == "Movement"
+    app.keyboard.press("Tab")
+    app.keyboard.press("Tab")
+    assert app.evaluate("document.activeElement.dataset.field") == "repeat_delay_ms"
+    app.keyboard.type("1000")
+    assert app.input_value("#settings input[data-field=repeat_delay_ms]") == "1000"
+    fields = app.evaluate("""[...document.querySelectorAll('#settings [data-field]')]
+        .filter(el => !el.closest('[hidden]')).map(el => el.dataset.field)""")
+    assert "units" not in fields and "repeat_rate" in fields
+    app.click("#settings-cancel")
+    app.wait_for_function("!document.getElementById('settings').open")
+
+
 def test_changing_a_key_warns_when_it_is_taken(app):
     app.keyboard.press("Control+,")
     app.wait_for_function("document.getElementById('settings').open")
-    app.get_by_role("button", name="Change key: Heading").click()
+    app.click("#settings-tab-keys")
+    labels = app.locator("#settings-keys option").all_text_contents()
+    assert "Settings: Ctrl+Comma" in labels                       # symbols as words (checklist 2, second pass)
+    app.select_option("#settings-keys", index=next(i for i, t in enumerate(labels) if t.startswith("Heading:")))
+    app.click("#settings-change-key")
     app.wait_for_function("document.getElementById('keydialog').open")
     app.keyboard.press("c")
     app.click("#key-ok")
@@ -310,13 +343,23 @@ def test_changing_a_key_warns_when_it_is_taken(app):
 
 
 def test_the_sounds_in_help_can_be_played(app):
-    """DP134: each sound in Help, The sounds is a button that plays it."""
+    """DP134: Help, The sounds is one list; Enter, Space or Play plays the chosen sound (web checklist 9)."""
     app.evaluate("window.tobymap.earcons.length = 0")
     app.evaluate("document.querySelector('[data-command=\"help.earcons\"]').click()")
-    app.wait_for_function("document.querySelectorAll('#dialog button[data-event]').length > 1")
-    app.click("#dialog button[data-event=blocked]")
+    app.wait_for_function("document.activeElement.id === 'sounds-list'")
+    app.keyboard.press("Enter")
     app.wait_for_function("window.tobymap.earcons.length >= 1")
-    assert app.evaluate("window.tobymap.earcons") == ["blocked"]
+    app.keyboard.press("ArrowDown")
+    app.keyboard.press(" ")
+    app.wait_for_function("window.tobymap.earcons.length >= 2")
+    app.click("#sounds-play")
+    app.wait_for_function("window.tobymap.earcons.length >= 3")
+    assert app.evaluate("window.tobymap.earcons") == ["tick", "blocked", "blocked"]
+    app.focus("#sounds-list")
+    app.keyboard.press("Tab")                           # one stop for the list, then Play, then Close
+    assert app.evaluate("document.activeElement.id") == "sounds-play"
+    app.keyboard.press("Tab")
+    assert app.evaluate("document.activeElement.id") == "dialog-close"
     app.click("#dialog-close")
 
 
@@ -345,7 +388,7 @@ def test_the_wheel_changes_the_zoom(app):
 
 
 def test_announcer_alternates_live_regions(page, site_url):
-    open_app(page, site_url, query="?announcer=live")
+    open_app(page, site_url, values={"coordinate_places": "fixed"}, query="?announcer=live")
     page.keyboard.press("c")
     wait_said(page, 2)
     page.keyboard.press("c")

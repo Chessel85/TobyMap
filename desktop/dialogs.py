@@ -7,11 +7,31 @@ the web version shows the same settings.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit,
-                               QListWidget, QPlainTextEdit, QPushButton, QSpinBox, QTabWidget, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
+                               QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QSpinBox, QTabWidget,
+                               QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
+from mapcore.commands.registry import key_text
+
+
+def button_row(parent_layout, labels: list[str]) -> list[QPushButton]:
+    """Buttons in a row, in the order given, which is also their Tab order. The
+    first is the default, so Enter presses it. (QDialogButtonBox put Cancel
+    before OK in the Tab order: PO feedback on checklist 11, second pass.)"""
+    row = QHBoxLayout()
+    row.addStretch(1)
+    buttons = []
+    for label in labels:
+        b = QPushButton(label)
+        b.setAutoDefault(False)
+        row.addWidget(b)
+        buttons.append(b)
+    buttons[0].setDefault(True)
+    for a, b in zip(buttons, buttons[1:]):
+        QWidget.setTabOrder(a, b)
+    parent_layout.addLayout(row)
+    return buttons
 
 
 class TextDialog(QDialog):
@@ -27,12 +47,15 @@ class TextDialog(QDialog):
                                           | Qt.TextInteractionFlag.TextSelectableByMouse)
         self.text.setTabChangesFocus(True)
         self.text.setAccessibleName(title)
+        # One line of text, one line on screen, so the screen reader moves a line
+        # at a time (PO feedback on checklist 2, second pass).
+        self.text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         layout.addWidget(self.text)
         buttons = QDialogButtonBox()
         self.close_button = buttons.addButton(close_label, QDialogButtonBox.ButtonRole.RejectRole)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-        self.resize(560, 420)
+        self.resize(720, 460)
         self.text.setFocus()
 
 
@@ -58,8 +81,8 @@ class ListDialog(QDialog):
 
 
 class SoundsDialog(ListDialog):
-    """Help, The sounds: each sound with its file and meaning. Enter or Play plays
-    the selected one (DP134); Close leaves."""
+    """Help, The sounds: each sound with its file and meaning. Enter, Space or
+    Play plays the selected one (DP134, PO feedback on checklist 12); Close leaves."""
 
     def __init__(self, parent, title: str, items: list[dict], play_label: str, close_label: str, play):
         super().__init__(parent, title, [i["label"] for i in items], close_label)
@@ -69,6 +92,16 @@ class SoundsDialog(ListDialog):
         self.play_button.setAutoDefault(False)
         self.play_button.clicked.connect(self.play_selected)
         self.layout().insertWidget(1, self.play_button)
+        self.list.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        from PySide6.QtCore import QEvent
+
+        if obj is self.list and event.type() == QEvent.Type.KeyPress and not event.modifiers() \
+                and event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.play_selected()
+            return True
+        return super().eventFilter(obj, event)
 
     def play_selected(self):
         row = self.list.currentRow()
@@ -94,7 +127,7 @@ class KeyCaptureDialog(QDialog):
         self.setWindowTitle(command["label"])
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(words["key_prompt"]))
-        self.field = QLineEdit(self.key)
+        self.field = QLineEdit(key_text(self.key))
         self.field.setReadOnly(True)
         self.field.setAccessibleName(words["key_field"])
         self.field.installEventFilter(self)
@@ -102,14 +135,11 @@ class KeyCaptureDialog(QDialog):
         self.message = QLabel("")
         self.message.setAccessibleName(words["key_message"])
         layout.addWidget(self.message)
-        buttons = QDialogButtonBox()
-        self.ok_button = buttons.addButton(words["ok"], QDialogButtonBox.ButtonRole.AcceptRole)
-        self.clear_button = buttons.addButton(words["key_clear"], QDialogButtonBox.ButtonRole.ActionRole)
-        self.cancel_button = buttons.addButton(words["cancel"], QDialogButtonBox.ButtonRole.RejectRole)
-        buttons.accepted.connect(self.apply)
-        buttons.rejected.connect(self.reject)
+        self.ok_button, self.clear_button, self.cancel_button = button_row(
+            layout, [words["ok"], words["key_clear"], words["cancel"]])
+        self.ok_button.clicked.connect(self.apply)
+        self.cancel_button.clicked.connect(self.reject)
         self.clear_button.clicked.connect(self._clear)
-        layout.addWidget(buttons)
         self.field.setFocus()
 
     def eventFilter(self, obj, event):
@@ -121,7 +151,7 @@ class KeyCaptureDialog(QDialog):
             name = key_name(event)
             if name:
                 self.key = name
-                self.field.setText(name)
+                self.field.setText(key_text(name))
                 self._show_message("")
             return True
         return super().eventFilter(obj, event)
@@ -182,18 +212,19 @@ class SettingsDialog(QDialog):
         self._fill_keys()
         self.tabs.addTab(self.keys_page, words["keys_tab"])
         layout.addWidget(self.tabs)
-        buttons = QDialogButtonBox()
-        self.ok_button = buttons.addButton(words["ok"], QDialogButtonBox.ButtonRole.AcceptRole)
-        self.cancel_button = buttons.addButton(words["cancel"], QDialogButtonBox.ButtonRole.RejectRole)
+        labels = [words["ok"], words["cancel"]] + ([words["export"]] if export_cb else []) \
+            + ([words["import"]] if import_cb else [])
+        buttons = button_row(layout, labels)
+        self.ok_button, self.cancel_button = buttons[0], buttons[1]
+        rest = buttons[2:]
         if export_cb:
-            self.export_button = buttons.addButton(words["export"], QDialogButtonBox.ButtonRole.ActionRole)
+            self.export_button = rest.pop(0)
             self.export_button.clicked.connect(export_cb)
         if import_cb:
-            self.import_button = buttons.addButton(words["import"], QDialogButtonBox.ButtonRole.ActionRole)
+            self.import_button = rest.pop(0)
             self.import_button.clicked.connect(lambda: (import_cb(), self.reject()))
-        buttons.accepted.connect(self.apply)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        self.ok_button.clicked.connect(self.apply)
+        self.cancel_button.clicked.connect(self.reject)
         self.resize(560, 460)
         self.tabs.setFocus()
         self.responses: list = []
@@ -230,7 +261,7 @@ class SettingsDialog(QDialog):
         self._commands = self.session.key_table()
         self.key_list.clear()
         for c in self._commands:
-            key = c["key"] or self.words["no_key"]
+            key = c["key_text"] or self.words["no_key"]
             self.key_list.addItem(f"{c['label']}: {key}")
         self.key_list.setCurrentRow(keep if keep is not None else 0)
 

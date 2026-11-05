@@ -136,16 +136,17 @@ function finish(result) {
 }
 
 self.onmessage = async (event) => {
-  const { id, type, commands, width, height, paintMs, saved, key, region, event: earcon, keyMs, handedMs } = event.data;
+  const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs } = event.data;
   try {
     await ready;
     let out;
-    if (type === "start") out = finish(bridge.start(width, height, startupMs, packs, saved || ""));
+    if (type === "start") out = finish(bridge.start(width, height, startupMs, packs, saved || "", at || ""));
     else if (type === "run") out = finish(bridge.run(JSON.stringify(commands), width, height));
     else if (type === "press") out = finish(bridge.press(key, region, width, height));
     else if (type === "release") out = finish(bridge.release(width, height));
     else if (type === "scene") out = finish(bridge.scene(width, height));
     else if (type === "schema") out = { result: bridge.settings_schema(), transfer: [] };
+    else if (type === "key_text") out = { result: bridge.key_text(key), transfer: [] };
     else if (type === "earcon_failed") out = finish(bridge.earcon_failed(earcon, width, height));
     else if (type === "painted") { bridge.frame_painted(paintMs); out = { result: null, transfer: [] }; }
     else if (type === "shell_times") { bridge.shell_times(keyMs, handedMs); out = { result: null, transfer: [] }; }

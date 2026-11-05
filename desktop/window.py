@@ -80,10 +80,10 @@ class MainWindow(QMainWindow):
     REGIONS = ("map", "panel", "details")  # Tab never goes to the menu bar (DP93)
 
     def __init__(self, session: MapSession | None = None, announcer=None, sounds=None, data_folder=None,
-                 install_filter: bool = True):
+                 install_filter: bool = True, start_at: str | None = None):
         super().__init__()
         self.data_folder = data_folder
-        self.session = session or self._new_session()
+        self.session = session or self._new_session(start_at)
         self.words = self.session.words()
         self.setWindowTitle(self.words["window_title"])
         self.announcer = announcer or Announcer(self)
@@ -133,13 +133,22 @@ class MainWindow(QMainWindow):
         if install_filter:
             QApplication.instance().installEventFilter(self._key_filter)
 
+        self.preload_sounds()
         self.handle(self.session.start())
         self.map.setFocus()
 
-    def _new_session(self) -> MapSession:
+    def preload_sounds(self) -> None:
+        """Every earcon loaded and the sound device opened before the first step."""
+        from mapcore.describe import earcon_list
+
+        preload = getattr(self.sounds, "preload", None)
+        if preload is not None:
+            preload([self.session.earcon_file(e["event"]) for e in earcon_list()])
+
+    def _new_session(self, start_at: str | None = None) -> MapSession:
         saved = storage.load(self.data_folder)
         return MapSession(platform="desktop", packs=storage.find_packs(self.data_folder),
-                          settings=saved.get("settings"), saved_state=saved.get("state"))
+                          settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at)
 
     def closeEvent(self, event):
         self.save()
@@ -161,7 +170,7 @@ class MainWindow(QMainWindow):
             qmenu.installEventFilter(self._menu_filter)
             for item in menu["items"]:
                 name = item["name"]
-                text = f"{item['label']}\t{item['key']}" if item["key"] else item["label"]
+                text = f"{item['label']}\t{item['key_text']}" if item["key"] else item["label"]
                 action = QAction(text, self)
                 if item["toggle"]:
                     action.setCheckable(True)

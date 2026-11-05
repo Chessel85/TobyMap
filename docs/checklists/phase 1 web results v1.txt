@@ -1,0 +1,22 @@
+Web results, pass 1.
+
+To go to a location:
+http://127.0.0.1:8765/index.html?at=51.2,1.2
+
+I am only going to note any details specific to the web version. I won't duplicate comments from the desktop run 2 sweep.
+
+Set 1: All pass.
+Set 2: The menu opens okay, but pressing escape does not return control back to the map.  This is probably fine if this is expected behaviour for a web version. Pressing tab or f2 works to get back to the map.
+Oh, just read the test again and you do expect escape to return to the map.
+The settings dialogue is now huge.  There is no tab control to split all the options up.  If a tab control is not available, could a list control be used to allow the user to select the settings group?
+Set 3: Works perfectly. The click sound comes out first time, unlike the desktop app. And the directions were correct since I was in metric units.
+Set 4: passes 
+Set 5: All works except pressing enter in the settings dialogue does not close it.
+Set 6: works perfectly.
+Set 7: passes.
+Set 8: In settings, the value of the control I tab into is not selected so when I type a new number, the digits are added to the existing text. So if 500 milliseconds is in the repeat delay, typing 1000 gets me 5001000, or possibly 1000500, not sure. The text should be selected when I tab into it.
+Otherwise passes.
+set 9: passes. but a comment on "The Sounds". Each entry is on the tab order. So to get from the middle of the list of sounds to the close button is a long way. Can the list be just a list which is one place in the tab order?
+Set 10: All pass
+
+

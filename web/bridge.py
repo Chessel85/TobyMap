@@ -79,12 +79,12 @@ def _extras(response, out: dict, width: int, height: int) -> dict:
     return out
 
 
-def start(width: int, height: int, startup_ms: float, packs, saved_json: str):
+def start(width: int, height: int, startup_ms: float, packs, saved_json: str, start_at: str = ""):
     global _session
     saved = json.loads(saved_json) if saved_json else {}
     sources = [HandleSource(p.handle, str(p.name)) for p in packs]
     _session = MapSession(platform="web", packs=[_pack(s) for s in sources],
-                          settings=saved.get("settings"), saved_state=saved.get("state"))
+                          settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at or None)
     _session.startup_took(startup_ms)
     response = _session.start()
     out = {"registry": _session.registry(), "words": _session.words()}
@@ -138,6 +138,13 @@ def scene(width: int, height: int):
 
 def settings_schema():
     return _js(_session.settings_schema())
+
+
+def key_text(key: str) -> str:
+    """A key as it is said and shown, such as "Ctrl+Comma", for the key dialog."""
+    from mapcore.commands.registry import key_text as text
+
+    return text(key)
 
 
 def earcon_failed(event: str, width: int, height: int):

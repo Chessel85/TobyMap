@@ -19,3 +19,8 @@ standard:
   highlight_outline: "#000000"
   cross: "#000000"
   cross_halo: "#ffffff"
+  line: "#2e4a62"              # line features, such as the graticule (P2-T10a)
+  line_width: 1
+  marker: "#7a1f1f"            # point features, such as a railway station
+  marker_outline: "#ffffff"
+  marker_radius: 4

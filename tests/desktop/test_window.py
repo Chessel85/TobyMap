@@ -511,6 +511,25 @@ def test_scene_paints_quickly_on_an_image(window):
     assert image.pixelColor(600, 450).name() != scene["background"]
 
 
+def test_lines_and_markers_are_painted(window):
+    """P2-T10a: the shell strokes each run of a line and draws each marker where the core put it."""
+    import numpy as np
+
+    scene = window.session.scene(400, 300)
+    scene.update({"line_coords": np.array([50, 150, 350, 150], np.float32), "line_runs": np.array([0, 2], np.int32),
+                  "line_style": np.array([0], np.int32), "line_area": ["a"],
+                  "line_styles": [{"stroke": "#ff0000", "width": 3}],
+                  "marker_coords": np.array([200, 60], np.float32), "marker_style": np.array([0], np.int32),
+                  "marker_area": ["b"], "marker_styles": [{"fill": "#00ff00", "stroke": "#00ff00", "radius": 5}]})
+    scene["cross"] = scene["heading"] = None
+    image = QImage(400, 300, QImage.Format.Format_ARGB32_Premultiplied)
+    painter = QPainter(image)
+    paint_scene(painter, scene)
+    painter.end()
+    assert image.pixelColor(120, 150).name() == "#ff0000"
+    assert image.pixelColor(200, 60).name() == "#00ff00"
+
+
 def test_timing_report_uses_the_last_paint(window, qtbot):
     window.map.redraw()
     qtbot.waitUntil(lambda: window.map.drawing_done() and window.session.paint_ms is not None)

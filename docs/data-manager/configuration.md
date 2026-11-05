@@ -34,6 +34,18 @@ One file per group of layers, such as `layers\base.yaml`. Under `layers:`, each 
 * rank: orders what is at a point. Lower ranks come first, then smaller areas (LOC-2). Countries and oceans are 2, regions 4, counties 6.
 * kind: land or water. The water stage takes the land out of water layers.
 
+These say how the application shows and sounds the layer (SCP-7). They are written into the pack, and the user can change some of them in the layers list. Each may be left out, and then the default in brackets is used. Changing them makes the build write the pack again, but the stages before the writing are not run again, because they do not use them.
+
+* group: the group the layer is listed under in the layers list, such as Boundaries or Water. (None: the list puts it under "Other layers".)
+* geometry: area, line or point. (area)
+* switched_on: true or false, whether the layer is on until the user changes it. The word "on" is not used, because YAML reads it as true. (true)
+* min_zoom_m and max_zoom_m: the zoom range, as zoom distances in metres. The layer is visible from the closer zoom, min_zoom_m, to the farther one, max_zoom_m (NAV-13). (0, and no limit)
+* min_size: for an area layer, how wide an area must be, as a share of the zoom distance, to be visible (DP80). (0.02, which is 2%)
+* crossing_earcon: the sound played when a line of the layer is crossed, by its event name in mapcore/describe/earcons.yaml, such as line_crossing. (none)
+* sound: the sound of the layer's features in "hear its direction" and look around, by event name. (none)
+
+A setting the build does not know, a geometry other than the three, a closer zoom farther than the farther one, or a sound that is not one of the application's stops the build with the reason.
+
 ## packs
 
 One file per pack, such as `packs\test.yaml`. The file name is the pack's name.

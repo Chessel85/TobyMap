@@ -24,6 +24,7 @@ from mapcore import settings as settings_mod
 from mapcore.commands import registry
 from mapcore.describe import describer, say, templates, words
 from mapcore.geo import geodesy
+from mapcore.layers import LayerCatalogue
 from mapcore.world import WorldState
 
 DEFAULTS_FILE = Path(__file__).resolve().parent / "defaults.yaml"
@@ -70,6 +71,9 @@ class MapSession:
         self.defaults = yaml.safe_load(DEFAULTS_FILE.read_text(encoding="utf-8"))
         self.store = store or Store(list(packs or []))
         self.settings = settings_mod.Settings.from_dict(settings)
+        # The layers, with the user's changes from the settings in use (SCP-6, SCP-7).
+        self.layers = LayerCatalogue(self.store.packs, lambda: self.settings.layers)
+        self.all_off_here = False   # there are areas here, but every one is in a layer that is off (LOC-6)
         self.world = WorldState.from_defaults(self.defaults)
         self.world.use_units(self.settings["units"])   # before restoring, so the saved sizes are found exactly
         if saved_state:
@@ -93,6 +97,7 @@ class MapSession:
         self.selected: str | None = None   # the Information panel item chosen, an area id
         self.panel_item: str | None = None  # the item last focused there, for F3 (DP106)
         self.held_moves = 0
+        self.held_turns = 0               # turns made while Left or Right is held in a facing orientation
         self.holding: str | None = None   # the movement command whose key is down (DP140)
         self._repeat_due = 0.0             # when the held key next steps (DP129)
         self._drawn_at = -math.inf         # when the map was last drawn for a held key
@@ -128,6 +133,7 @@ class MapSession:
             "sound.mute": self._mute,
             "settings.open": self._settings_open,
             "settings.set": self._settings_set,
+            "layers.set": self._layers_set,
             "keys.remap": self._remap,
             "help.keys": self._help_keys,
             "help.describer": self._describer,
@@ -156,7 +162,7 @@ class MapSession:
         if not self.store.packs:
             r.speak(say("packs.none_installed"), ASSERTIVE)
             return self._record("start", r)
-        r.speak(say("start", place=describer.place_text(self.areas)), POLITE)
+        r.speak(say("start", place=self._place_text()), POLITE)
         return self._record("start", r)
 
     def run(self, name: str, **args) -> Response:
@@ -220,6 +226,11 @@ class MapSession:
         """The held movement key was let go: describe the place it ended at,
         and only that (ANN-3), and draw it."""
         self.holding = None
+        if self.held_turns and not self.held_moves:
+            self.held_turns = 0
+            return self._record("release", Response(redraw=True, panel_stale=True).speak(
+                say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE))
+        self.held_turns = 0
         if not self.held_moves:
             return Response()
         self.held_moves = 0
@@ -274,7 +285,7 @@ class MapSession:
         # A copy of the place: on the desktop the map is drawn in a thread of its
         # own while the held key steps on (P2-T14).
         frame = self._scene.build(copy.copy(self.world), width, height, current=current, highlight=self.selected,
-                                  centre_cross=self.settings["centre_cross"])
+                                  centre_cross=self.settings["centre_cross"], layers=self.layers.active())
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
 
@@ -286,17 +297,19 @@ class MapSession:
 
     def panel(self) -> list[dict]:
         """The Information panel groups (UX section 6), as plain data."""
+        active = self.layers.active()
+        heading = describer.facing(self.world)
         key = (self.world.lat, self.world.lon, self.settings["units"], self.settings["bearing"],
-               self.settings["nearby_count"], self.settings["nearby_radius_km"])
+               self.settings["nearby_count"], self.settings["nearby_radius_km"], active, heading)
         if self._panel_cache and self._panel_cache[0] == key:
             return self._panel_cache[1]
         within = [{"id": a.id, "label": a.name, "level": 1} for a in self.areas]
         inside = {a.id for a in self.areas}
         count = self.settings["nearby_count"]
         near = self.store.nearby(self.world.lat, self.world.lon, self.settings["nearby_radius_km"] * 1000.0,
-                                 limit=count + len(inside), exclude=inside)
+                                 limit=count + len(inside), exclude=inside, layers=active)
         units = self.settings["units"]
-        nearby = [{"id": n.area.id, "label": describer.nearby_label(n, units, self.settings["bearing"]),
+        nearby = [{"id": n.area.id, "label": describer.nearby_label(n, units, self.settings["bearing"], heading),
                    "level": 1} for n in near[:count]]
         groups = [
             {"id": "within", "label": say("panel.within"), "items": within, "empty": say("place.none")},
@@ -354,7 +367,7 @@ class MapSession:
 
     def map_label(self) -> str:
         """The map region's accessible name: the place under the centre."""
-        return say("map_label", place=describer.place_text(self.areas))
+        return say("map_label", place=self._place_text())
 
     def words(self) -> dict:
         """The window's own words: region names, title and button labels."""
@@ -397,7 +410,16 @@ class MapSession:
         return response
 
     def _here(self) -> list:
-        return self.store.at(self.world.lat, self.world.lon)
+        """The areas at the location from the layers that are on, smallest first.
+        Notes whether there were areas here that every one is in a layer that is off."""
+        everything = self.store.at(self.world.lat, self.world.lon)
+        active = self.layers.active()
+        areas = [a for a in everything if a.layer in active]
+        self.all_off_here = bool(everything) and not areas
+        return areas
+
+    def _place_text(self) -> str:
+        return describer.place_text(self.areas, self.all_off_here)
 
     def _units(self) -> str:
         return self.settings["units"]
@@ -412,7 +434,7 @@ class MapSession:
     def _arrived(self, r: Response) -> Response:
         """Describe the new place against the last described one (ANN-1)."""
         new = self._here()
-        text = describer.announcement(self.areas, new)
+        text = describer.announcement(self.areas, new, self.all_off_here)
         self.areas = new
         r.panel_stale = r.details_stale = True
         self.selected = None
@@ -438,7 +460,9 @@ class MapSession:
         elif not held:
             self._repeat_due = now + self.settings["repeat_delay_ms"] / 1000.0
             self.holding = f"move.{direction}"
-        result = self.world.step(direction)
+        result = self.world.step(direction, turn_deg=self.settings["turn_deg"])
+        if result.turned:
+            return self._turned(held, repeat, now)
         if not result.moved:
             return Response().earcon("blocked")  # nothing spoken (NAV-1)
         if held:
@@ -449,7 +473,35 @@ class MapSession:
             return r.earcon("tick") if repeat else r
         self.held_moves = 0
         self._drawn_at = now
-        return self._arrived(self._moved())
+        r = self._moved()
+        if result.pole:   # over a pole, the heading turns round, and is said (NAV-3)
+            r.speak(say("movement.pole_crossed", pole=say(f"movement.poles.{result.pole}"),
+                        heading=describer.facing_text(self.world)), ASSERTIVE)
+        return self._arrived(r)
+
+    def _turned(self, held: bool, repeat: bool, now: float) -> Response:
+        """A turn on the spot (NAV-3, NAV-12): the heading arrow is drawn again, and the
+        new heading said. Held, the turns tick and the heading is said on release."""
+        self._panel_cache = None
+        if held:
+            self.held_turns += 1
+            r = Response(redraw=self._draw_due(now))
+            return r.earcon("tick") if repeat else r
+        self.held_turns = 0
+        return Response(redraw=True, panel_stale=True).speak(
+            say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE)
+
+    def _turn(self, degrees_setting: str | None = None, sign: int = 1, **_a) -> Response:
+        """Shift and Ctrl with Left and Right: turn 90 degrees, or by the fine amount
+        in free facing. In north-fixed, and the fine turn in cardinal facing, the
+        blocked sound plays and nothing is said (NAV-12)."""
+        if degrees_setting is not None and self.world.orientation != "free":
+            return Response().earcon("blocked")
+        degrees = 90.0 if degrees_setting is None else self.settings[degrees_setting]
+        result = self.world.turn(sign * degrees)
+        if not result.turned:
+            return Response().earcon("blocked")
+        return self._turned(False, False, self.clock())
 
     def _changed_sizes(self, zoom_before: float, step_before: float) -> str:
         """Only what changed: the zoom, the step, or both when they are linked
@@ -490,7 +542,7 @@ class MapSession:
 
     def _where_am_i(self, **_a) -> Response:
         self.areas = self._here()
-        return Response(panel_stale=True).speak(describer.place_text(self.areas), ASSERTIVE)
+        return Response(panel_stale=True).speak(self._place_text(), ASSERTIVE)
 
     def _coordinates(self, **_a) -> Response:
         return Response().speak(words.coordinates_text(self.world.lat, self.world.lon, self.settings["coordinates"],
@@ -544,7 +596,7 @@ class MapSession:
     def _braille_test(self, **_a) -> Response:
         fallback = say("braille_web") if self.platform == "web" else say("braille_fallback")
         r = Response()
-        r.announcements.append({"text": say("braille_test", place=describer.place_text(self.areas)),
+        r.announcements.append({"text": say("braille_test", place=self._place_text()),
                                 "channel": BRAILLE, "priority": POLITE, "fallback": fallback})
         return r
 
@@ -567,6 +619,29 @@ class MapSession:
             self.world.use_units(value)   # imperial has its own round sizes, so the map may redraw (DP136)
         self._panel_cache = None
         return Response(settings_changed=True, panel_stale=True, details_stale=True, redraw=True)
+
+    def layer_list(self) -> dict:
+        """The layers list (SCP-6, SCP-7), as plain data for the shells' dialogs: each
+        group with its layers, in display order. A group with no name in the pack
+        is given the templates' word for other layers."""
+        return {"title": say("layers.title"), "groups": [
+            {"name": group or say("layers.other_group"), "layers": [layer.to_dict() for layer in members]}
+            for group, members in self.layers.groups()]}
+
+    def _layers_set(self, layer: str, field: str, value, **_a) -> Response:
+        """Change one thing about a layer: switch it on or off, its zoom range or its
+        sounds (SCP-6, SCP-7). The change is saved with the settings, by layer id.
+        A layer switched off is gone from the map, the Information panel and every
+        announcement at once. Nothing is said: the list the change was made in says it."""
+        try:
+            self.layers.change(layer, field, value)
+        except (ValueError, TypeError):
+            return Response().speak(say("settings.bad_value"), ASSERTIVE)
+        self._panel_cache = None
+        self.areas = self._here()
+        if self.selected and self.store.feature(self.selected) is not None                 and not self.layers.is_on(self.store.feature(self.selected).layer):
+            self.selected = None
+        return Response(settings_changed=True, redraw=True, panel_stale=True, details_stale=True)
 
     def _remap(self, command: str, key: str, **_a) -> Response:
         """Give a command a different key (ACC-3). A key that is in use is refused,
@@ -692,8 +767,10 @@ class MapSession:
         point = globe.from_screen(self._view_scale(width, height), width, height, x, y)
         if point is None:
             return Response()
-        areas = self.store.at(point[0], point[1])
-        return Response().speak(describer.place_text(areas[:1]), POLITE)
+        everything = self.store.at(point[0], point[1])
+        active = self.layers.active()
+        areas = [a for a in everything if a.layer in active]
+        return Response().speak(describer.place_text(areas[:1], bool(everything) and not areas), POLITE)
 
     def _zoom_to(self, direction: int = 0, **_a) -> Response:
         """The wheel or a pinch: to the nearest zoom in the list, one step each time (NAV-13)."""

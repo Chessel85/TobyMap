@@ -74,3 +74,4 @@ commands:
   - {name: keys.remap, label: Change the key of a command, key: "", region: global, menu: "", pointer: true}
   - {name: sound.preview, label: Play a sound from the list of sounds, key: "", region: global, menu: "", pointer: true}
   - {name: settings.set, label: Change a setting, key: "", region: global, menu: "", pointer: true}
+  - {name: layers.set, label: Change a layer, key: "", region: global, menu: "", pointer: true}

@@ -151,6 +151,34 @@ def step_geodesic(lat: float, lon: float, heading: float, metres: float) -> Move
     return Move(end["lat2"], wrap_lon(end["lon2"]), end["azi2"] % 360.0, tuple(path))
 
 
+def step_heading(lat: float, lon: float, heading: float, metres: float) -> Move:
+    """Move along the shortest line on the ellipsoid in a heading, as step_geodesic,
+    but along a meridian (heading 0 or 180) the quick sums of step_meridian are used
+    when the move does not reach a pole. Over a pole, the location comes out on the
+    meridian 180 degrees away, heading the other way (NAV-3)."""
+    if heading in (0.0, 180.0) and metres > 0:
+        north = heading == 0.0
+        if metres < meridian_to_pole_m(lat, north) and abs(lat) < 90.0:
+            move = step_meridian(lat, lon, metres if north else -metres)
+            if move is not None:
+                return move
+    return step_geodesic(lat, lon, heading, metres)
+
+
+def pole_crossed(path) -> str | None:
+    """"north" or "south" when a move's path went over a pole, else None.
+
+    A path's longitudes are unrolled, so they change smoothly, except where the
+    path goes over a pole, where they change by about 180 degrees between two
+    neighbouring points. Passing a few kilometres from a pole, closer than the
+    path's spacing, counts as going over it: the heading turns round just the same.
+    """
+    for (lat1, lon1), (lat2, lon2) in zip(path[:-1], path[1:]):
+        if abs(lon2 - lon1) > 90.0:
+            return "north" if lat1 + lat2 > 0 else "south"
+    return None
+
+
 # Boxes and centres across the 180 degree line ----------------------------------------
 
 LINE_TOLERANCE = 1e-7  # degrees

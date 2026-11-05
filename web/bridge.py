@@ -23,7 +23,8 @@ from mapcore.session import MapSession
 
 _session: MapSession | None = None
 _slow_ms = 0.0   # a stand-in for a slow drawing, for the held key test only (?slowdraw= in the address)
-_ARRAYS = {"coords": "f32", "rings": "i32", "shapes": "i32", "shape_style": "i32", "seam": "u8"}
+_ARRAYS = {"coords": "f32", "rings": "i32", "shapes": "i32", "shape_style": "i32", "seam": "u8",
+           "line_coords": "f32", "line_runs": "i32", "line_style": "i32", "marker_coords": "f32", "marker_style": "i32"}
 
 
 class HandleSource:

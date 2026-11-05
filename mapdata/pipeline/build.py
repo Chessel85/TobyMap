@@ -113,12 +113,14 @@ def fingerprint(pack: PackSettings, stage: dict, previous: str, source_prints: d
     kind = STAGES[stage["stage"]]
     parts = {
         "stage": stage,
-        "layers": {k: vars(v) for k, v in pack.layers.items()},
+        "layers": {k: v.build_fields() for k, v in pack.layers.items()},
         "pack": {k: v for k, v in pack.data.items() if k != "stages"},
         "previous": previous,
         "sources": {k: source_prints[k] for k in stage_sources(stage)},
         "code": code_version(kind.code),
     }
+    if stage["stage"] == "write":   # only the pack's writing uses how layers are shown and sounded (SCP-7)
+        parts["layer_definitions"] = [v.definition() for v in pack.layers.values()]
     return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()
 
 

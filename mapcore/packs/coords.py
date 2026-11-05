@@ -196,6 +196,113 @@ def decode_many(bufs: list[bytes]) -> tuple[np.ndarray, np.ndarray, np.ndarray, 
     return pts[index].reshape(-1, 2), ring_offsets, poly_offsets, np.asarray(shape_polys, np.intp)
 
 
+# Lines and points (format 3, P2-T10a) ------------------------------------------
+#
+# A line shape is: the number of lines, the number of points in each line, then
+# every point, as for polygons. Nothing is closed. A point shape is a line shape
+# whose lines have one point each.
+
+def encode_lines(lines) -> bytes:
+    """Encode lines given as (n, 2) arrays of longitude and latitude, each with at least one point."""
+    header = [len(lines)]
+    parts = []
+    for line in lines:
+        c = np.asarray(line, dtype=np.float64).reshape(-1, 2)
+        header.append(len(c))
+        parts.append(c)
+    allc = np.concatenate(parts) if parts else np.zeros((0, 2))
+    ints = np.round(allc * SCALE).astype(np.int64)
+    deltas = np.diff(ints, axis=0, prepend=np.zeros((1, 2), np.int64)).reshape(-1)
+    return varints(header) + varints(_zigzag(deltas))
+
+
+def encode_points(points) -> bytes:
+    """Encode points given as an (n, 2) array of longitude and latitude."""
+    return encode_lines([p for p in np.asarray(points, dtype=np.float64).reshape(-1, 1, 2)])
+
+
+def decode_lines_many(bufs: list[bytes]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Decode several line shapes in one go: the points, where each line starts,
+    and where each shape's lines start. The arrays Shapely's from_ragged_array
+    takes for MultiLineStrings."""
+    if not bufs:
+        return np.zeros((0, 2)), np.zeros(1, np.intp), np.zeros(1, np.intp)
+    line_counts: list[int] = []
+    shape_lines = [0]
+    point_values = []
+    shape_points = []
+    for buf in bufs:
+        values = all_varints(buf)
+        head = values[:4096].tolist()
+        nlines = head[0] if head else 0
+        if nlines + 1 > len(head):
+            head = values.tolist()
+        if nlines + 1 > len(head):
+            raise ValueError("compact coordinates are shorter than their header says")
+        counts = head[1:1 + nlines]
+        total = int(sum(counts))
+        if 1 + nlines + 2 * total != values.size:
+            raise ValueError("compact coordinates do not match their header")
+        line_counts.extend(counts)
+        shape_lines.append(shape_lines[-1] + nlines)
+        point_values.append(values[1 + nlines:])
+        shape_points.append(total)
+    z = np.concatenate(point_values)
+    deltas = (((z >> np.uint64(1)).astype(np.int64)) ^ (-(z & np.uint64(1)).astype(np.int64))).reshape(-1, 2)
+    running = np.cumsum(deltas, axis=0)
+    n_pts = np.asarray(shape_points, np.intp)
+    firsts = np.concatenate([[0], np.cumsum(n_pts)[:-1]]).astype(np.intp)
+    has = n_pts > 0
+    base = np.zeros((len(bufs), 2), np.int64)
+    base[has] = running[firsts[has]] - deltas[firsts[has]]
+    pts = (running - np.repeat(base, n_pts, axis=0)) / SCALE
+    line_offsets = np.concatenate([[0], np.cumsum(line_counts)]).astype(np.intp)
+    return pts.reshape(-1, 2), line_offsets, np.asarray(shape_lines, np.intp)
+
+
+def line_point_count(buf: bytes) -> int:
+    """How many points a line or point shape stores, without decoding them."""
+    values = all_varints(buf)
+    nlines = int(values[0])
+    if nlines + 1 > values.size:
+        raise ValueError("compact coordinates are shorter than their header says")
+    return int(values[1:1 + nlines].sum())
+
+
+def to_line_shapes(bufs: list[bytes]):
+    """Decode several line shapes to an array of Shapely MultiLineStrings."""
+    import shapely
+
+    if not bufs:
+        return np.empty(0, object)
+    pts, line_offsets, shape_offsets = decode_lines_many(bufs)
+    return shapely.from_ragged_array(shapely.GeometryType.MULTILINESTRING, pts, (line_offsets, shape_offsets))
+
+
+def to_point_shapes(bufs: list[bytes]):
+    """Decode several point shapes to an array of Shapely MultiPoints."""
+    import shapely
+
+    if not bufs:
+        return np.empty(0, object)
+    pts, _line_offsets, shape_offsets = decode_lines_many(bufs)
+    return shapely.from_ragged_array(shapely.GeometryType.MULTIPOINT, pts, (shape_offsets,))
+
+
+def lines_of(geom) -> list[np.ndarray]:
+    """A Shapely LineString or MultiLineString as a list of point arrays, for encode_lines()."""
+    import shapely
+
+    return [np.asarray(part.coords) for part in shapely.get_parts(geom) if not part.is_empty]
+
+
+def points_of(geom) -> np.ndarray:
+    """A Shapely Point or MultiPoint as an (n, 2) array, for encode_points()."""
+    import shapely
+
+    return shapely.get_coordinates(geom)
+
+
 def to_shapes(bufs: list[bytes]):
     """Decode several shapes to an array of Shapely MultiPolygons, in one go (P2-T14c)."""
     import shapely

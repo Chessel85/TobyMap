@@ -50,8 +50,11 @@ class TileData:
             for i, shape in list(self.shapes.items()):
                 geoms[i] = shape
             compact = [i for i, e in enumerate(self.entries) if e.kind != tiles.COVERED and i not in self.shapes]
-            if compact:
-                geoms[compact] = coords.to_shapes([self.entries[i].data for i in compact])
+            for kind, decode in ((tiles.COMPACT, coords.to_shapes), (tiles.LINES, coords.to_line_shapes),
+                                 (tiles.POINTS, coords.to_point_shapes)):
+                these = [i for i in compact if self.entries[i].kind == kind]
+                if these:
+                    geoms[these] = decode([self.entries[i].data for i in these])
             for i, e in enumerate(self.entries):
                 if e.kind == tiles.COVERED:
                     geoms[i] = shapely.box(*box)
@@ -72,7 +75,12 @@ class TileData:
         if shape is None:
             import shapely
 
-            shape = coords.to_shape(entry.data)
+            if entry.kind == tiles.LINES:
+                shape = coords.to_line_shapes([entry.data])[0]
+            elif entry.kind == tiles.POINTS:
+                shape = coords.to_point_shapes([entry.data])[0]
+            else:
+                shape = coords.to_shape(entry.data)
             shapely.prepare(shape)
             self.shapes[i] = shape
             grown = len(entry.data) * DECODED_FACTOR

@@ -1,6 +1,6 @@
 # Pack format specification
 
-Version 2, 3 November 2026 (P1-T2). The code is in `mapcore/packs`. Requirements: PCK-5, DAT-9, NFR-4, DMT-1, and the format for PCK-1. Decisions: AD-5, AD-17, architecture sections 6.1 to 6.4 and 6.9.
+Version 3, 5 November 2026 (P2-T10a). Version 2 was 3 November 2026 (P1-T2). The code is in `mapcore/packs`. Requirements: PCK-5, DAT-9, NFR-4, DMT-1, and the format for PCK-1. Decisions: AD-5, AD-17, architecture sections 6.1 to 6.4 and 6.9.
 
 Words follow the glossary: pack, record, directory, manifest, feature record, pack tile, drawing tile, tile entry, covered note, compact coordinates, check number and checksum.
 
@@ -8,9 +8,10 @@ Words follow the glossary: pack, record, directory, manifest, feature record, pa
 
 Every pack's header holds a format number.
 
-* Format 1 was the spike S2 pack. It was dropped on 3 November at the PO's request, and nothing reads it: a file with format 1 is not a TobyMap pack. The spike S2 stages now write format 2.
-* Format 2 is the format described here. The Phase 1 plan calls it "pack format version 1"; it keeps the number 2 so that an old spike pack left in a folder is never mistaken for it.
-* A higher number is refused with packs.newer_format.
+* Format 1 was the spike S2 pack. It was dropped on 3 November at the PO's request, and nothing reads it: a file with format 1 is not a TobyMap pack. The spike S2 stages now write the current format.
+* Format 2 was Phase 1's format. The Phase 1 plan calls it "pack format version 1"; it kept the number 2 so that an old spike pack left in a folder is never mistaken for it.
+* Format 3 is the format described here. It is format 2 with two more kinds of tile entry, for lines and points (P2-T10a). The writer always writes format 3. The reader reads format 2 as well, since a format 2 pack is a format 3 pack with no lines or points in it, so the Phase 1 world pack still opens.
+* A number above 3 is refused with packs.newer_format.
 
 ## The file
 
@@ -27,7 +28,7 @@ All numbers are little-endian.
 In order:
 
 * 8 bytes: the letters TOBYPACK.
-* uint16: the format number, 2.
+* uint16: the format number, 3.
 * uint16: flags, 0. No flags are defined yet.
 * uint32: reserved, 0.
 * uint64: where the directory starts, counted from the start of the file.
@@ -66,7 +67,7 @@ JSON. The builder gives:
 
 The writer adds, and refuses a builder that sets them itself:
 
-* format: 2.
+* format: 3.
 * built: the latest of the sources' dates. Never the clock, so a rebuild gives the same bytes (DMT-1).
 * layers: the layers' identifiers, in order.
 * tile_levels: the tile levels at which pack tiles of exact shapes are stored, ascending.
@@ -84,7 +85,13 @@ UTF-8 text: the ODbL notice (ODbL section 4.3), `mapcore.packs.pack.ODBL_NOTICE`
 
 ### layers
 
-JSON list of layer definitions (SCP-7), in display order. Each has an id and a name, and the drawing code's fields, such as style and the default zooms. Every feature's layer must be one of them.
+JSON list of layer definitions (SCP-7), in display order. Every feature's layer must be one of them. Each has:
+
+* id and name: always.
+* rank: what the build ordered areas by (LOC-2).
+* group, geometry, switched_on, min_zoom_m, max_zoom_m, min_size, crossing_earcon and sound: from P2-T3, when the layer file gives them. Their meaning is in docs/data-manager/configuration.md, under layers.
+
+A reader uses defaults for any field left out (mapcore/layers/catalogue.py): no group, area, on, every zoom, 0.02, and no sounds. So a pack built before P2-T3, whose definitions have only id and name, still works, and the format number did not change. The user's own changes are not in the pack: they are kept with the settings, by layer id, so they survive a pack being built again.
 
 ### features/G
 
@@ -137,14 +144,18 @@ Kinds:
 
 * 0: a covered note. The area covers the whole pack tile. No bytes.
 * 2: compact coordinates of the part of the area's shape inside the pack tile.
+* 3: compact line coordinates of the part of a line feature inside the pack tile, such as a line of the graticule. From format 3.
+* 4: compact point coordinates of a point feature's points that are in the pack tile, such as a railway station. Each point is in exactly one pack tile: the one whose grid cell it falls in, by the rule of tile_of. From format 3.
 * 1 was WKB in the spike packs and is refused.
+
+Lines and points have no covered notes. "Where am I" looks only at kinds 0 and 2, because a line or a point has no inside. Nearby uses every kind. A layer's definition says which geometry its features have (geometry: area, line or point).
 
 Limits (AD-5, from spike S2), checked by the writer for pack tiles at tile levels below 18:
 
 * a tile entry holds at most 4,000 points;
 * a pack tile's tile entries together hold at most 20,000 points.
 
-A point here is a stored point, not counting the closing point of each ring. A pack tile with nothing in it is not stored.
+A point here is a stored point, not counting the closing point of each ring. A line's points and a point feature's points count the same. A pack tile with nothing in it is not stored.
 
 ### draw/D/X/Y
 
@@ -158,7 +169,15 @@ One shape, all varints (7 bits to a byte, low bits first, the top bit set on eve
 2. for each polygon, its number of rings (the outer ring first, then the holes), then the number of points in each ring, not counting the closing point;
 3. every point in order, longitude then latitude, each as a whole number of ten-millionths of a degree, written as the difference from the point before (the first from 0, 0), zig-zag encoded so small negative numbers stay small.
 
-The decoder closes each ring again, and returns the points with ring and polygon offsets, the arrays Shapely's from_ragged_array takes. It uses NumPy only, all of a shape at once, with np.intp for offsets because NumPy in Pyodide is 32-bit. It refuses bytes that end in the middle of a number or don't match their own header.
+The decoder closes each ring again, and returns the points with ring and polygon offsets, the arrays Shapely's from_ragged_array takes.
+
+Lines (kind 3) use the same numbers with one level less:
+
+1. the number of lines;
+2. the number of points in each line, at least 2 for a line;
+3. every point, as above. Nothing is closed.
+
+Points (kind 4) are written as lines of one point each, so the header is the number of points followed by that many 1s. Both decode, many shapes at once, to Shapely MultiLineStrings and MultiPoints (coords.to_line_shapes and coords.to_point_shapes). It uses NumPy only, all of a shape at once, with np.intp for offsets because NumPy in Pyodide is 32-bit. It refuses bytes that end in the middle of a number or don't match their own header.
 
 ## The checksum of the whole file
 
@@ -169,7 +188,7 @@ The writer writes `<pack name>.sha256` beside the pack: the SHA-256 of the whole
 On opening, in this order:
 
 1. Not TOBYPACK at the start, shorter than a header, or a format below 2: packs.not_a_pack.
-2. A format above 2: packs.newer_format.
+2. A format above 3: packs.newer_format. Formats 2 and 3 are read.
 3. A damaged header, directory, manifest or layer definitions: packs.damaged_pack.
 4. The application's version below app_versions.from: packs.app_too_old. At or above app_versions.before: packs.app_too_new.
 
@@ -203,3 +222,4 @@ The same calls in the same order always give the same bytes (DMT-1). Cutting sha
 
 * Format 1, 2 November 2026: spike S2. A 16-byte header, the directory's place in a 16-byte footer, one record for all feature records, WKB or compact coordinates, and no check numbers. Dropped on 3 November.
 * Format 2, 3 November 2026: P1-T2. The directory's place and check number in the header, a check number for every record, the checksum file, version checks, feature records in groups with feature numbers, attribution, licence and layer definitions, drawing tiles, compact coordinates only, and the writer's limits.
+* Format 3, 5 November 2026: P2-T10a. Tile entry kinds 3 (lines) and 4 (points), the layer definitions' geometry and the other fields from P2-T3, and the reader still reads format 2.

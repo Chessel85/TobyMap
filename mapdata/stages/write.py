@@ -1,4 +1,4 @@
-"""Stage "write": write the pack in format 2, with its manifest, attribution and checksum (architecture 8.2 stage 16).
+"""Stage "write": write the pack in format 3, with its manifest, attribution and checksum (architecture 8.2 stage 16).
 
 Each area is measured on the ellipsoid and given its layer's rank; the pack
 writer (pack_write, moved from spike S2) cuts the shapes into pack tiles.
@@ -63,7 +63,7 @@ def run(ctx) -> None:
     manifest = {"name": data["name"], "title": data["title"], "version": str(data["version"]),
                 "coverage": data["coverage"], "app_versions": data["app_versions"],
                 "drawing_levels": levels, "sources": sources}
-    layers = [{"id": k, "name": layer.name} for k, layer in ctx.pack.layers.items()
+    layers = [layer.definition() for k, layer in ctx.pack.layers.items()
               if any(r["layer"] == k for r in records)]
     path = ctx.folder / pack_file_name(data["name"])
     from mapcore.packs.pack import checksum_path

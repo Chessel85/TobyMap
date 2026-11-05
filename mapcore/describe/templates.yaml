@@ -192,6 +192,33 @@ points:
   NNW: north-north-west
   NbW: north by west
 
+# Directions relative to the way the user faces, in cardinal and free facing
+# (NAV-12, ANN-5). The clock face uses bearing.clock above. The compass formats
+# use these words, 16 of them, by the compass point the direction would be if
+# ahead were north.
+relative:
+  ahead: "ahead"
+  behind: "behind"
+  right: "{value} degrees to your right"
+  left: "{value} degrees to your left"
+  about_right: "about {value} degrees to your right"
+  about_left: "about {value} degrees to your left"
+  points:
+    NNE: "ahead, slightly right"
+    NE: "ahead right"
+    ENE: "right, slightly ahead"
+    E: "to your right"
+    ESE: "right, slightly behind"
+    SE: "behind right"
+    SSE: "behind, slightly right"
+    SSW: "behind, slightly left"
+    SW: "behind left"
+    WSW: "left, slightly behind"
+    W: "to your left"
+    WNW: "left, slightly ahead"
+    NW: "ahead left"
+    NNW: "ahead, slightly left"
+
 hemispheres:
   N: north
   S: south
@@ -209,6 +236,7 @@ coordinates:
 place:
   list_separator: ", "
   none: "No area here"
+  layers_off: "Every layer here is switched off"
   sea: "Sea"
 
 # The words after a move that crosses a pole (NAV-1 says the block is silent,
@@ -229,9 +257,21 @@ movement:
   facing: "Facing {heading}."
   orientation:
     north-fixed: "North-fixed."
+    cardinal: "Cardinal facing."
+    free: "Free facing."
+  # After a move over a pole (NAV-3).
+  pole_crossed: "Crossed the {pole} Pole. Now facing {heading}."
+  poles:
+    north: "North"
+    south: "South"
   mode:
     stepping: "Stepping."
   heading: "{facing} {orientation} {mode} Zoom {zoom}, step {step}."
+
+# The layers list (SCP-6, SCP-7). Layer and group names come from the pack.
+layers:
+  title: "Layers"
+  other_group: "Other layers"
 
 history:
   title: Announcement history

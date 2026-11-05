@@ -14,6 +14,12 @@ shapes come from. They are read from the pack:
 The zoom distance is drawn at a fixed scale (ZOOM_RADIUS_PX), so a smaller
 window shows less map round the edges but hears the same area (DP76, DP138).
 
+Line features are drawn as lines and point features as markers (P2-T10a):
+"line_coords" holds the screen points of every run of a line on the near side
+of the globe, "line_runs" where each run starts, and "line_style" and
+"line_area" its style and feature; "marker_coords", "marker_style" and
+"marker_area" the same for points. Lines are never filled.
+
 Artificial edges, the cuts along pack tile boundaries (which include the
 180 degree line and the South Pole), are marked as seams: filled, never
 outlined (AD-17), so Fiji and Russia draw whole across the line.
@@ -74,13 +80,14 @@ class SceneBuilder:
     def __init__(self, store, theme: dict | None = None):
         self.store = store
         self.theme = theme or globe.load_theme()
-        self._features: dict[tuple[int, int], tuple[str, int, int]] = {}  # -> (id, layer order, colour)
+        self._features: dict[tuple[int, int], tuple[str, int, int, str]] = {}  # -> (id, layer order, colour, layer)
 
     def _feature(self, p: int, number: int):
         got = self._features.get((p, number))
         if got is None:
             area = self.store._area(p, number)
-            got = ("?", 9, 1) if area is None else (area.id, LAYER_ORDER.get(area.layer, 4), int(area.record.get("colour") or 1))
+            got = ("?", 9, 1, "") if area is None else (area.id, LAYER_ORDER.get(area.layer, 4),
+                                                        int(area.record.get("colour") or 1), area.layer)
             self._features[(p, number)] = got
         return got
 
@@ -94,10 +101,11 @@ class SceneBuilder:
                 return "draw", d
         return "draw", levels[-1]
 
-    def _collect(self, lat, lon, rho, zoom_km):
+    def _collect(self, lat, lon, rho, zoom_km, layers=None):
         """The shapes (Shapely) for the cap in view, with the feature of each and
         the box of its tile. Each tile's shapes are decoded together, once, and
-        kept with the tile (P2-T14c)."""
+        kept with the tile (P2-T14c). `layers`, when given, is the set of layer ids
+        that are on: the shapes of every other layer are left out (SCP-6)."""
         geoms, feats, boxes, tile_of = [], [], [], []
         intervals, south, north = _cap(lat, lon, rho * 1.15)
         for p in self.store._covering(lat, lon)[:1]:
@@ -121,8 +129,16 @@ class SceneBuilder:
                             continue
                         box = tiles.tile_box(level, x, y)
                         shapes, numbers = data.drawing_shapes(box)
+                        found = [self._feature(p, n) for n in numbers.tolist()]
+                        if layers is not None:
+                            keep = np.fromiter((f[3] in layers for f in found), bool, len(found))
+                            if not keep.all():
+                                shapes = shapes[keep]
+                                found = [f for f, k in zip(found, keep) if k]
+                            if not len(shapes):
+                                continue
                         geoms.append(shapes)
-                        feats.extend(self._feature(p, n) for n in numbers.tolist())
+                        feats.extend(found)
                         tile_of.append(np.full(len(shapes), len(boxes), np.intp))
                         boxes.append(box)
         if not geoms:
@@ -131,25 +147,39 @@ class SceneBuilder:
         return np.concatenate(geoms), feats, box_of_shape, intervals, south, north
 
     def build(self, world, width: int, height: int, current: str | None = None, highlight: str | None = None,
-              centre_cross: bool = True) -> dict:
+              centre_cross: bool = True, layers=None) -> dict:
         import shapely
 
         start = time.perf_counter()
         view = view_for(world, width, height)
         cx, cy, r = width / 2, height / 2, globe._radius(view, width, height)
         rho = math.asin(min(1.0, math.hypot(cx, cy) / r))
-        geoms, feats, boxes, intervals, south, north = self._collect(world.lat, world.lon, rho, world.zoom_m / 1000.0)
+        geoms, feats, boxes, intervals, south, north = self._collect(world.lat, world.lon, rho, world.zoom_m / 1000.0,
+                                                                     layers)
         empty = np.zeros(0, np.intp)
+        lines, line_idx, dots, dot_idx = np.empty(0, object), empty, np.empty(0, object), empty
         if len(geoms):
             parts_all, idx_all = [], []
+            other_all, other_idx_all = [], []
             for west, east in intervals:
                 clipped = shapely.clip_by_rect(geoms, west, south, east, north)
                 parts, idx = shapely.get_parts(clipped, return_index=True)
-                keep = (shapely.get_type_id(parts) == 3) & ~shapely.is_empty(parts)
+                kinds = shapely.get_type_id(parts)
+                live = ~shapely.is_empty(parts)
+                keep = (kinds == 3) & live
                 parts_all.append(parts[keep])
                 idx_all.append(idx[keep])
+                other = ((kinds == 1) | (kinds == 0)) & live   # lines and points (P2-T10a)
+                other_all.append(parts[other])
+                other_idx_all.append(idx[other])
             parts = np.concatenate(parts_all)
             idx = np.concatenate(idx_all).astype(np.intp)
+            others = np.concatenate(other_all)
+            other_idx = np.concatenate(other_idx_all).astype(np.intp)
+            if len(others):
+                is_line = shapely.get_type_id(others) == 1
+                lines, line_idx = others[is_line], other_idx[is_line]
+                dots, dot_idx = others[~is_line], other_idx[~is_line]
         else:
             parts, idx = np.empty(0, object), empty
         if len(parts):
@@ -163,6 +193,9 @@ class SceneBuilder:
         chosen = time.perf_counter()
         frame = self._frame(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
                             current, highlight)
+        frame.update(self._lines(view, cx, cy, r, lines, line_idx, feats, highlight))
+        frame.update(self._markers(view, width, height, cx, cy, r, dots, dot_idx, feats, highlight))
+        frame["points"] += int(len(frame["line_coords"]) // 2)
         frame["choose_ms"] = (chosen - start) * 1000            # finding and cutting the shapes in view (P2-T14b)
         frame["projecting_ms"] = (time.perf_counter() - chosen) * 1000   # turning them into screen pixels
         if centre_cross:
@@ -173,6 +206,58 @@ class SceneBuilder:
                             "halo": self.theme["cross_halo"], "length": 26}
         frame["project_ms"] = (time.perf_counter() - start) * 1000   # the whole of the core's part
         return frame
+
+    def _lines(self, view, cx, cy, r, lines, idx, feats, highlight) -> dict:
+        """Each line cut into runs of points on the near side of the globe, in screen pixels."""
+        import shapely
+
+        theme = self.theme
+        styles = [{"stroke": theme["line"], "width": theme["line_width"]},
+                  {"stroke": theme["highlight_outline"], "width": theme["line_width"] + 2}]
+        if not len(lines):
+            return {"line_coords": np.zeros(0, np.float32), "line_runs": np.zeros(1, np.int32),
+                    "line_style": np.zeros(0, np.int32), "line_area": [], "line_styles": styles}
+        xy, which = shapely.get_coordinates(lines, return_index=True)
+        px, py, depth = globe.project_points(view, xy[:, 1], xy[:, 0])
+        seen = depth >= 0
+        which = np.asarray(which, np.intp)
+        # A run starts at a point on the near side whose point before is hidden or on another line.
+        starts = seen.copy()
+        starts[1:] &= ~(seen[:-1] & (which[1:] == which[:-1]))
+        run_of = np.cumsum(starts) - 1
+        keep_runs = np.bincount(run_of[seen], minlength=int(starts.sum())) >= 2
+        keep = seen & keep_runs[run_of]
+        run_ids, counts = np.unique(run_of[keep], return_counts=True)
+        coords = np.empty(int(keep.sum()) * 2, np.float32)
+        coords[0::2] = cx + r * px[keep]
+        coords[1::2] = cy - r * py[keep]
+        first_point = np.searchsorted(run_of[keep], run_ids)
+        line_of_run = which[keep][first_point]
+        area = [feats[idx[k]][0] for k in line_of_run.tolist()]
+        return {"line_coords": coords, "line_runs": np.concatenate([[0], np.cumsum(counts)]).astype(np.int32),
+                "line_style": np.array([1 if highlight and a == highlight else 0 for a in area], np.int32),
+                "line_area": area, "line_styles": styles}
+
+    def _markers(self, view, width, height, cx, cy, r, dots, idx, feats, highlight) -> dict:
+        """Each point feature's points on the near side of the globe and on the map, in screen pixels."""
+        import shapely
+
+        theme = self.theme
+        styles = [{"fill": theme["marker"], "stroke": theme["marker_outline"], "radius": theme["marker_radius"]},
+                  {"fill": theme["highlight_fill"], "stroke": theme["highlight_outline"],
+                   "radius": theme["marker_radius"] + 2}]
+        if not len(dots):
+            return {"marker_coords": np.zeros(0, np.float32), "marker_style": np.zeros(0, np.int32),
+                    "marker_area": [], "marker_styles": styles}
+        xy, which = shapely.get_coordinates(dots, return_index=True)
+        px, py, depth = globe.project_points(view, xy[:, 1], xy[:, 0])
+        sx, sy = cx + r * px, cy - r * py
+        keep = (depth >= 0) & (sx >= 0) & (sx <= width) & (sy >= 0) & (sy <= height)
+        coords = np.empty(int(keep.sum()) * 2, np.float32)
+        coords[0::2], coords[1::2] = sx[keep], sy[keep]
+        area = [feats[idx[k]][0] for k in np.asarray(which, np.intp)[keep].tolist()]
+        return {"marker_coords": coords, "marker_area": area, "marker_styles": styles,
+                "marker_style": np.array([1 if highlight and a == highlight else 0 for a in area], np.int32)}
 
     def _frame(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current, highlight):
         theme = self.theme
@@ -251,7 +336,7 @@ class SceneBuilder:
         styles.append({"fill": theme["highlight_fill"], "stroke": theme["highlight_outline"], "width": 2})
         shape_area, shape_style = [], []
         for j in kept_polys:
-            ident, layer, colour = feats[tile_of_poly[j]]
+            ident, layer, colour, _layer_id = feats[tile_of_poly[j]]
             shape_area.append(ident)
             shape_style.append(OCEAN_STYLE if layer == 0 else (colour - 1) % len(land))
         hi = [i for i, a in enumerate(shape_area) if highlight and a == highlight]

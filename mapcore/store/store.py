@@ -87,6 +87,74 @@ class Near:
     inside: bool
 
 
+@dataclass(frozen=True)
+class Crossing:
+    """A line feature a path crosses (P2-T10a, for Crossed and passed, ANN-2): where
+    it is first crossed, and how far along the path that is, measured roughly on
+    the mean sphere, which is enough to put the crossings in order."""
+    area: Area
+    lat: float
+    lon: float
+    along_m: float
+
+
+def path_pieces(path) -> list[np.ndarray]:
+    """A move's path, (lat, lon) points whose longitudes carry on past the 180 degree
+    line, as (lon, lat) arrays that each stay within -180 to 180 degrees.
+
+    Between two points more than 90 degrees of longitude apart the path went over
+    a pole, so it is cut there, each side running to the pole on its own meridian.
+    """
+    import shapely
+
+    pts = np.asarray(path, dtype=np.float64).reshape(-1, 2)[:, ::-1].tolist()
+    if len(pts) < 2:
+        return []
+    runs, current = [], [pts[0]]
+    for a, b in zip(pts[:-1], pts[1:]):
+        if abs(b[0] - a[0]) > 90.0:
+            pole = 90.0 if a[1] + b[1] > 0 else -90.0
+            current.append([a[0], pole])
+            runs.append(current)
+            current = [[b[0], pole], b]
+        else:
+            current.append(b)
+    runs.append(current)
+    out = []
+    for run in (np.asarray(r) for r in runs):
+        if len(run) < 2:
+            continue
+        line = shapely.LineString(run)
+        low, high = math.floor((run[:, 0].min() + 180.0) / 360.0), math.floor((run[:, 0].max() + 180.0) / 360.0)
+        for k in range(int(low), int(high) + 1):
+            piece = shapely.clip_by_rect(line, -180.0 + 360.0 * k, -90.0, 180.0 + 360.0 * k, 90.0)
+            for part in shapely.get_parts(shapely.line_merge(piece) if piece.geom_type == "MultiLineString" else piece):
+                c = shapely.get_coordinates(part)
+                if len(c) >= 2:
+                    c[:, 0] -= 360.0 * k
+                    out.append(c)
+    return out
+
+
+def _along_m(path, lat: float, lon: float) -> float:
+    """How far along the path, in metres on the mean sphere, its nearest point to (lat, lon) is."""
+    p = np.radians(np.asarray(path, dtype=np.float64).reshape(-1, 2))
+    lat1, lon1, lat2, lon2 = p[:-1, 0], p[:-1, 1], p[1:, 0], p[1:, 1]
+    seg = 2 * np.arcsin(np.sqrt(np.sin((lat2 - lat1) / 2) ** 2
+                                + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2))
+    # Each segment in a flat view round the point (x east, y north, in radians of the
+    # sphere), and the nearest point of each to it.
+    q_lat, q_lon = math.radians(lat), math.radians(lon)
+    x = ((p[:, 1] - q_lon + math.pi) % (2 * math.pi) - math.pi) * math.cos(q_lat)
+    y = p[:, 0] - q_lat
+    ax, ay, dx, dy = x[:-1], y[:-1], np.diff(x), np.diff(y)
+    length2 = dx * dx + dy * dy
+    t = np.clip(-(ax * dx + ay * dy) / np.where(length2 > 0, length2, 1.0), 0.0, 1.0)
+    d = np.hypot(ax + t * dx, ay + t * dy)
+    k = int(np.argmin(d))
+    return float(seg[:k].sum() + t[k] * seg[k]) * geodesy.R_MEAN_M
+
+
 def _intervals(west: float, east: float) -> list[tuple[float, float]]:
     """A span of longitude, possibly across the 180 degree line, as spans that do not."""
     if west <= east:
@@ -273,8 +341,8 @@ class Store:
                     continue
                 data = self._tile(p, "tile", level, x, y)
                 for i, entry in enumerate(data.entries):
-                    if (p, entry.feature) in found:
-                        continue
+                    if (p, entry.feature) in found or entry.kind not in tiles.AREA_KINDS:
+                        continue   # lines and points have no inside, so are never "here"
                     if entry.kind != tiles.COVERED:
                         shape = data.shape(i)
                         if not shapely.intersects_xy(shape, lon, lat):
@@ -283,6 +351,53 @@ class Store:
                     if area is not None and (layers is None or area.layer in layers):
                         found[(p, entry.feature)] = area
         return sorted(found.values(), key=lambda a: (-a.rank, a.area_km2, a.id))
+
+    # Lines along a path (P2-T10a) ---------------------------------------------------
+
+    def crossed_lines(self, path, layers=None) -> list[Crossing]:
+        """The line features a move's path crosses, in the order it crosses them, each
+        once, where it is first crossed (ANN-2, for Crossed and passed). `path` is the
+        move's (lat, lon) points (geodesy.Move.path). `layers` limits the answer to
+        some layer ids. Only layers whose definition says geometry: line are looked
+        at, so a pack with none reads nothing."""
+        import shapely
+
+        pieces = [shapely.LineString(c) for c in path_pieces(path)]
+        if not pieces:
+            return []
+        found: dict[tuple[int, int], Crossing] = {}
+        for p in range(len(self._indexes)):
+            index = self._indexes[p]
+            line_layers = {d["id"] for d in index.pack.layers or [] if d.get("geometry") == "line"}
+            if layers is not None:
+                line_layers &= set(layers)
+            if not line_layers:
+                continue
+            for piece in pieces:
+                west, south, east, north = piece.bounds
+                shapely.prepare(piece)
+                for level in index.pack.tile_levels:
+                    x0, y0 = tiles.tile_of(west, south, level)
+                    x1, y1 = tiles.tile_of(east, north, level)
+                    for x, y in index.tiles_in("tile", level, x0, x1, y0, y1):
+                        if not piece.intersects(shapely.box(*tiles.tile_box(level, x, y))):
+                            continue
+                        data = self._tile(p, "tile", level, x, y)
+                        for i, entry in enumerate(data.entries):
+                            if entry.kind != tiles.LINES:
+                                continue
+                            met = shapely.intersection(data.shape(i), piece)
+                            if met.is_empty:
+                                continue
+                            area = self._area(p, entry.feature)
+                            if area is None or area.layer not in line_layers:
+                                continue
+                            for point in shapely.get_coordinates(met).tolist():
+                                along = _along_m(path, point[1], point[0])
+                                old = found.get((p, entry.feature))
+                                if old is None or along < old.along_m:
+                                    found[(p, entry.feature)] = Crossing(area, point[1], point[0], along)
+        return sorted(found.values(), key=lambda c: (c.along_m, c.area.id))
 
     # Nearby ------------------------------------------------------------------------
 

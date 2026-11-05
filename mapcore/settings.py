@@ -1,5 +1,7 @@
 """Settings (PLT-5, ANN-5, LOC-1): the schema in settings.yaml, the values, saving and restoring.
 
+The user's changes to layers are kept here too, by layer identifier (SCP-6).
+
 The values are plain JSON-able data, so the desktop keeps them in a file and
 the web version in the browser. The remapped keys are kept with them (ACC-3).
 """
@@ -51,9 +53,11 @@ def checked(field_id: str, value):
 
 
 class Settings:
-    def __init__(self, values: dict | None = None, keys: dict | None = None):
+    def __init__(self, values: dict | None = None, keys: dict | None = None, layers: dict | None = None):
         self.values = defaults()
         self.keys: dict[str, str] = dict(keys or {})  # command name -> key, the user's own
+        # The user's changes to layers, by layer id: {"regions": {"on": False}} (SCP-6, SCP-7).
+        self.layers: dict[str, dict] = {k: dict(v) for k, v in (layers or {}).items() if isinstance(v, dict)}
         for k, v in (values or {}).items():
             self.set(k, v, quiet=True)
 
@@ -70,9 +74,10 @@ class Settings:
             raise
 
     def to_dict(self) -> dict:
-        return {"values": dict(self.values), "keys": dict(self.keys)}
+        return {"values": dict(self.values), "keys": dict(self.keys),
+                "layers": {k: dict(v) for k, v in self.layers.items()}}
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "Settings":
         d = d or {}
-        return cls(d.get("values"), d.get("keys"))
+        return cls(d.get("values"), d.get("keys"), d.get("layers"))

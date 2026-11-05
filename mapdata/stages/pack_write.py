@@ -1,13 +1,14 @@
-"""Write a pack in format 2 (architecture 8.2 stage 16, AD-5, docs/developer/pack-format.md).
+"""Write a pack in format 3 (architecture 8.2 stage 16, AD-5, docs/developer/pack-format.md).
 
-Each feature's exact shape is cut into pack tiles. A tile entry with more
+Each feature's exact shape is cut into pack tiles. Areas, lines and points are
+all cut the same way; only areas have covered notes (format 3, P2-T10a). A tile entry with more
 than MAX_POINTS points is cut again into its four smaller pack tiles, so a
 point test never decodes a large shape, however many islands a country has
 (architecture 6.3, 6.12). A pack tile that lies wholly inside a feature
 stores only a covered note. Shapes are stored in compact coordinates.
 
 The spike S2 stages give feature records with a name, a local name, a layer,
-a type and an area; feature_record() adds what format 2 asks for. The
+a type and an area; feature_record() adds what the format asks for. The
 colour number is left empty until the base pack lite works it out (P1-T4,
 AD-19).
 """
@@ -56,9 +57,32 @@ def cut_to_rect(geom, bounds):
     return shapely.intersection(geom, shapely.box(*bounds))
 
 
+def entry_kind(geom) -> int:
+    """The tile entry kind for a shape: COMPACT for an area, LINES or POINTS."""
+    kind = shapely.get_type_id(geom)
+    if kind in (1, 2, 5):   # LineString, LinearRing, MultiLineString
+        return tiles.LINES
+    if kind in (0, 4):      # Point, MultiPoint
+        return tiles.POINTS
+    return SHAPE
+
+
 def _cut(geom, level: int, x: int, y: int, out: dict, index: int) -> None:
     """Cut one feature's shape into pack tiles. Tile entries keep the shape, encoded later."""
     bounds = tiles.tile_box(level, x, y)
+    kind = entry_kind(geom)
+    if kind != SHAPE:
+        inside = keep_kind(points_in_tile(geom, level, x, y) if kind == tiles.POINTS else cut_to_rect(geom, bounds),
+                           kind)
+        if inside is None:
+            return
+        if shapely.get_num_coordinates(inside) > MAX_POINTS and level < MAX_LEVEL:
+            for dx in (0, 1):
+                for dy in (0, 1):
+                    _cut(inside, level + 1, 2 * x + dx, 2 * y + dy, out, index)
+            return
+        out[(level, x, y)].append((index, kind, inside))
+        return
     box = shapely.box(*bounds)
     if shapely.contains_properly(geom, box):
         out[(level, x, y)].append((index, COVERED, None))
@@ -98,6 +122,36 @@ def split_full_tiles(cut: dict) -> None:
                             _cut(g, level + 1, child[1], child[2], cut, index)
 
 
+def points_in_tile(geom, level: int, x: int, y: int):
+    """The points of a shape that belong to a pack tile: each point to exactly one
+    pack tile, the one tiles.tile_of gives, so a point on an edge is stored once."""
+    c = shapely.get_coordinates(geom)
+    keep = [tiles.tile_of(lon, lat, level) == (x, y) for lon, lat in c.tolist()]
+    c = c[keep]
+    return shapely.MultiPoint(c) if len(c) else shapely.MultiPoint()
+
+
+def keep_kind(geom, kind: int):
+    """Keep only the parts of a cut that are the shape's own kind: polygons for an
+    area, lines for a line, points for a point. None when nothing is left."""
+    if kind == SHAPE:
+        return _areas(geom)
+    if geom is None or geom.is_empty:
+        return None
+    wanted = (1, 2) if kind == tiles.LINES else (0,)
+    parts = [g for g in shapely.get_parts(geom) if shapely.get_type_id(g) in wanted and not g.is_empty]
+    if kind == tiles.LINES:
+        parts = [g for g in parts if len(g.coords) >= 2]
+        merged = shapely.line_merge(shapely.MultiLineString(parts)) if len(parts) > 1 else None
+        if merged is not None:
+            parts = list(shapely.get_parts(merged))
+    if not parts:
+        return None
+    if len(parts) == 1:
+        return parts[0]
+    return shapely.MultiLineString(parts) if kind == tiles.LINES else shapely.MultiPoint(parts)
+
+
 def _areas(geom):
     """Keep only the polygon parts of an intersection."""
     if geom.is_empty:
@@ -121,7 +175,8 @@ def _cut_batch(items: list) -> dict:
         west, south, east, north = geom.bounds
         x0, y0 = tiles.tile_of(west, south, START_LEVEL)
         x1, y1 = tiles.tile_of(east, north, START_LEVEL)
-        shapely.prepare(geom)
+        if entry_kind(geom) == SHAPE:
+            shapely.prepare(geom)
         for x in range(x0, x1 + 1):
             for y in range(y0, y1 + 1):
                 _cut(geom, START_LEVEL, x, y, cut, index)
@@ -133,16 +188,24 @@ def _encode_batch(batch: list) -> list:
     """Encode a batch of pack tiles in compact coordinates, in a worker: [(tile, entries)]."""
     out = []
     for key, entries in batch:
-        out.append((key, [(index, COVERED, b"") if kind == COVERED
-                          else (index, SHAPE, coords.encode(coords.rings_of(shapely.from_wkb(blob))))
+        out.append((key, [(index, COVERED, b"") if kind == COVERED else (index, kind, encode(kind, shapely.from_wkb(blob)))
                           for index, kind, blob in entries]))
     return out
+
+
+def encode(kind: int, geom) -> bytes:
+    """A shape's bytes for a tile entry of its kind, in compact coordinates."""
+    if kind == tiles.LINES:
+        return coords.encode_lines(coords.lines_of(geom))
+    if kind == tiles.POINTS:
+        return coords.encode_points(coords.points_of(geom))
+    return coords.encode(coords.rings_of(geom))
 
 
 # Feature records and the manifest ---------------------------------------------
 
 def feature_record(record: dict, geom) -> dict:
-    """A spike S2 feature record with the fields format 2 asks for (architecture 6.4).
+    """A spike S2 feature record with the fields the format asks for (architecture 6.4).
 
     The record's own fields are kept, so the S2 checks still find "name" and
     "local_name". The names are English, and "local" for the name in the

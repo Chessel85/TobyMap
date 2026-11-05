@@ -41,6 +41,28 @@ def _add_outline(path: QPainterPath, points: list, seam) -> None:
             path.lineTo(points[(i + 1) % n])
 
 
+def _paint_lines_and_markers(painter: QPainter, scene: dict) -> None:
+    """Line features as strokes, one for each run of points, and point features as
+    small round markers (P2-T10a). The core has placed every point already."""
+    runs = scene.get("line_runs")
+    if runs is not None and len(runs) > 1:
+        xy = np.asarray(scene["line_coords"], dtype=np.float64).reshape(-1, 2).tolist()
+        pens = [QPen(QColor(s["stroke"]), s["width"]) for s in scene["line_styles"]]
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for k in range(len(runs) - 1):
+            painter.setPen(pens[scene["line_style"][k]])
+            painter.drawPolyline(QPolygonF([QPointF(x, y) for x, y in xy[runs[k]:runs[k + 1]]]))
+    marks = scene.get("marker_style")
+    if marks is not None and len(marks):
+        xy = np.asarray(scene["marker_coords"], dtype=np.float64).reshape(-1, 2).tolist()
+        styles = scene["marker_styles"]
+        for k, (x, y) in enumerate(xy):
+            s = styles[marks[k]]
+            painter.setPen(QPen(QColor(s["stroke"]), 1))
+            painter.setBrush(QBrush(QColor(s["fill"])))
+            painter.drawEllipse(QPointF(x, y), s["radius"], s["radius"])
+
+
 def paint_scene(painter: QPainter, scene: dict) -> None:
     """Paint one scene. Used by the widget and by the tests on an image."""
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -86,6 +108,7 @@ def paint_scene(painter: QPainter, scene: dict) -> None:
     painter.setPen(QPen(QColor(cs["stroke"]), cs["width"]))
     for si in scene["current"]:
         painter.drawPath(outlines[si])
+    _paint_lines_and_markers(painter, scene)
     painter.setClipping(False)
 
     c = scene.get("cross")

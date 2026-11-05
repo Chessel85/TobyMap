@@ -48,6 +48,8 @@ export function paintScene(canvas, scene) {
   ctx.lineWidth = scene.current_style.width;
   ctx.strokeStyle = scene.current_style.stroke;
   for (const s of scene.current) ctx.stroke(outlines[s]);
+  paintLines(ctx, scene);
+  paintMarkers(ctx, scene);
   ctx.restore();
 
   const c = scene.cross;
@@ -78,6 +80,38 @@ export function paintScene(canvas, scene) {
     ctx.fill();
   }
   return performance.now() - start;
+}
+
+// Line features, such as the graticule: each run of points is one stroke (P2-T10a).
+function paintLines(ctx, scene) {
+  const { line_coords: xy, line_runs: runs, line_style: style, line_styles: styles } = scene;
+  if (!runs) return;
+  for (let k = 0; k < runs.length - 1; k++) {
+    const a = runs[k], b = runs[k + 1];
+    const s = styles[style[k]];
+    ctx.beginPath();
+    ctx.moveTo(xy[2 * a], xy[2 * a + 1]);
+    for (let i = a + 1; i < b; i++) ctx.lineTo(xy[2 * i], xy[2 * i + 1]);
+    ctx.lineWidth = s.width;
+    ctx.strokeStyle = s.stroke;
+    ctx.stroke();
+  }
+}
+
+// Point features, such as a railway station: a small round marker each.
+function paintMarkers(ctx, scene) {
+  const { marker_coords: xy, marker_style: style, marker_styles: styles } = scene;
+  if (!xy) return;
+  for (let k = 0; k < style.length; k++) {
+    const s = styles[style[k]];
+    ctx.beginPath();
+    ctx.arc(xy[2 * k], xy[2 * k + 1], s.radius, 0, 2 * Math.PI);
+    ctx.fillStyle = s.fill;
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = s.stroke;
+    ctx.stroke();
+  }
 }
 
 // Outline a ring, lifting the pen over artificial edges such as the 180

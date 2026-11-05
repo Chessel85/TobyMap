@@ -60,6 +60,18 @@ tabs:
         default: 4
         min: 1
         max: 30
+      - id: turn_deg
+        label: "Free facing: degrees turned by Left and Right"
+        kind: number
+        default: 5
+        min: 1
+        max: 90
+      - id: fine_turn_deg
+        label: "Free facing: degrees turned by Ctrl with Left and Right"
+        kind: number
+        default: 1
+        min: 1
+        max: 45
       - id: nearby_count
         label: Number of nearby items
         kind: number

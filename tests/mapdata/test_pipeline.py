@@ -94,6 +94,58 @@ def test_a_changed_setting_runs_its_stage_and_those_after_again(tmp_path):
     assert any(line.startswith("Stages run: water in") and "write in" in line for line in lines)
 
 
+# SCP-7: layer definitions ----------------------------------------------------------
+
+def test_how_a_layer_is_shown_changes_only_the_pack_writing(tmp_path):
+    """The group, zoom range and sounds of a layer go into the pack, but the areas are
+    not built again for them, so the world rebuild can use its kept results."""
+    config = tmp_path / "config"
+    shutil.copytree(CONFIG_DIR, config, ignore=shutil.ignore_patterns("paths.yaml"))
+    data = tmp_path / "data"
+    data.mkdir()
+    assert run_build(data, config_dir=config)[0] == 0
+    layers = config / "layers" / "base.yaml"
+    layers.write_text(layers.read_text(encoding="utf-8").replace(
+        "name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true",
+        "name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: false, "
+        "min_zoom_m: 1000, max_zoom_m: 2500000, crossing_earcon: line_crossing"), encoding="utf-8")
+    code, lines = run_build(data, config_dir=config)
+    assert code == 0
+    assert "Stages skipped, as nothing they use had changed: samples, water." in lines
+    pack = Pack(data / "tobymap" / "output" / "test" / "test.pack")
+    regions = next(d for d in pack.layers if d["id"] == "regions")
+    pack.close()
+    assert regions == {"id": "regions", "name": "Regions", "rank": 4, "group": "Boundaries", "geometry": "area",
+                       "switched_on": False, "min_zoom_m": 1000, "max_zoom_m": 2500000,
+                       "crossing_earcon": "line_crossing"}
+
+
+def test_the_build_fingerprint_of_a_layer_is_what_it_was_before_p2_t3():
+    """The stages before the writing see only id, name, rank and kind, exactly as
+    before P2-T3, so the kept results of the Phase 1 world build are still used."""
+    pack = load_pack("world")
+    assert {k: v.build_fields() for k, v in pack.layers.items()}["regions"] == {
+        "id": "regions", "name": "Regions", "rank": 4, "kind": "land"}
+
+
+@pytest.mark.parametrize("extra, words", [
+    ("colour: red", "a setting mapdata does not know: colour"),
+    ("geometry: blob", "use area, line or point"),
+    ("switched_on: maybe", "use true or false"),
+    ("min_zoom_m: 5000, max_zoom_m: 100", "min_zoom_m larger than max_zoom_m"),
+    ("crossing_earcon: trumpet", "not one of the application's sounds"),
+])
+def test_a_wrong_layer_definition_stops_the_build_with_the_reason(tmp_path, extra, words):
+    config = tmp_path / "config"
+    shutil.copytree(CONFIG_DIR, config, ignore=shutil.ignore_patterns("paths.yaml"))
+    layers = config / "layers" / "base.yaml"
+    layers.write_text(layers.read_text(encoding="utf-8").replace(
+        "name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true",
+        f"name: Counties, rank: 6, kind: land, group: Boundaries, {extra}"), encoding="utf-8")
+    with pytest.raises(BuildStopped, match=words):
+        load_pack("test", config)
+
+
 # DMT-1: the same pack, byte for byte ----------------------------------------------
 
 def test_the_test_pack_built_twice_is_identical(tmp_path, test_pack):
@@ -250,7 +302,7 @@ def test_each_country_from_osm_is_one_area_with_natural_earth_beyond_its_box(tes
 def test_inspect_gives_the_manifest_and_a_feature(test_pack, capsys):
     assert main(["inspect", str(test_pack), "manifest"]) == 0
     out = capsys.readouterr().out
-    assert "Pack test, version 0.1.0, format 2" in out
+    assert "Pack test, version 0.1.0, format 3" in out
     assert "Layers: Countries, Oceans and seas, Regions, Counties." in out
     assert main(["inspect", str(test_pack), "feature", "osm:r154350"]) == 0
     out = capsys.readouterr().out.splitlines()

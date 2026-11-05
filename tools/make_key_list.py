@@ -10,6 +10,7 @@ Usage: python tools/make_key_list.py
 from __future__ import annotations
 
 import csv
+import sys
 from pathlib import Path
 
 import yaml
@@ -76,7 +77,18 @@ def rows() -> list[list[str]]:
     return out
 
 
+def has_your_keys() -> bool:
+    """True when the file already holds keys written by the product owner."""
+    if not OUT.is_file():
+        return False
+    with OUT.open(encoding="utf-8-sig", newline="") as f:
+        return any(r.get("Your key", "").strip() for r in csv.DictReader(f))
+
+
 def main() -> int:
+    if has_your_keys() and "--force" not in sys.argv:
+        print(f"{OUT} already holds your keys, so it was not changed. Use --force to make it again.")
+        return 1
     data = rows()
     with OUT.open("w", encoding="utf-8", newline="") as f:
         w = csv.writer(f, lineterminator="\r\n")

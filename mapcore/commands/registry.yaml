@@ -47,7 +47,7 @@ commands:
   - {name: focus.details, label: Go to Details, key: F4, region: global, menu: Map}
   - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
-  - {name: speech.repeat, label: Repeat the last announcement, key: Ctrl+Space, region: global, menu: Speech}
+  - {name: speech.repeat, label: Repeat the last announcement, key: Shift+Space, region: global, menu: Speech}
   - {name: speech.history, label: Announcement history, key: Ctrl+Shift+Space, region: global, menu: Speech}
   - {name: sound.mute, label: Mute all sound, key: Ctrl+M, region: global, menu: Speech, toggle: true}
   - {name: speech.braille_test, label: Send a Braille-only message, key: "", region: global, menu: Speech}

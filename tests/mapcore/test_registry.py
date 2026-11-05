@@ -76,7 +76,7 @@ def test_the_phase_1_keys_are_there():
     for key, name in expected.items():
         assert desktop["map"][key] == name
     for key, name in {"F1": "help.keys", "Shift+F1": "help.describer", "F2": "focus.map", "F3": "focus.panel",
-                      "F4": "focus.details", "Ctrl+Space": "speech.repeat", "Ctrl+Shift+Space": "speech.history",
+                      "F4": "focus.details", "Shift+Space": "speech.repeat", "Ctrl+Shift+Space": "speech.history",
                       "Ctrl+M": "sound.mute", "Ctrl+,": "settings.open"}.items():
         assert desktop["global"][key] == name
     assert registry.keymap("web")["global"]["Ctrl+Alt+M"] == "focus.menu"
@@ -84,10 +84,10 @@ def test_the_phase_1_keys_are_there():
 
 
 def test_the_dropped_keys_are_gone():
-    # DP106: Shift+Space, D, R and Ctrl+Alt+Space are dropped; DP113: no copy of the coordinates.
+    # DP106: D, R and Ctrl+Alt+Space are dropped (Shift+Space was dropped as the Within key, and is now the repeat key); DP113: no copy of the coordinates.
     for platform in PLATFORMS:
         keys = {k for region in registry.keymap(platform).values() for k in region}
-        assert not keys & {"Shift+Space", "D", "R", "Ctrl+Alt+Space", "Ctrl+C"}
+        assert not keys & {"D", "R", "Ctrl+Alt+Space", "Ctrl+C"}
 
 
 def test_menu_access_letters_are_in_the_label_and_unique():

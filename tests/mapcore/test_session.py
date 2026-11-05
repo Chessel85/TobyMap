@@ -50,13 +50,13 @@ def test_history_keeps_at_least_50_and_lists_the_latest_first(session):
 
 def test_empty_history_and_nothing_to_repeat(test_pack):
     s = MapSession(packs=[test_pack], saved_state=dict(KENT))
-    assert spoken(s.press("Ctrl+Space")) == ["Nothing to repeat."]
+    assert spoken(s.press("Shift+Space")) == ["Nothing to repeat."]
     assert s.run("speech.history").dialog["lines"] == ["Nothing has been announced yet."]
 
 
 def test_repeat_says_the_last_announcement_again(session):
     session.press("Space")
-    assert spoken(session.press("Ctrl+Space")) == ["Kent, England, United Kingdom"]
+    assert spoken(session.press("Shift+Space")) == ["Kent, England, United Kingdom"]
 
 
 def test_ten_joined_moves_describe_only_the_last_place(session):

@@ -301,8 +301,53 @@ def test_imperial_zoom_and_step_are_round_numbers(session):
     """Checklist 7.5, DP136: imperial zoom and step are round sizes, and Page Up goes on through them."""
     session.run("settings.set", field="units", value="imperial")
     assert "Zoom 10 miles, step 25 miles." in spoken(session.press("H"))[0]     # nearest to 25 kilometres
-    assert spoken(session.press("Page Up")) == ["Zoom 25 miles, step 25 miles."]
-    assert spoken(session.press("Page Down")) == ["Zoom 10 miles, step 25 miles."]
+    assert spoken(session.press("Page Up")) == ["Zoom 25 miles."]
+    assert spoken(session.press("Page Down")) == ["Zoom 10 miles."]
+
+
+def test_only_the_size_that_changed_is_said(session):
+    """PO feedback on checklist 7, second pass: the zoom keys say the zoom, the step
+    keys the step. Linked, both change, so both are said."""
+    assert spoken(session.press("Page Down")) == ["Zoom 10 kilometres."]
+    said = spoken(session.press("Shift+Page Down"))[0]
+    assert said.startswith("Step ") and "Zoom" not in said
+    session.run("step.link", on=True)
+    said = spoken(session.press("Page Up"))[0]
+    assert said.startswith("Zoom 25 kilometres, step ")
+
+
+def test_at_the_end_of_the_list_only_that_size_is_said(session):
+    for _ in range(40):
+        r = session.press("Shift+Page Down")
+    assert spoken(r)[0].startswith("Smallest step. Step ") and "Zoom" not in spoken(r)[0]
+
+
+def test_coordinates_have_the_places_the_step_needs(session):
+    """PO feedback on checklist 4, second pass: a 25 kilometre step needs one decimal place."""
+    assert spoken(session.press("C")) == ["51.2 degrees north, 1.2 degrees east"]
+    session.run("settings.set", field="coordinate_places", value="fixed")
+    assert spoken(session.press("C")) == ["51.20000 degrees north, 1.20000 degrees east"]
+
+
+def test_symbol_keys_are_said_as_words(session):
+    """PO feedback on checklist 2, second pass: "Ctrl+Comma", not "Ctrl+,", for any symbol."""
+    assert "Settings: Ctrl+Comma" in session.press("F1", "map").dialog["text"]
+    session.press("Shift+F1")
+    assert spoken(session.press("Ctrl+,")) == ["Ctrl+Comma: Settings"]
+    assert spoken(session.press("Ctrl+/")) == ["Ctrl+Slash: no command."]
+    session.press("Shift+F1")
+    r = session.run("keys.remap", command="where.heading", key="Ctrl+,")
+    assert spoken(r) == ["Ctrl+Comma is already used by Settings. Choose another key."]
+    r = session.run("keys.remap", command="where.heading", key="Ctrl+;")
+    assert spoken(r) == ["Heading is now Ctrl+Semicolon."]
+    assert next(c for c in session.key_table() if c["name"] == "where.heading")["key_text"] == "Ctrl+Semicolon"
+
+
+def test_f1_starts_with_short_lines(session):
+    """PO feedback on checklist 2, second pass: one short sentence a line."""
+    lines = session.press("F1", "map").dialog["text"].splitlines()
+    assert lines[0] == "These are the commands that work when the Map has focus."
+    assert all(len(line) < 80 for line in lines[:3])
 
 
 def test_state_and_settings_come_back_after_a_restart(test_pack):
@@ -367,3 +412,12 @@ def test_the_trace_records_commands_and_what_was_said(session):
     session.press("Space")
     last = session.trace[-1]
     assert last["command"] == "where.am_i" and last["spoken"] == ["Kent, England, United Kingdom"] and last["ms"] >= 0
+
+
+def test_the_start_option_overrides_the_saved_place_but_keeps_the_zoom(test_pack):
+    saved = {"lat": 51.2, "lon": 1.2, "zoom_m": 25000, "step_m": 25000}
+    s = MapSession(packs=[test_pack], saved_state=saved, start_at="-16.5,179.99")
+    assert (s.world.lat, s.world.lon) == (-16.5, 179.99)
+    assert s.world.zoom_m == 25000
+    ignored = MapSession(packs=[test_pack], saved_state=saved, start_at="nowhere")
+    assert (ignored.world.lat, ignored.world.lon) == pytest.approx((51.2, 1.2))

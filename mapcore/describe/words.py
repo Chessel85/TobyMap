@@ -37,9 +37,10 @@ def _angle_text(angle: formats.Angle, dms: bool) -> str:
                hemisphere=templates()["hemispheres"].get(angle.hemisphere, ""))
 
 
-def coordinates_text(lat: float, lon: float, style: str = "decimal") -> str:
-    """For example "51.50740 degrees north, 0.12780 degrees west" (LOC-1)."""
-    c = formats.coordinate_parts(lat, lon, style)
+def coordinates_text(lat: float, lon: float, style: str = "decimal", step_m: float | None = None) -> str:
+    """For example "51.50740 degrees north, 0.12780 degrees west" (LOC-1). With
+    step_m, only the decimal places that step needs: "51.5 degrees north"."""
+    c = formats.coordinate_parts(lat, lon, style, step_m)
     dms = style == "dms"
     return say("coordinates.pair", lat=_angle_text(c.lat, dms), lon=_angle_text(c.lon, dms))
 

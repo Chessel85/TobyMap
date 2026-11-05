@@ -185,9 +185,16 @@ document.addEventListener("keyup", (e) => {
 });
 window.addEventListener("blur", () => { if (heldKey) release(); });
 
+// What Tab reaches in a dialog: not a hidden page of the settings, and only the
+// chosen tab of the tab list.
+function tabbable(container) {
+  return [...container.querySelectorAll("button, input, select, textarea")]
+    .filter((el) => !el.disabled && el.tabIndex >= 0 && !el.closest("[hidden]"));
+}
+
 function trapTab(e) {  // keep focus inside a dialog
   const open = [settingsDialog, dialog].find((d) => d.open);
-  const items = [...open.querySelectorAll("button, input, select, textarea")].filter((el) => !el.disabled);
+  const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
   items[(i + (e.shiftKey ? -1 : 1) + items.length) % items.length].focus();
@@ -231,21 +238,39 @@ function openDialog(d) {
   if (d.kind === "settings") return openSettings(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
-  dialog.querySelectorAll("button[data-event]").forEach((b) => b.remove());
-  if (d.kind === "sounds") {   // Help, The sounds: one button per sound, which plays it (DP134)
-    for (const item of [...d.items].reverse()) {
-      const b = button(item.label, () => run("sound.preview", { event: item.event }));
-      b.dataset.event = item.event;
-      dialogTitle.after(b);
-    }
-  }
+  dialog.querySelectorAll(".sounds").forEach((el) => el.remove());
+  if (d.kind === "sounds") soundsList(d);
   dialogText.hidden = d.kind === "sounds";
   dialogText.value = d.text;
   dialogText.setAttribute("aria-label", d.title);
   dialog.showModal();
-  if (d.kind === "sounds") return dialog.querySelector("button[data-event]").focus();
+  if (d.kind === "sounds") return $("sounds-list").focus();
   dialogText.focus();
   dialogText.setSelectionRange(0, 0);
+}
+
+// Help, The sounds: one list, a single stop for Tab, and a Play button. Enter,
+// Space or Play plays the chosen sound (DP134, PO feedback on web checklist 9).
+function soundsList(d) {
+  const list = document.createElement("select");
+  list.id = "sounds-list";
+  list.className = "sounds";
+  list.size = Math.min(d.items.length, 8);
+  list.setAttribute("aria-label", d.title);
+  for (const item of d.items) {
+    const o = document.createElement("option");
+    o.value = item.event;
+    o.textContent = item.label;
+    list.appendChild(o);
+  }
+  list.selectedIndex = 0;
+  const play = () => { if (list.value) run("sound.preview", { event: list.value }); };
+  list.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); play(); }
+  });
+  const playButton = button(d.play, play, "sounds-play");
+  playButton.className = "sounds";
+  dialogTitle.after(list, playButton);
 }
 
 dialogClose.addEventListener("click", () => dialog.close());
@@ -255,6 +280,15 @@ function afterClose() {
 }
 dialog.addEventListener("close", afterClose);
 settingsDialog.addEventListener("close", afterClose);
+// Enter in a settings field presses OK, as on the desktop (web checklist 5).
+settingsDialog.addEventListener("keydown", (e) => {
+  const el = e.target;
+  if (e.key === "Enter" && (el.tagName === "SELECT" || (el.tagName === "INPUT" && el.type !== "file"))
+      && el.id !== "settings-keys") {
+    e.preventDefault();
+    $("settings-ok").click();
+  }
+});
 
 function button(label, onClick, id) {
   const b = document.createElement("button");
@@ -265,6 +299,9 @@ function button(label, onClick, id) {
   return b;
 }
 
+// The settings dialog: a tab list with one page for each group, as on the
+// desktop, so it is not one long page (PO feedback on web checklist 2). Left and
+// Right move along the tabs; Tab goes into the page. Enter in a field is OK.
 async function openSettings() {
   const schema = await client.send({ type: "schema" });
   settingsDialog.textContent = "";
@@ -272,12 +309,47 @@ async function openSettings() {
   title.textContent = words.settings_title;
   settingsDialog.setAttribute("aria-label", words.settings_title);
   settingsDialog.appendChild(title);
+  const tablist = document.createElement("div");
+  tablist.setAttribute("role", "tablist");
+  tablist.setAttribute("aria-label", words.settings_title);
+  settingsDialog.appendChild(tablist);
+  const tabs = [], pages = [];
+  const addPage = (id, label) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.id = `settings-tab-${id}`;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", `settings-page-${id}`);
+    tab.textContent = label;
+    const page = document.createElement("div");
+    page.id = `settings-page-${id}`;
+    page.className = "settings-page";
+    page.setAttribute("role", "tabpanel");
+    page.setAttribute("aria-labelledby", tab.id);
+    const i = tabs.length;
+    tab.addEventListener("click", () => choose(i));
+    tab.addEventListener("keydown", (e) => {
+      const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      if (e.key === "Home" || e.key === "End") { e.preventDefault(); choose(e.key === "Home" ? 0 : tabs.length - 1, true); }
+      else if (step) { e.preventDefault(); choose((i + step + tabs.length) % tabs.length, true); }
+    });
+    tablist.appendChild(tab);
+    settingsDialog.appendChild(page);
+    tabs.push(tab);
+    pages.push(page);
+    return page;
+  };
+  const choose = (i, focus) => {
+    tabs.forEach((tab, k) => {
+      tab.setAttribute("aria-selected", String(k === i));
+      tab.tabIndex = k === i ? 0 : -1;
+      pages[k].hidden = k !== i;
+    });
+    if (focus) tabs[i].focus();
+  };
   const controls = {};
   for (const tab of schema.tabs) {
-    const set = document.createElement("fieldset");
-    const legend = document.createElement("legend");
-    legend.textContent = tab.label;
-    set.appendChild(legend);
+    const page = addPage(tab.id, tab.label);
     for (const f of tab.fields) {
       const label = document.createElement("label");
       label.textContent = f.label + " ";
@@ -300,31 +372,44 @@ async function openSettings() {
         control.type = f.kind === "number" ? "number" : "text";
         if (f.kind === "number") { control.min = f.min; control.max = f.max; }
         control.value = schema.values[f.id];
+        // Arriving with Tab chooses the whole value, so typing replaces it (web checklist 8).
+        control.addEventListener("focus", () => control.select());
       }
       control.dataset.field = f.id;
       control.dataset.kind = f.kind;
       controls[f.id] = control;
       label.appendChild(control);
-      set.appendChild(label);
-      set.appendChild(document.createElement("br"));
+      page.appendChild(label);
+      page.appendChild(document.createElement("br"));
     }
-    settingsDialog.appendChild(set);
   }
-  const keys = document.createElement("fieldset");
-  const kl = document.createElement("legend");
-  kl.textContent = words.keys_tab;
-  keys.appendChild(kl);
-  for (const c of schema.keys) {
-    const row = document.createElement("div");
-    const text = document.createElement("span");
-    const show = () => { text.textContent = `${c.label}: ${c.key || words.no_key} `; };
-    show();
-    row.appendChild(text);
-    row.appendChild(button(words.key_change, async () => { const k = await askKey(c); if (k !== null) { c.key = k; show(); } }));
-    row.lastChild.setAttribute("aria-label", `${words.key_change}: ${c.label}`);
-    keys.appendChild(row);
-  }
-  settingsDialog.appendChild(keys);
+  // The keys: one list, a single stop for Tab, and a Change key button, as on the desktop.
+  const keys = addPage("keys", words.keys_tab);
+  const keyList = document.createElement("select");
+  keyList.id = "settings-keys";
+  keyList.size = 10;
+  keyList.setAttribute("aria-label", words.keys_tab);
+  const fillKeys = () => {
+    const keep = Math.max(0, keyList.selectedIndex);
+    keyList.textContent = "";
+    for (const c of schema.keys) {
+      const o = document.createElement("option");
+      o.textContent = `${c.label}: ${c.key_text || words.no_key}`;
+      keyList.appendChild(o);
+    }
+    keyList.selectedIndex = keep;
+  };
+  fillKeys();
+  const changeKey = async () => {
+    const c = schema.keys[keyList.selectedIndex];
+    if (!c) return;
+    const k = await askKey(c);
+    if (k !== null) { c.key = k; c.key_text = await client.send({ type: "key_text", key: k }); fillKeys(); }
+    keyList.focus();
+  };
+  keyList.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); changeKey(); } });
+  keys.append(keyList, document.createElement("br"), button(words.key_change, changeKey, "settings-change-key"));
+  choose(0);
   const bar = document.createElement("div");
   bar.appendChild(button(words.ok, async () => {
     for (const [id, control] of Object.entries(controls)) {
@@ -344,7 +429,7 @@ async function openSettings() {
   bar.appendChild(file);
   settingsDialog.appendChild(bar);
   settingsDialog.showModal();
-  settingsDialog.querySelector("select, input, button").focus();
+  tabs[0].focus();
 }
 
 function exportSettings() {
@@ -373,7 +458,7 @@ function askKey(command) {
     const field = document.createElement("input");
     field.type = "text";
     field.readOnly = true;
-    field.value = command.key;
+    field.value = command.key_text || command.key;
     field.setAttribute("aria-label", words.key_field);
     field.id = "key-field";
     const message = document.createElement("p");
@@ -407,7 +492,12 @@ function captureKey(e) {
   if (e.key === "Tab") return trapKeyTab(e);
   const key = keyName(e);
   e.preventDefault();
-  if (key) { keyDialog.dataset.key = key; field.value = key; $("key-message").textContent = ""; }
+  if (key) {
+    keyDialog.dataset.key = key;
+    field.value = key;
+    $("key-message").textContent = "";
+    client.send({ type: "key_text", key }).then((text) => { if (keyDialog.dataset.key === key) field.value = text; }).catch(() => {});
+  }
 }
 
 function trapKeyTab(e) {
@@ -432,13 +522,16 @@ async function boot() {
   const { width, height } = mapSize();
   let saved = "";
   try { saved = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) { saved = ""; }
-  const result = await client.send({ type: "start", width, height, saved });
+  // ?at=43.08,-79.08 in the address starts there instead of the last place (for testing).
+  const at = new URLSearchParams(location.search).get("at") || "";
+  const result = await client.send({ type: "start", width, height, saved, at });
   registry = result.registry;
   words = result.words;
   client.latestOnly = new Set(registry.latest_only);
   applyWords();
   tree = new Tree(treeEl, (id) => run("panel.select", { item: id }));
-  menubar = new MenuBar($("menubar"), registry.menus, (name) => { mapEl.focus(); run(name, name === "help.keys" ? { region: "map" } : {}); }, moveRegion);
+  menubar = new MenuBar($("menubar"), registry.menus, (name) => { mapEl.focus(); run(name, name === "help.keys" ? { region: "map" } : {}); },
+    moveRegion, () => mapEl.focus());
   $("loading").remove();
   $("app").removeAttribute("aria-busy");
   handle(result);

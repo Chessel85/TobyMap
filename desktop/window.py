@@ -20,15 +20,16 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QObject, Qt
-from PySide6.QtGui import QAccessible, QAccessibleTableModelChangeEvent, QAction, QGuiApplication
+from PySide6.QtGui import QAction, QGuiApplication
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, QMenu, QPlainTextEdit, QSplitter,
-                               QTreeWidget, QTreeWidgetItem)
+                               QTreeWidgetItem)
 
 from desktop import storage
 from desktop.announcer import Announcer
 from desktop.dialogs import ListDialog, SettingsDialog, SoundsDialog, TextDialog
 from desktop.keys import key_name
 from desktop.map_widget import MapWidget
+from desktop.panel_tree import PanelTree
 from desktop.sounds import SoundPlayer
 from mapcore.commands import registry
 from mapcore.session import MapSession, Response
@@ -79,10 +80,10 @@ class MainWindow(QMainWindow):
     REGIONS = ("map", "panel", "details")  # Tab never goes to the menu bar (DP93)
 
     def __init__(self, session: MapSession | None = None, announcer=None, sounds=None, data_folder=None,
-                 install_filter: bool = True):
+                 install_filter: bool = True, start_at: str | None = None):
         super().__init__()
         self.data_folder = data_folder
-        self.session = session or self._new_session()
+        self.session = session or self._new_session(start_at)
         self.words = self.session.words()
         self.setWindowTitle(self.words["window_title"])
         self.announcer = announcer or Announcer(self)
@@ -93,16 +94,13 @@ class MainWindow(QMainWindow):
         self.spoken_times: list[float] = []
 
         self.map = MapWidget(self, self.session)
-        self.tree = QTreeWidget()
+        # Our own tree accessibility, so NVDA says level 1 for a group and level 2
+        # for an item in it (DP135, INF-10). See desktop/panel_tree.py.
+        self.tree = PanelTree()
         self.tree.setObjectName("panel")
         self.tree.setHeaderHidden(True)
         self.tree.setAccessibleName(self.words["panel"])
         self.tree.currentItemChanged.connect(self._tree_item_changed)
-        # Qt 6.12 does not refresh a tree's accessible items when a group is
-        # closed, so NVDA was told focus was on a hidden item and stayed silent
-        # (PO feedback on spike S5). Tell Qt to rebuild them on open and close.
-        self.tree.expanded.connect(self._tree_layout_changed)
-        self.tree.collapsed.connect(self._tree_layout_changed)
         self.details = QPlainTextEdit()
         self.details.setObjectName("details")
         self.details.setReadOnly(True)
@@ -135,13 +133,22 @@ class MainWindow(QMainWindow):
         if install_filter:
             QApplication.instance().installEventFilter(self._key_filter)
 
+        self.preload_sounds()
         self.handle(self.session.start())
         self.map.setFocus()
 
-    def _new_session(self) -> MapSession:
+    def preload_sounds(self) -> None:
+        """Every earcon loaded and the sound device opened before the first step."""
+        from mapcore.describe import earcon_list
+
+        preload = getattr(self.sounds, "preload", None)
+        if preload is not None:
+            preload([self.session.earcon_file(e["event"]) for e in earcon_list()])
+
+    def _new_session(self, start_at: str | None = None) -> MapSession:
         saved = storage.load(self.data_folder)
         return MapSession(platform="desktop", packs=storage.find_packs(self.data_folder),
-                          settings=saved.get("settings"), saved_state=saved.get("state"))
+                          settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at)
 
     def closeEvent(self, event):
         self.save()
@@ -163,7 +170,7 @@ class MainWindow(QMainWindow):
             qmenu.installEventFilter(self._menu_filter)
             for item in menu["items"]:
                 name = item["name"]
-                text = f"{item['label']}\t{item['key']}" if item["key"] else item["label"]
+                text = f"{item['label']}\t{item['key_text']}" if item["key"] else item["label"]
                 action = QAction(text, self)
                 if item["toggle"]:
                     action.setCheckable(True)
@@ -433,10 +440,6 @@ class MainWindow(QMainWindow):
                     child.setData(0, ITEM_ID, item["id"])
         finally:
             self.tree.blockSignals(False)
-
-    def _tree_layout_changed(self, *_args):
-        QAccessible.updateAccessibility(QAccessibleTableModelChangeEvent(
-            self.tree, QAccessibleTableModelChangeEvent.ModelChangeType.ModelReset))
 
     def _tree_item_changed(self, current, _previous):
         item_id = current.data(0, ITEM_ID) if current is not None else None

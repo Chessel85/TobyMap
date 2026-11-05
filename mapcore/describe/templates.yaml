@@ -77,6 +77,30 @@ keys:
   changed: "{label} is now {key}."
   cleared: "{label} has no key now."
 
+# Keys that are a symbol are said as a word, because a screen reader may not
+# say punctuation (PO feedback on checklist 2, second pass): "Ctrl+Comma". A
+# symbol not listed here is named from its Unicode name.
+key_names:
+  ",": Comma
+  ".": Full stop
+  "/": Slash
+  "\\": Backslash
+  ";": Semicolon
+  "'": Apostrophe
+  "#": Hash
+  "[": Left bracket
+  "]": Right bracket
+  "-": Minus
+  "=": Equals
+  "+": Plus
+  "`": Grave accent
+  "<": Less than
+  ">": Greater than
+  "?": Question mark
+  "!": Exclamation mark
+  "*": Star
+  "&": Ampersand
+
 describer:
   started: "Key describer on. Press a key to hear what it does. Nothing is carried out. Press Shift+F1 again to leave."
   stopped: "Key describer off."
@@ -96,7 +120,12 @@ diagnostics:
 
 dialogs:
   keys_title: Keys
-  keys_intro_region: "These are the commands that work when the {region} has focus. Tab and Shift+Tab move between the map, the Information panel, Details and the menu bar. F2, F3 and F4 go to the map, the Information panel and Details."
+  # One short sentence a line, so a screen reader moves through it a line at a
+  # time (PO feedback on checklist 2, second pass).
+  keys_intro_region:
+    - "These are the commands that work when the {region} has focus."
+    - "Tab and Shift+Tab move between the regions."
+    - "F2 goes to the map, F3 to the Information panel and F4 to Details."
   keys_line: "{label}: {key}"
   keys_menu_only: "{label}: in the {menu} menu"
   about_title: About TobyMap
@@ -187,6 +216,10 @@ place:
 
 movement:
   zoom_step: "Zoom {zoom}, step {step}."
+  # Only what changed is said (PO feedback on checklist 7, second pass). When
+  # the step is linked to the zoom, both change, so both are said.
+  zoom_only: "Zoom {zoom}."
+  step_only: "Step {step}."
   zoom_end_out: "Widest zoom. {zoom_step}"
   zoom_end_in: "Closest zoom. {zoom_step}"
   step_end_larger: "Largest step. {zoom_step}"

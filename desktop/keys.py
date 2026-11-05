@@ -10,7 +10,6 @@ _NAMED = {
     Qt.Key.Key_End: "End", Qt.Key.Key_Space: "Space", Qt.Key.Key_Return: "Enter", Qt.Key.Key_Enter: "Enter",
     Qt.Key.Key_Backspace: "Backspace", Qt.Key.Key_Delete: "Delete", Qt.Key.Key_Escape: "Escape",
     Qt.Key.Key_Tab: "Tab", Qt.Key.Key_Backtab: "Tab", Qt.Key.Key_Insert: "Insert",
-    Qt.Key.Key_Comma: ",",
     **{getattr(Qt.Key, f"Key_F{i}"): f"F{i}" for i in range(1, 13)},
 }
 _MODIFIER_KEYS = {Qt.Key.Key_Control, Qt.Key.Key_Shift, Qt.Key.Key_Alt, Qt.Key.Key_Meta, Qt.Key.Key_AltGr}
@@ -24,6 +23,10 @@ def key_name(event: QKeyEvent) -> str | None:
         base = _NAMED[key]
     elif Qt.Key.Key_A <= key <= Qt.Key.Key_Z or Qt.Key.Key_0 <= key <= Qt.Key.Key_9:
         base = chr(int(key.value))
+    elif 0x21 <= int(key.value) <= 0x7E or 0xA1 <= int(key.value) <= 0xFF:
+        # A symbol, such as "," or "/": Qt's key code is the character. Shift is
+        # part of the symbol it makes, as in the web version, so it is not added.
+        base = chr(int(key.value))
     else:
         return None
     mods = event.modifiers()
@@ -32,6 +35,7 @@ def key_name(event: QKeyEvent) -> str | None:
         parts.append("Ctrl")
     if mods & Qt.KeyboardModifier.AltModifier:
         parts.append("Alt")
-    if mods & Qt.KeyboardModifier.ShiftModifier or key == Qt.Key.Key_Backtab:
+    if (mods & Qt.KeyboardModifier.ShiftModifier and (len(base) > 1 or base.isalnum())) \
+            or key == Qt.Key.Key_Backtab:
         parts.append("Shift")
     return "+".join(parts + [base])

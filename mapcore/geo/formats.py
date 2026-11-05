@@ -153,21 +153,44 @@ def _hemisphere(value: float, positive: str, negative: str, is_lon: bool) -> str
     return positive if value > 0 else negative
 
 
-def _angle(value: float, style: str, positive: str, negative: str, is_lon: bool) -> Angle:
+METRES_PER_DEGREE = 111_320.0   # along a meridian, near enough for choosing decimal places
+DECIMAL_PLACES = 5               # about 1 metre
+SECOND_METRES = METRES_PER_DEGREE / 3600
+
+
+def decimal_places(step_m: float | None) -> int:
+    """How many decimal places of a degree show a step of this size: enough that
+    one step changes the last place, and no more (PO feedback on checklist 4,
+    second pass). A step of 100 kilometres, just under a degree, gives 1 place;
+    1 kilometre gives 3; 1 metre or less, 5. None gives 5."""
+    if not step_m or step_m <= 0:
+        return DECIMAL_PLACES
+    return max(1, min(DECIMAL_PLACES, math.ceil(math.log10(METRES_PER_DEGREE / step_m))))
+
+
+def _angle(value: float, style: str, positive: str, negative: str, is_lon: bool,
+           places: int = DECIMAL_PLACES, second_places: int = 1) -> Angle:
     if style == "decimal":
-        rounded = round(value, 5)
-        return Angle(f"{abs(rounded):.5f}", "", "", _hemisphere(rounded, positive, negative, is_lon))
+        rounded = round(value, places)
+        return Angle(f"{abs(rounded):.{places}f}", "", "", _hemisphere(rounded, positive, negative, is_lon))
     if style == "dms":
-        tenths = _half_up(abs(value) * 36000)  # tenths of a second
-        deg, rest = divmod(tenths, 36000)
-        minutes, sec_tenths = divmod(rest, 600)
-        signed = math.copysign(tenths, value) if tenths else 0
-        return Angle(str(deg), str(minutes), f"{sec_tenths / 10:.1f}",
-                     _hemisphere(signed / 36000, positive, negative, is_lon))
+        scale = 10 ** second_places
+        parts = _half_up(abs(value) * 3600 * scale)  # tenths of a second, or whole seconds
+        deg, rest = divmod(parts, 3600 * scale)
+        minutes, sec_parts = divmod(rest, 60 * scale)
+        signed = math.copysign(parts, value) if parts else 0
+        return Angle(str(deg), str(minutes), f"{sec_parts / scale:.{second_places}f}",
+                     _hemisphere(signed / (3600 * scale), positive, negative, is_lon))
     raise ValueError(f"unknown coordinate style {style!r}")
 
 
-def coordinate_parts(lat: float, lon: float, style: str = "decimal") -> Coordinates:
+def coordinate_parts(lat: float, lon: float, style: str = "decimal", step_m: float | None = None) -> Coordinates:
     """Latitude and longitude in decimal degrees to 5 places (about 1 metre),
-    or in degrees, minutes and seconds to a tenth of a second (LOC-1)."""
-    return Coordinates(_angle(lat, style, "N", "S", False), _angle(wrap_lon(lon), style, "E", "W", True))
+    or in degrees, minutes and seconds to a tenth of a second (LOC-1). Given a
+    step size, only as many places as that step needs: a 100 kilometre step
+    gives "51.2 degrees north", and seconds are whole unless the step is
+    smaller than a second, about 31 metres."""
+    places = decimal_places(step_m)
+    second_places = 1 if step_m is None or step_m < SECOND_METRES else 0
+    return Coordinates(_angle(lat, style, "N", "S", False, places, second_places),
+                       _angle(wrap_lon(lon), style, "E", "W", True, places, second_places))

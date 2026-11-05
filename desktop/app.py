@@ -11,6 +11,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="desktop")
     parser.add_argument("--pack", help="a pack file, or a folder of packs, to use instead of your packs folder")
     parser.add_argument("--out", help="with --self-test, write the result to this file (the program has no console)")
+    parser.add_argument("--at", metavar="LAT,LON",
+                        help="start at this place, such as 43.08,-79.08, instead of the last place (for testing)")
     parser.add_argument("--self-test", action="store_true",
                         help="open the packs, announce where you are, print it and exit (the installer's check)")
     args, rest = parser.parse_known_args(argv if argv is not None else sys.argv[1:])
@@ -28,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
         os.environ[storage.PACK_ENV] = args.pack
     if args.self_test:
         return self_test(args.out)
-    window = MainWindow()
+    window = MainWindow(start_at=args.at)
     window.session.startup_took((time.perf_counter() - started) * 1000)
     window.show()
     return app.exec()

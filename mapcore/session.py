@@ -58,7 +58,7 @@ class Response:
 
 class MapSession:
     def __init__(self, platform: str = "desktop", packs=None, store=None, settings: dict | None = None,
-                 saved_state: dict | None = None, clock=time.perf_counter):
+                 saved_state: dict | None = None, clock=time.perf_counter, start_at: str | None = None):
         from mapcore.store import Store
 
         self.platform = platform
@@ -73,6 +73,13 @@ class MapSession:
             self.world.set_link(True)
         self.world.link = bool(self.settings["link"]) if not saved_state else self.world.link
         self.settings.set("link", self.world.link)
+        if start_at:   # "lat,lon" from the shell's start option; a bad one is ignored
+            from mapcore.world.state import parse_lat_lon
+
+            try:
+                self.world.lat, self.world.lon = parse_lat_lon(start_at)
+            except ValueError:
+                pass
         self.clock = clock
         self.areas: list = []          # the areas at the last described place, smallest first
         self.last_spoken: str | None = None
@@ -193,6 +200,7 @@ class MapSession:
         with only their standard job in a list or text, such as Tab or Down in the
         Information panel, are not described."""
         commands = registry.commands_for_key(self.platform, key, self.settings.keys)
+        key = registry.key_text(key)
         if not commands:
             return say("describer.unassigned", key=key)
         if len(commands) == 1:
@@ -258,7 +266,8 @@ class MapSession:
         lines.append(say("details.area", value=words.area_text(area.area_km2, self.settings["units"])))
         s = self.world
         if self.selected and (not self.areas or self.areas[0].id != self.selected):
-            lines.append(say("details.centre", value=words.coordinates_text(s.lat, s.lon, self.settings["coordinates"])))
+            lines.append(say("details.centre", value=words.coordinates_text(s.lat, s.lon, self.settings["coordinates"],
+                                                                          self._coordinate_step())))
         lines.append(say("details.source", value=self._source_text(area)))
         return "\n".join(lines)
 
@@ -272,7 +281,8 @@ class MapSession:
 
     def key_table(self) -> list[dict]:
         """Every command with its key now and its default, for the Keys tab (ACC-3)."""
-        return [{"name": c.name, "label": c.label, "key": registry.key_of(c, self.settings.keys), "default": c.key}
+        return [{"name": c.name, "label": c.label, "key": registry.key_of(c, self.settings.keys),
+                 "key_text": registry.key_text(registry.key_of(c, self.settings.keys)), "default": c.key}
                 for c in registry.for_platform(self.platform) if not c.pointer]
 
     def earcon_file(self, event: str) -> dict:
@@ -371,18 +381,33 @@ class MapSession:
         self.held_moves = 0
         return self._arrived(r)
 
+    def _changed_sizes(self, zoom_before: float, step_before: float) -> str:
+        """Only what changed: the zoom, the step, or both when they are linked
+        (PO feedback on checklist 7, second pass)."""
+        units = self._units()
+        zoom_changed, step_changed = self.world.zoom_m != zoom_before, self.world.step_m != step_before
+        if zoom_changed and not step_changed:
+            return say("movement.zoom_only", zoom=words.distance_text(self.world.zoom_m, units))
+        if step_changed and not zoom_changed:
+            return say("movement.step_only", step=words.distance_text(self.world.step_m, units))
+        return self._zoom_step()
+
     def _zoom(self, direction: int) -> Response:
+        before = (self.world.zoom_m, self.world.step_m)
         if not self.world.change_zoom(direction):
             key = "movement.zoom_end_out" if direction > 0 else "movement.zoom_end_in"
-            return Response().speak(say(key, zoom_step=self._zoom_step()), ASSERTIVE)
+            return Response().speak(say(key, zoom_step=say(
+                "movement.zoom_only", zoom=words.distance_text(self.world.zoom_m, self._units()))), ASSERTIVE)
         self._settings_link_sync()
-        return Response(redraw=True, panel_stale=True).speak(self._zoom_step(), ASSERTIVE)
+        return Response(redraw=True, panel_stale=True).speak(self._changed_sizes(*before), ASSERTIVE)
 
     def _step_size(self, direction: int) -> Response:
+        before = (self.world.zoom_m, self.world.step_m)
         if not self.world.change_step(direction):
             key = "movement.step_end_larger" if direction > 0 else "movement.step_end_smaller"
-            return Response().speak(say(key, zoom_step=self._zoom_step()), ASSERTIVE)
-        return Response(redraw=True, panel_stale=True).speak(self._zoom_step(), ASSERTIVE)
+            return Response().speak(say(key, zoom_step=say(
+                "movement.step_only", step=words.distance_text(self.world.step_m, self._units()))), ASSERTIVE)
+        return Response(redraw=True, panel_stale=True).speak(self._changed_sizes(*before), ASSERTIVE)
 
     def _settings_link_sync(self) -> None:
         self.settings.set("link", self.world.link, quiet=True)
@@ -398,8 +423,12 @@ class MapSession:
         return Response(panel_stale=True).speak(describer.place_text(self.areas), ASSERTIVE)
 
     def _coordinates(self, **_a) -> Response:
-        return Response().speak(words.coordinates_text(self.world.lat, self.world.lon,
-                                                       self.settings["coordinates"]), ASSERTIVE)
+        return Response().speak(words.coordinates_text(self.world.lat, self.world.lon, self.settings["coordinates"],
+                                                       self._coordinate_step()), ASSERTIVE)
+
+    def _coordinate_step(self) -> float | None:
+        """The step the coordinates are rounded to, or None for every place (the setting)."""
+        return self.world.step_m if self.settings["coordinate_places"] == "step" else None
 
     def _heading(self, **_a) -> Response:
         return Response().speak(describer.heading_report(self.world, self._units()), ASSERTIVE)
@@ -473,10 +502,10 @@ class MapSession:
         """Give a command a different key (ACC-3). A key that is in use is refused,
         and the command that has it is named."""
         if key and not registry.valid_key(key):
-            return Response().speak(say("keys.invalid", key=key), ASSERTIVE)
+            return Response().speak(say("keys.invalid", key=registry.key_text(key)), ASSERTIVE)
         other = registry.clash(self.platform, command, key, self.settings.keys) if key else None
         if other is not None:
-            return Response().speak(say("keys.taken", key=key, other=other.label), ASSERTIVE)
+            return Response().speak(say("keys.taken", key=registry.key_text(key), other=other.label), ASSERTIVE)
         default = registry.by_name(command).key
         if key == default:
             self.settings.keys.pop(command, None)
@@ -484,17 +513,18 @@ class MapSession:
             self.settings.keys[command] = key
         label = registry.by_name(command).label
         return Response(settings_changed=True).speak(
-            say("keys.changed", label=label, key=key) if key else say("keys.cleared", label=label), ASSERTIVE)
+            say("keys.changed", label=label, key=registry.key_text(key)) if key else say("keys.cleared", label=label), ASSERTIVE)
 
     def _help_keys(self, region: str = "map", **_a) -> Response:
         """F1: the commands for the focused region, each with its key (ACC-3)."""
         region = region if region in REGIONS else "map"
-        lines = [say("dialogs.keys_intro_region", region=say(f"ui.{'menu_bar' if region == 'menu' else region}"))]
+        region_name = say(f"ui.{'menu_bar' if region == 'menu' else region}")
+        lines = [line.format(region=region_name) for line in templates()["dialogs"]["keys_intro_region"]]
         for c in registry.for_platform(self.platform):
             if c.pointer or (c.region == "map" and region != "map"):
                 continue
             key = registry.key_of(c, self.settings.keys)
-            lines.append(say("dialogs.keys_line", label=c.label, key=key) if key
+            lines.append(say("dialogs.keys_line", label=c.label, key=registry.key_text(key)) if key
                          else say("dialogs.keys_menu_only", label=c.label, menu=c.menu))
         return Response(dialog={"kind": "text", "title": say("dialogs.keys_title"), "text": "\n".join(lines)})
 

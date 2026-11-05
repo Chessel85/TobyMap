@@ -158,7 +158,7 @@ def test_menus_come_from_the_registry(window):
 
 def test_menu_command_runs_through_the_core(window):
     window.actions_by_name["where.coordinates"].trigger()
-    assert window.announcer.texts[-1] == "51.20000 degrees north, 1.20000 degrees east"
+    assert window.announcer.texts[-1] == "51.2 degrees north, 1.2 degrees east"   # step 25 km
 
 
 def test_the_link_menu_item_shows_its_state(window):
@@ -336,7 +336,41 @@ def test_the_sounds_dialog_plays_the_chosen_sound(window, qtbot):
     qtbot.keyClick(dialog.list, Qt.Key.Key_Return)
     assert window.sounds.played[-1] == "tick"
     assert dialog.isVisible()                     # Enter plays; it does not close the dialog
+    dialog.list.setCurrentRow(1)
+    qtbot.keyClick(dialog.list, Qt.Key.Key_Space)  # so does Space (checklist 12, second pass)
+    assert window.sounds.played[-1] == "blocked"
+    assert dialog.isVisible()
     dialog.close_button.click()
+
+
+def test_settings_buttons_tab_in_the_order_they_are_shown(window):
+    """Checklist 11, second pass: OK came after Cancel in the Tab order."""
+    window.dispatch("settings.open")
+    dialog = click_dialog(window, SettingsDialog)
+    order = [dialog.ok_button]
+    while len(order) < 4:
+        order.append(order[-1].nextInFocusChain())
+    assert order == [dialog.ok_button, dialog.cancel_button, dialog.export_button, dialog.import_button]
+    xs = [b.geometry().x() for b in order]
+    assert xs == sorted(xs)                       # left to right as well
+    assert dialog.ok_button.isDefault()           # Enter is OK
+    dialog.cancel_button.click()
+
+
+def test_keys_dialog_lines_are_not_wrapped_and_symbols_are_words(window, qtbot):
+    """Checklist 2, second pass: one line, one Down arrow; "Ctrl+Comma", not "Ctrl+,"."""
+    qtbot.keyClick(window.map, Qt.Key.Key_F1)
+    dialog = click_dialog(window, TextDialog)
+    assert dialog.text.lineWrapMode() == dialog.text.LineWrapMode.NoWrap
+    assert "Settings: Ctrl+Comma" in dialog.text.toPlainText()
+    dialog.close_button.click()
+    settings_action = window.actions_by_name["settings.open"]
+    assert settings_action.text().endswith("\tCtrl+Comma")
+
+
+def test_the_earcons_are_loaded_at_start(window):
+    """Checklist 5, second pass: the first tick was quiet, so every earcon is loaded at start."""
+    assert {"tick", "blocked"} <= set(window.sounds.preloaded)
 
 
 def test_settings_and_place_come_back_after_closing_and_opening(qtbot, test_pack, tmp_path):

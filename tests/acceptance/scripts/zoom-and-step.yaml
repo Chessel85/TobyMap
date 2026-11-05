@@ -3,12 +3,12 @@ requirements: [NAV-2, NAV-13, LOC-7]
 pack: test
 start: {lat: 51.2, lon: 1.2, zoom_m: 5000, step_m: 100}
 steps:
-  - {press: Page Down, say: ["Zoom 2.5 kilometres, step 100 metres."]}
-  - {press: Page Up, say: ["Zoom 5 kilometres, step 100 metres."]}
-  - {press: Shift+Page Up, say: ["Zoom 5 kilometres, step 250 metres."]}
-  - {press: Shift+Page Down, say: ["Zoom 5 kilometres, step 100 metres."]}
+  - {press: Page Down, say: ["Zoom 2.5 kilometres."]}
+  - {press: Page Up, say: ["Zoom 5 kilometres."]}
+  - {press: Shift+Page Up, say: ["Step 250 metres."]}
+  - {press: Shift+Page Down, say: ["Step 100 metres."]}
   - {run: step.link, say: ["Step linked to zoom. Zoom 5 kilometres, step 1 kilometre."]}
   - {press: Page Down, say: ["Zoom 2.5 kilometres, step 500 metres."]}
   - {press: Shift+Page Up, say: ["Zoom 5 kilometres, step 1 kilometre."]}
   - {run: step.link, say: ["Step no longer linked to zoom. Zoom 5 kilometres, step 1 kilometre."]}
-  - {press: Page Down, say: ["Zoom 2.5 kilometres, step 1 kilometre."]}
+  - {press: Page Down, say: ["Zoom 2.5 kilometres."]}

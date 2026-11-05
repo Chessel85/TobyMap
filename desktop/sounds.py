@@ -30,6 +30,34 @@ class SoundPlayer:
             self._effects[key] = effect
         return self._effects[key]
 
+    def preload(self, infos: list[dict]) -> None:
+        """Load every earcon at start, and play each once silently, so the sound
+        device is open before the first real one. Without this, the first tick
+        after start was very quiet or cut short (PO feedback on checklist 5,
+        second pass)."""
+        for info in infos:
+            for name in (info.get("custom"), info.get("default")):
+                if not name:
+                    continue
+                path = Path(name) if Path(name).is_absolute() else self.folder / name
+                if path.is_file():
+                    self._warm_up(self._effect(path))
+                    break
+
+    def _warm_up(self, effect) -> None:
+        state = {"done": False}
+
+        def go():
+            if state["done"] or effect.status() != self._Effect.Status.Ready:
+                return
+            state["done"] = True
+            effect.setVolume(0.0)
+            effect.playingChanged.connect(lambda: effect.isPlaying() or effect.setVolume(1.0))
+            effect.play()
+
+        effect.statusChanged.connect(go)
+        go()
+
     def play(self, info: dict) -> tuple[bool, bool]:
         """info is the core's earcon_file(): the user's own file, else the default.
         Returns (played, own file failed): if the user's own file cannot be
@@ -40,7 +68,9 @@ class SoundPlayer:
                 continue
             path = Path(name) if Path(name).is_absolute() else self.folder / name
             if path.is_file():
-                self._effect(path).play()
+                effect = self._effect(path)
+                effect.setVolume(1.0)   # in case the silent warm-up is still playing
+                effect.play()
                 return True, custom_failed
             custom_failed = custom_failed or name == info.get("custom")
         return False, custom_failed
@@ -52,6 +82,10 @@ class RecordingSounds:
     def __init__(self):
         self.played: list[str] = []
         self.failed: list[str] = []
+        self.preloaded: list[str] = []
+
+    def preload(self, infos: list[dict]) -> None:
+        self.preloaded = [i["event"] for i in infos]
 
     def play(self, info: dict) -> tuple[bool, bool]:
         self.played.append(info["event"])

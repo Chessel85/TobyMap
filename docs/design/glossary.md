@@ -121,4 +121,14 @@ Older documents written before this glossary, such as architecture section 6 and
 * Announcement history: the list of what the application has said, newest first, kept to at least 50 entries (ANN-4).
 * Hearing range: the distance at which a sound reaches the edge of the view. It is the zoom distance, and the distance curve is measured against it (SON-9).
 * Distance curve: how loud and how muffled a sound is for its distance within the hearing range.
+* Orientation: which way you face, and so what "ahead" means for directions and sound. There are three: north-fixed, cardinal facing and free facing (NAV-12). F cycles them.
+* Facing orientations: cardinal facing and free facing together, the two in which you can turn.
+* Jump: going straight to a place without stepping, such as to typed coordinates, a click on the map, or an announcement history entry (NAV-8).
+* Position history: the places you were at before each jump, which Backspace and Shift+Backspace go back and forward through (NAV-10).
+* Sound scene: the core's list of the sounds to play, each with its direction relative to ahead, its loudness and its pitch. The desktop and the web version each play it with their own sound player (AD-10).
+* Beacon: a soft repeating sound from the direction of the North Pole, or later a pin, so you can feel which way you face (SON-10).
+
+## Planning
+
+* Work item: one part of a task in a phase plan, such as P2-T1a, small enough to be done in one session, and labelled with the model that should do it, Opus or Sonnet.
 * Test trace: the core's record of every command, announcement and earcon with the time each took. "Copy diagnostics" puts the last five minutes of it on the clipboard.

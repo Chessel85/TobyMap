@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import ListDialog, SettingsDialog, TextDialog
+from desktop.dialogs import ListDialog, SettingsDialog, SoundsDialog, TextDialog
 from desktop.keys import key_name
 from desktop.map_widget import MapWidget
 from desktop.sounds import SoundPlayer
@@ -233,7 +233,7 @@ class MainWindow(QMainWindow):
     def key_pressed(self, event) -> bool:
         """Returns True when the key was ours. Keys in dialogs and other windows are never touched."""
         name = key_name(event)
-        if name is None or name in ("Tab", "Shift+Tab"):
+        if name is None or name in ("Tab", "Shift+Tab") and not self.session.describing:
             return False
         region = self.region_of(QApplication.focusWidget()) or "map"
         started = time.time()
@@ -243,7 +243,7 @@ class MainWindow(QMainWindow):
         if command is not None and not self.session.describing and command.held:
             if event.isAutoRepeat():
                 if self._held_key == command.name:
-                    self.handle(self.session.run(command.name, held=True))
+                    self.handle(self.session.run(command.name, held=True, repeat=True))
                 return True
             self._held_key = command.name
         response = self.session.press(name, region)
@@ -348,6 +348,9 @@ class MainWindow(QMainWindow):
             box = SettingsDialog(self, self.session, self.words, export_cb=self._export_settings,
                                  import_cb=self._import_settings)
             box.finished.connect(lambda _r, b=box: [self.handle(r) for r in b.responses])
+        elif kind == "sounds":
+            box = SoundsDialog(self, dialog["title"], dialog["items"], dialog["play"], self.words["close"],
+                               play=lambda event: self.dispatch("sound.preview", event=event))
         elif kind == "history":
             box = ListDialog(self, dialog["title"], dialog["lines"], self.words["close"])
         else:
@@ -377,6 +380,7 @@ class MainWindow(QMainWindow):
         storage.save(data, self.data_folder)
         saved = storage.load(self.data_folder)
         self.session.settings = type(self.session.settings).from_dict(saved.get("settings"))
+        self.session.world.use_units(self.session.settings["units"])
         self.session.world.restore(saved.get("state", self.session.world.to_dict()))
         self.session.areas = self.session._here()
         self.handle(self.session.run("where.am_i"))

@@ -19,6 +19,13 @@ nearby_count: 8
 # Phase 1 world model (NAV-2, NAV-13). Metres. Settings can replace both lists.
 zoom_list_m: [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000, 10000000]
 step_list_m: [10, 25, 50, 100, 250, 500, 1000, 5000, 25000, 100000, 250000, 1000000]
+# Imperial has its own round sizes (DP130, DP136), as [number, yd or mi]. Below a
+# quarter of a mile distances are spoken in yards, so the short sizes are in yards.
+# Nautical miles use the metric lists.
+zoom_list_imperial: [[100, yd], [250, yd], [0.5, mi], [1, mi], [2.5, mi], [5, mi], [10, mi], [25, mi], [50, mi],
+                     [100, mi], [250, mi], [500, mi], [1000, mi], [2500, mi], [6000, mi]]
+step_list_imperial: [[10, yd], [25, yd], [50, yd], [100, yd], [250, yd], [0.5, mi], [1, mi], [5, mi], [25, mi],
+                     [100, mi], [250, mi], [600, mi]]
 world:
   zoom_m: 5000
   step_m: 100
@@ -26,10 +33,12 @@ world:
 
 # Sound placement (SON-9, P1-T13): the distance curve. Distances are a fraction of the hearing range.
 sound:
+  # linear (the PO's choice, DP137) or log. min_gain is the minimum volume: no sound is quieter.
   curve:
+    model: linear
     near: 0.05
+    min_gain: 0.2
     edge_db: -30
-    beyond_db: -36
     bright_hz: 16000
     dull_hz: 1500
     beyond_hz: 900

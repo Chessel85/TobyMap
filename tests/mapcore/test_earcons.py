@@ -28,7 +28,7 @@ def test_phase_1_uses_the_tick_and_blocked_sounds():
 
 def test_an_own_sound_file_is_offered_and_a_failure_is_spoken(test_pack):
     s = MapSession(packs=[test_pack])
-    assert s.earcon_file("tick") == {"event": "tick", "custom": None, "default": "tick.wav"}
+    assert s.earcon_file("tick") == {"event": "tick", "custom": None, "default": "click.wav"}
     s.run("settings.set", field="earcon_tick", value="C:/mine/tick.wav")
     assert s.earcon_file("tick")["custom"] == "C:/mine/tick.wav"
     r = s.earcon_failed("tick")

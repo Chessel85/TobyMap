@@ -34,17 +34,17 @@ def test_the_scene_is_plain_arrays_and_lists(test_pack):
     assert f["cross"] and f["heading"]["degrees"] == 0
 
 
-def test_the_zoom_is_a_distance_so_a_smaller_window_shows_the_same_area(test_pack):
-    s = make(test_pack, lat=51.2, lon=1.2, zoom_m=250_000, step_m=25_000)
-    for size in ((800, 800), (400, 400), (900, 400)):
-        view = scene_mod.view_for(s.world, *size)
-        side = min(size)
-        left = globe.from_screen(view, *size, size[0] / 2 - side / 2, size[1] / 2)
-        right = globe.from_screen(view, *size, size[0] / 2 + side / 2, size[1] / 2)
-        from mapcore.geo import geodesy
+def test_the_zoom_is_drawn_at_a_fixed_scale_so_a_bigger_window_shows_more(test_pack):
+    """DP138: the zoom distance is always drawn ZOOM_RADIUS_PX from the centre, whatever the
+    window size, like a paper map's scale. A bigger window shows more map round the edges."""
+    from mapcore.geo import geodesy
 
-        across = geodesy.distance_m(left[0], left[1], right[0], right[1])
-        assert across == pytest.approx(250_000, rel=0.02)
+    s = make(test_pack, lat=51.2, lon=1.2, zoom_m=250_000, step_m=25_000)
+    r = scene_mod.ZOOM_RADIUS_PX
+    for size in ((800, 800), (400, 400), (1600, 900)):
+        view = scene_mod.view_for(s.world, *size)
+        east = globe.from_screen(view, *size, size[0] / 2 + r, size[1] / 2)
+        assert geodesy.distance_m(51.2, 1.2, east[0], east[1]) == pytest.approx(250_000, rel=0.02)
 
 
 @pytest.mark.parametrize("zoom", [100, 5000, 25_000, 100_000, 500_000, 2_500_000, 10_000_000])
@@ -88,7 +88,7 @@ def test_fiji_draws_whole_across_the_180_degree_line_with_no_outline_along_it(te
     xy = np.asarray(f["coords"]).reshape(-1, 2)
     seam = np.asarray(f["seam"], bool)
     # Points on the vertical line down the middle (the 180 degree line) are joined by seams only.
-    on_line = np.abs(xy[:, 0] - 400) < 0.6
+    on_line = np.abs(xy[:, 0] - 400) < 0.01   # exactly on the line: coast edges leaving it are less than a pixel away
     assert on_line.any()
     for i in range(len(f["rings"]) - 1):
         a, b = f["rings"][i], f["rings"][i + 1]

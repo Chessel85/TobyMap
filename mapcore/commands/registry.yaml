@@ -72,4 +72,5 @@ commands:
   - {name: map.hover, label: Describe the point under the mouse, key: "", region: map, menu: "", pointer: true}
   - {name: panel.select, label: Select an item in the Information panel, key: "", region: global, menu: "", pointer: true}
   - {name: keys.remap, label: Change the key of a command, key: "", region: global, menu: "", pointer: true}
+  - {name: sound.preview, label: Play a sound from the list of sounds, key: "", region: global, menu: "", pointer: true}
   - {name: settings.set, label: Change a setting, key: "", region: global, menu: "", pointer: true}

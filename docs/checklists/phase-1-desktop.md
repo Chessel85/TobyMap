@@ -69,7 +69,7 @@ Start at latitude 51.2, longitude 1.2.
 * [ ] 7.2 Press C. You hear: "51.20000 degrees north, 1.20000 degrees east".
 * [ ] 7.3 Open Settings, change Coordinates to degrees, minutes and seconds, press OK, and press C. You hear: "51 degrees 12 minutes 0.0 seconds north, 1 degrees 12 minutes 0.0 seconds east".
 * [ ] 7.4 Press H. You hear: "Facing north. North-fixed. Stepping. Zoom 5 kilometres, step 250 metres."
-* [ ] 7.5 In Settings, change Units to imperial, press OK, and press H. You hear miles and yards: "Zoom 3.1 miles, step 270 yards."
+* [ ] 7.5 In Settings, change Units to imperial, press OK, and press H. You hear miles and yards: "Zoom 2.5 miles, step 250 yards."
 * [ ] 7.6 Press V. You hear the size of the visible map.
 
 ## 8. Nearby at Niagara Falls (INF-3, INF-7)

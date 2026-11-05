@@ -292,11 +292,10 @@ These are not map data, but they are used to build or play TobyMap, so their lic
   * Semaine is CC-BY-NC-SA, which forbids commercial use, so it is not used. Alan and Jenny have unclear licences, so they are not used either.
 * OpenAL Soft 1.25.2 (spike S1): LGPL-2.1 or later, loaded as a library. Compatible with GPL-3.0.
 * Synthizer 0.12.6 (spike S1): the Unlicense. Its bundled libraries, such as miniaudio, are permissive. Compatible with GPL-3.0. Archived in 2025.
-* Earcons supplied by the PO, in the sounds folder, which is not in git:
+* Earcons supplied by the PO, in the sounds folder:
   * bump.wav: the blocked sound, when the user cannot go that way, such as at a pole or when turning in north-fixed (UX sections 5.2 and 5.3).
   * click.wav: the soft tick, when the user moves but nothing changes, such as crossing the UK in 100 metre steps (UX section 3.1, DP43).
-  * click.wav is the PO's own recording of their voice, so the PO can choose its licence.
-  * bump.wav comes from ZapSplat, under the PO's subscription. ZapSplat's licence allows its sounds in the PO's own projects, but it is not an open licence, so the file cannot be put under GPL-3.0 or shared on its own. It stays out of git, and before a public release, whether the installer and the public web version may include it must be checked against ZapSplat's current terms. An openly licensed or home-made bump would avoid the question.
+  * click.wav is the PO's own recording of their voice. bump.wav was made by the PO in November 2026, replacing a ZapSplat sound that could not be shared (DP127). Both are released under GPL-3.0, like the code, and kept in git (DP111, DP128).
 
 ## Research references
 

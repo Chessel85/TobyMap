@@ -57,12 +57,40 @@ class ListDialog(QDialog):
         self.list.setFocus()
 
 
-class KeyCaptureDialog(QDialog):
-    """Press the key you want. OK applies it; the core says if it is taken (ACC-3)."""
+class SoundsDialog(ListDialog):
+    """Help, The sounds: each sound with its file and meaning. Enter or Play plays
+    the selected one (DP134); Close leaves."""
 
-    def __init__(self, parent, session, command: dict, words: dict):
+    def __init__(self, parent, title: str, items: list[dict], play_label: str, close_label: str, play):
+        super().__init__(parent, title, [i["label"] for i in items], close_label)
+        self._events = [i["event"] for i in items]
+        self._play = play
+        self.play_button = QPushButton(play_label)
+        self.play_button.setAutoDefault(False)
+        self.play_button.clicked.connect(self.play_selected)
+        self.layout().insertWidget(1, self.play_button)
+
+    def play_selected(self):
+        row = self.list.currentRow()
+        if 0 <= row < len(self._events):
+            self._play(self._events[row])
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):   # Enter plays and never closes the dialog
+            self.play_selected()
+            return
+        super().keyPressEvent(event)
+
+
+class KeyCaptureDialog(QDialog):
+    """Press the key you want. OK applies it; the core says if it is taken (ACC-3).
+    The message is shown and spoken, and goes when the key is changed or cleared
+    (PO feedback on checklist 2.6)."""
+
+    def __init__(self, parent, session, command: dict, words: dict, speak=None):
         super().__init__(parent)
         self.session, self.command, self.key = session, command, command["key"]
+        self._speak = speak
         self.setWindowTitle(command["label"])
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(words["key_prompt"]))
@@ -94,12 +122,20 @@ class KeyCaptureDialog(QDialog):
             if name:
                 self.key = name
                 self.field.setText(name)
+                self._show_message("")
             return True
         return super().eventFilter(obj, event)
 
     def _clear(self):
         self.key = ""
         self.field.setText("")
+        self._show_message("")
+
+    def _show_message(self, text: str) -> None:
+        self.message.setText(text)
+        self.message.setAccessibleDescription(text)
+        if text and self._speak is not None:
+            self._speak(text, "assertive")
 
     def apply(self):
         response = self.session.run("keys.remap", command=self.command["name"], key=self.key)
@@ -108,8 +144,7 @@ class KeyCaptureDialog(QDialog):
             self.result_response = response
             self.accept()
         else:
-            self.message.setText(text)
-            self.message.setAccessibleDescription(text)
+            self._show_message(text)
             self.result_response = response
             self.field.setFocus()
 
@@ -203,7 +238,9 @@ class SettingsDialog(QDialog):
         row = self.key_list.currentRow()
         if row < 0:
             return
-        dialog = KeyCaptureDialog(self, self.session, self._commands[row], self.words)
+        announcer = getattr(self.parent(), "announcer", None)
+        dialog = KeyCaptureDialog(self, self.session, self._commands[row], self.words,
+                                  speak=announcer.speak if announcer is not None else None)
         dialog.exec()
         if getattr(dialog, "result_response", None) is not None:
             self.responses.append(dialog.result_response)

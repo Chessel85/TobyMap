@@ -15,7 +15,7 @@ Started on 3 November 2026, after the PO accepted Phase 0.
 * [x] P1-T7 Describe: announcements, coordinates, heading, repeat and history. Nearby measured to each area's nearest point, with the Niagara Falls test.
 * [x] P1-T8 Command registry and session: F1 help, the key describer, remapping, clash tests, and F2, F3 and F4 to the regions (DP106).
 * [x] P1-T9 Map scene: the projection, the shape list, the centre cross, the heading arrow and the current outline.
-* [x] P1-T10 Desktop shell: the four regions, settings, and the stand-in audio. No backlog of speech after a held key (ANN-3), and the panel's levels read by NVDA (INF-10).
+* [x] P1-T10 Desktop shell: the four regions, settings, and the stand-in audio. No backlog of speech after a held key (ANN-3), and the panel's levels read by NVDA (INF-10). On 5 November the PO heard the right levels from NVDA in a test window with our own tree (DP135, tools/spikes/tree_level/harness.py); the Information panel itself still uses Qt's tree, which NVDA always reads as level 1, until it is changed over.
 * [x] P1-T11 Web shell: the same, in the browser, with the held key test.
 * [x] P1-T12 Earcons.
 * [x] P1-T13 Listening test tool.

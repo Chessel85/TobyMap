@@ -151,7 +151,7 @@ The zoom sets:
 
 When a sighted user zooms with the mouse wheel or a pinch, the zoom changes in the same way, and the blind user hears the new zoom.
 
-The zoom distance is measured from the centre to the nearer edge of the map. If the window is resized, the map is drawn larger or smaller, but the same area of the world is in view and in hearing range. So making the window smaller never makes things go silent. You said the application would normally be maximised, so this matters mostly for sighted users with a smaller window.
+The zoom distance is how far you hear: everything within it is in view and in hearing range, whatever the size of the window. So making the window smaller never makes things go silent. The map is drawn at a fixed scale for each zoom, as on paper, so a bigger window shows more map round the edges (DP138). You said the application would normally be maximised, so this matters mostly for sighted users with a smaller window.
 
 ### 4.2 Step: how far you move
 
@@ -556,7 +556,7 @@ Keys changed since version 0.3 (agreed, DP79):
 * Ctrl+S, in the panel: cycle the sort order between name, distance and bearing.
 * M: measure.
 * Q: query builder.
-* V: size of the visible map, for example "Visible map: 1,140 by 890 kilometres" (DP99).
+* V: size of the visible map, for example "Visible map: 1,140 kilometres wide by 890 kilometres high" (DP99).
 * Z: grid value (DP99).
 * Ctrl+F: search.
 * T: world tree.

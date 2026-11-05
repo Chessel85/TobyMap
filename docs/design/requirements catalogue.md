@@ -565,7 +565,9 @@ The high level requirements document stays the product owner's own statement of 
   * the hearing range (SON-9)
   * the Nearby search radius (INF-7) and the range of look around (SON-4)
   * which features are visible, and so which appear in Contains, Nearby, and Crossed and passed (ANN-7)
-* The zoom is given as a distance, the view radius. "Zoom 5 kilometres" means that everything within 5 km of the location is in view, measured to the nearer edge of the map. Changing the size of the window changes only how large things are drawn, not how much of the world is in view or in hearing range (DP76).
+* The zoom is given as a distance, the view radius. "Zoom 5 kilometres" means that everything within 5 km of the location is in view and in hearing range. Changing the size of the window never changes what is in view or in hearing range (DP76).
+* The visual map has a fixed scale for each zoom, as on paper: the zoom distance is always drawn the same distance from the centre, so a bigger window shows more map round the edges, beyond the view radius (DP138). V says how much map the window shows.
+* In imperial units the zoom and step lists have their own round sizes, in yards and miles. Switching units moves to the nearest size in the other list (DP136).
 * A feature is visible when all of these are true:
   * its layer is switched on (SCP-6)
   * the zoom is inside its layer's zoom range (SCP-7)
@@ -917,7 +919,7 @@ The high level requirements document stays the product owner's own statement of 
 ### SON-9 Distance is scaled to the zoom
 * Outcome: How loud a sound is depends on its distance compared with the current zoom, so the distance cue works equally well for a street and for a continent. Whatever is in view is within hearing range. The step size has no effect on it.
 * Source: UXReview, DP65, DP67
-* Priority: Must. Status: Agreed (the curve is to be tuned in the Phase 1 listening test).
+* Priority: Must. Status: Agreed. The loudness falls in a straight line to the edge of the view, and never below a minimum volume, which is also the level beyond the view. The other model, equally quieter for each doubling, is kept as a setting (DP137).
 * Acceptance criteria:
   * The hearing range is the zoom's view radius (NAV-13).
   * Within the range, loudness falls with the logarithm of distance: from full loudness at one twentieth of the range or closer, each doubling of distance is about equally quieter, down to quiet at the edge of the range (proposed).

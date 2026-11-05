@@ -105,6 +105,9 @@ def _extras_start(response, out: dict) -> dict:
     out["response"] = response.to_dict()
     out["describing"] = False
     out["earcons"] = []
+    from mapcore.describe import earcon_list
+
+    out["preload"] = [e["file"] for e in earcon_list() if e.get("phase") == 1]
     out["save"] = json.dumps(_session.save())
     return out
 

@@ -8,7 +8,7 @@ from PySide6.QtGui import QImage, QKeyEvent, QPainter
 from PySide6.QtWidgets import QApplication
 
 from desktop.announcer import RecordingAnnouncer
-from desktop.dialogs import KeyCaptureDialog, ListDialog, SettingsDialog, TextDialog
+from desktop.dialogs import KeyCaptureDialog, ListDialog, SettingsDialog, SoundsDialog, TextDialog
 from desktop.map_widget import paint_scene
 from desktop.sounds import RecordingSounds
 from desktop.window import MainWindow
@@ -213,22 +213,46 @@ def test_the_key_describer_describes_and_does_nothing(window, qtbot):
     assert window.announcer.texts[-1] == "Key describer off."
 
 
+def test_the_key_describer_catches_tab_and_works_in_every_region(window, qtbot):
+    """PO feedback on checklist 2.2: Tab does nothing, and keys are described the same in the panel."""
+    window.focus_region("panel")
+    item = window.tree.currentItem()
+    qtbot.keyClick(window.tree, Qt.Key.Key_F1, Qt.KeyboardModifier.ShiftModifier)
+    qtbot.keyClick(window.tree, Qt.Key.Key_Tab)
+    assert region(window) == "panel"
+    assert window.announcer.texts[-1] == "Tab: no command."
+    qtbot.keyClick(window.tree, Qt.Key.Key_Backtab, Qt.KeyboardModifier.ShiftModifier)
+    assert region(window) == "panel"
+    assert window.announcer.texts[-1] == "Shift+Tab: no command."
+    qtbot.keyClick(window.tree, Qt.Key.Key_Down)
+    assert window.announcer.texts[-1] == "Down: Step south"
+    assert window.tree.currentItem() is item
+    qtbot.keyClick(window.tree, Qt.Key.Key_F1, Qt.KeyboardModifier.ShiftModifier)
+    qtbot.keyClick(window.tree, Qt.Key.Key_Tab)
+    assert region(window) == "details"
+
+
 def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(window):
     """ANN-3: two seconds of key repeat, then let go."""
     announcer = window.announcer
     w = window.map
+    clock = [100.0]
+    window.session.clock = lambda: clock[0]
     QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, Qt.Key.Key_Down))          # the first press speaks
     spoken_after_first = len(announcer.spoken)
     start = time.perf_counter()
-    for _ in range(60):                                                                    # about 2 seconds of repeats
+    for _ in range(60):                                                                    # 2 seconds of repeats
+        clock[0] += 1 / 30
         QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, Qt.Key.Key_Down, auto=True))
         QApplication.sendEvent(w, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down, auto=True))
     assert len(announcer.spoken) == spoken_after_first, "nothing is spoken while the key is held"
-    assert window.session.world.lat < 51.2 - 5
+    steps = round((51.2 - window.session.world.lat) / (25 / 111.2))
+    assert 9 <= steps <= 11, steps          # the press, then 6 a second after the 500 ms delay (DP129)
+    assert window.sounds.played.count("tick") >= steps - 1   # each repeated step ticks
     QApplication.sendEvent(w, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down))
     assert len(announcer.spoken) == spoken_after_first + 1
     assert announcer.spoken[-1][1] == "assertive"       # it interrupts what the screen reader was still saying
-    assert announcer.texts[-1] == "No area here"       # 1,500 km south is beyond the little test pack
+    assert announcer.texts[-1] == "France"             # about 250 km south of Kent
     assert time.perf_counter() - start < 5
 
 
@@ -267,13 +291,21 @@ def test_changing_a_key_in_the_keys_tab_warns_when_it_is_taken(window, qtbot):
     dialog = click_dialog(window, SettingsDialog)
     row = [i for i, c in enumerate(dialog._commands) if c["name"] == "where.heading"][0]
     dialog.key_list.setCurrentRow(row)
-    capture = KeyCaptureDialog(window, window.session, dialog._commands[row], window.words)
+    capture = KeyCaptureDialog(window, window.session, dialog._commands[row], window.words,
+                               speak=window.announcer.speak)
     qtbot.addWidget(capture)
     capture.key = "C"
     capture.field.setText("C")
     capture.apply()
     assert "already used by Coordinates" in capture.message.text()
+    assert "already used by Coordinates" in window.announcer.texts[-1]     # spoken too (checklist 2.6)
     assert window.session.settings.keys == {}
+    qtbot.keyClick(capture.field, Qt.Key.Key_J)                               # a new key clears the message
+    assert capture.message.text() == "" and capture.key == "J"
+    capture.key = "C"
+    capture.apply()
+    capture.clear_button.click()                                              # so does No key
+    assert capture.message.text() == ""
     capture.key = "Ctrl+Q"
     capture.apply()
     assert window.session.settings.keys == {"where.heading": "Ctrl+Q"}
@@ -291,6 +323,20 @@ def test_every_dialog_has_a_close_or_cancel_button(window, qtbot):
         assert button.text() in ("Close", "Cancel"), name
         button.click()
         QApplication.processEvents()
+
+
+def test_the_sounds_dialog_plays_the_chosen_sound(window, qtbot):
+    """DP134: Enter or the Play button plays the selected sound."""
+    window.dispatch("help.earcons")
+    dialog = click_dialog(window, SoundsDialog)
+    dialog.list.setCurrentRow(1)
+    dialog.play_button.click()
+    assert window.sounds.played[-1] == "blocked"
+    dialog.list.setCurrentRow(0)
+    qtbot.keyClick(dialog.list, Qt.Key.Key_Return)
+    assert window.sounds.played[-1] == "tick"
+    assert dialog.isVisible()                     # Enter plays; it does not close the dialog
+    dialog.close_button.click()
 
 
 def test_settings_and_place_come_back_after_closing_and_opening(qtbot, test_pack, tmp_path):

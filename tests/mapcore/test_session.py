@@ -75,6 +75,56 @@ def test_held_moves_are_all_made_but_nothing_is_said_until_release(session):
     assert not session.release().announcements   # a second release says nothing
 
 
+class FakeClock:
+    def __init__(self):
+        self.now = 100.0
+
+    def __call__(self):
+        return self.now
+
+
+def test_a_held_key_waits_for_the_repeat_delay_then_steps_at_the_repeat_rate(test_pack):
+    """DP129: key repeats from Windows only step after the delay (500 ms), then at
+    the rate (6 a second), whatever Windows sends. Each repeated step ticks."""
+    clock = FakeClock()
+    s = MapSession(packs=[test_pack], saved_state=dict(KENT), clock=clock)
+    s.start()
+    s.run("move.south")                                   # the press itself steps at once
+    lat = s.world.lat
+    steps = 0
+    ticks = 0
+    for _ in range(100):                                  # 2 seconds of repeats, every 20 ms
+        clock.now += 0.02
+        before = s.world.lat
+        r = s.run("move.south", held=True, repeat=True)
+        if s.world.lat != before:
+            steps += 1
+            ticks += r.earcons == ["tick"]
+            assert not r.announcements
+        elif clock.now - 100.0 < 0.5:
+            assert not r.earcons                          # nothing at all inside the delay
+    assert 9 <= steps <= 10                               # 1.5 seconds after the delay, 6 a second
+    assert ticks == steps
+    assert s.world.lat < lat
+    assert spoken(s.release())
+
+
+def test_the_repeat_delay_and_rate_are_settings(test_pack):
+    clock = FakeClock()
+    s = MapSession(packs=[test_pack], saved_state=dict(KENT), clock=clock)
+    s.start()
+    s.run("settings.set", field="repeat_delay_ms", value=200)
+    s.run("settings.set", field="repeat_rate", value=10)
+    s.run("move.south")
+    steps = 0
+    for _ in range(50):                                   # 1 second of repeats
+        clock.now += 0.02
+        before = s.world.lat
+        s.run("move.south", held=True, repeat=True)
+        steps += s.world.lat != before
+    assert 8 <= steps <= 9                                # 0.8 seconds after the delay, 10 a second
+
+
 def test_release_after_a_hold_that_changed_nothing_is_a_tick(session):
     session.run("move.north", held=True)
     assert session.release().earcons == ["tick"]
@@ -106,6 +156,30 @@ def test_the_key_describer_describes_and_does_nothing(session):
     assert spoken(session.press("Shift+F1")) == ["Key describer off."]
     assert not session.describing
     assert session.press("Up").earcons == ["tick"]
+
+
+def test_the_key_describer_is_the_same_in_every_region(session):
+    """PO feedback on checklist 2.2: the describer says what a key does anywhere,
+    and Tab is caught and does nothing."""
+    session.press("Shift+F1")
+    for region in ("map", "panel", "details"):
+        assert spoken(session.press("Down", region)) == ["Down: Step south"]
+        assert spoken(session.press("Tab", region)) == ["Tab: no command."]
+        assert spoken(session.press("Shift+Tab", region)) == ["Shift+Tab: no command."]
+    assert session.world.lat == KENT["lat"]
+
+
+def test_the_key_describer_lists_every_command_on_a_key(session, monkeypatch):
+    """A key with one command on the map and another in the panel says both."""
+    from mapcore.commands import registry
+
+    real = registry.for_platform
+    extra = registry.Command(name="panel.sort", label="Sort the list", key="Down", region="panel", menu="",
+                             platforms=("desktop", "web"))
+    monkeypatch.setattr(registry, "for_platform", lambda platform: real(platform) + [extra])
+    session.press("Shift+F1")
+    assert spoken(session.press("Down", "panel")) == [
+        "Down: Step south, on the map. Sort the list, in the Information panel."]
 
 
 def test_f1_lists_the_commands_for_the_focused_region_with_keys(session):
@@ -176,6 +250,15 @@ def test_details_name_type_parents_area_and_source(session):
     assert lines[2].startswith("Part of:") and any(line.startswith("Source:") for line in lines)
 
 
+def test_the_sounds_in_help_can_be_played(session):
+    """DP134: Help, The sounds lists each sound, and each can be played from the list."""
+    d = session.run("help.earcons").dialog
+    assert d["kind"] == "sounds" and d["play"] == "Play"
+    assert d["items"][0] == {"event": "tick", "label": "Tick, click.wav: A step that changed nothing."}
+    assert session.run("sound.preview", event="blocked").earcons == ["blocked"]
+    assert not session.run("sound.preview", event="blocked").announcements
+
+
 def test_mute_drops_the_earcons_and_is_a_setting(session):
     session.world.step_index = 0
     session.press("Ctrl+M")
@@ -191,8 +274,35 @@ def test_settings_are_checked(session):
     assert len(session.panel()[1]["items"]) <= 3
 
 
-def test_the_visible_map_is_the_zoom_distance(session):
-    assert spoken(session.press("V")) == ["Visible map: 25 kilometres across."]
+def test_the_visible_map_is_width_by_height(session):
+    """V gives both sides (DP99). The zoom distance is drawn 300 pixels from the centre
+    (DP138), so a 600 pixel side is twice the zoom, and a bigger window shows more."""
+    session.map_size = (800, 600)
+    assert spoken(session.press("V")) == ["Visible map: 67 kilometres wide by 50 kilometres high."]
+    session.map_size = (600, 600)
+    assert spoken(session.press("V")) == ["Visible map: 50 kilometres wide by 50 kilometres high."]
+    session.map_size = (600, 900)
+    assert spoken(session.press("V")) == ["Visible map: 50 kilometres wide by 75 kilometres high."]
+    session.map_size = (1200, 1200)            # a bigger window shows more (DP138)
+    assert spoken(session.press("V")) == ["Visible map: 100 kilometres wide by 100 kilometres high."]
+
+
+def test_the_zoom_is_the_distance_to_the_nearer_edge(session):
+    """NAV-13, DP138: a point 25 km north is 300 pixels up, the top edge of an 800 by 600 map."""
+    from mapcore.render import globe, scene
+
+    view = scene.view_for(session.world, 800, 600)
+    lat_edge = session.world.lat + 25000 / 6371008.8 * 180 / 3.141592653589793
+    x, y = globe.to_screen(view, 800, 600, lat_edge, session.world.lon)
+    assert abs(y) < 1.0 and abs(x - 400) < 1.0
+
+
+def test_imperial_zoom_and_step_are_round_numbers(session):
+    """Checklist 7.5, DP136: imperial zoom and step are round sizes, and Page Up goes on through them."""
+    session.run("settings.set", field="units", value="imperial")
+    assert "Zoom 10 miles, step 25 miles." in spoken(session.press("H"))[0]     # nearest to 25 kilometres
+    assert spoken(session.press("Page Up")) == ["Zoom 25 miles, step 25 miles."]
+    assert spoken(session.press("Page Down")) == ["Zoom 10 miles, step 25 miles."]
 
 
 def test_state_and_settings_come_back_after_a_restart(test_pack):
@@ -223,7 +333,7 @@ def test_about_data_gives_the_attribution(session):
 
 
 def test_the_earcons_help_lists_the_files(session):
-    assert "tick.wav" in session.run("help.earcons").dialog["text"]
+    assert "click.wav" in session.run("help.earcons").dialog["text"]
 
 
 def test_braille_only_message_is_on_its_own_channel(session):

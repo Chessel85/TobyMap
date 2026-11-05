@@ -11,8 +11,8 @@ shapes come from. They are read from the pack:
   country's outline stays small;
 * a point less than half a pixel from the one before is dropped.
 
-The zoom is a distance across the smaller side of the map, so a smaller
-window draws smaller but shows and hears the same area (DP76).
+The zoom distance is drawn at a fixed scale (ZOOM_RADIUS_PX), so a smaller
+window shows less map round the edges but hears the same area (DP76, DP138).
 
 Artificial edges, the cuts along pack tile boundaries (which include the
 180 degree line and the South Pole), are marked as seams: filled, never
@@ -38,12 +38,20 @@ HIGHLIGHT_STYLE = 8
 MIN_RING = 3
 
 
+# How far from the centre the zoom distance is drawn, in Qt's scaled pixels (DP138).
+# The map has a fixed scale for each zoom, as on paper, so a bigger window shows more
+# map round the edges. What is heard (the hearing range) is the zoom distance itself,
+# so the window size never changes it (DP76).
+ZOOM_RADIUS_PX = 300
+
+
 def view_for(world, width: float, height: float) -> globe.View:
-    """The view for the world's location and zoom: the zoom is a distance
-    across the smaller side of the map (DP76)."""
+    """The view for the world's location and zoom: the zoom distance is drawn
+    ZOOM_RADIUS_PX from the centre (DP138, NAV-13). At the largest zoom the whole
+    hemisphere is a disc of that radius."""
     side = min(width, height)
-    theta = min(world.zoom_m / geodesy.R_MEAN_M, math.pi)
-    radius = (side / 2) / math.sin(theta / 2)
+    theta = min(world.zoom_m / geodesy.R_MEAN_M, math.pi / 2)
+    radius = ZOOM_RADIUS_PX / math.sin(theta)
     return globe.View(lat=world.lat, lon=world.lon, scale=radius / (side * globe.GLOBE_FRACTION))
 
 

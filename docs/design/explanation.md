@@ -467,7 +467,7 @@ In Settings, on the Keys tab, you choose a command and press the key you want. T
 
 ## How the map picture is chosen
 
-The map is drawn from the pack, not from a separate picture. The core chooses what to read from the zoom, which is a distance across the smaller side of the map window, so a smaller window shows the same area, drawn smaller.
+The map is drawn from the pack, not from a separate picture. The core chooses what to read from the zoom, which is how far you hear. The map is drawn at a fixed scale for each zoom, so a bigger window shows more map round the edges (DP138).
 
 * A wide view (more than 25 km across) uses a drawing level, the coarsest one that is still good for that width. The base pack lite has three, for views up to 4,000, 1,000 and 150 km across.
 * A close view uses the exact pack tiles at every tile level, because the drawing levels are too rough for it.

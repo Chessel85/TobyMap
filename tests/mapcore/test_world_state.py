@@ -23,6 +23,26 @@ def test_lists_from_defaults():
     assert (w.zoom_m, w.step_m) == (5000, 100)
 
 
+def test_imperial_has_its_own_round_lists():
+    """DP130, DP136: switching to imperial moves to the nearest round size, and back again."""
+    from mapcore.describe import words
+
+    w = make()
+    w.use_units("imperial")
+    assert [words.distance_text(z, "imperial") for z in w.zoom_list] == [
+        "100 yards", "250 yards", "0.5 miles", "1 mile", "2.5 miles", "5 miles", "10 miles", "25 miles", "50 miles",
+        "100 miles", "250 miles", "500 miles", "1,000 miles", "2,500 miles", "6,000 miles"]
+    assert [words.distance_text(s, "imperial") for s in w.step_list] == [
+        "10 yards", "25 yards", "50 yards", "100 yards", "250 yards", "0.5 miles", "1 mile", "5 miles",
+        "25 miles", "100 miles", "250 miles", "600 miles"]
+    assert words.distance_text(w.zoom_m, "imperial") == "2.5 miles"      # nearest to 5 kilometres
+    assert words.distance_text(w.step_m, "imperial") == "100 yards"      # nearest to 100 metres
+    w.use_units("metric")
+    assert (w.zoom_m, w.step_m) == (5000, 100)                           # nearest to 2.5 miles and 100 yards
+    w.use_units("nautical")                                              # nautical keeps the metric lists
+    assert w.zoom_list[0] == 100
+
+
 def test_north_south_east_west():
     w = make(lat=10.0, lon=20.0, step_index=6)  # 1 km
     r = w.step("north")

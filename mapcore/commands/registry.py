@@ -103,6 +103,11 @@ def command_for_key(platform: str, key: str, region: str = "map", overrides: dic
     return None
 
 
+def commands_for_key(platform: str, key: str, overrides: dict | None = None) -> list[Command]:
+    """Every command on a key, in any region: what the key describer lists."""
+    return [c for c in for_platform(platform) if key and key_of(c, overrides) == key]
+
+
 def clash(platform: str, command: str, key: str, overrides: dict | None = None) -> Command | None:
     """The other command that already has this key where they would meet, or
     None. A global key meets every command; a map key meets map and global ones."""

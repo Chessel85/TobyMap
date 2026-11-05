@@ -11,6 +11,7 @@ the packs through the Store. Every word comes from the templates (3.4).
 """
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -65,6 +66,7 @@ class MapSession:
         self.store = store or Store(list(packs or []))
         self.settings = settings_mod.Settings.from_dict(settings)
         self.world = WorldState.from_defaults(self.defaults)
+        self.world.use_units(self.settings["units"])   # before restoring, so the saved sizes are found exactly
         if saved_state:
             self.world.restore(saved_state)
         elif self.settings["link"]:
@@ -79,6 +81,7 @@ class MapSession:
         self.selected: str | None = None   # the Information panel item chosen, an area id
         self.panel_item: str | None = None  # the item last focused there, for F3 (DP106)
         self.held_moves = 0
+        self._repeat_due = 0.0             # when a held step key may next step (DP129)
         self.paint_ms: float | None = None
         self.startup_ms: float | None = None
         self.last_frame: dict | None = None
@@ -117,6 +120,7 @@ class MapSession:
             "help.about": self._about,
             "help.about_data": self._about_data,
             "help.earcons": self._earcons_help,
+            "sound.preview": self._preview,
             "diagnostics.copy": self._diagnostics,
             "diagnostics.timing": self._timing,
             "map.click": self._click,
@@ -177,14 +181,25 @@ class MapSession:
         if self.describing:
             if command is not None and command.name == "help.describer":
                 return self.run("help.describer")
-            text = (say("describer.key", key=key, label=command.label) if command is not None
-                    else say("describer.unassigned", key=key))
-            return self._record("describe", Response().speak(text, ASSERTIVE))
+            return self._record("describe", Response().speak(self._describe_key(key), ASSERTIVE))
         if command is None:
             return None
         if command.name == "help.keys":
             return self.run("help.keys", region=region)
         return self.run(command.name)
+
+    def _describe_key(self, key: str) -> str:
+        """What a key does, wherever the focus is (PO feedback on checklist 2.2). Keys
+        with only their standard job in a list or text, such as Tab or Down in the
+        Information panel, are not described."""
+        commands = registry.commands_for_key(self.platform, key, self.settings.keys)
+        if not commands:
+            return say("describer.unassigned", key=key)
+        if len(commands) == 1:
+            return say("describer.key", key=key, label=commands[0].label)
+        regions = templates()["describer"]["regions"]
+        return say("describer.several", key=key, list=" ".join(
+            say("describer.in_region", label=c.label, region=regions.get(c.region, c.region)) for c in commands))
 
     def release(self) -> Response:
         """The held movement key was let go: describe the place it ended at,
@@ -334,14 +349,25 @@ class MapSession:
             r.earcon("tick")
         return r
 
-    def _move(self, direction: str, held: bool = False, **_a) -> Response:
+    def _move(self, direction: str, held: bool = False, repeat: bool = False, **_a) -> Response:
+        """A step. repeat is a key repeat sent while the key is held: it steps only
+        after the repeat delay, then at the repeat rate, whatever the operating
+        system sends, and each of those steps ticks (DP129)."""
+        now = self.clock()
+        if repeat:
+            if now < self._repeat_due:
+                return Response()
+            interval = 1.0 / max(1, self.settings["repeat_rate"])
+            self._repeat_due = max(self._repeat_due, now - interval) + interval
+        else:
+            self._repeat_due = now + self.settings["repeat_delay_ms"] / 1000.0
         result = self.world.step(direction)
         if not result.moved:
             return Response().earcon("blocked")  # nothing spoken (NAV-1)
         r = self._moved()
         if held:
             self.held_moves += 1
-            return r
+            return r.earcon("tick") if repeat else r
         self.held_moves = 0
         return self._arrived(r)
 
@@ -379,8 +405,19 @@ class MapSession:
         return Response().speak(describer.heading_report(self.world, self._units()), ASSERTIVE)
 
     def _visible(self, **_a) -> Response:
-        width_m = self.world.zoom_m
-        return Response().speak(say("visible.area", width=words.distance_text(width_m, self._units())), ASSERTIVE)
+        """The size of the visible map, across and up and down the window (DP99).
+        Measured along the ground through the centre; never more than the hemisphere."""
+        width, height = self.map_size
+        from mapcore.render import globe
+
+        radius = globe._radius(self._view_scale(width, height), width, height)
+
+        def across(pixels: float) -> float:
+            return 2 * math.asin(min(1.0, pixels / 2 / radius)) * geodesy.R_MEAN_M
+
+        units = self._units()
+        return Response().speak(say("visible.area", width=words.distance_text(across(width), units),
+                                    height=words.distance_text(across(height), units)), ASSERTIVE)
 
     def _focus_panel(self, **_a) -> Response:
         item = self.panel_item
@@ -427,6 +464,8 @@ class MapSession:
             return Response().speak(say("settings.bad_value"), ASSERTIVE)
         if field == "link":
             self.world.set_link(bool(value))
+        if field == "units":
+            self.world.use_units(value)   # imperial has its own round sizes, so the map may redraw (DP136)
         self._panel_cache = None
         return Response(settings_changed=True, panel_stale=True, details_stale=True, redraw=True)
 
@@ -481,9 +520,14 @@ class MapSession:
     def _earcons_help(self, **_a) -> Response:
         from mapcore.describe import earcon_list
 
-        lines = [say("dialogs.earcons_line", name=e["label"], file=e["file"], meaning=e["meaning"])
-                 for e in earcon_list()]
-        return Response(dialog={"kind": "text", "title": say("dialogs.earcons_title"), "text": "\n".join(lines)})
+        items = [{"event": e["event"], "label": say("dialogs.earcons_line", name=e["label"], file=e["file"],
+                                                     meaning=e["meaning"])} for e in earcon_list()]
+        return Response(dialog={"kind": "sounds", "title": say("dialogs.earcons_title"), "items": items,
+                                "play": say("ui.play"), "text": "\n".join(i["label"] for i in items)})
+
+    def _preview(self, event: str = "", **_a) -> Response:
+        """Play one sound from Help, The sounds (DP134). Mute still applies."""
+        return Response().earcon(event)
 
     def _source_text(self, area) -> str:
         source = area.record.get("source", "")

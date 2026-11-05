@@ -16,7 +16,7 @@ timing: "Last frame: worked out in {project} milliseconds, painted in {paint} mi
 timing_unknown: "an unknown number of"
 timing_startup: "Start-up took {seconds} seconds."
 visible:
-  area: "Visible map: {width} across."
+  area: "Visible map: {width} wide by {height} high."
 
 # Names of the four regions and other window words (UX section 2).
 ui:
@@ -29,6 +29,7 @@ ui:
   ok: OK
   cancel: Cancel
   copy: Copy
+  play: Play
   settings_title: Settings
   keys_tab: Keys
   key_change: Change key
@@ -81,6 +82,14 @@ describer:
   stopped: "Key describer off."
   key: "{key}: {label}"
   unassigned: "{key}: no command."
+  # A key with commands in more than one region: each one with where it works.
+  several: "{key}: {list}"
+  in_region: "{label}, {region}."
+  regions:
+    global: anywhere
+    map: on the map
+    panel: in the Information panel
+    details: in Details
 
 diagnostics:
   title: Diagnostics

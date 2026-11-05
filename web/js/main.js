@@ -151,7 +151,7 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Tab") trapTab(e);
     return;
   }
-  if (e.key === "Tab" && !e.ctrlKey && !e.altKey) {
+  if (e.key === "Tab" && !e.ctrlKey && !e.altKey && !describing) {
     e.preventDefault();
     moveRegion(e.shiftKey ? -1 : 1);
     return;
@@ -170,7 +170,7 @@ document.addEventListener("keydown", (e) => {
   if (!name) return;
   e.preventDefault();
   if (registry.held.includes(name)) {
-    if (e.repeat) return run(name, { held: true });   // repeats are made, but not spoken (ANN-3)
+    if (e.repeat) return run(name, { held: true, repeat: true });   // the core paces repeats (DP129) and speaks on release (ANN-3)
     heldKey = name;
     return run(name, {}, keyAt);
   }
@@ -231,9 +231,19 @@ function openDialog(d) {
   if (d.kind === "settings") return openSettings(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
+  dialog.querySelectorAll("button[data-event]").forEach((b) => b.remove());
+  if (d.kind === "sounds") {   // Help, The sounds: one button per sound, which plays it (DP134)
+    for (const item of [...d.items].reverse()) {
+      const b = button(item.label, () => run("sound.preview", { event: item.event }));
+      b.dataset.event = item.event;
+      dialogTitle.after(b);
+    }
+  }
+  dialogText.hidden = d.kind === "sounds";
   dialogText.value = d.text;
   dialogText.setAttribute("aria-label", d.title);
   dialog.showModal();
+  if (d.kind === "sounds") return dialog.querySelector("button[data-event]").focus();
   dialogText.focus();
   dialogText.setSelectionRange(0, 0);
 }
@@ -376,11 +386,11 @@ function askKey(command) {
       const r = await client.send({ type: "run", commands: [["keys.remap", { command: command.name, key: keyDialog.dataset.key }]], width, height });
       const said = r.response.announcements.map((a) => a.text).join(" ");
       if (r.response.settings_changed) { handle(r); finish(keyDialog.dataset.key); }
-      else { message.textContent = said; field.focus(); }
+      else { message.textContent = said; speak(said, "assertive"); field.focus(); }   // shown and spoken (checklist 2.6)
     };
     const bar = document.createElement("div");
     bar.appendChild(button(words.ok, apply, "key-ok"));
-    bar.appendChild(button(words.key_clear, () => { keyDialog.dataset.key = ""; field.value = ""; field.focus(); }, "key-clear"));
+    bar.appendChild(button(words.key_clear, () => { keyDialog.dataset.key = ""; field.value = ""; $("key-message").textContent = ""; field.focus(); }, "key-clear"));
     bar.appendChild(button(words.cancel, () => finish(null), "key-cancel"));
     keyDialog.append(prompt, field, message, bar);
     keyDialog.showModal();
@@ -397,7 +407,7 @@ function captureKey(e) {
   if (e.key === "Tab") return trapKeyTab(e);
   const key = keyName(e);
   e.preventDefault();
-  if (key) { keyDialog.dataset.key = key; field.value = key; }
+  if (key) { keyDialog.dataset.key = key; field.value = key; $("key-message").textContent = ""; }
 }
 
 function trapKeyTab(e) {
@@ -432,7 +442,7 @@ async function boot() {
   $("loading").remove();
   $("app").removeAttribute("aria-busy");
   handle(result);
-  sounds.preload(["tick.wav", "blocked.wav"]);
+  sounds.preload(result.preload);
   mapEl.focus();
   window.tobymap.ready = true;
 

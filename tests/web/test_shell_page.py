@@ -115,9 +115,10 @@ def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(app):
     app.keyboard.down("ArrowDown")                     # the first press speaks
     wait_said(app, 2)
     spoken = len(said(app))
+    app.wait_for_timeout(600)                          # past the repeat delay (DP129)
     for _ in range(20):
-        app.keyboard.down("ArrowDown")                 # a held key repeats
-    app.wait_for_timeout(300)
+        app.keyboard.down("ArrowDown")                 # a held key repeats, slower than the repeat rate
+        app.wait_for_timeout(200)
     assert len(said(app)) == spoken, "nothing is spoken while the key is held"
     app.keyboard.up("ArrowDown")
     wait_said(app, spoken + 1)
@@ -268,8 +269,11 @@ def test_history_repeat_and_the_key_describer(app):
     wait_said(app, 5)
     assert said(app)[-1] == "Down: Step south"
     assert len(said(app)) == 5
-    app.keyboard.press("Shift+F1")
+    app.keyboard.press("Tab")             # caught: it does nothing (checklist 2.2)
     wait_said(app, 6)
+    assert said(app)[-1] == "Tab: no command."
+    app.keyboard.press("Shift+F1")
+    wait_said(app, 7)
     assert said(app)[-1] == "Key describer off."
 
 
@@ -303,6 +307,17 @@ def test_changing_a_key_warns_when_it_is_taken(app):
     app.click("#key-cancel")
     app.click("#settings-cancel")
     app.wait_for_function("!document.getElementById('settings').open")
+
+
+def test_the_sounds_in_help_can_be_played(app):
+    """DP134: each sound in Help, The sounds is a button that plays it."""
+    app.evaluate("window.tobymap.earcons.length = 0")
+    app.evaluate("document.querySelector('[data-command=\"help.earcons\"]').click()")
+    app.wait_for_function("document.querySelectorAll('#dialog button[data-event]').length > 1")
+    app.click("#dialog button[data-event=blocked]")
+    app.wait_for_function("window.tobymap.earcons.length >= 1")
+    assert app.evaluate("window.tobymap.earcons") == ["blocked"]
+    app.click("#dialog-close")
 
 
 def test_mute_stops_the_earcons(app):

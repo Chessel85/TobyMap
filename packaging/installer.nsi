@@ -31,7 +31,7 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "GNU General Public License version 3"
 
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TEXT "This installs ${APP} ${VERSION}, the accessible map, for you on this computer.$\r$\n$\r$\nThis is the Phase 0 spike: a turning globe of countries, to test the window with your screen reader.$\r$\n$\r$\nChoose Next to continue."
+!define MUI_WELCOMEPAGE_TEXT "This installs ${APP} ${VERSION}, the accessible map, for you on this computer.$\r$\n$\r$\nThis is the Phase 1 walking skeleton: you step round the world and hear where you are.$\r$\n$\r$\nChoose Next to continue."
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP}.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Start ${APP} now"
 !define MUI_FINISHPAGE_SHOWREADME ""
@@ -59,6 +59,12 @@ Section "Install"
   File /r "..\dist\${APP}\_internal"
   WriteUninstaller "$INSTDIR\Uninstall ${APP}.exe"
   CreateShortcut "$SMPROGRAMS\${APP}.lnk" "$INSTDIR\${APP}.exe"
+!ifdef PACK
+  ; The base pack lite, into TobyMap's own folder in your application data folder, where the program looks (AD-18).
+  SetOutPath "$APPDATA\${APP}\packs"
+  File "${PACK}"
+  SetOutPath "$INSTDIR"
+!endif
 
   WriteRegStr HKCU "Software\${APP}" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${APP}"
@@ -78,6 +84,12 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall ${APP}.exe"
   RMDir /r "$INSTDIR\_internal"
   RMDir "$INSTDIR"
+!ifdef PACK
+  ; The pack the installer put there, nothing else. Your settings file stays.
+  Delete "$APPDATA\${APP}\packs\world.pack"
+  Delete "$APPDATA\${APP}\packs\world.pack.sha256"
+  RMDir "$APPDATA\${APP}\packs"
+!endif
   Delete "$SMPROGRAMS\${APP}.lnk"
   Delete "$DESKTOP\${APP}.lnk"
   DeleteRegKey HKCU "${UNINST_KEY}"

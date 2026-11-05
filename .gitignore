@@ -30,6 +30,11 @@ mapdata/config/paths.yaml
 /data/
 sounds/*.wav
 sounds/*.ogg
+# The PO's own earcons are kept in git (DP111, DP128). The placeholders are made by a script.
+!sounds/click.wav
+!sounds/bump.wav
+# A staged copy of the sounds folder, made by tools/stage_web.py
+/web/sounds/
 /voices/
 
 # Build output

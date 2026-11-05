@@ -49,7 +49,7 @@ jobs:
           path: web/vendor
           key: pyodide-${{ hashFiles('tools/fetch_vendor.py') }}
       - name: Fetch Pyodide
-        run: python tools/fetch_vendor.py --web
+        run: python tools/fetch_vendor.py --web --axe
       - name: Browser tests
         # pytest-qt is not needed here, and Qt cannot load on the bare Linux runner.
         run: python -m pytest tests/web -p no:pytest-qt --browser chromium --browser firefox
@@ -75,6 +75,29 @@ jobs:
       - name: Build
         shell: pwsh
         run: .\packaging\build.ps1
+      - name: Build the test pack for the installer's self-test
+        shell: pwsh
+        run: |
+          python -m pip install -r requirements-pipeline.txt
+          python -m mapdata --data "${{ runner.temp }}\data" build test
+      - name: Install silently, self-test, uninstall, and check the folder is empty (P1-T14)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist_installer -Filter "TobyMap-*-setup.exe" | Select-Object -First 1
+          $dir = "${{ runner.temp }}\TobyMapInstalled"
+          Start-Process -FilePath $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait
+          if (-not (Test-Path "$dir\TobyMap.exe")) { throw "The installer did not install the program." }
+          $out = "${{ runner.temp }}\selftest.txt"
+          $pack = "${{ runner.temp }}\data\tobymap\output\test\test.pack"
+          $p = Start-Process -FilePath "$dir\TobyMap.exe" -ArgumentList "--pack", $pack, "--self-test", "--out", $out -Wait -PassThru
+          Get-Content $out
+          if ($p.ExitCode -ne 0) { throw "The self-test failed." }
+          if (-not (Select-String -Path $out -Pattern "Press F1 for keys")) { throw "The self-test did not announce where it starts." }
+          if (-not (Select-String -Path $out -Pattern "tick.wav")) { throw "The earcons are not installed." }
+          Start-Process -FilePath "$dir\Uninstall TobyMap.exe" -ArgumentList "/S" -Wait
+          Start-Sleep -Seconds 5
+          $left = Get-ChildItem $dir -Recurse -ErrorAction SilentlyContinue
+          if ($left) { throw "Files were left after uninstalling: $($left.FullName -join ', ')" }
       - uses: actions/upload-artifact@v4
         with:
           name: TobyMap-windows

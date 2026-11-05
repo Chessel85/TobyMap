@@ -49,6 +49,25 @@ def stage() -> list[str]:
     files.append("version.txt")
     shutil.copyfile(ROOT / "web" / "bridge.py", OUT / "tobymap_bridge.py")
     files.append("tobymap_bridge.py")
+    sounds = ROOT / "web" / "sounds"
+    sounds.mkdir(exist_ok=True)
+    # The earcons, served with the page (SON-8). The one source is the sounds folder;
+    # web/sounds is a copy, not kept in git. Placeholders are made for any missing
+    # earcon, and only the files named in the earcon list are copied: other sounds in
+    # the folder may not be ours to share (DP127).
+    import yaml
+
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_placeholder_sounds
+
+    make_placeholder_sounds.main([])
+    for old in sounds.glob("*.wav"):
+        old.unlink()
+
+    for earcon in yaml.safe_load((ROOT / "mapcore" / "describe" / "earcons.yaml").read_text(encoding="utf-8")):
+        wav = ROOT / "sounds" / earcon["file"]
+        if wav.is_file():
+            shutil.copyfile(wav, sounds / wav.name)
     (OUT / "manifest.json").write_text(json.dumps({"files": files}, indent=1), encoding="utf-8")
     return files
 

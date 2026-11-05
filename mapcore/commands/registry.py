@@ -34,6 +34,8 @@ class Command:
     platforms: tuple[str, ...]
     latest_only: bool = False
     pointer: bool = False
+    held: bool = False
+    toggle: bool = False
 
 
 def valid_key(key: str) -> bool:
@@ -58,6 +60,7 @@ def load() -> tuple[Command, ...]:
             name=c["name"], label=c["label"], key=c.get("key") or "", region=c.get("region", "map"),
             menu=c.get("menu") or "", platforms=tuple(c.get("platforms") or ALL_PLATFORMS),
             latest_only=bool(c.get("latest_only")), pointer=bool(c.get("pointer")),
+            held=bool(c.get("held")), toggle=bool(c.get("toggle")),
         )
         for c in _raw()["commands"]
     )
@@ -74,20 +77,54 @@ def for_platform(platform: str) -> list[Command]:
     return [c for c in load() if platform in c.platforms]
 
 
-def keymap(platform: str) -> dict[str, dict[str, str]]:
+def key_of(command: Command, overrides: dict | None = None) -> str:
+    """The command's key: the user's own if they changed it (ACC-3), else the default."""
+    if overrides and command.name in overrides:
+        return overrides[command.name]
+    return command.key
+
+
+def keymap(platform: str, overrides: dict | None = None) -> dict[str, dict[str, str]]:
     """{region: {key: command name}} for one platform."""
     out: dict[str, dict[str, str]] = {"map": {}, "global": {}}
     for c in for_platform(platform):
-        if c.key:
-            out.setdefault(c.region, {})[c.key] = c.name
+        key = key_of(c, overrides)
+        if key:
+            out.setdefault(c.region, {})[key] = c.name
     return out
 
 
-def menus(platform: str) -> list[dict]:
-    """The menu bar: [{label, access, items: [{name, label, key}]}], in registry order."""
+def command_for_key(platform: str, key: str, region: str = "map", overrides: dict | None = None) -> Command | None:
+    """The command a key runs when the given region has focus: the map's own
+    keys first when the map has focus, then the keys that work anywhere."""
+    for c in for_platform(platform):
+        if key_of(c, overrides) == key and (c.region == "global" or (c.region == "map" and region == "map")):
+            return c
+    return None
+
+
+def commands_for_key(platform: str, key: str, overrides: dict | None = None) -> list[Command]:
+    """Every command on a key, in any region: what the key describer lists."""
+    return [c for c in for_platform(platform) if key and key_of(c, overrides) == key]
+
+
+def clash(platform: str, command: str, key: str, overrides: dict | None = None) -> Command | None:
+    """The other command that already has this key where they would meet, or
+    None. A global key meets every command; a map key meets map and global ones."""
+    mine = by_name(command)
+    for c in for_platform(platform):
+        if c.name == command or key_of(c, overrides) != key:
+            continue
+        if mine.region == "global" or c.region == "global" or mine.region == c.region:
+            return c
+    return None
+
+
+def menus(platform: str, overrides: dict | None = None) -> list[dict]:
+    """The menu bar: [{label, access, items: [{name, label, key, toggle}]}], in registry order."""
     out = []
     for menu in _raw()["menus"]:
-        items = [{"name": c.name, "label": c.label, "key": c.key}
+        items = [{"name": c.name, "label": c.label, "key": key_of(c, overrides), "toggle": c.toggle}
                  for c in for_platform(platform) if c.menu == menu["label"]]
         if items:
             out.append({"label": menu["label"], "access": menu.get("access", ""), "items": items})
@@ -98,6 +135,11 @@ def latest_only(platform: str) -> list[str]:
     return [c.name for c in for_platform(platform) if c.latest_only]
 
 
-def describe(platform: str) -> dict:
+def held_keys(platform: str) -> list[str]:
+    return [c.name for c in for_platform(platform) if c.held]
+
+
+def describe(platform: str, overrides: dict | None = None) -> dict:
     """Everything a shell needs from the registry, as plain data."""
-    return {"keymap": keymap(platform), "menus": menus(platform), "latest_only": latest_only(platform)}
+    return {"keymap": keymap(platform, overrides), "menus": menus(platform, overrides),
+            "latest_only": latest_only(platform), "held": held_keys(platform)}

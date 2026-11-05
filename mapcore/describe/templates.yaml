@@ -4,29 +4,19 @@
 #
 # Values in braces are filled in by the core.
 
-start: "TobyMap globe. {place}. Press F1 for keys."
+start: "TobyMap. {place}. Press F1 for keys."
 # The map region's name, which the screen reader says when Tab arrives on the
 # map. Just the place, as the PO asked after testing spike S5.
 map_label: "{place}"
-place_sea: "Sea"
-pole_north: "North Pole. {place}"
-pole_south: "South Pole. {place}"
-where_am_i: "{place}. {coordinates}. {zoom}"
-zoom: "Zoom {zoom} of {zooms}, step {step}."
-zoom_closest: "Closest zoom. {zoom}"
-zoom_whole: "Whole globe. {zoom}"
-step_degrees: "{value} degrees"
-step_one_degree: "1 degree"
-step_half: "half a degree"
-nothing_to_repeat: "Nothing to repeat."
 off_globe: "Not on the globe."
-visible_area: "Visible map: {width} by {height} kilometres."
-visible_globe: "Visible map: the whole globe."
 braille_test: "TobyMap Braille test: {place}"
 braille_fallback: "Braille-only messages need NVDA, and it was not found."
 braille_web: "Braille-only messages are not possible in a web browser. The screen reader shows announcements in Braille as well as speaking them."
 timing: "Last frame: worked out in {project} milliseconds, painted in {paint} milliseconds, {points} points."
+timing_unknown: "an unknown number of"
 timing_startup: "Start-up took {seconds} seconds."
+visible:
+  area: "Visible map: {width} wide by {height} high."
 
 # Names of the four regions and other window words (UX section 2).
 ui:
@@ -36,42 +26,197 @@ ui:
   details: Details
   menu_bar: Menu bar
   close: Close
+  ok: OK
+  cancel: Cancel
+  copy: Copy
+  play: Play
+  settings_title: Settings
+  keys_tab: Keys
+  key_change: Change key
+  key_clear: No key
+  key_prompt: "Press the key you want for this command."
+  key_field: Key
+  key_message: Message
+  no_key: no key
+  export: Export settings
+  import: Import settings
   loading: "Loading TobyMap. This can take a few seconds the first time."
 
 panel:
   within: Within
   nearby: Nearby
   crossed: Crossed and passed
-  earth: Earth
-  nearby_item: "{name}, {distance} {direction}"
   empty_later: "Nothing yet. This group is filled from Phase 2."
 
 details:
-  sovereign: "Sovereign state: {value}"
-  long_name: "Full name: {value}"
-  continent: "Continent: {value}"
-  subregion: "Region: {value}"
-  population: "Population estimate: {value}"
-  label_point: "Label point: {value}"
-  from_centre: "From the centre of the map: {distance} {direction}"
+  nothing: "No area here."
+  type: "Type: {value}"
+  layers:
+    countries: country
+    regions: first-level division
+    counties: county
+    oceans: ocean or sea
+  part_of: "Part of: {value}"
+  disputed: "This land is disputed."
+  area: "Area: {value}"
+  centre: "The location is {value}"
   source: "Source: {value}"
-  sea: "Sea"
-  sea_note: "No country here in the Natural Earth sample."
-  centre: "Centre of the map: {value}"
-  earth: "Earth"
-  earth_note: "The whole world. Natural Earth lists 177 countries at this scale."
+
+sound:
+  muted: "Sound muted."
+  unmuted: "Sound on."
+  own_file_failed: "Your own sound file for {sound} could not be played, so the default sound is used."
+
+settings:
+  title: Settings
+  bad_value: "That value cannot be used for this setting."
+
+keys:
+  taken: "{key} is already used by {other}. Choose another key."
+  invalid: "{key} is not a key TobyMap can use."
+  changed: "{label} is now {key}."
+  cleared: "{label} has no key now."
+
+describer:
+  started: "Key describer on. Press a key to hear what it does. Nothing is carried out. Press Shift+F1 again to leave."
+  stopped: "Key describer off."
+  key: "{key}: {label}"
+  unassigned: "{key}: no command."
+  # A key with commands in more than one region: each one with where it works.
+  several: "{key}: {list}"
+  in_region: "{label}, {region}."
+  regions:
+    global: anywhere
+    map: on the map
+    panel: in the Information panel
+    details: in Details
+
+diagnostics:
+  title: Diagnostics
 
 dialogs:
   keys_title: Keys
-  keys_intro: "These keys work when the map has focus. Tab and Shift+Tab move between the map, the Information panel, Details and the menu bar."
+  keys_intro_region: "These are the commands that work when the {region} has focus. Tab and Shift+Tab move between the map, the Information panel, Details and the menu bar. F2, F3 and F4 go to the map, the Information panel and Details."
   keys_line: "{label}: {key}"
   keys_menu_only: "{label}: in the {menu} menu"
   about_title: About TobyMap
-  about_text: "TobyMap version {version}.\nThis is spike S5: the globe, the accessible window and the installer.\nCountries from Natural Earth, public domain.\nTobyMap is free software under the GNU General Public License version 3."
+  about_text: "TobyMap version {version}.
+An accessible map for blind and partially sighted people.
+TobyMap is free software under the GNU General Public License version 3."
+  data_title: About the data
+  data_pack: "{name}, version {version}, built {built}."
+  data_none: "No map pack is installed."
+  earcons_title: The sounds
+  earcons_line: "{name}, {file}: {meaning}"
 
+# ---- Phase 1 wording (P1-T7; ANN-1, ANN-4, ANN-5, LOC-1, LOC-7, INF-3, INF-7) ----
+
+# Units: [singular, plural]. "1 kilometre", "2 kilometres".
+units:
+  m: [metre, metres]
+  km: [kilometre, kilometres]
+  yd: [yard, yards]
+  mi: [mile, miles]
+  nmi: [nautical mile, nautical miles]
+  km2: [square kilometre, square kilometres]
+  mi2: [square mile, square miles]
+
+# Bearings, by the kinds in mapcore.geo.formats.
+bearing:
+  degrees: "{value} degrees"
+  about_degrees: "about {value} degrees"
+  clock: "{value} o'clock"
+  point: "{value}"
+
+# The 32 points of the compass, as words.
+points:
+  N: north
+  NbE: north by east
+  NNE: north-north-east
+  NEbN: north-east by north
+  NE: north-east
+  NEbE: north-east by east
+  ENE: east-north-east
+  EbN: east by north
+  E: east
+  EbS: east by south
+  ESE: east-south-east
+  SEbE: south-east by east
+  SE: south-east
+  SEbS: south-east by south
+  SSE: south-south-east
+  SbE: south by east
+  S: south
+  SbW: south by west
+  SSW: south-south-west
+  SWbS: south-west by south
+  SW: south-west
+  SWbW: south-west by west
+  WSW: west-south-west
+  WbS: west by south
+  W: west
+  WbN: west by north
+  WNW: west-north-west
+  NWbW: north-west by west
+  NW: north-west
+  NWbN: north-west by north
+  NNW: north-north-west
+  NbW: north by west
+
+hemispheres:
+  N: north
+  S: south
+  E: east
+  W: west
+
+coordinates:
+  decimal_angle: "{degrees} degrees {hemisphere}"
+  decimal_angle_plain: "{degrees} degrees"
+  dms_angle: "{degrees} degrees {minutes} minutes {seconds} seconds {hemisphere}"
+  dms_angle_plain: "{degrees} degrees {minutes} minutes {seconds} seconds"
+  pair: "{lat}, {lon}"
+
+# Where the location is, and what changed (ANN-1, LOC-2).
+place:
+  list_separator: ", "
+  none: "No area here"
+  sea: "Sea"
+
+# The words after a move that crosses a pole (NAV-1 says the block is silent,
+# so there are none here).
+
+movement:
+  zoom_step: "Zoom {zoom}, step {step}."
+  zoom_end_out: "Widest zoom. {zoom_step}"
+  zoom_end_in: "Closest zoom. {zoom_step}"
+  step_end_larger: "Largest step. {zoom_step}"
+  step_end_smaller: "Smallest step. {zoom_step}"
+  link_on: "Step linked to zoom. {zoom_step}"
+  link_off: "Step no longer linked to zoom. {zoom_step}"
+  facing: "Facing {heading}."
+  orientation:
+    north-fixed: "North-fixed."
+  mode:
+    stepping: "Stepping."
+  heading: "{facing} {orientation} {mode} Zoom {zoom}, step {step}."
+
+history:
+  title: Announcement history
+  empty: "Nothing has been announced yet."
+  nothing_to_repeat: "Nothing to repeat."
+
+nearby:
+  item: "{name}, {distance} {direction}"
+  none: "Nothing nearby."
+
+# Which unit system, bearing style and coordinate format is chosen (ANN-5, LOC-1).
 # Why a pack was not opened, or what is wrong with it (PCK-5, NFR-4, P1-T2).
 # {name} is the pack's file name.
 packs:
+  downloading_first: "Downloading the map for the first time. It is kept in this browser, so this happens once."
+  downloading: "Downloading the map: {percent} percent."
+  download_done: "The map is downloaded."
+  none_installed: "No map pack is installed, so TobyMap has no map to show. Open Help, then About the data, for how to get one."
   not_a_pack: "{name} is not a TobyMap pack, so it was not opened."
   newer_format: "{name} needs a newer version of TobyMap, so it was not opened. Update TobyMap to use it."
   app_too_old: "{name} needs TobyMap {need} or later, and this is TobyMap {have}, so it was not opened. Update TobyMap to use it."
@@ -79,3 +224,4 @@ packs:
   damaged_pack: "{name} is damaged, so it was not opened. Download it again. The damage is in its {record}."
   damaged_record: "Part of {name} is damaged, and TobyMap is carrying on without it. Download the pack again. The damaged record is {record}."
   checksum_wrong: "{name} does not match its checksum, so it may be damaged or incomplete. Download it again."
+

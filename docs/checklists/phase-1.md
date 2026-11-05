@@ -98,7 +98,7 @@ Start at latitude 51.2, longitude 1.2, with the zoom and step as given in the sc
 4. Press C. You hear: "51 degrees 12 minutes 0.0 seconds north, 1 degrees 12 minutes 0.0 seconds east".
 5. Press H. You hear: "Facing north. North-fixed. Stepping. Zoom 5 kilometres, step 250 metres.".
 6. Choose the command settings.set with {'field': 'units', 'value': 'imperial'}. Nothing is spoken.
-7. Press H. You hear: "Facing north. North-fixed. Stepping. Zoom 3.1 miles, step 270 yards.".
+7. Press H. You hear: "Facing north. North-fixed. Stepping. Zoom 2.5 miles, step 250 yards.".
 
 ## Part 9: Zoom and step changes, linked and not
 

@@ -4,6 +4,7 @@
 # Results, in dist_installer:
 #   TobyMap-<version>-setup.exe   the installer
 #   TobyMap-<version>-portable.zip   the same program, to unzip and run anywhere
+param([string]$Pack = "")
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
@@ -19,6 +20,10 @@ if (-not $makensis) {
     }
 }
 if (-not $makensis) { throw "NSIS is not installed. Install it from https://nsis.sourceforge.io, then run this again." }
+
+Write-Output "Making the placeholder earcons that are not there yet"
+& $py tools\make_placeholder_sounds.py
+if ($LASTEXITCODE -ne 0) { throw "make_placeholder_sounds failed" }
 
 Write-Output "Fetching the NVDA Controller Client if needed"
 & $py tools\fetch_vendor.py --nvda
@@ -45,8 +50,15 @@ Write-Output "Running PyInstaller"
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
 
 New-Item -ItemType Directory -Force dist_installer | Out-Null
+# The base pack lite goes in the installer when it is given: -Pack <path to world.pack>. It is installed for the
+# current user into TobyMap's own folder in the application data folder. Without it, the installer holds the program only.
+$defines = @("/DVERSION=$version")
+if ($Pack) {
+    if (-not (Test-Path $Pack)) { throw "The pack $Pack is not there." }
+    $defines += "/DPACK=$((Resolve-Path $Pack).Path)"
+}
 Write-Output "Building the installer with NSIS"
-& $makensis /V2 "/DVERSION=$version" packaging\installer.nsi
+& $makensis /V2 @defines packaging\installer.nsi
 if ($LASTEXITCODE -ne 0) { throw "NSIS failed" }
 
 Write-Output "Making the portable zip"

@@ -2,5 +2,7 @@
 
 Every sound TobyMap plays, where it came from and its licence (SON-8).
 
-* tick.wav, blocked.wav, crossed-added.wav, ding.wav, no-data.wav, ambiguous-up.wav and line-crossing.wav: placeholder tones made by tools/make_placeholder_sounds.py. They are generated, with no source recording, and released under the same GPL-3.0 licence as the code. They are replaced by your own sounds when you send them (DP111).
-* bump.wav and click.wav: the Phase 0 sounds, made for the spikes.
+* click.wav, the tick, and bump.wav, the blocked sound: made by the product owner, who owns them. Released under the same GPL-3.0 licence as the code (DP128). They are kept in git (DP111).
+* crossed-added.wav, ding.wav, no-data.wav, ambiguous-up.wav and line-crossing.wav: placeholder tones made by tools/make_placeholder_sounds.py. They are generated, with no source recording, and released under the same GPL-3.0 licence as the code. They are replaced by your own sounds when you send them (DP111).
+
+Only the files named in mapcore/describe/earcons.yaml are shipped with the installer and the web version. Any other file in this folder stays on your computer (DP127).

@@ -1,7 +1,8 @@
 # The earcons (SON-6, SON-8): event, file name in the sounds folder, and the words
-# for Help. Phase 1 plays the first two; the rest are made ready for Phase 2.
-- {event: tick, file: tick.wav, label: Tick, meaning: "A step that changed nothing.", phase: 1}
-- {event: blocked, file: blocked.wav, label: Blocked, meaning: "A step that could not be taken, such as at a pole.", phase: 1}
+# for Help. Phase 1 plays the first two, which are the PO's own sounds (DP128); the rest
+# are placeholder tones made ready for Phase 2.
+- {event: tick, file: click.wav, label: Tick, meaning: "A step that changed nothing.", phase: 1}
+- {event: blocked, file: bump.wav, label: Blocked, meaning: "A step that could not be taken, such as at a pole.", phase: 1}
 - {event: crossed_added, file: crossed-added.wav, label: Something added, meaning: "Something was added to the Crossed and passed list.", phase: 2}
 - {event: ding, file: ding.wav, label: Ding, meaning: "Passing a point of interest while driving.", phase: 2}
 - {event: no_data, file: no-data.wav, label: No data, meaning: "There is no data here for what you asked.", phase: 2}

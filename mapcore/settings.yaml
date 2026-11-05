@@ -37,6 +37,18 @@ tabs:
         label: Link step to zoom
         kind: yes_no
         default: false
+      - id: repeat_delay_ms
+        label: "Holding an arrow key: wait before repeating, in milliseconds"
+        kind: number
+        default: 500
+        min: 100
+        max: 2000
+      - id: repeat_rate
+        label: "Holding an arrow key: steps a second"
+        kind: number
+        default: 6
+        min: 1
+        max: 30
       - id: nearby_count
         label: Number of nearby items
         kind: number

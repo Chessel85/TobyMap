@@ -403,6 +403,7 @@ Inside mapdata/:
 ---
 
 ## 11. Developer documentation
+* docs/developer/phase-1-implementation.md: how the Phase 1 code stands: modules, tests, tools and the decisions made while building.
 
 * Core architecture notes
   * Where: docs/developer/, one document per area: core, packs and store, sound, rendering, web bridge, and testing.

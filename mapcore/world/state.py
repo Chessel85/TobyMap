@@ -5,9 +5,10 @@ mode are kept ready for Phase 2 (NAV-1, NAV-2, NAV-13, PLT-5).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from mapcore.geo import geodesy
+from mapcore.geo.formats import METRES_PER_MILE, METRES_PER_YARD
 
 DEFAULT_ZOOMS = (100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000,
                  250000, 500000, 1000000, 2500000, 10000000)
@@ -15,6 +16,11 @@ DEFAULT_STEPS = (10, 25, 50, 100, 250, 500, 1000, 5000, 25000, 100000, 250000, 1
 
 DIRECTIONS = {"north": ("meridian", 1), "south": ("meridian", -1),
               "east": ("parallel", 1), "west": ("parallel", -1)}
+
+
+def _imperial_metres(pairs) -> tuple:
+    """[[100, "yd"], [0.5, "mi"], ...] in metres."""
+    return tuple(n * (METRES_PER_YARD if unit == "yd" else METRES_PER_MILE) for n, unit in pairs)
 
 
 def nearest_index(values, target: float) -> int:
@@ -44,6 +50,8 @@ class WorldState:
     link: bool = False
     orientation: str = "north-fixed"
     movement_mode: str = "stepping"
+    # The zoom and step lists for each unit system: {"metric": (zooms, steps), "imperial": ...}
+    lists: dict = field(default_factory=dict)
 
     @classmethod
     def from_defaults(cls, d: dict) -> "WorldState":
@@ -51,8 +59,11 @@ class WorldState:
         steps = tuple(d.get("step_list_m", DEFAULT_STEPS))
         w = d.get("world", {})
         st = d.get("start", {})
+        lists = {"metric": (zooms, steps)}
+        if d.get("zoom_list_imperial") and d.get("step_list_imperial"):
+            lists["imperial"] = (_imperial_metres(d["zoom_list_imperial"]), _imperial_metres(d["step_list_imperial"]))
         return cls(lat=st.get("lat", 52.0), lon=geodesy.wrap_lon(st.get("lon", -1.0)),
-                   zoom_list=zooms, step_list=steps,
+                   zoom_list=zooms, step_list=steps, lists=lists,
                    zoom_index=nearest_index(zooms, w.get("zoom_m", 5000)),
                    step_index=nearest_index(steps, w.get("step_m", 100)),
                    link=bool(w.get("link_step_to_zoom", False)))
@@ -66,6 +77,17 @@ class WorldState:
         return self.step_list[self.step_index]
 
     # Zoom and step ---------------------------------------------------------------
+    def use_units(self, system: str) -> None:
+        """Use the zoom and step lists of a unit system, moving to the nearest sizes in
+        them (DP136). Nautical miles, and any system without its own lists, use metric."""
+        zooms, steps = self.lists.get(system) or self.lists.get("metric") or (self.zoom_list, self.step_list)
+        if (zooms, steps) == (self.zoom_list, self.step_list):
+            return
+        zoom_m, step_m = self.zoom_m, self.step_m
+        self.zoom_list, self.step_list = zooms, steps
+        self.zoom_index = nearest_index(zooms, zoom_m)
+        self.step_index = nearest_index(steps, zoom_m / 4) if self.link else nearest_index(steps, step_m)
+
     def change_zoom(self, direction: int) -> bool:
         """+1 zooms out (larger distance), -1 zooms in. False at the end of the list."""
         i = self.zoom_index + direction

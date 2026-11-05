@@ -9,4 +9,4 @@ steps:
   - {press: C, say: ["51 degrees 12 minutes 0.0 seconds north, 1 degrees 12 minutes 0.0 seconds east"]}
   - {press: H, say: ["Facing north. North-fixed. Stepping. Zoom 5 kilometres, step 250 metres."]}
   - {run: settings.set, args: {field: units, value: imperial}, say: []}
-  - {press: H, say: ["Facing north. North-fixed. Stepping. Zoom 3.1 miles, step 270 yards."]}
+  - {press: H, say: ["Facing north. North-fixed. Stepping. Zoom 2.5 miles, step 250 yards."]}

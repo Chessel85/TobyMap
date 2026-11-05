@@ -54,6 +54,12 @@ tabs:
         default: 6
         min: 1
         max: 30
+      - id: held_draw_rate
+        label: "Holding an arrow key: map drawings a second"
+        kind: number
+        default: 4
+        min: 1
+        max: 30
       - id: nearby_count
         label: Number of nearby items
         kind: number

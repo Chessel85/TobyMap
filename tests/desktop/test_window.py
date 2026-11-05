@@ -232,28 +232,72 @@ def test_the_key_describer_catches_tab_and_works_in_every_region(window, qtbot):
     assert region(window) == "details"
 
 
-def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(window):
+def hold_key(window, qtbot, key, seconds: float) -> None:
+    """Hold a key in real time: the press, then the system's repeats every 33 ms, as Windows sends them."""
+    w = window.map
+    QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, key))
+    end = time.perf_counter() + seconds
+    while time.perf_counter() < end:
+        qtbot.wait(33)
+        QApplication.sendEvent(w, key_event(QEvent.Type.KeyRelease, key, auto=True))
+        QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, key, auto=True))
+
+
+def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(window, qtbot):
     """ANN-3: two seconds of key repeat, then let go."""
     announcer = window.announcer
-    w = window.map
-    clock = [100.0]
-    window.session.clock = lambda: clock[0]
-    QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, Qt.Key.Key_Down))          # the first press speaks
-    spoken_after_first = len(announcer.spoken)
-    start = time.perf_counter()
-    for _ in range(60):                                                                    # 2 seconds of repeats
-        clock[0] += 1 / 30
-        QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, Qt.Key.Key_Down, auto=True))
-        QApplication.sendEvent(w, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down, auto=True))
-    assert len(announcer.spoken) == spoken_after_first, "nothing is spoken while the key is held"
+    spoken_before = len(announcer.spoken)
+    hold_key(window, qtbot, Qt.Key.Key_Down, 2.0)
+    assert len(announcer.spoken) == spoken_before + 1, "only the press is spoken while the key is held"
     steps = round((51.2 - window.session.world.lat) / (25 / 111.2))
-    assert 9 <= steps <= 11, steps          # the press, then 6 a second after the 500 ms delay (DP129)
+    assert 10 <= steps <= 11, steps         # the press, then 6 a second after the 500 ms delay (DP129)
     assert window.sounds.played.count("tick") >= steps - 1   # each repeated step ticks
-    QApplication.sendEvent(w, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down))
-    assert len(announcer.spoken) == spoken_after_first + 1
+    QApplication.sendEvent(window.map, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down))
+    assert len(announcer.spoken) == spoken_before + 2
     assert announcer.spoken[-1][1] == "assertive"       # it interrupts what the screen reader was still saying
     assert announcer.texts[-1] == "France"             # about 250 km south of Kent
-    assert time.perf_counter() - start < 5
+
+
+def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(window, qtbot):
+    """DP140, P2-T14: each drawing takes 200 ms, yet a 3 second hold at 6 steps a
+    second clicks within 10 ms of each due time. The map is drawn at most 4 times a
+    second while the key is held, and once more after the release."""
+    session = window.session
+    real_scene = session.scene
+    started = []
+
+    def slow_scene(width, height):
+        started.append(time.perf_counter())
+        until = time.perf_counter() + 0.2
+        while time.perf_counter() < until:   # Python busy for 200 ms, as a real drawing is
+            sum(range(200))
+        return real_scene(width, height)
+
+    session.scene = slow_scene
+    qtbot.waitUntil(window.map.drawing_done)
+    ticks_before = len(window.sounds.times)
+    pressed = time.perf_counter()
+    hold_key(window, qtbot, Qt.Key.Key_Down, 0.0)
+    first_due = time.perf_counter() + session.hold_due()
+    end = pressed + 3.0
+    while time.perf_counter() < end:
+        qtbot.wait(33)
+        QApplication.sendEvent(window.map, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down, auto=True))
+        QApplication.sendEvent(window.map, key_event(QEvent.Type.KeyPress, Qt.Key.Key_Down, auto=True))
+    released = time.perf_counter()
+    QApplication.sendEvent(window.map, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down))
+    qtbot.waitUntil(window.map.drawing_done, timeout=3000)
+    qtbot.wait(50)
+
+    ticks = [t for t in window.sounds.times[ticks_before:] if t > first_due - 0.05]   # not the press's own
+    due_before_release = sum(1 for k in range(40) if first_due + k / 6 < released)
+    assert len(ticks) >= 15 and abs(len(ticks) - due_before_release) <= 1   # 2.5 seconds after the delay, 6 a second
+    late = [round((t - (first_due + k / 6)) * 1000, 1) for k, t in enumerate(ticks)]
+    assert all(-2 <= d <= 10 for d in late), late
+    during = [t for t in started if pressed <= t < released]
+    assert len(during) <= 3 * 4 + 1, during                          # at most 4 a second, and the press's own
+    assert len([t for t in started if t >= released]) == 1           # one drawing of the final place
+    assert window.announcer.texts[-1] == "France"
 
 
 def test_a_step_is_announced_quickly(window, qtbot):
@@ -445,6 +489,17 @@ def test_dragging_turns_the_globe_and_speaks_only_at_the_end(window, qtbot):
     assert window.session.world.lon != 1.2
 
 
+def test_the_map_is_drawn_in_its_own_thread_and_shown(window, qtbot):
+    made = window.map.drawings_made
+    window.map.redraw()
+    qtbot.waitUntil(lambda: window.map.drawings_made > made)
+    image = window.map.grab().toImage()
+    centre = image.pixelColor(image.width() // 2 + 40, image.height() // 2 + 40).name()
+    assert centre != window.session.scene_background()               # the map, not the empty background
+    event = [e for e in window.session.trace if e["command"] == "draw"][-1]
+    assert event["paint_ms"] >= 0 and event["points"] > 0
+
+
 def test_scene_paints_quickly_on_an_image(window):
     scene = window.session.scene(1200, 900)
     image = QImage(1200, 900, QImage.Format.Format_ARGB32_Premultiplied)
@@ -456,8 +511,9 @@ def test_scene_paints_quickly_on_an_image(window):
     assert image.pixelColor(600, 450).name() != scene["background"]
 
 
-def test_timing_report_uses_the_last_paint(window):
-    window.map.repaint()
+def test_timing_report_uses_the_last_paint(window, qtbot):
+    window.map.redraw()
+    qtbot.waitUntil(lambda: window.map.drawing_done() and window.session.paint_ms is not None)
     window.actions_by_name["diagnostics.timing"].trigger()
     assert "painted in" in window.announcer.texts[-1]
 

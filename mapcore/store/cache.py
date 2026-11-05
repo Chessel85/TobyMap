@@ -24,7 +24,7 @@ class TileData:
     """The tile entries of one pack tile or drawing tile, with their shapes
     decoded when first asked for."""
 
-    __slots__ = ("entries", "by_feature", "shapes", "cost", "owner")
+    __slots__ = ("entries", "by_feature", "shapes", "cost", "owner", "drawing")
 
     def __init__(self, entries: list[tiles.TileEntry]):
         self.entries = entries
@@ -34,6 +34,34 @@ class TileData:
         self.shapes: dict[int, object] = {}
         self.cost = TILE_OVERHEAD + sum(len(e.data) + 16 for e in entries)
         self.owner = None  # the cache that holds this tile, told when shapes are decoded
+        self.drawing = None  # every shape of the tile, decoded at once, for the map scene (P2-T14c)
+
+    def drawing_shapes(self, box) -> tuple:
+        """Every entry as a Shapely shape, decoded in one go, in entry order: an
+        array of shapes, and the feature number of each. A covered note is the
+        tile's box. Kept with the tile, so a drawing decodes a tile only once."""
+        got = self.drawing
+        if got is None:
+            import numpy as np
+            import shapely
+
+            geoms = np.empty(len(self.entries), object)
+            # Shapes a lookup has already decoded, such as for "where am I", are used as they are.
+            for i, shape in list(self.shapes.items()):
+                geoms[i] = shape
+            compact = [i for i, e in enumerate(self.entries) if e.kind != tiles.COVERED and i not in self.shapes]
+            if compact:
+                geoms[compact] = coords.to_shapes([self.entries[i].data for i in compact])
+            for i, e in enumerate(self.entries):
+                if e.kind == tiles.COVERED:
+                    geoms[i] = shapely.box(*box)
+            numbers = np.fromiter((e.feature for e in self.entries), np.int64, len(self.entries))
+            got = self.drawing = (geoms, numbers)
+            grown = sum(len(self.entries[i].data) for i in compact) * DECODED_FACTOR
+            self.cost += grown
+            if self.owner is not None:
+                self.owner.grew(grown)
+        return got
 
     def shape(self, i: int):
         """The decoded, prepared Shapely shape of entry i; None for a covered note."""

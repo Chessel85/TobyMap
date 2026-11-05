@@ -2,7 +2,7 @@
 
 Phase 2 is orientation, layers and sound. The tasks are described in "implementation plan.md", section 5, version 0.5, and in detail in phase-2-plan.md, which also raises DP142 to DP146 and splits each task into work items, each labelled Opus or Sonnet. This list shows what is done.
 
-Not started yet. The plan was written on 5 November 2026, after you accepted Phase 1.
+Started on 5 November 2026, after you accepted Phase 1.
 
 ## Start of the phase
 
@@ -12,7 +12,10 @@ Not started yet. The plan was written on 5 November 2026, after you accepted Pha
 
 ## Tasks
 
-* [ ] P2-T14 Holding an arrow key: the clicks never wait for the map to be drawn, then the drawing is made faster (DP140).
+* [x] P2-T14 Holding an arrow key: the clicks never wait for the map to be drawn, then the drawing is made faster (DP140). Branch p2-t14-held-key. Done on 5 November 2026:
+  * P2-T14a: the clicks keep their own time. On the desktop, the map is drawn in the background, and a clock of the window's own makes each step and its click at the time the core gives. Qt's own timers keep to Windows' 15.6 ms beat, so the clock is a small thread that sleeps until each step is due. In the web version, the page plays each click on the sound card's own clock at its due time, without waiting for the core. While a key is held, the map is drawn at most 4 times a second (a new setting in the Movement tab), and the Information panel and Details wait for the release. With a stand-in drawing of 200 ms, every click of a 3 second hold is within 10 ms of its due time, on the desktop and in Chromium and Firefox.
+  * P2-T14b: each drawing's three parts are timed in the trace. Where the time goes is in docs/plan/p2-t14-drawing-timing.md, made by tools/time_drawing.py and tools/time_drawing_web.py.
+  * P2-T14c: the slowest part was choosing the shapes the first time a place is drawn, when the pack tiles are decoded. Two approaches were tried. Decoding all the shapes of a pack tile together was kept: it makes the slowest drawings 3 to 5 times quicker. Reading ahead in the background was not kept, because it did not help the first drawing.
 * [ ] P2-T1 Orientations and turning: north-fixed, cardinal facing and free facing, the F key, turning, typing a bearing, and crossing the poles.
 * [ ] P2-T2 Position history and going to coordinates, in every NAV-8 format (DP142).
 * [ ] P2-T15 Going back to a place from the announcement history, with Enter (DP141).

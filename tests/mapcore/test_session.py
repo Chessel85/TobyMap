@@ -83,30 +83,42 @@ class FakeClock:
         return self.now
 
 
-def test_a_held_key_waits_for_the_repeat_delay_then_steps_at_the_repeat_rate(test_pack):
-    """DP129: key repeats from Windows only step after the delay (500 ms), then at
-    the rate (6 a second), whatever Windows sends. Each repeated step ticks."""
+def hold(s, clock, seconds: float):
+    """Hold a key for `seconds`, stepping when hold_due() says, as the shells' timers do.
+    Returns the times of the steps and of the drawings asked for."""
+    steps, draws = [], []
+    end = clock.now + seconds
+    while True:
+        due = s.hold_due()
+        if clock.now + due > end + 1e-6:
+            break
+        clock.now += due
+        r = s.run(s.holding, held=True, repeat=True)
+        assert r.earcons == ["tick"] and not r.announcements
+        steps.append(clock.now)
+        if r.redraw:
+            draws.append(clock.now)
+    clock.now = end
+    return steps, draws
+
+
+def test_a_held_key_steps_after_the_repeat_delay_then_at_the_repeat_rate(test_pack):
+    """DP129, DP140: the shell's timer steps when the core says: after the delay
+    (500 ms), then at the rate (6 a second), whatever the system's key repeat does.
+    Each of those steps ticks, and nothing is said until the release."""
     clock = FakeClock()
     s = MapSession(packs=[test_pack], saved_state=dict(KENT), clock=clock)
     s.start()
-    s.run("move.south")                                   # the press itself steps at once
-    lat = s.world.lat
-    steps = 0
-    ticks = 0
-    for _ in range(100):                                  # 2 seconds of repeats, every 20 ms
-        clock.now += 0.02
-        before = s.world.lat
-        r = s.run("move.south", held=True, repeat=True)
-        if s.world.lat != before:
-            steps += 1
-            ticks += r.earcons == ["tick"]
-            assert not r.announcements
-        elif clock.now - 100.0 < 0.5:
-            assert not r.earcons                          # nothing at all inside the delay
-    assert 9 <= steps <= 10                               # 1.5 seconds after the delay, 6 a second
-    assert ticks == steps
-    assert s.world.lat < lat
+    assert s.hold_due() is None                           # no key held
+    first = s.run("move.south")                           # the press steps and speaks at once
+    assert spoken(first) and first.redraw
+    assert s.hold_due() == pytest.approx(0.5)
+    steps, _ = hold(s, clock, 2.0)
+    assert steps[0] == pytest.approx(100.5)
+    assert [round(b - a, 6) for a, b in zip(steps, steps[1:])] == [round(1 / 6, 6)] * (len(steps) - 1)
+    assert len(steps) == 10                               # 1.5 seconds after the delay, 6 a second
     assert spoken(s.release())
+    assert s.hold_due() is None
 
 
 def test_the_repeat_delay_and_rate_are_settings(test_pack):
@@ -116,13 +128,79 @@ def test_the_repeat_delay_and_rate_are_settings(test_pack):
     s.run("settings.set", field="repeat_delay_ms", value=200)
     s.run("settings.set", field="repeat_rate", value=10)
     s.run("move.south")
-    steps = 0
-    for _ in range(50):                                   # 1 second of repeats
-        clock.now += 0.02
-        before = s.world.lat
-        s.run("move.south", held=True, repeat=True)
-        steps += s.world.lat != before
-    assert 8 <= steps <= 9                                # 0.8 seconds after the delay, 10 a second
+    steps, _ = hold(s, clock, 1.0)
+    assert len(steps) == 9                                # 0.8 seconds after the delay, 10 a second
+
+
+def test_a_late_timer_keeps_the_beat_and_never_makes_two_steps_at_once(test_pack):
+    clock = FakeClock()
+    s = MapSession(packs=[test_pack], saved_state=dict(KENT), clock=clock)
+    s.start()
+    s.run("move.south")
+    clock.now += 0.5 + 0.05                               # 50 ms late: the next is still on the beat
+    s.run("move.south", held=True, repeat=True)
+    assert s.hold_due() == pytest.approx(1 / 6 - 0.05)
+    clock.now += 1.0                                      # very late: the next is half a step from now
+    s.run("move.south", held=True, repeat=True)
+    assert s.hold_due() == pytest.approx(1 / 12)
+
+
+def test_while_a_key_is_held_the_map_is_drawn_at_most_4_times_a_second_then_once_after(test_pack):
+    """DP140: the drawing never holds up the steps. Held steps ask for a drawing
+    at most held_draw_rate times a second; the release always draws."""
+    clock = FakeClock()
+    s = MapSession(packs=[test_pack], saved_state=dict(KENT), clock=clock)
+    s.start()
+    s.run("settings.set", field="repeat_rate", value=10)
+    s.run("move.south")
+    steps, draws = hold(s, clock, 3.0)
+    assert len(steps) == 26
+    assert 9 <= len(draws) <= 10                          # 2.5 seconds of steps, 4 drawings a second
+    assert all(b - a >= 0.249 for a, b in zip(draws, draws[1:]))
+    assert s.release().redraw
+
+
+def test_held_steps_leave_the_panel_and_details_until_the_release(session):
+    r = session.run("move.south")
+    assert r.panel_stale and r.details_stale
+    r = session.run("move.south", held=True, repeat=True)
+    assert not r.panel_stale and not r.details_stale
+    done = session.release()
+    assert done.panel_stale and done.details_stale and done.redraw
+
+
+def test_the_hold_says_how_many_steps_will_move_for_the_web_clicks(test_pack):
+    """The web page plays each click at its due time without waiting for the
+    worker, so the core says how many of the next steps will move (DP140)."""
+    s = MapSession(packs=[test_pack], saved_state={"lat": 89.0, "lon": 0, "zoom_m": 250000, "step_m": 25000})
+    s.start()
+    s.run("move.south")
+    info = s.hold_info()
+    assert info["command"] == "move.south" and info["delay_ms"] == 500 and info["every_ms"] == pytest.approx(1000 / 6)
+    assert info["unlimited"] and info["left"] == 13 and info["tick"]
+    s.release()
+    s.run("move.north")                                   # back to 89 north: 4 more 25 km steps, then the pole
+    info = s.hold_info()
+    assert not info["unlimited"] and info["left"] == 4
+    assert (s.world.lat, s.world.lon) == (pytest.approx(89.0, abs=0.01), 0)   # the probe never moves you
+    s.run("sound.mute")
+    assert s.hold_info()["tick"] is False                 # muted: the page plays no clicks
+    s.release()
+    assert s.hold_info() is None
+
+
+def test_drawings_go_into_the_trace_in_their_parts(session):
+    from mapcore import diagnostics
+
+    session.scene(800, 600)
+    session.frame_painted(12.5)
+    event = session.trace[-1]
+    assert event["command"] == "draw" and event["paint_ms"] == 12.5
+    assert event["choose_ms"] >= 0 and event["project_ms"] >= 0 and event["points"] > 0
+    session.press("Space")
+    diagnostics.add_shell(session, key_pressed_at=None, handed_over_at=event["at"] + 1)
+    assert "handed_to_screen_reader_ms" in session.trace[-1] and "handed_to_screen_reader_ms" not in event
+    assert "painting 12.5 ms" in diagnostics.report(session)
 
 
 def test_release_after_a_hold_that_changed_nothing_is_a_tick(session):

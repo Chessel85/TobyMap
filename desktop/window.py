@@ -10,16 +10,20 @@ Keys are handled in one place, an application-wide key filter, which asks the
 session what a key means in the focused region. So remapped keys, the key
 describer and F1 for the focused region all work the same everywhere.
 
-Holding an arrow key (ANN-3): the first press is described at once; the
-repeats are carried out with speech held back, and when the key is let go only
-the final place is spoken.
+Holding an arrow key (ANN-3, DP129, DP140): the first press is described at
+once. Then the window's own hold clock, a small thread, makes each step, with
+its click, at the times the core gives; the system's key repeats only show that the key is
+still down. Speech is held back, and when the key is let go only the final
+place is spoken. The map is drawn in a thread of its own (map_widget.py), so a
+slow drawing never delays a click.
 """
 from __future__ import annotations
 
+import threading
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtGui import QAction, QGuiApplication
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, QMenu, QPlainTextEdit, QSplitter,
                                QTreeWidgetItem)
@@ -32,11 +36,64 @@ from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
 from desktop.sounds import SoundPlayer
 from mapcore.commands import registry
-from mapcore.session import MapSession, Response
+from mapcore.session import HOLD_SILENCE_S, MapSession, Response
 
 ITEM_ID = Qt.ItemDataRole.UserRole
 TOGGLES = {"step.link": lambda s: s.world.link, "sound.mute": lambda s: s.settings["mute"],
            "help.describer": lambda s: s.describing}
+
+
+class _HoldClock(QObject):
+    """The held key's clock (P2-T14, DP140): a thread of its own sleeps until
+    each step is due and then tells the window at once. Qt's timers on Windows
+    keep to a 15.6 ms beat, which made the clicks uneven by up to 16 ms; Python's
+    sleep is exact to about a millisecond."""
+
+    due = Signal()
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._wake = threading.Condition()
+        self._at: float | None = None
+        self._stopped = False
+        self._thread = threading.Thread(target=self._run, name="held key clock", daemon=True)
+        self._thread.start()
+
+    def arm(self, at: float) -> None:
+        """Send due at time.perf_counter() == at."""
+        with self._wake:
+            self._at = at
+            self._wake.notify()
+
+    def cancel(self) -> None:
+        with self._wake:
+            self._at = None
+            self._wake.notify()
+
+    def stop(self) -> None:
+        with self._wake:
+            self._stopped = True
+            self._at = None
+            self._wake.notify()
+        self._thread.join(timeout=2)
+
+    def _run(self) -> None:
+        while True:
+            with self._wake:
+                while self._at is None and not self._stopped:
+                    self._wake.wait()
+                if self._stopped:
+                    return
+                at = self._at
+            left = at - time.perf_counter()
+            if left > 0:
+                time.sleep(min(left, 0.05))   # in short sleeps, so a new time or a cancel is seen soon
+                continue
+            with self._wake:
+                if self._at != at:
+                    continue
+                self._at = None
+            self.due.emit()
 
 
 class _MenuTabFilter(QObject):
@@ -91,6 +148,9 @@ class MainWindow(QMainWindow):
         self._registry = self.session.registry()
         self._dialogs: list[QDialog] = []
         self._held_key: str | None = None
+        self._held_seen = 0.0              # when the system last said the held key is down
+        self._hold_clock = _HoldClock(self)
+        self._hold_clock.due.connect(self._hold_step)
         self.spoken_times: list[float] = []
 
         self.map = MapWidget(self, self.session)
@@ -152,7 +212,9 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self.save()
+        self._hold_clock.stop()
         QApplication.instance().removeEventFilter(self._key_filter)
+        self.map.stop_drawing()
         self.session.store.close()
         super().closeEvent(event)
 
@@ -247,16 +309,20 @@ class MainWindow(QMainWindow):
         command = registry.command_for_key("desktop", name, region, self.session.settings.keys)
         if command is None and not self.session.describing:
             return False
-        if command is not None and not self.session.describing and command.held:
-            if event.isAutoRepeat():
+        held = command is not None and not self.session.describing and command.held
+        if held:
+            if event.isAutoRepeat():   # the hold timer steps; a repeat only shows the key is still down
                 if self._held_key == command.name:
-                    self.handle(self.session.run(command.name, held=True, repeat=True))
+                    self._held_seen = time.perf_counter()
                 return True
             self._held_key = command.name
+            self._held_seen = time.perf_counter()
         response = self.session.press(name, region)
         if response is None:
             return False
         self.handle(response, key_at=started)
+        if held:
+            self._arm_hold()
         return True
 
     def key_released(self, event) -> bool:
@@ -271,7 +337,29 @@ class MainWindow(QMainWindow):
     def release_held(self) -> None:
         """The held key or the drag ended: only the final place is spoken, and it interrupts older speech (ANN-3)."""
         self._held_key = None
+        self._hold_clock.cancel()
         self.handle(self.session.release())
+
+    def _arm_hold(self) -> None:
+        due = self.session.hold_due()
+        if due is not None and self._held_key is not None:
+            self._hold_clock.arm(time.perf_counter() + due)
+
+    def _hold_step(self) -> None:
+        """The hold clock: the next step and its click, on time (DP129, DP140)."""
+        if self._held_key is None:
+            return
+        if time.perf_counter() - self._held_seen > HOLD_SILENCE_S:
+            self.release_held()   # the key was let go without our hearing of it
+            return
+        self.handle(self.session.run(self._held_key, held=True, repeat=True))
+        self._arm_hold()
+
+    def changeEvent(self, event):
+        # Another window took the keyboard while a key was held: its release will never come here.
+        if event.type() == QEvent.Type.ActivationChange and not self.isActiveWindow() and self._held_key:
+            self.release_held()
+        super().changeEvent(event)
 
     # Commands and responses ---------------------------------------------
 
@@ -300,7 +388,7 @@ class MainWindow(QMainWindow):
 
             diagnostics.add_shell(self.session, key_pressed_at=key_at, handed_over_at=time.time())
         if response.redraw:
-            self.map.update()
+            self.map.redraw()
         if response.panel_stale:
             self.map.refresh_name()
             self._fill_tree()

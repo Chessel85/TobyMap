@@ -127,6 +127,30 @@ def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(app):
     assert app.evaluate("window.tobymap.announcements.at(-1).priority") == "assertive"
 
 
+def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(page, site_url):
+    """DP140, P2-T14: every drawing takes 200 ms longer, yet a 3 second hold at 6
+    steps a second has every click set to sound within 10 ms of its due time. The
+    map is drawn at most 4 times a second while the key is held."""
+    app = open_app(page, site_url, query="?slowdraw=200")
+    paints = app.evaluate("window.tobymap.paints")
+    app.keyboard.down("ArrowDown")                     # the press is spoken at once
+    wait_said(app, 2)
+    for _ in range(30):                                # 3 seconds of the system's key repeats
+        app.wait_for_timeout(100)
+        app.keyboard.down("ArrowDown")
+    held_paints = app.evaluate("window.tobymap.paints") - paints
+    app.keyboard.up("ArrowDown")
+    wait_said(app, 3)
+    assert said(app)[-1] == "France"
+    clicks = app.evaluate("window.tobymap.clicks")
+    assert len(clicks) >= 14                           # 2.5 seconds after the delay, 6 a second
+    late = [round(c["at"] - c["due"], 1) for c in clicks]
+    assert all(0 <= d <= 10 for d in late), late
+    dues = [c["due"] for c in clicks]
+    assert all(abs(b - a - 1000 / 6) < 0.5 for a, b in zip(dues, dues[1:]))   # an even beat
+    assert held_paints <= 3 * 4 + 1, held_paints       # at most 4 a second, and the press's own
+
+
 def test_ten_rapid_taps_make_every_step_but_speech_keeps_up(page, site_url):
     app = open_app(page, site_url, values={"coordinate_places": "fixed"})   # every place, to see each step
     for _ in range(10):
@@ -261,7 +285,7 @@ def test_f1_dialog_for_the_focused_region_has_a_close_button(app):
 def test_history_repeat_and_the_key_describer(app):
     app.keyboard.press("Space")
     wait_said(app, 2)
-    app.keyboard.press("Control+Space")
+    app.keyboard.press("Shift+Space")          # repeat (P2-T0c, your key)
     wait_said(app, 3)
     assert said(app)[-1] == "Kent, England, United Kingdom"
     app.keyboard.press("Control+Shift+Space")

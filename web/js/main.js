@@ -23,7 +23,8 @@ let lastScene = null, returnFocus = null, describing = false, heldKey = null, la
 let toggles = { "step.link": false, "sound.mute": false, "help.describer": false };
 
 // window.tobymap is for the browser tests and diagnostics only.
-window.tobymap = { announcements: log, earcons: sounds.played, ready: false, error: null, paints: 0, timings: [] };
+window.tobymap = { announcements: log, earcons: sounds.played, clicks: sounds.clicks, ready: false, error: null,
+  paints: 0, timings: [] };
 
 function mapSize() {
   const r = mapEl.getBoundingClientRect();
@@ -37,7 +38,7 @@ function paint(scene) {
   client.send({ type: "painted", paintMs: ms }).catch(() => {});
 }
 
-function handle(result, keyAt) {
+function handle(result, keyAt, held = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
   const r = result.response;
   let spoke = false;
@@ -46,7 +47,9 @@ function handle(result, keyAt) {
     else speak(a.text, a.priority);
     spoke = true;
   }
-  for (const info of result.earcons || []) sounds.play(info);
+  for (const info of result.earcons || []) {
+    if (!(held && info.event === "tick")) sounds.play(info);   // a held step's click was played on time already
+  }
   if (spoke && keyAt !== undefined) {
     const now = performance.now();
     window.tobymap.timings.push(now - keyAt);
@@ -108,7 +111,54 @@ function run(name, args = {}, keyAt) {
 function release() {
   const { width, height } = mapSize();
   heldKey = null;
-  return client.send({ type: "release", width, height }).then(handle).catch(showError);
+  stopHold();
+  return client.send({ type: "release", width, height }).then((r) => handle(r)).catch(showError);
+}
+
+// Holding a movement key (DP129, DP140). The page keeps the beat itself: at
+// each step's due time, from the core's timing, it plays the click on the sound
+// card's clock and sends the step to the worker. The click never waits for the
+// worker, which may be busy drawing the map. The core says how many of the next
+// steps will move, so a step that would be blocked, at a pole, has no click.
+const HOLD_LEAD_MS = 50;   // wake this early, so a busy page still has the click ready on time
+let hold = null;
+
+function startHold(name, pressedAt, info) {
+  stopHold();
+  if (!info || heldKey !== name) return;
+  hold = { name, pressedAt, info, k: 0, sent: 0, left: info.unlimited ? Infinity : info.left,
+           seen: performance.now(), timer: null };
+  armHold();
+}
+
+function stopHold() {
+  if (hold) clearTimeout(hold.timer);
+  hold = null;
+}
+
+function holdDue(h, k) {
+  return h.pressedAt + h.info.delay_ms + k * h.info.every_ms;
+}
+
+function armHold() {
+  hold.timer = setTimeout(holdStep, Math.max(0, holdDue(hold, hold.k) - HOLD_LEAD_MS - performance.now()));
+}
+
+function holdStep() {
+  const h = hold;
+  if (!h) return;
+  if (performance.now() - h.seen > h.info.silence_ms) { release(); return; }   // the key was let go unseen
+  if (h.info.tick && h.left > 0) sounds.play(h.info.earcon, holdDue(h, h.k));
+  h.left -= 1;
+  h.k += 1;
+  const sent = ++h.sent;
+  const { width, height } = mapSize();
+  client.send({ type: "run", commands: [[h.name, { held: true, repeat: true }]], width, height }).then((r) => {
+    handle(r, undefined, true);
+    // The core's count is from after this step; steps sent since are taken off.
+    if (r && r.hold && hold === h) h.left = (r.hold.unlimited ? Infinity : r.hold.left) - (h.sent - sent);
+  }).catch(showError);
+  armHold();
 }
 
 function showError(error) {
@@ -170,9 +220,20 @@ document.addEventListener("keydown", (e) => {
   if (!name) return;
   e.preventDefault();
   if (registry.held.includes(name)) {
-    if (e.repeat) return run(name, { held: true, repeat: true });   // the core paces repeats (DP129) and speaks on release (ANN-3)
+    if (e.repeat) {   // the page's own beat steps; a repeat only shows the key is still down
+      if (hold && hold.name === name) hold.seen = performance.now();
+      return;
+    }
     heldKey = name;
-    return run(name, {}, keyAt);
+    stopHold();
+    const { width, height } = mapSize();
+    client.send({ type: "run", commands: [[name, {}]], width, height }).then(async (r) => {
+      handle(r, keyAt);
+      // Joined to a later movement, the press has no answer of its own: ask for the timing.
+      const info = r ? r.hold : (await client.send({ type: "hold" })).hold;
+      startHold(name, keyAt, info);
+    }).catch(showError);
+    return;
   }
   run(name, name === "help.keys" ? { region: region || "map" } : {}, keyAt);
 });
@@ -524,7 +585,9 @@ async function boot() {
   try { saved = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) { saved = ""; }
   // ?at=43.08,-79.08 in the address starts there instead of the last place (for testing).
   const at = new URLSearchParams(location.search).get("at") || "";
-  const result = await client.send({ type: "start", width, height, saved, at });
+  // ?slowdraw=200 makes every drawing take 200 ms longer, for the held key test only (P2-T14).
+  const slowMs = Number(new URLSearchParams(location.search).get("slowdraw")) || 0;
+  const result = await client.send({ type: "start", width, height, saved, at, slowMs });
   registry = result.registry;
   words = result.words;
   client.latestOnly = new Set(registry.latest_only);

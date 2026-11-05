@@ -117,6 +117,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Tick: the earcon for a step that changed nothing.
 * Blocked sound: the earcon for a step that could not be taken, such as at a pole. Nothing is spoken with it.
 * Held key: an arrow key kept pressed so that it repeats. The steps are all made, but only the place where you let go is spoken (ANN-3).
+* Click: the tick each step makes while a key is held, so you can hear the steps being made (DP129). The clicks keep their own even time, and never wait for the map to be drawn (DP140).
+* Drawing: making one picture of the map. It has three parts: choosing the shapes in view and cutting them to it, projecting them onto the globe in screen pixels, and painting them. The first two are done by the core, the painting by the desktop or the web page.
 * Key describer: a mode, switched on and off with Shift+F1, in which each key you press is described and nothing is carried out.
 * Announcement history: the list of what the application has said, newest first, kept to at least 50 entries (ANN-4).
 * Hearing range: the distance at which a sound reaches the edge of the view. It is the zoom distance, and the distance curve is measured against it (SON-9).

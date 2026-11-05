@@ -1,6 +1,11 @@
 # Architecture and High Level Design
 
-Version 0.5, 3 November 2026. Updated from your acceptance of Phase 0.
+Version 0.6, 5 November 2026. Updated for P2-T14, the held key (DP140).
+
+## Changes in version 0.6
+
+* Section 5.7: a held key's steps and clicks keep their own time and never wait for the map to be drawn. On the desktop the map is drawn in the background; in the web version the page plays each click on the sound card's clock. While a key is held the map is drawn at most 4 times a second, and the Information panel waits for the release.
+* Section 7.10: a drawing decodes all the shapes of a pack tile together, and keeps them with the pack tile.
 
 ## Changes in version 0.5
 
@@ -392,8 +397,12 @@ Using a step in stepping mode as the example:
 * Settings and personal data are stored in the browser.
 
 ### 5.7 Threading and responsiveness
-* Desktop: movement runs on the user interface thread, because it is fast and its order matters. Everything slower runs in the background and never holds a lock that movement needs. Decoded tiles are never changed once loaded, so background threads can read them safely.
+* Desktop: movement runs on the user interface thread, because it is fast and its order matters. Everything slower runs in the background and never holds a lock that movement needs. Decoded pack tiles are never changed once loaded, so background threads can read them safely.
+* Desktop drawing (P2-T14): the map is drawn in a thread of its own. The scene is worked out and painted onto an image there, and the map widget only shows the latest image. A drawing asked for while one is being made is made next; only the latest is kept.
 * Web: the worker handles one message at a time. When keys arrive faster than the worker can answer, the waiting moves are joined and all carried out, and only the last place is spoken (ANN-3). The joining is in the core, so both shells behave the same (spike S5).
+* Held keys (DP129, DP140): the core holds the timing rule. The first press steps and is described at once; then a step is due after the repeat delay, and then at the repeat rate. The system's own key repeats only show that the key is still down; if none comes for 1.5 seconds, the key is taken as let go. While a key is held, the Information panel and Details wait for the release, and the map is drawn at most held_draw_rate times a second (4 by default).
+  * Desktop: the window's hold clock, a small thread, sleeps until the time the core's hold_due() gives, then tells the window to make the step and its click. Qt's timers on Windows keep to a 15.6 ms beat, which made the clicks uneven by up to 16 ms; Python's sleep is exact to about a millisecond. Python's switch interval is 0.2 ms, so the window never waits long for the drawing thread to let it run.
+  * Web: the page keeps the beat from the core's hold_info(): it plays each click on the sound card's clock at its due time and sends the step to the worker, which may be busy drawing. The core also says how many of the next steps will move, so a step that would be blocked at a pole has no click.
 
 ---
 
@@ -666,6 +675,7 @@ The first three tests use only the layer definition and the feature record, so t
 * The orthographic projection is calculated with NumPy for all the points of a frame at once. Points on the far side of the globe are clipped.
 * At street zoom the view is so small that it looks flat (VIS-5).
 * The optional heading-up rotation is a rotation of the finished shape list.
+* A drawing has three parts, each timed in the test trace: choosing the shapes in view and cutting them to it, projecting them, and painting them (P2-T14b). The shapes of each pack tile are decoded together, in one pass with NumPy, and kept with the pack tile in the pack tile cache, so a pack tile is decoded once however many drawings use it. This made the first drawing of a new place 3 to 5 times quicker (P2-T14c, docs/plan/p2-t14-drawing-timing.md).
 
 ---
 

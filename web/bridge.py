@@ -22,6 +22,7 @@ from mapcore.describe import say
 from mapcore.session import MapSession
 
 _session: MapSession | None = None
+_slow_ms = 0.0   # a stand-in for a slow drawing, for the held key test only (?slowdraw= in the address)
 _ARRAYS = {"coords": "f32", "rings": "i32", "shapes": "i32", "shape_style": "i32", "seam": "u8"}
 
 
@@ -47,6 +48,12 @@ def _js(value):
 
 
 def _scene(width: int, height: int) -> dict:
+    if _slow_ms:
+        import time
+
+        until = time.perf_counter() + _slow_ms / 1000
+        while time.perf_counter() < until:
+            pass
     scene = _session.scene(width, height)
     for key, kind in _ARRAYS.items():
         scene[key] = {"type": kind, "bytes": scene[key].tobytes()}
@@ -75,12 +82,15 @@ def _extras(response, out: dict, width: int, height: int) -> dict:
         out["scene"] = _scene(width, height)
     if response.settings_changed:
         out["registry"] = _session.registry()
+    out["hold"] = _session.hold_info()   # the held key's timing, for the page's clicks (DP140)
     out["save"] = json.dumps(_session.save())
     return out
 
 
-def start(width: int, height: int, startup_ms: float, packs, saved_json: str, start_at: str = ""):
-    global _session
+def start(width: int, height: int, startup_ms: float, packs, saved_json: str, start_at: str = "",
+          slow_ms: float = 0.0):
+    global _session, _slow_ms
+    _slow_ms = float(slow_ms or 0)
     saved = json.loads(saved_json) if saved_json else {}
     sources = [HandleSource(p.handle, str(p.name)) for p in packs]
     _session = MapSession(platform="web", packs=[_pack(s) for s in sources],
@@ -130,6 +140,11 @@ def press(key: str, region: str, width: int, height: int):
 def release(width: int, height: int):
     """The held movement key was let go: only the final place is spoken (ANN-3)."""
     return _js(_extras(_session.release(), {}, width, height))
+
+
+def hold():
+    """The held key's timing, when the press's own answer was joined to a later one."""
+    return _js({"hold": _session.hold_info()})
 
 
 def scene(width: int, height: int):

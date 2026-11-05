@@ -136,15 +136,16 @@ function finish(result) {
 }
 
 self.onmessage = async (event) => {
-  const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs } = event.data;
+  const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs } = event.data;
   try {
     await ready;
     let out;
-    if (type === "start") out = finish(bridge.start(width, height, startupMs, packs, saved || "", at || ""));
+    if (type === "start") out = finish(bridge.start(width, height, startupMs, packs, saved || "", at || "", slowMs || 0));
     else if (type === "run") out = finish(bridge.run(JSON.stringify(commands), width, height));
     else if (type === "press") out = finish(bridge.press(key, region, width, height));
     else if (type === "release") out = finish(bridge.release(width, height));
     else if (type === "scene") out = finish(bridge.scene(width, height));
+    else if (type === "hold") out = { result: bridge.hold(), transfer: [] };
     else if (type === "schema") out = { result: bridge.settings_schema(), transfer: [] };
     else if (type === "key_text") out = { result: bridge.key_text(key), transfer: [] };
     else if (type === "earcon_failed") out = finish(bridge.earcon_failed(earcon, width, height));

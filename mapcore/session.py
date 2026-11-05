@@ -11,6 +11,7 @@ the packs through the Store. Every word comes from the templates (3.4).
 """
 from __future__ import annotations
 
+import copy
 import math
 import time
 from dataclasses import asdict, dataclass, field
@@ -30,6 +31,10 @@ SPEECH, BRAILLE = "speech", "braille"
 ASSERTIVE, POLITE = "assertive", "polite"
 HISTORY_LIMIT = 200  # at least the last 50 (ANN-4)
 REGIONS = ("map", "panel", "details", "menu")
+# Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
+# the times the core gives, so the clicks never wait for the map to be drawn.
+HOLD_SILENCE_S = 1.5     # no key repeat from the system for this long: the key was let go unseen
+HOLD_LOOKAHEAD_S = 2.0   # how far ahead the core says whether held steps will move (the web's clicks)
 
 
 @dataclass
@@ -88,7 +93,9 @@ class MapSession:
         self.selected: str | None = None   # the Information panel item chosen, an area id
         self.panel_item: str | None = None  # the item last focused there, for F3 (DP106)
         self.held_moves = 0
-        self._repeat_due = 0.0             # when a held step key may next step (DP129)
+        self.holding: str | None = None   # the movement command whose key is down (DP140)
+        self._repeat_due = 0.0             # when the held key next steps (DP129)
+        self._drawn_at = -math.inf         # when the map was last drawn for a held key
         self.paint_ms: float | None = None
         self.startup_ms: float | None = None
         self.last_frame: dict | None = None
@@ -211,11 +218,50 @@ class MapSession:
 
     def release(self) -> Response:
         """The held movement key was let go: describe the place it ended at,
-        and only that (ANN-3)."""
+        and only that (ANN-3), and draw it."""
+        self.holding = None
         if not self.held_moves:
             return Response()
         self.held_moves = 0
+        self._drawn_at = self.clock()
         return self._record("release", self._arrived(Response(redraw=True)))
+
+    # Holding a movement key (DP129, DP140) --------------------------------
+
+    def hold_due(self) -> float | None:
+        """Seconds until the held key's next step, or None when no key is held.
+        The shell's own timer makes the step then, with run(name, held=True,
+        repeat=True), whatever the system's key repeat does. The first comes
+        after the repeat delay, then at the repeat rate."""
+        if self.holding is None:
+            return None
+        return max(0.0, self._repeat_due - self.clock())
+
+    def hold_info(self) -> dict | None:
+        """The held key's timing for a shell that cannot ask hold_due() at once
+        (the web page, whose core is in a worker): when the steps are due, from
+        the press, and how many of the next steps will move, so the page can
+        play each click at its due time without waiting for the worker."""
+        if self.holding is None:
+            return None
+        rate = max(1, self.settings["repeat_rate"])
+        limit = math.ceil(rate * HOLD_LOOKAHEAD_S) + 1
+        probe = copy.copy(self.world)
+        direction = self.holding.split(".", 1)[1]
+        left = 0
+        while left < limit and probe.step(direction).moved:
+            left += 1
+        return {"command": self.holding, "delay_ms": float(self.settings["repeat_delay_ms"]),
+                "every_ms": 1000.0 / rate, "left": left, "unlimited": left >= limit,
+                "tick": not self.settings["mute"], "earcon": self.earcon_file("tick"),
+                "silence_ms": HOLD_SILENCE_S * 1000}
+
+    def _draw_due(self, now: float) -> bool:
+        """While a key is held the map is drawn at most held_draw_rate times a second (DP140)."""
+        if now - self._drawn_at >= 1.0 / max(1, self.settings["held_draw_rate"]) - 0.001:
+            self._drawn_at = now
+            return True
+        return False
 
     def scene(self, width: int, height: int) -> dict:
         from mapcore.render import scene as scene_mod
@@ -223,11 +269,20 @@ class MapSession:
         self.map_size = (width, height)
         if self._scene is None:
             self._scene = scene_mod.SceneBuilder(self.store)
-        current = self.areas[0].id if self.areas else None
-        frame = self._scene.build(self.world, width, height, current=current, highlight=self.selected,
+        areas = self.areas
+        current = areas[0].id if areas else None
+        # A copy of the place: on the desktop the map is drawn in a thread of its
+        # own while the held key steps on (P2-T14).
+        frame = self._scene.build(copy.copy(self.world), width, height, current=current, highlight=self.selected,
                                   centre_cross=self.settings["centre_cross"])
-        self.last_frame = {"project_ms": frame["project_ms"], "points": frame["points"]}
+        self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
+
+    def scene_background(self) -> str:
+        """The colour behind the map, for a shell to show before the first drawing is ready."""
+        from mapcore.render import globe
+
+        return globe.load_theme()["background"]
 
     def panel(self) -> list[dict]:
         """The Information panel groups (UX section 6), as plain data."""
@@ -306,7 +361,15 @@ class MapSession:
         return dict(say("ui"))
 
     def frame_painted(self, paint_ms: float) -> None:
+        """The shell painted the last frame: the drawing goes into the trace, in its parts (P2-T14b)."""
         self.paint_ms = paint_ms
+        frame = self.last_frame
+        if frame:
+            self.trace.append({"command": "draw", "ms": frame["project_ms"] + paint_ms, "at": time.time(),
+                               "spoken": [], "earcons": [], "choose_ms": frame["choose_ms"],
+                               "project_ms": frame["projecting_ms"], "paint_ms": paint_ms,
+                               "points": frame["points"]})
+            del self.trace[:-2000]
 
     def startup_took(self, startup_ms: float) -> None:
         self.startup_ms = startup_ms
@@ -360,26 +423,33 @@ class MapSession:
         return r
 
     def _move(self, direction: str, held: bool = False, repeat: bool = False, **_a) -> Response:
-        """A step. repeat is a key repeat sent while the key is held: it steps only
-        after the repeat delay, then at the repeat rate, whatever the operating
-        system sends, and each of those steps ticks (DP129)."""
+        """A step. The first press steps and is described at once, and starts the
+        hold. repeat is a step the shell's hold timer makes while the key is held,
+        at the times hold_due() gives: after the repeat delay, then at the repeat
+        rate, whatever the operating system sends (DP129). Each ticks. Nothing is
+        said until release(), and the map is drawn at most held_draw_rate times a
+        second, so the clicks keep their time (DP140)."""
         now = self.clock()
         if repeat:
-            if now < self._repeat_due:
-                return Response()
             interval = 1.0 / max(1, self.settings["repeat_rate"])
-            self._repeat_due = max(self._repeat_due, now - interval) + interval
-        else:
+            # Keep to the beat; if the timer was very late, start again from now
+            # rather than making two steps at once.
+            self._repeat_due = max(self._repeat_due + interval, now + interval / 2)
+        elif not held:
             self._repeat_due = now + self.settings["repeat_delay_ms"] / 1000.0
+            self.holding = f"move.{direction}"
         result = self.world.step(direction)
         if not result.moved:
             return Response().earcon("blocked")  # nothing spoken (NAV-1)
-        r = self._moved()
         if held:
+            # The Information panel and Details wait for the release (ANN-3).
+            self.selected = None
             self.held_moves += 1
+            r = Response(redraw=self._draw_due(now))
             return r.earcon("tick") if repeat else r
         self.held_moves = 0
-        return self._arrived(r)
+        self._drawn_at = now
+        return self._arrived(self._moved())
 
     def _changed_sizes(self, zoom_before: float, step_before: float) -> str:
         """Only what changed: the zoom, the step, or both when they are linked

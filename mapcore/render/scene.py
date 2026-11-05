@@ -95,10 +95,10 @@ class SceneBuilder:
         return "draw", levels[-1]
 
     def _collect(self, lat, lon, rho, zoom_km):
-        """Shapes (Shapely) with their feature and tile box, for the cap in view."""
-        import shapely
-
-        geoms, feats, boxes = [], [], []
+        """The shapes (Shapely) for the cap in view, with the feature of each and
+        the box of its tile. Each tile's shapes are decoded together, once, and
+        kept with the tile (P2-T14c)."""
+        geoms, feats, boxes, tile_of = [], [], [], []
         intervals, south, north = _cap(lat, lon, rho * 1.15)
         for p in self.store._covering(lat, lon)[:1]:
             index = self.store._indexes[p]
@@ -117,13 +117,18 @@ class SceneBuilder:
                     for x, y in index.tiles_in("draw" if tkind == "draw" else "tile", ident if tkind == "draw" else level,
                                                x0, x1, y0, y1):
                         data = self.store._tile(p, "draw" if tkind == "draw" else "tile", ident if tkind == "draw" else level, x, y)
+                        if not data.entries:
+                            continue
                         box = tiles.tile_box(level, x, y)
-                        for i, entry in enumerate(data.entries):
-                            geom = shapely.box(*box) if entry.kind == tiles.COVERED else data.shape(i)
-                            geoms.append(geom)
-                            feats.append(self._feature(p, entry.feature))
-                            boxes.append(box)
-        return geoms, feats, boxes, intervals, south, north
+                        shapes, numbers = data.drawing_shapes(box)
+                        geoms.append(shapes)
+                        feats.extend(self._feature(p, n) for n in numbers.tolist())
+                        tile_of.append(np.full(len(shapes), len(boxes), np.intp))
+                        boxes.append(box)
+        if not geoms:
+            return np.empty(0, object), [], np.zeros((0, 4)), intervals, south, north
+        box_of_shape = np.asarray(boxes, float).reshape(-1, 4)[np.concatenate(tile_of)]
+        return np.concatenate(geoms), feats, box_of_shape, intervals, south, north
 
     def build(self, world, width: int, height: int, current: str | None = None, highlight: str | None = None,
               centre_cross: bool = True) -> dict:
@@ -135,12 +140,10 @@ class SceneBuilder:
         rho = math.asin(min(1.0, math.hypot(cx, cy) / r))
         geoms, feats, boxes, intervals, south, north = self._collect(world.lat, world.lon, rho, world.zoom_m / 1000.0)
         empty = np.zeros(0, np.intp)
-        if geoms:
-            arr = np.empty(len(geoms), object)
-            arr[:] = geoms
+        if len(geoms):
             parts_all, idx_all = [], []
             for west, east in intervals:
-                clipped = shapely.clip_by_rect(arr, west, south, east, north)
+                clipped = shapely.clip_by_rect(geoms, west, south, east, north)
                 parts, idx = shapely.get_parts(clipped, return_index=True)
                 keep = (shapely.get_type_id(parts) == 3) & ~shapely.is_empty(parts)
                 parts_all.append(parts[keep])
@@ -157,15 +160,18 @@ class SceneBuilder:
             poly_off = np.asarray(poly_off, np.intp)
         else:
             xy, ring_off, poly_off = np.zeros((0, 2)), np.zeros(1, np.intp), np.zeros(1, np.intp)
+        chosen = time.perf_counter()
         frame = self._frame(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
                             current, highlight)
+        frame["choose_ms"] = (chosen - start) * 1000            # finding and cutting the shapes in view (P2-T14b)
+        frame["projecting_ms"] = (time.perf_counter() - chosen) * 1000   # turning them into screen pixels
         if centre_cross:
             frame["cross"] = {"x": cx, "y": cy, "size": 9, "colour": self.theme["cross"], "halo": self.theme["cross_halo"]}
         else:
             frame["cross"] = None
         frame["heading"] = {"x": cx, "y": cy, "degrees": float(world.heading), "colour": self.theme["cross"],
                             "halo": self.theme["cross_halo"], "length": 26}
-        frame["project_ms"] = (time.perf_counter() - start) * 1000
+        frame["project_ms"] = (time.perf_counter() - start) * 1000   # the whole of the core's part
         return frame
 
     def _frame(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current, highlight):
@@ -192,8 +198,7 @@ class SceneBuilder:
         # Seams: an edge whose two ends are on the same edge of its pack tile (AD-17).
         tile_of_poly = np.asarray(idx, np.intp)
         ring_poly = np.repeat(np.arange(len(poly_off) - 1, dtype=np.intp), np.diff(poly_off))
-        point_box = np.asarray([boxes[i] for i in tile_of_poly], float).reshape(-1, 4)[ring_poly][ring_of_point] \
-            if n_pts else np.zeros((0, 4))
+        point_box = boxes[tile_of_poly][ring_poly][ring_of_point] if n_pts else np.zeros((0, 4))
         nxt = np.minimum(np.arange(n_pts, dtype=np.intp) + 1, max(n_pts - 1, 0))
         seam = np.zeros(n_pts, bool)
         if n_pts:

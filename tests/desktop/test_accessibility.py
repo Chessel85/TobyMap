@@ -57,19 +57,47 @@ def test_map_name_changes_only_while_it_does_not_have_focus(window, qtbot):
     assert window.map.accessibleName() == "North Atlantic Ocean"           # updated on leaving
 
 
+def test_tree_items_are_nested_in_their_groups(window):
+    """NVDA counts the tree items above an item for its level (DP135), so a group's
+    items must be its children, not the tree's."""
+    tree = window.tree
+    tree.topLevelItem(0).setExpanded(True)
+    QApplication.processEvents()
+    assert names(tree)[:2] == ["Within", "Nearby"]
+    within = QAccessible.queryAccessibleInterface(tree).child(0)
+    kent = within.child(0)
+    assert within.role() == QAccessible.Role.TreeItem
+    assert [within.child(i).text(QAccessible.Text.Name) for i in range(within.childCount())][:3] == \
+        ["Kent", "England", "United Kingdom"]
+    assert kent.parent().text(QAccessible.Text.Name) == "Within"
+    assert kent.parent().parent().role() == QAccessible.Role.Tree
+    assert within.state().expanded and not kent.state().expandable
+
+
+def test_tree_focus_is_the_current_item_at_any_level(window):
+    tree = window.tree
+    tree.setFocus()
+    tree.setCurrentItem(tree.topLevelItem(0).child(1))
+    QApplication.processEvents()
+    assert focus_name(tree) == "England"
+    tree.setCurrentItem(tree.topLevelItem(1))
+    QApplication.processEvents()
+    assert focus_name(tree) == "Nearby"
+
+
 def test_tree_items_are_right_after_a_group_is_closed(window):
     tree = window.tree
     tree.setFocus()
     tree.setCurrentItem(tree.topLevelItem(1))
-    QApplication.processEvents()
     within = tree.topLevelItem(0)
     within.setExpanded(True)
     QApplication.processEvents()
-    assert names(tree)[1:4] == ["Within", "Kent", "England"]
-    count_open = len(names(tree))
+    group = QAccessible.queryAccessibleInterface(tree).child(0)
+    assert group.childCount() == within.childCount() > 0
     within.setExpanded(False)
     QApplication.processEvents()
-    assert len(names(tree)) == count_open - within.childCount()
+    assert group.childCount() == 0
+    assert group.state().collapsed
     assert focus_name(tree) == "Nearby"
 
 

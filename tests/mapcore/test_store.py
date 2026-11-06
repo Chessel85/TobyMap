@@ -174,6 +174,15 @@ def test_nearby_across_the_180_degree_line(store):
     assert east and west
 
 
+def test_a_country_past_the_far_meridian_is_not_brought_close(store):
+    # Russia runs from 19 degrees east past the 180 degree line. Seen from the middle
+    # of the Atlantic, its far end is beyond the meridian opposite, which once made a
+    # false edge across the flat view and put Russia 1,600 km away, due north at sea.
+    near = [n for n in store.nearby(45.0, -30.0, 6_000_000, limit=500) if n.area.name == "Russia"]
+    assert near and 3_500_000 < near[0].distance_m < 3_800_000
+    assert near[0].lon > 19.0   # Kaliningrad, its nearest part
+
+
 def test_nearby_at_the_south_pole(store):
     near = store.nearby(-90.0, 0.0, radius_m=50_000)
     assert [n.area.name for n in near] == ["Antarctica"] and near[0].inside

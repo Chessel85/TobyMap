@@ -25,6 +25,7 @@ from mapcore.commands import registry
 from mapcore.describe import describer, say, templates, words
 from mapcore.geo import geodesy, parse
 from mapcore.layers import LayerCatalogue
+from mapcore.layers.visible import VisibleRule
 from mapcore.world import WorldState
 from mapcore.world.state import nearest_index
 
@@ -83,6 +84,8 @@ class MapSession:
         self.settings = settings_mod.Settings.from_dict(settings)
         # The layers, with the user's changes from the settings in use (SCP-6, SCP-7).
         self.layers = LayerCatalogue(self.store.packs, lambda: self.settings.layers)
+        # Which features are visible: layer, zoom range, size and view (NAV-13, P2-T4a).
+        self.visible = VisibleRule(self.store, self.layers)
         self.all_off_here = False   # there are areas here, but every one is in a layer that is off (LOC-6)
         self.world = WorldState.from_defaults(self.defaults)
         self.world.use_units(self.settings["units"])   # before restoring, so the saved sizes are found exactly

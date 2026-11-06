@@ -59,4 +59,19 @@ class Flat:
             x, y = self.forward(c[:, 1], c[:, 0])
             return np.column_stack([x, y])
 
+        if not self.polar:
+            # Longitudes are taken the short way round, so a shape running past the
+            # meridian opposite the centre would gain a false edge right across the
+            # view. It is cut there first; the cut edges lie inside the shape.
+            cut = geodesy.wrap_lon(self.lon0 + 180.0)
+            west, _s, east, _n = shapely.bounds(geom)
+            if -180.0 < cut < 180.0 and west < cut < east:
+                def move_west(c):
+                    # Points on the cut belong to the far east of the view, not the far west.
+                    x, y = self.forward(c[:, 1], c[:, 0])
+                    return np.column_stack([np.where(c[:, 0] >= cut, np.abs(x), x), y])
+
+                return shapely.GeometryCollection([
+                    shapely.transform(shapely.clip_by_rect(geom, -180.0, -90.0, cut, 90.0), move_west),
+                    shapely.transform(shapely.clip_by_rect(geom, cut, -90.0, 180.0, 90.0), move)])
         return shapely.transform(geom, move)

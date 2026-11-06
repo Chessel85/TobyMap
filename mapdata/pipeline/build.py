@@ -37,6 +37,7 @@ class StageKind:
     title: str              # how progress lines describe it, such as "reading the samples"
     module: str             # the module with run(ctx)
     code: tuple[str, ...]   # the modules whose code is in the fingerprint
+    areas_only: bool = False   # it makes or reads only the area layers, so only they are in its fingerprint
 
 
 STAGES = {
@@ -46,11 +47,11 @@ STAGES = {
                        ("mapdata.stages.water",)),
     "osm-areas": StageKind("reading the countries and divisions from the planet file", "mapdata.stages.osm_areas",
                            ("mapdata.stages.osm_areas", "mapdata.stages.boundaries", "mapdata.stages.held_twice",
-                            "mapdata.stages.overlaps")),
+                            "mapdata.stages.overlaps"), areas_only=True),
     "squares": StageKind("building the grid squares", "mapdata.stages.squares",
-                         ("mapdata.stages.squares", "mapdata.stages.grid")),
+                         ("mapdata.stages.squares", "mapdata.stages.grid"), areas_only=True),
     "join": StageKind("joining the grid squares into areas", "mapdata.stages.join",
-                      ("mapdata.stages.join", "mapdata.stages.grid", "mapdata.stages.geodesy")),
+                      ("mapdata.stages.join", "mapdata.stages.grid", "mapdata.stages.geodesy"), areas_only=True),
     "graticule": StageKind("writing the graticule and special lines", "mapdata.stages.graticule",
                            ("mapdata.stages.graticule",)),
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
@@ -113,10 +114,18 @@ def resolve_sources(pack: PackSettings, folders: DataFolders | None) -> dict[str
 
 def fingerprint(pack: PackSettings, stage: dict, previous: str, source_prints: dict[str, str]) -> str:
     kind = STAGES[stage["stage"]]
+    layers = pack.layers
+    settings = {k: v for k, v in pack.data.items() if k != "stages"}
+    if kind.areas_only:
+        # Adding a layer of lines or points, such as the graticule (P2-T10), must not
+        # make the countries and divisions again: hours of reading the planet file.
+        layers = {k: v for k, v in layers.items() if v.geometry == "area"}
+        groups = {v.group_file for v in layers.values()}
+        settings["layer_groups"] = [g for g in settings.get("layer_groups") or [] if g in groups]
     parts = {
         "stage": stage,
-        "layers": {k: v.build_fields() for k, v in pack.layers.items()},
-        "pack": {k: v for k, v in pack.data.items() if k != "stages"},
+        "layers": {k: v.build_fields() for k, v in layers.items()},
+        "pack": settings,
         "previous": previous,
         "sources": {k: source_prints[k] for k in stage_sources(stage)},
         "code": code_version(kind.code),
@@ -245,12 +254,15 @@ def summary(pack: PackSettings, target: Path, ran: list, skipped: list, progress
             layer = p.feature(n)["layer"]
             counts[layer] = counts.get(layer, 0) + 1
         layer_names = {layer["id"]: layer["name"] for layer in p.layers}
+        geometry = {layer["id"]: layer.get("geometry", "area") for layer in p.layers}
         built = p.manifest["built"]
     progress.always(f"Summary of the build of {pack.name}:")
     progress.always(f"The pack is {target}, {target.stat().st_size / 1e6:.2f} MB, built from sources dated up to "
                     f"{built}.")
     for layer, count in counts.items():
-        progress.always(f"{layer_names.get(layer, layer)}: {count} area{'s' if count != 1 else ''}.")
+        # "point" is a corner on an outline in the glossary, so a point layer's features are "places".
+        word = {"line": "line", "point": "place"}.get(geometry.get(layer, "area"), "area")
+        progress.always(f"{layer_names.get(layer, layer)}: {count} {word}{'s' if count != 1 else ''}.")
     if ran:
         progress.always("Stages run: " + ", ".join(f"{k} in {duration_words(t)}" for k, t in ran) + ".")
     if skipped:

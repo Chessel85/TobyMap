@@ -16,7 +16,9 @@ Older documents written before this glossary, such as architecture section 6 and
 
 * Area: one administrative area from OSM, such as a country, region or county. Before trimming, its boundary includes the sea out to 12 nautical miles.
 * Level: OSM's administrative level. In the builds so far, level 2 is countries, level 4 is regions (such as Scotland) and level 6 is counties and similar (such as Highland).
-* Layer: all the areas of one kind in a build, such as the Countries layer.
+* Layer: all the areas of one kind in a build, such as the Countries layer. A layer can hold lines or places instead of areas.
+* Line: a feature with length but no area, such as a line of latitude or the date line. Build reports count a line layer in lines.
+* Place: a feature at one position, such as a railway station. Build reports count a point layer in places, because "point" means a corner on an outline.
 * Shape: everything an area covers, all its parts together.
 * Part: one separate bit of a shape, which doesn't touch any other bit of the same shape. The British mainland is one part of the UK's shape, and Skye is another. Land that is in no area is also counted in parts.
 * Point: one corner on the outline of a shape. The number of points is a measure of how detailed, and how large, a shape is.

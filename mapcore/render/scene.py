@@ -76,6 +76,18 @@ def _cap(lat: float, lon: float, rho: float):
     return [(west, east)], south, north
 
 
+def drawing_source(index, zoom_km: float):
+    """("draw", drawing level) or ("tile", None): where a pack's shapes come from at
+    this zoom. The map and the visible rule both use it, so they read the same tiles."""
+    levels = sorted(index.pack.drawing_levels.values(), key=lambda d: d.get("view_km", 0))
+    if zoom_km <= EXACT_BELOW_KM or not levels:
+        return "tile", None
+    for d in levels:
+        if d["view_km"] >= zoom_km:
+            return "draw", d
+    return "draw", levels[-1]
+
+
 class SceneBuilder:
     def __init__(self, store, theme: dict | None = None):
         self.store = store
@@ -92,14 +104,7 @@ class SceneBuilder:
         return got
 
     def _source(self, zoom_km: float, index):
-        """("draw", level id, tile level) or ("tile", None, None) for this zoom."""
-        levels = sorted(index.pack.drawing_levels.values(), key=lambda d: d.get("view_km", 0))
-        if zoom_km <= EXACT_BELOW_KM or not levels:
-            return "tile", None
-        for d in levels:
-            if d["view_km"] >= zoom_km:
-                return "draw", d
-        return "draw", levels[-1]
+        return drawing_source(index, zoom_km)
 
     def _collect(self, lat, lon, rho, zoom_km, layers=None):
         """The shapes (Shapely) for the cap in view, with the feature of each and

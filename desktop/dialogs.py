@@ -460,6 +460,9 @@ class SettingsDialog(QDialog):
         self.session, self.words = session, words
         self.setWindowTitle(words["settings_title"])
         schema = session.settings_schema()
+        # The values as the dialog opened: OK sends only what was changed here, so a verbosity
+        # preset sent first is not undone by its switches, which the core has just set (P2-T11).
+        self._opened = dict(schema["values"])
         layout = QVBoxLayout(self)
         self.tabs = QTabWidget()
         self.tabs.setAccessibleName(words["settings_title"])
@@ -559,9 +562,8 @@ class SettingsDialog(QDialog):
         self.key_list.setFocus()
 
     def apply(self):
-        current = self.session.settings.values
         for field_id, control in self.controls.items():
             value = self._value(control)
-            if value != current.get(field_id):
+            if value != self._opened.get(field_id):
                 self.responses.append(self.session.run("settings.set", field=field_id, value=value))
         self.accept()

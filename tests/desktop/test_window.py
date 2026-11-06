@@ -346,11 +346,23 @@ def test_ctrl_comma_opens_settings_with_ok_and_cancel(window, qtbot):
     dialog = click_dialog(window, SettingsDialog)
     assert dialog.ok_button.text() == "OK" and dialog.cancel_button.text() == "Cancel"
     assert [dialog.tabs.tabText(i) for i in range(dialog.tabs.count())] == \
-        ["Units", "Movement", "Layers", "Sound", "Earcons", "Display", "Keys"]
+        ["Units", "Movement", "Speech", "Layers", "Sound", "Earcons", "Display", "Keys"]
     dialog.controls["units"].setCurrentIndex(dialog.controls["units"].findData("imperial"))
     dialog.ok_button.click()
     QApplication.processEvents()
     assert window.session.settings["units"] == "imperial"
+
+
+def test_a_preset_chosen_in_settings_keeps_its_switches(window, qtbot):
+    """OK sends only what was changed in the dialog, so the switches the preset has just set
+    are not put back as they were (P2-T11, DP144)."""
+    window.dispatch("settings.open")
+    dialog = click_dialog(window, SettingsDialog)
+    dialog.controls["verbosity"].setCurrentIndex(dialog.controls["verbosity"].findData("terse"))
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    s = window.session.settings
+    assert s["verbosity"] == "terse" and s["say_area"] == "smallest" and not s["say_zoom_step"]
 
 
 def test_cancel_in_settings_changes_nothing(window, qtbot):
@@ -554,6 +566,7 @@ def test_lines_and_markers_are_painted(window):
                   "marker_coords": np.array([200, 60], np.float32), "marker_style": np.array([0], np.int32),
                   "marker_area": ["b"], "marker_styles": [{"fill": "#00ff00", "stroke": "#00ff00", "radius": 5}]})
     scene["cross"] = scene["heading"] = None
+    scene["names"] = []   # a name could sit over the line
     image = QImage(400, 300, QImage.Format.Format_ARGB32_Premultiplied)
     painter = QPainter(image)
     paint_scene(painter, scene)

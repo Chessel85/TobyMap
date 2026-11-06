@@ -236,17 +236,15 @@ def test_menu_bar_from_the_registry_with_toggles(app):
     assert app.evaluate("document.activeElement.textContent") == "Map"
     assert app.locator(".menu:not([hidden])").count() == 0
     app.keyboard.press("Enter")
-    assert app.locator('.menu:not([hidden]) [role=menuitemcheckbox]').count() == 2   # Link step to zoom, the beacon
+    assert app.locator('.menu:not([hidden]) [role=menuitemcheckbox]').count() == 3   # Link step to zoom, the beacon, Isolate
     app.keyboard.press("Escape")
     assert app.locator(".menu:not([hidden])").count() == 0 and region(app) == "menu"
     app.keyboard.press("Escape")                       # Escape on the bar goes back to the map (web checklist 2.4)
     app.wait_for_function("document.activeElement.id === 'map'")
     go_to_menu_bar(app)
     app.keyboard.press("ArrowRight")
-    app.keyboard.press("ArrowDown")
-    app.keyboard.press("ArrowDown")
-    app.keyboard.press("ArrowDown")
-    app.keyboard.press("ArrowDown")
+    for _ in range(5):                                 # past Next verbosity preset (P2-T11)
+        app.keyboard.press("ArrowDown")
     assert app.evaluate("document.activeElement.textContent").startswith("Send a Braille-only message")
     app.keyboard.press("Enter")
     wait_said(app, 2)
@@ -311,7 +309,7 @@ def test_settings_dialog_has_ok_and_cancel_and_the_settings_are_kept(app, page, 
     app.wait_for_function("document.getElementById('settings').open")
     assert app.locator("#settings-ok").text_content() == "OK" and app.locator("#settings-cancel").text_content() == "Cancel"
     tabs = app.locator("#settings [role=tab]").all_text_contents()
-    assert tabs == ["Units", "Movement", "Layers", "Sound", "Earcons", "Display", "Keys"]   # pages, not one long dialog (web checklist 2)
+    assert tabs == ["Units", "Movement", "Speech", "Layers", "Sound", "Earcons", "Display", "Keys"]   # pages, not one long dialog (web checklist 2)
     assert app.evaluate("document.activeElement.textContent") == "Units"
     assert app.locator("#settings [role=tabpanel]:not([hidden])").count() == 1
     app.keyboard.press("Tab")
@@ -614,3 +612,59 @@ def test_the_web_player_turns_the_scene_into_the_cores_pan_pitch_and_filter_valu
             r = math.radians(p["relative_deg"])
             assert (m["x"], m["z"]) == (pytest.approx(math.sin(r), abs=1e-6), pytest.approx(-math.cos(r), abs=1e-6))
     assert made[1]["pitch"] < 1 and made[0]["pan"] == pytest.approx(1.0)
+
+
+def test_a_preset_chosen_in_settings_keeps_its_switches_and_a_goes_to_the_next(app):
+    """P2-T11 (ACC-5, DP144): OK sends only what was changed, so the preset's switches stay."""
+    app.keyboard.press("Control+,")
+    app.wait_for_function("document.getElementById('settings').open")
+    app.click("#settings-tab-speech")
+    app.select_option("#settings select[data-field=verbosity]", "terse")
+    app.click("#settings-ok")
+    app.wait_for_function("!document.getElementById('settings').open")
+    stored = json.loads(app.evaluate("localStorage.getItem('tobymap')"))["settings"]["values"]
+    assert stored["verbosity"] == "terse" and stored["say_area"] == "smallest" and stored["say_zoom_step"] is False
+    count = len(said(app))
+    app.keyboard.press("a")
+    wait_said(app, count + 1)
+    assert said(app)[-1] == "Normal. Every area that changed is said, and the zoom, the step and the heading."
+
+
+@pytest.mark.parametrize("size", [(800, 600), (1200, 800), (1600, 1000)])
+def test_the_focus_point_holds_the_map_centre_after_a_step_a_click_and_a_jump(app, size):
+    """P2-T13b (ACC-8, DP146): the map's focused element is a small square at the map centre,
+    so a magnifier that follows the keyboard focus keeps the location in view."""
+    app.set_viewport_size({"width": size[0], "height": size[1]})
+
+    def holds_centre():
+        return app.evaluate("""() => {
+            const f = document.getElementById('map').getBoundingClientRect();
+            const c = document.getElementById('canvas').getBoundingClientRect();
+            const x = c.left + c.width / 2, y = c.top + c.height / 2;
+            return document.activeElement.id === 'map' && f.width <= 16 && f.height <= 16
+                && f.left - 1 <= x && x <= f.right + 1 && f.top <= y && y <= f.bottom;
+        }""")
+
+    def paints():
+        return app.evaluate("window.tobymap.paints")
+
+    app.wait_for_function("() => { const s = document.getElementById('canvas').getBoundingClientRect(); "
+                          f"return Math.abs(s.width + document.getElementById('side').getBoundingClientRect().width - {size[0]}) < 40; }}")
+    app.wait_for_timeout(300)   # the drawing for the new size
+    assert holds_centre()
+    n = paints()
+    app.keyboard.press("ArrowDown")                              # a step
+    app.wait_for_function(f"window.tobymap.paints > {n}")
+    assert holds_centre()
+    n = paints()
+    box = app.locator("#canvas").bounding_box()
+    app.mouse.click(box["x"] + box["width"] / 3, box["y"] + box["height"] / 3)   # a click
+    app.wait_for_function(f"window.tobymap.paints > {n}")
+    assert holds_centre()
+    n = paints()
+    app.keyboard.press("Control+g")                              # a jump
+    app.wait_for_function("document.querySelector('dialog[open] input')")
+    app.keyboard.type("48.85, 2.35")
+    app.keyboard.press("Enter")
+    app.wait_for_function(f"window.tobymap.paints > {n} && document.activeElement.id === 'map'")
+    assert holds_centre()

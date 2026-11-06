@@ -1,7 +1,14 @@
-# Map themes (VIS-2). Phase 0 has only the standard theme.
-# Land colours are indexed by the country's colour number, 1 to 7, so that
-# neighbours differ (AD-19). Natural Earth supplies the numbers for now.
+# Map themes (VIS-2, P2-T12a). The settings' Display tab chooses one; T and Shift+T go
+# through them in this order. high_contrast: true holds the theme to the 7 to 1 contrast
+# check of every outline and text colour against what it is drawn on (VIS-2,
+# mapcore/render/themes.py), whatever the map display setting chooses (DP108).
+#
+# Land colours are indexed by the area's colour number, 1 to 7, so that neighbours
+# differ (AD-19). Names are drawn in name_text on a halo of name_halo (P2-T12d).
+# A colour "#00000000" is fully transparent.
 standard:
+  label: Standard
+  high_contrast: false
   background: "#1b1f24"      # around the globe
   ocean: "#a9cce3"
   globe_edge: "#3c5a73"
@@ -14,7 +21,9 @@ standard:
     - "#b9dcd2"
     - "#e5c1d3"
   border: "#5a4a3a"
+  border_width: 1
   current_outline: "#b00020"   # the country under the centre (UX 11.2)
+  current_width: 3
   highlight_fill: "#ffd200"    # the item selected in the Information panel
   highlight_outline: "#000000"
   cross: "#000000"
@@ -24,3 +33,116 @@ standard:
   marker: "#7a1f1f"            # point features, such as a railway station
   marker_outline: "#ffffff"
   marker_radius: 4
+  name_text: "#1b1f24"
+  name_halo: "#ffffff"
+
+# Dark land, white borders, yellow for the current area; every outline and text 7 to 1.
+high_contrast_dark:
+  label: High contrast dark
+  high_contrast: true
+  background: "#000000"
+  ocean: "#000000"
+  globe_edge: "#ffffff"
+  land:
+    - "#4d3300"
+    - "#004d26"
+    - "#3d1466"
+    - "#661414"
+    - "#004d5c"
+    - "#404040"
+    - "#1a2e80"
+  border: "#ffffff"
+  border_width: 1.5
+  current_outline: "#ffff00"
+  current_width: 4
+  highlight_fill: "#ffffff"
+  highlight_outline: "#000000"
+  cross: "#ffffff"
+  cross_halo: "#000000"
+  line: "#00ffff"
+  line_width: 1.5
+  marker: "#ffffff"
+  marker_outline: "#000000"
+  marker_radius: 5
+  name_text: "#ffffff"
+  name_halo: "#000000"
+
+# Pale land, black borders, dark blue for the current area; every outline and text 7 to 1.
+high_contrast_light:
+  label: High contrast light
+  high_contrast: true
+  background: "#ffffff"
+  ocean: "#ffffff"
+  globe_edge: "#000000"
+  land:
+    - "#fff3a0"
+    - "#ffd0e0"
+    - "#c8f5d0"
+    - "#e0d8ff"
+    - "#ffd8b0"
+    - "#c8ecff"
+    - "#e6e6e6"
+  border: "#000000"
+  border_width: 1.5
+  current_outline: "#00008b"
+  current_width: 4
+  highlight_fill: "#000000"
+  highlight_outline: "#ffff00"
+  cross: "#000000"
+  cross_halo: "#ffffff"
+  line: "#003300"
+  line_width: 1.5
+  marker: "#000000"
+  marker_outline: "#ffffff"
+  marker_radius: 5
+  name_text: "#000000"
+  name_halo: "#ffffff"
+
+# Seven colours after the Okabe and Ito palette, lightened for filling, that still differ
+# for each of the three common kinds of colour blindness (tested by simulation), with
+# black borders a little thicker than the standard theme's.
+colour_blind_safe:
+  label: Colour-blind safe
+  high_contrast: false
+  background: "#1b1f24"
+  ocean: "#e8eef2"
+  globe_edge: "#000000"
+  land:
+    - "#f5c26b"
+    - "#9fd3f2"
+    - "#66c2a5"
+    - "#f7ef99"
+    - "#4a90c8"
+    - "#e8865a"
+    - "#d9a5c4"
+  border: "#000000"
+  border_width: 1.5
+  current_outline: "#000000"
+  current_width: 4
+  highlight_fill: "#ffffff"
+  highlight_outline: "#000000"
+  cross: "#000000"
+  cross_halo: "#ffffff"
+  line: "#000000"
+  line_width: 1
+  marker: "#000000"
+  marker_outline: "#ffffff"
+  marker_radius: 4
+  name_text: "#000000"
+  name_halo: "#ffffff"
+
+# The colours the map display setting can choose for the fill, the borders and the
+# current outline (DP108). Their names are in the settings' choices.
+palette:
+  black: "#000000"
+  white: "#ffffff"
+  yellow: "#ffff00"
+  orange: "#ff8c00"
+  red: "#d00000"
+  magenta: "#ff00ff"
+  blue: "#0050ff"
+  dark_blue: "#00008b"
+  cyan: "#00ffff"
+  green: "#008000"
+  grey: "#808080"
+  light_grey: "#d3d3d3"

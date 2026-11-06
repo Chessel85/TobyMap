@@ -32,11 +32,17 @@ def place_text(areas, all_off: bool = False) -> str:
     return say("place.list_separator").join(area_names(areas))
 
 
-def announcement(old, new, all_off: bool = False) -> str | None:
-    """What to say after a move, or None when only the tick plays (ANN-1)."""
+def announcement(old, new, all_off: bool = False, say_area: str = "changed") -> str | None:
+    """What to say after a move, or None when only the tick plays (ANN-1). say_area is the
+    verbosity switch (ACC-5, DP144): "changed", every area that changed; "smallest", only the
+    smallest of them; "whole", the whole place, as Where am I says it; "off", nothing."""
+    if say_area == "off":
+        return None
     changed = changed_areas(old, new)
     if changed:
-        return say("place.list_separator").join(area_names(changed))
+        if say_area == "whole":
+            return place_text(new)
+        return say("place.list_separator").join(area_names(changed[:1] if say_area == "smallest" else changed))
     if not new and old:
         return place_text(new, all_off)
     return None

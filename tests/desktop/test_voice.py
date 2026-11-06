@@ -94,7 +94,11 @@ def test_a_second_label_stops_the_first(player):
 def test_a_label_asked_while_the_last_is_being_made_replaces_it(player):
     speaker = ToneSpeaker(delay_s=0.1)
     v = voice_for(player, speaker)
-    for name in ("One", "Two", "Three"):
+    v.say(label("One", 0.0))
+    deadline = time.monotonic() + 5.0
+    while "One" not in speaker.asked and time.monotonic() < deadline:
+        time.sleep(0.001)   # "One" is being made before the others are asked
+    for name in ("Two", "Three"):
         v.say(label(name, 0.0))
     assert v.wait()
     assert len(voice_samples(player.mixer)) == 1

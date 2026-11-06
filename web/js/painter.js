@@ -50,6 +50,7 @@ export function paintScene(canvas, scene) {
   for (const s of scene.current) ctx.stroke(outlines[s]);
   paintLines(ctx, scene);
   paintMarkers(ctx, scene);
+  paintNames(ctx, scene);
   ctx.restore();
 
   const c = scene.cross;
@@ -95,6 +96,24 @@ function paintLines(ctx, scene) {
     ctx.lineWidth = s.width;
     ctx.strokeStyle = s.stroke;
     ctx.stroke();
+  }
+}
+
+// The areas' names, each centred where the core placed it, on a halo (P2-T12d).
+function paintNames(ctx, scene) {
+  const names = scene.names;
+  if (!names || !names.length) return;
+  const style = scene.name_style;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = style.halo;
+  ctx.fillStyle = style.colour;
+  for (const n of names) {
+    ctx.font = `${n.size}px sans-serif`;
+    ctx.strokeText(n.text, n.x, n.y);
+    ctx.fillText(n.text, n.x, n.y);
   }
 }
 

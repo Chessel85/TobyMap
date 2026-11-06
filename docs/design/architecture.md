@@ -1,6 +1,11 @@
 # Architecture and High Level Design
 
-Version 0.7, 6 November 2026. Updated for P2-T7, the spatial voice.
+Version 0.8, 6 November 2026. Updated for P2-T12 and P2-T13: themes, names on the map, heading-up and magnifiers.
+
+## Changes in version 0.8
+
+* Section 7.10: heading-up turns the view itself, not the finished shape list, so clicks and drags follow it. The themes, the map display setting and the contrast check are in the core (mapcore/render/themes.py), and the core places the names on the map.
+* Section 5.5 and 4.3: how the map tells a magnifier where its centre is, on the desktop and in the web version (ACC-8, DP146). The ticks of the menu items come from the core (session.toggles), for both shells.
 
 ## Changes in version 0.7
 
@@ -260,6 +265,7 @@ Each choice gives the reason and the main alternative considered. Every library 
 * The core runs in Pyodide inside a Web Worker (AD-9). A small bridge module returns plain dictionaries and lists, never Python objects, following RecallScore's web_api pattern.
 * The page itself is plain JavaScript with no framework: a key map, a focus manager, an announcer, a tree, a canvas painter, dialogs and a menu. These are modelled on RecallScore's web modules.
 * The web application is a static site on GitHub Pages, so it costs nothing to host.
+* The map region's focused element is a small invisible square at the map centre, placed on the core's square after every drawing and moved a pixel each time, so a magnifier that follows the keyboard focus looks at the location (ACC-8, DP146). The canvas and the focus frame fill the region round it.
 * The first visit downloads about 17 MB (Pyodide, NumPy, Shapely and PyYAML), and starting took 9 to 10 seconds in spike S5, which you accepted (DP96). In spike S4, the core alone was ready in 4 to 4.5 seconds: Pyodide itself took about 2.7 seconds, NumPy and Shapely 0.6, and the core's files 0.8.
 * Shapely is loaded in the worker from Phase 1, for the pack reader. It adds 0.8 MB, with GEOS built in (spike S4).
 * The Piper voice adds about 60 MB the first time, with the server compressing it. It loads after the map is ready, so TobyMap can be used while the voice downloads (DP98). It is kept in the browser's cache storage, so it downloads only once.
@@ -391,7 +397,7 @@ Using a step in stepping mode as the example:
 
 ### 5.5 Desktop shell
 * Main window with the four regions: map, Information panel, Details and menu bar (UX section 2).
-* The map widget paints the shape list and turns keys and mouse actions into commands. It tells Windows where the centre of the map is, so magnifiers follow it (ACC-8).
+* The map widget paints the shape list and turns keys and mouse actions into commands. While it has focus, it holds a hidden Windows system caret on the small square round the map centre that the core gives (session.focus_rect), and after every move it sends the caret's location change event, so magnifiers that follow the text cursor keep the centre in view (ACC-8, DP146).
 * Speech goes through one announcer, attached to a real widget, as RecallScore found was necessary.
 * Background work, such as the crossed and passed list, filling a panel group, downloading and fetching nearby tiles in advance, runs in a thread pool. Results come back to the user interface thread.
 * Tab and Shift+Tab move round the map, the Information panel and Details, but not the menu bar. Alt goes to the menu bar. F2 goes to the map, F3 to the Information panel and F4 to Details, from anywhere (DP93, DP106).
@@ -686,7 +692,9 @@ The first three tests use only the layer definition and the feature record, so t
 ### 7.10 The globe
 * The orthographic projection is calculated with NumPy for all the points of a frame at once. Points on the far side of the globe are clipped.
 * At street zoom the view is so small that it looks flat (VIS-5).
-* The optional heading-up rotation is a rotation of the finished shape list.
+* The optional heading-up rotation turns the view: the screen's up is the heading instead of north. So the shape list, clicks and drags all follow it, with no second step (VIS-5, P2-T12e).
+* The theme is worked out in the core: the chosen theme from mapcore/render/themes.yaml with the map display setting on top (DP108). In a high contrast theme, a chosen colour that would bring any outline or name below 7 to 1 contrast is not used (VIS-2). The shells only paint the colours they are given.
+* Names on the map are placed by the core, in screen pixels, after the shapes: the largest areas first, each at the point inside it furthest from its edges (Shapely's maximum inscribed circle, on the shape simplified by a pixel), only where the whole name fits, never overlapping another name or the centre cross. The core estimates a name's width from its length; the shells draw it centred on the point with a halo. Names are left out while a key is held (P2-T12d).
 * A drawing has three parts, each timed in the test trace: choosing the shapes in view and cutting them to it, projecting them, and painting them (P2-T14b). The shapes of each pack tile are decoded together, in one pass with NumPy, and kept with the pack tile in the pack tile cache, so a pack tile is decoded once however many drawings use it. This made the first drawing of a new place 3 to 5 times quicker (P2-T14c, docs/plan/p2-t14-drawing-timing.md).
 
 ---

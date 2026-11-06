@@ -160,6 +160,8 @@ class MapSession:
         self._spots: dict[str, tuple] = {}   # panel item id: (feature, lat, lon) of Nearby and Crossed and passed
         self._scene = None
         self._beacon_near: bool | None = None   # the beacon is on and silent near the North Pole (P2-T9)
+        self.isolated: str | None = None        # the one feature shown, with Isolate (VIS-2)
+        self._theme_cache: tuple | None = None   # (the settings it was made from, (theme, refused colours))
         self._handlers = {
             "move.north": lambda **a: self._move("north", **a),
             "move.south": lambda **a: self._move("south", **a),
@@ -185,6 +187,10 @@ class MapSession:
             "speech.history": self._history,
             "speech.braille_test": self._braille_test,
             "sound.mute": self._mute,
+            "verbosity.next": self._verbosity_next,
+            "theme.next": lambda **a: self._theme_step(+1),
+            "theme.previous": lambda **a: self._theme_step(-1),
+            "isolate.toggle": self._isolate_toggle,
             "beacon.toggle": self._beacon_toggle,
             "orientation.cycle": self._orientation_cycle,
             "turn.left": lambda **a: self._turn(sign=-1),
@@ -310,14 +316,13 @@ class MapSession:
         self.holding = None
         if self.held_turns and not self.held_moves:
             self.held_turns = 0
-            return self._record("release", Response(redraw=True, panel_stale=True).speak(
-                say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE))
+            return self._record("release", self._heading_said(Response(redraw=True, panel_stale=True)))
         self.held_turns = 0
         if not self.held_moves:
             return Response()
         self.held_moves = 0
         self._drawn_at = self.clock()
-        r = self._arrived(Response(redraw=True))
+        r = self._step_heading(self._arrived(Response(redraw=True)))
         path, self._held_path = self._held_path, []
         return self._record("release", self._crossed_after(r, path))
 
@@ -371,19 +376,42 @@ class MapSession:
         current = areas[0].id if areas else None
         # A copy of the place: on the desktop the map is drawn in a thread of its
         # own while the held key steps on (P2-T14).
+        v = self.settings
         frame = self._scene.build(copy.copy(self.world), width, height, current=current, highlight=self.selected,
-                                  centre_cross=self.settings["centre_cross"],
+                                  centre_cross=v["centre_cross"],
                                   layers=self.visible.shown_layers(self.world.zoom_m),
                                   min_widths=self.visible.min_widths(self.world.zoom_m),
-                                  interval=self._interval())
+                                  interval=self._interval(), theme=self.theme(), isolate=self.isolated,
+                                  # Names are left out while a key is held, and drawn on the release.
+                                  names=v["map_names"] and self.holding is None,
+                                  label_scale=v["label_size"] / 100.0, heading_up=v["heading_up"])
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
 
+    def focus_rect(self, width: int, height: int) -> dict:
+        """Where a magnifier should look on a map of this size: a small square round the
+        centre, where the location always is (ACC-8, DP146)."""
+        from mapcore.render import scene as scene_mod
+
+        return scene_mod.focus_rect(width, height)
+
     def scene_background(self) -> str:
         """The colour behind the map, for a shell to show before the first drawing is ready."""
-        from mapcore.render import globe
+        return self.theme()["background"]
 
-        return globe.load_theme()["background"]
+    def theme(self) -> dict:
+        """The theme the map is drawn with: the chosen theme with the map display setting on top
+        (VIS-2, DP108)."""
+        return self._theme_and_refused()[0]
+
+    def _theme_and_refused(self) -> tuple[dict, list[str]]:
+        from mapcore.render import themes
+
+        v = self.settings
+        key = tuple(v[k] for k in ("theme", "map_fill", "map_borders", "fill_colour", "border_colour", "outline_colour"))
+        if self._theme_cache is None or self._theme_cache[0] != key:
+            self._theme_cache = (key, themes.effective(*key))
+        return self._theme_cache[1]
 
     def panel(self) -> list[dict]:
         """The Information panel groups (UX section 6), as plain data."""
@@ -441,6 +469,12 @@ class MapSession:
 
     def registry(self) -> dict:
         return registry.describe(self.platform, self.settings.keys)
+
+    def toggles(self) -> dict[str, bool]:
+        """Whether each menu item with a tick is on, by command name."""
+        return {"step.link": bool(self.world.link), "sound.mute": bool(self.settings["mute"]),
+                "help.describer": bool(self.describing), "beacon.toggle": bool(self.settings["beacon_on"]),
+                "isolate.toggle": self.isolated is not None}
 
     def settings_schema(self) -> dict:
         """The settings dialog: its tabs and fields, with the current values (P1-T10)."""
@@ -779,7 +813,7 @@ class MapSession:
     def _arrived(self, r: Response) -> Response:
         """Describe the new place against the last described one (ANN-1)."""
         new = self._here()
-        text = describer.announcement(self.areas, new, self.all_off_here)
+        text = describer.announcement(self.areas, new, self.all_off_here, self.settings["say_area"])
         self.areas = new
         r.panel_stale = r.details_stale = True
         self.selected = None
@@ -826,7 +860,10 @@ class MapSession:
             r.speak(say("movement.pole_crossed", pole=say(f"movement.poles.{result.pole}"),
                         heading=describer.facing_text(self.world)), ASSERTIVE)
         self._held_path = []
-        return self._crossed_after(self._crossing_sounds(self._arrived(r), result.path), result.path)
+        r = self._arrived(r)
+        if not result.pole:   # over a pole the heading is said already
+            self._step_heading(r)
+        return self._crossed_after(self._crossing_sounds(r, result.path), result.path)
 
     def _turned(self, held: bool, repeat: bool, now: float) -> Response:
         """A turn on the spot (NAV-3, NAV-12): the heading arrow is drawn again, and the
@@ -837,8 +874,20 @@ class MapSession:
             r = Response(redraw=self._draw_due(now))
             return r.earcon("tick") if repeat else r
         self.held_turns = 0
-        return Response(redraw=True, panel_stale=True).speak(
-            say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE)
+        return self._heading_said(Response(redraw=True, panel_stale=True))
+
+    def _heading_said(self, r: Response) -> Response:
+        """After a turn: the new heading, or only the tick when the verbosity switch is off (ACC-5)."""
+        if not self.settings["say_heading"]:
+            return r.earcon("tick")
+        return r.speak(say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE)
+
+    def _step_heading(self, r: Response) -> Response:
+        """In free facing the heading changes along the way; the detailed preset says it after
+        every step (ACC-5, DP144)."""
+        if self.settings["say_heading_on_step"] and self.world.orientation == "free":
+            r.speak(say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE)
+        return r
 
     def _turn(self, degrees_setting: str | None = None, sign: int = 1, **_a) -> Response:
         """Shift and Ctrl with Left and Right: turn 90 degrees, or by the fine amount
@@ -966,7 +1015,7 @@ class MapSession:
             return Response().speak(say(key, zoom_step=say(
                 "movement.zoom_only", zoom=words.distance_text(self.world.zoom_m, self._units()))), ASSERTIVE)
         self._settings_link_sync()
-        return Response(redraw=True, panel_stale=True).speak(self._changed_sizes(*before), ASSERTIVE)
+        return self._sizes_said(Response(redraw=True, panel_stale=True), before)
 
     def _step_size(self, direction: int) -> Response:
         before = (self.world.zoom_m, self.world.step_m)
@@ -974,7 +1023,14 @@ class MapSession:
             key = "movement.step_end_larger" if direction > 0 else "movement.step_end_smaller"
             return Response().speak(say(key, zoom_step=say(
                 "movement.step_only", step=words.distance_text(self.world.step_m, self._units()))), ASSERTIVE)
-        return Response(redraw=True, panel_stale=True).speak(self._changed_sizes(*before), ASSERTIVE)
+        return self._sizes_said(Response(redraw=True, panel_stale=True), before)
+
+    def _sizes_said(self, r: Response, before: tuple[float, float]) -> Response:
+        """The new zoom or step, or only the tick when the verbosity switch is off (ACC-5).
+        H still says them."""
+        if not self.settings["say_zoom_step"]:
+            return r.earcon("tick")
+        return r.speak(self._changed_sizes(*before), ASSERTIVE)
 
     def _settings_link_sync(self) -> None:
         self.settings.set("link", self.world.link, quiet=True)
@@ -1094,6 +1150,52 @@ class MapSession:
         key = "sound.muted" if self.settings["mute"] else "sound.unmuted"
         return Response(settings_changed=True).speak(say(key), ASSERTIVE)
 
+    def _verbosity_next(self, **_a) -> Response:
+        """The next verbosity preset: terse, normal, detailed, and round again. From Custom,
+        terse. Says the preset and what it says (ACC-5, DP144)."""
+        names = list(settings_mod.presets())
+        now = self.settings["verbosity"]
+        preset = names[(names.index(now) + 1) % len(names)] if now in names else names[0]
+        self.settings.set("verbosity", preset)
+        return Response(settings_changed=True).speak(say(f"verbosity.{preset}"), ASSERTIVE)
+
+    # Themes, the map display setting and isolate (P2-T12; VIS-2, DP108) -------------------
+
+    def _theme_step(self, direction: int) -> Response:
+        """T and Shift+T: the next or previous theme, said by name."""
+        from mapcore.render import themes
+
+        names = themes.names()
+        now = self.settings["theme"]
+        name = names[(names.index(now) + direction) % len(names)] if now in names else names[0]
+        self.settings.set("theme", name)
+        r = Response(redraw=True, settings_changed=True).speak(
+            say("display.theme", theme=themes.theme(name)["label"]), ASSERTIVE)
+        return self._colours_kept(r)
+
+    def _colours_kept(self, r: Response) -> Response:
+        """In a high contrast theme, a chosen colour below 7 to 1 is not used: say which (VIS-2)."""
+        from mapcore import settings as s
+
+        for setting in self._theme_and_refused()[1]:
+            r.speak(say("display.colour_refused", what=s.fields()[setting]["label"]), POLITE)
+        return r
+
+    def _isolate_toggle(self, **_a) -> Response:
+        """Isolate: only the current feature and its outline, and again to show everything (VIS-2)."""
+        if self.isolated is not None:
+            return self._isolate_off()
+        if not self.areas:
+            return Response().speak(say("display.isolate_none"), ASSERTIVE)
+        self.isolated = self.areas[0].id
+        return Response(redraw=True).speak(say("display.isolated", name=self.areas[0].name), ASSERTIVE)
+
+    def _isolate_off(self, **_a) -> Response:
+        if self.isolated is None:
+            return Response()
+        self.isolated = None
+        return Response(redraw=True).speak(say("display.isolate_off"), ASSERTIVE)
+
     def _settings_open(self, **_a) -> Response:
         return Response(dialog={"kind": "settings", "title": say("settings.title")})
 
@@ -1107,7 +1209,10 @@ class MapSession:
         if field == "units":
             self.world.use_units(value)   # imperial has its own round sizes, so the map may redraw (DP136)
         self._panel_cache = None
-        return Response(settings_changed=True, panel_stale=True, details_stale=True, redraw=True)
+        r = Response(settings_changed=True, panel_stale=True, details_stale=True, redraw=True)
+        if field in ("theme", "map_fill", "map_borders", "fill_colour", "border_colour", "outline_colour"):
+            self._colours_kept(r)
+        return r
 
     def layer_list(self) -> dict:
         """The layers list (SCP-6, SCP-7), as plain data for the shells' dialogs: each
@@ -1264,7 +1369,7 @@ class MapSession:
     def _view_scale(self, width: float, height: float):
         from mapcore.render import scene as scene_mod
 
-        return scene_mod.view_for(self.world, width, height)
+        return scene_mod.view_for(self.world, width, height, self.settings["heading_up"])
 
     def _click(self, x: float, y: float, width: float, height: float, **_a) -> Response:
         from mapcore.render import globe

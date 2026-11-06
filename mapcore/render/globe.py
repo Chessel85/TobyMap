@@ -36,12 +36,9 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
-import yaml
 
-THEMES_FILE = Path(__file__).resolve().parent / "themes.yaml"
 GLOBE_FRACTION = 0.45  # radius at scale 1, as a share of the smaller side
 
 
@@ -50,17 +47,25 @@ class View:
     lat: float
     lon: float
     scale: float = 1.0
+    up: float = 0.0   # the bearing at the top of the map: 0 is north-up; the heading for heading-up (VIS-5)
 
 
 def load_theme(name: str = "standard") -> dict:
-    return yaml.safe_load(THEMES_FILE.read_text(encoding="utf-8"))[name]
+    from mapcore.render import themes
+
+    return themes.theme(name)
 
 
 def _frame(view: View):
+    """The screen's right, up and towards-the-viewer directions. With up, the map is turned
+    so that bearing is at the top (heading-up, VIS-5)."""
     phi, lam = np.radians(view.lat), np.radians(view.lon)
     east = np.array([-np.sin(lam), np.cos(lam), 0.0])
     north = np.array([-np.sin(phi) * np.cos(lam), -np.sin(phi) * np.sin(lam), np.cos(phi)])
     forward = np.array([np.cos(phi) * np.cos(lam), np.cos(phi) * np.sin(lam), np.sin(phi)])
+    if view.up:
+        a = np.radians(view.up)
+        east, north = np.cos(a) * east - np.sin(a) * north, np.cos(a) * north + np.sin(a) * east
     return east, north, forward
 
 

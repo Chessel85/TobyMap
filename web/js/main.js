@@ -13,7 +13,7 @@ import * as voice from "./voice.js";
 import { WorkerClient } from "./worker_client.js";
 
 const $ = (id) => document.getElementById(id);
-const mapEl = $("map"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
+const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
 const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
@@ -22,7 +22,7 @@ const STORAGE_KEY = "tobymap";
 const client = new WorkerClient(new URL("../worker.js", import.meta.url));
 let registry = null, words = null, menubar = null, tree = null;
 let lastScene = null, returnFocus = null, describing = false, heldKey = null, lastSave = null;
-let toggles = { "step.link": false, "sound.mute": false, "help.describer": false, "beacon.toggle": false };
+let toggles = {};   // the ticks of the menu items, from the core
 
 // window.tobymap is for the browser tests and diagnostics only.
 window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.heard, clicks: sounds.clicks, ready: false, error: null,
@@ -39,12 +39,25 @@ sounds.setOwnFailed((info) => {
 });
 
 function mapSize() {
-  const r = mapEl.getBoundingClientRect();
+  const r = mapArea.getBoundingClientRect();
   return { width: Math.max(1, Math.round(r.width)), height: Math.max(1, Math.round(r.height)) };
+}
+
+// The focus point goes on the core's square at the map centre after every drawing, a pixel
+// to one side each time, so the browser tells a magnifier it moved (ACC-8, DP146).
+let nudge = 0;
+function placeFocusPoint(f) {
+  if (!f) return;
+  nudge = 1 - nudge;
+  mapEl.style.left = `${f.x + nudge}px`;
+  mapEl.style.top = `${f.y}px`;
+  mapEl.style.width = `${f.width}px`;
+  mapEl.style.height = `${f.height}px`;
 }
 
 function paint(scene) {
   lastScene = scene;
+  placeFocusPoint(scene.focus);
   const ms = paintScene(canvas, scene);
   window.tobymap.paints += 1;
   client.send({ type: "painted", paintMs: ms }).catch(() => {});
@@ -100,11 +113,8 @@ function handle(result, keyAt, held = false) {
     client.latestOnly = new Set(registry.latest_only);
     if (menubar) { menubar.build(registry.menus); menubar.setChecked(toggles); }
   }
-  if (r.settings_changed || result.describing !== undefined) {
-    toggles["help.describer"] = describing;
-    if (result.save) toggles["sound.mute"] = JSON.parse(result.save).settings.values.mute;
-    if (result.save) toggles["step.link"] = JSON.parse(result.save).state.link;
-    if (result.save) toggles["beacon.toggle"] = JSON.parse(result.save).settings.values.beacon_on;
+  if (result.toggles) {
+    toggles = result.toggles;
     if (menubar) menubar.setChecked(toggles);
   }
   if (result.save && result.save !== lastSave) {
@@ -308,14 +318,14 @@ function trapTab(e) {  // keep focus inside a dialog
 
 // The mouse: a click moves the location, the wheel changes the zoom, a drag turns the globe (NAV-9, NAV-13, VIS-4).
 let press = null;
-mapEl.addEventListener("pointerdown", (e) => {
+mapArea.addEventListener("pointerdown", (e) => {
   const r = canvas.getBoundingClientRect();
   mapEl.focus();
   press = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, dragged: false, w: r.width, h: r.height, left: r.left, top: r.top };
-  mapEl.setPointerCapture(e.pointerId);
+  mapArea.setPointerCapture(e.pointerId);
   e.preventDefault();
 });
-mapEl.addEventListener("pointermove", (e) => {
+mapArea.addEventListener("pointermove", (e) => {
   if (!press) return;
   if (!press.dragged && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) < 5) return;
   press.dragged = true;
@@ -325,14 +335,14 @@ mapEl.addEventListener("pointermove", (e) => {
   heldKey = "drag";
   run("map.drag", { dx, dy, width: press.w, height: press.h });
 });
-mapEl.addEventListener("pointerup", (e) => {
+mapArea.addEventListener("pointerup", (e) => {
   if (!press) return;
   const p = press;
   press = null;
   if (p.dragged) release();
   else run("map.click", { x: e.clientX - p.left, y: e.clientY - p.top, width: p.w, height: p.h });
 });
-mapEl.addEventListener("wheel", (e) => {
+mapArea.addEventListener("wheel", (e) => {
   e.preventDefault();
   run("map.zoom_to", { direction: e.deltaY < 0 ? -1 : 1 });  // wheel up zooms in
 }, { passive: false });
@@ -884,7 +894,7 @@ function applyWords() {
 }
 
 async function boot() {
-  $("map").hidden = false;
+  mapArea.hidden = false;
   $("side").hidden = false;
   client.onNotice = (text) => speak(text, "polite");   // the map download's progress
   const { width, height } = mapSize();
@@ -918,7 +928,7 @@ async function boot() {
       if (lastScene && size.width === lastScene.width && size.height === lastScene.height) return;
       client.send({ type: "scene", ...size }).then((r) => r && paint(r.scene)).catch(showError);
     }, 100);
-  }).observe(mapEl);
+  }).observe(mapArea);
 }
 
 boot().catch((error) => {

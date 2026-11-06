@@ -80,6 +80,19 @@ beacon:
   on_muted: "Beacon on, but all sound is muted."
   near_pole: "Beacon off near the North Pole."
   back: "Beacon back on."
+# Themes, the map display setting and isolate (P2-T12; VIS-2, DP108).
+display:
+  theme: "{theme} theme."
+  colour_refused: "{what}: that colour is too close to the colours around it for the 7 to 1 contrast of a high contrast theme, so the theme's own colour is used."
+  isolated: "Isolated: {name}. Only it is on the map. Press Ctrl+I again to show everything."
+  isolate_off: "Showing everything."
+  isolate_none: "No area here to isolate."
+
+# The verbosity presets (P2-T11; ACC-5, DP144), said by the key that goes to the next one.
+verbosity:
+  terse: "Terse. Only the smallest area that changed is said."
+  normal: "Normal. Every area that changed is said, and the zoom, the step and the heading."
+  detailed: "Detailed. The whole place is said when an area changes, and the heading after each step in free facing."
 sound:
   muted: "Sound muted."
   unmuted: "Sound on."

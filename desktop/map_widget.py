@@ -16,8 +16,11 @@ import traceback
 
 import numpy as np
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QAccessible, QBrush, QColor, QImage, QPainter, QPainterPath, QPen, QPolygonF
+from PySide6.QtGui import (QAccessible, QBrush, QColor, QFont, QFontMetricsF, QImage, QPainter, QPainterPath, QPen,
+                           QPolygonF)
 from PySide6.QtWidgets import QAccessibleWidget, QWidget
+
+from desktop.magnifier import CaretTracker
 
 
 
@@ -61,6 +64,27 @@ def _paint_lines_and_markers(painter: QPainter, scene: dict) -> None:
             painter.setPen(QPen(QColor(s["stroke"]), 1))
             painter.setBrush(QBrush(QColor(s["fill"])))
             painter.drawEllipse(QPointF(x, y), s["radius"], s["radius"])
+
+
+def _paint_names(painter: QPainter, scene: dict) -> None:
+    """The areas' names, each centred where the core placed it, on a halo (P2-T12d)."""
+    names = scene.get("names")
+    if not names:
+        return
+    style = scene["name_style"]
+    halo = QPen(QColor(style["halo"]), 3)
+    halo.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    brush = QBrush(QColor(style["colour"]))
+    font = QFont()
+    font.setStyleHint(QFont.StyleHint.SansSerif)
+    for n in names:
+        font.setPixelSize(max(1, round(n["size"])))
+        metrics = QFontMetricsF(font)
+        path = QPainterPath()
+        path.addText(QPointF(n["x"] - metrics.horizontalAdvance(n["text"]) / 2,
+                             n["y"] + (metrics.ascent() - metrics.descent()) / 2), font, n["text"])
+        painter.strokePath(path, halo)
+        painter.fillPath(path, brush)
 
 
 def paint_scene(painter: QPainter, scene: dict) -> None:
@@ -109,6 +133,7 @@ def paint_scene(painter: QPainter, scene: dict) -> None:
     for si in scene["current"]:
         painter.drawPath(outlines[si])
     _paint_lines_and_markers(painter, scene)
+    _paint_names(painter, scene)
     painter.setClipping(False)
 
     c = scene.get("cross")
@@ -237,10 +262,17 @@ class MapWidget(QWidget):
         self._image: QImage | None = None
         self._drawer = Drawer(session)
         self._drawer.drawn.connect(self._show)
+        self.caret = CaretTracker(self)   # where a magnifier looks: the map centre (ACC-8)
 
     def redraw(self) -> None:
-        """Ask for the map to be drawn again, at the place as it is now. Never waits."""
+        """Ask for the map to be drawn again, at the place as it is now. Never waits.
+        Every move redraws, so the magnifier is told the centre again too."""
         self._drawer.request(self.width(), self.height(), self.devicePixelRatioF())
+        self.follow_centre()
+
+    def follow_centre(self) -> None:
+        """Tell a magnifier where the map centre is, the core's square (ACC-8, DP146)."""
+        self.caret.place(self._session.focus_rect(self.width(), self.height()))
 
     def drawing_done(self) -> bool:
         """Nothing waiting to be drawn or shown (for the tests)."""
@@ -278,10 +310,12 @@ class MapWidget(QWidget):
 
     def focusInEvent(self, event):
         super().focusInEvent(event)
+        self.follow_centre()
         self.update()
 
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
+        self.caret.release()
         self.refresh_name()
         self.update()
 

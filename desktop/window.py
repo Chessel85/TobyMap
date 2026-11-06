@@ -39,8 +39,6 @@ from mapcore.commands import registry
 from mapcore.session import HOLD_SILENCE_S, MapSession, Response
 
 ITEM_ID = Qt.ItemDataRole.UserRole
-TOGGLES = {"step.link": lambda s: s.world.link, "sound.mute": lambda s: s.settings["mute"],
-           "help.describer": lambda s: s.describing, "beacon.toggle": lambda s: s.settings["beacon_on"]}
 
 
 class _Beacon(QObject):
@@ -319,16 +317,16 @@ class MainWindow(QMainWindow):
                 action = QAction(text, self)
                 if item["toggle"]:
                     action.setCheckable(True)
-                    action.setChecked(bool(TOGGLES[name](self.session)))
+                    action.setChecked(bool(self.session.toggles().get(name)))
                 action.triggered.connect(lambda _checked=False, n=name: self._menu_command(n))
                 qmenu.addAction(action)
                 self.actions_by_name[name] = action
 
     def _refresh_toggles(self):
-        for name, getter in TOGGLES.items():
+        for name, on in self.session.toggles().items():
             action = self.actions_by_name.get(name)
             if action is not None:
-                action.setChecked(bool(getter(self.session)))
+                action.setChecked(on)
 
     @staticmethod
     def _with_access(label: str, letter: str) -> str:

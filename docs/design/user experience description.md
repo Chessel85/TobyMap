@@ -1,12 +1,21 @@
 # User Experience Description
 
-Version 0.10, 6 November 2026. Section 8.4 now says how the orientation beacon sounds, how it repeats, and what happens near the North Pole.
+Version 0.11, 6 November 2026. Section 3.1 now has the verbosity presets, and section 11 the themes, the map display setting, Isolate, names on the map, heading-up and magnifiers.
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.11
+
+Made in P2-T11, P2-T12 and P2-T13.
+
+* Section 3.1: the verbosity presets, terse, normal and detailed, and their four switches (DP144). A, on the map, goes to the next preset.
+* Section 11.2: the four themes, with T and Shift+T; the map display setting (DP108); Isolate, Ctrl+I; names on the map with the label size; heading-up; and how magnifiers follow the map centre (DP146).
+* Section 12: the keys A, T, Shift+T and Ctrl+I.
+* Section 13: the Speech tab and the Display tab as built. The short Braille format is parked (DP145).
 
 ## Changes in version 0.10
 
@@ -127,6 +136,14 @@ Example of stepping in the north-fixed orientation, with a 100 metre step, start
 * Right: "(crossed earcon) Ashwood Farm." The step also crossed the River Avon. Its name is not spoken, but Shift+X lists "River Avon, crossed".
 
 Crossing a border needs no special earcon, because the new name says it. The same goes for moving between land and water.
+
+How much is said is chosen with a verbosity preset, in the Speech tab of Settings, or with A on the map, which goes to the next one and says what it does (ACC-5, DP144):
+
+* Terse: only the smallest area that changed, such as "Somme" instead of "Somme, Hauts-de-France". The zoom, the step and the heading are not said when they change; the tick plays instead.
+* Normal, the default: the rule above, and the zoom, the step and the heading when they change.
+* Detailed: the whole place, as Where am I says it, whenever an area changed, and in free facing the heading after every step.
+
+Under the preset are its four switches: what to say after a step (only the smallest area that changed, every area that changed, the whole place, or nothing), the zoom and step, the heading after a turn, and the heading after every step in free facing. Changing one makes the preset "Custom". The tick, for a step that changed nothing, has its own switch in the Earcons tab. Where am I, H, the orientation key and crossing a pole are always said.
 
 ### 3.2 The crossed and passed list
 
@@ -545,9 +562,11 @@ The visual map is the Earth viewed from space, an orthographic projection (VIS-5
 
 * A small plus-shaped cross marks the exact centre, so a sighted helper can see the precise point being described. It is on by default and can be switched off (DP73).
 * A small heading arrow at the centre shows which way the user faces. The current feature is outlined, and the selected Information panel item is highlighted.
-* Themes: standard, high contrast dark, high contrast light, and colour-blind safe (VIS-2).
-* Layers shown on the map are the same as the active layers in the layers list. "Isolate" hides everything except the current feature.
-* Labels grow with the label size setting. The application tells Windows where the centre of the map is, so that magnifiers follow it (ACC-8).
+* Themes: standard, high contrast dark, high contrast light, and colour-blind safe (VIS-2). T goes to the next and Shift+T to the previous, and the theme is said. In the high contrast themes, every outline and name reaches at least 7 to 1 contrast against what it is drawn on. The colour-blind safe colours still differ for each of the three common kinds of colour blindness.
+* The map display setting, in the Display tab (DP108): the fill as different colours for neighbours (the default), one colour for all, or none, for outlines only; borders on or off; and the colours of the fill, the borders and the current outline. The current outline is always drawn. In a high contrast theme, a colour that would fall below 7 to 1 is not used, and you are told.
+* Layers shown on the map are the same as the active layers in the layers list. Isolate, Ctrl+I, shows only the area you are in and its outline, and Ctrl+I again shows everything.
+* Names on the map: each area's name is placed inside it where the whole name fits, never over another name or the centre cross, larger areas first. A larger area on the map has a larger name, so names grow as you zoom in. The label size setting goes from 50% to 300% (VIS-3). Names are left out while a key is held.
+* Magnifiers (ACC-8, DP146). On the desktop, while the map has focus, it holds an invisible text cursor at the map centre and moves it after every move, so a magnifier that follows the text cursor keeps the location in view. In the web version, the map's focused element is a small invisible point at the map centre, so a magnifier that follows the keyboard focus looks there.
 
 ## 12. Draft keyboard map
 
@@ -609,6 +628,9 @@ Keys changed since version 0.3 (agreed, DP79):
 * Ctrl+K: collections.
 
 ### Other
+* A: the next verbosity preset (DP144).
+* T and Shift+T: the next and previous theme.
+* Ctrl+I: isolate the area you are in, and again to show everything.
 * P: data packs.
 * F1: help.
 * F2: go to the map, from anywhere (DP106).
@@ -621,11 +643,11 @@ Keys changed since version 0.3 (agreed, DP79):
 
 Settings are a standard accessible dialog with these tabs:
 
-* Speech: verbosity preset, per-event toggles, concise (Braille) format, and preferred name language.
+* Speech: the verbosity preset and its four switches (built in Phase 2). The concise Braille format is parked until a Braille user can try it (DP145), and the preferred name language comes later.
 * Units: metric or imperial, nautical miles at sea, bearing format, and coordinate format.
 * Movement: default orientation, step list, link step to zoom, fine turn amount, driving speed, points of interest to stop at, and the passed nearby distance (percentage of the step, or fixed).
 * Sound: headphones or speakers, volumes for each sound type, the distance cue, the beacon target, the built-in voice's speed and volume, whether spatial labels are also spoken by the screen reader, per-earcon toggles, and custom earcon files.
-* Display: theme, zoom list, label size, centre cross, and heading-up rotation.
+* Display: the centre cross, announcing places under the mouse, the theme, the map display setting, names on the map, the label size, and heading-up (built in Phase 2). The zoom list comes later.
 * Layers: the same list as Shift+L, with each layer's sounds, zoom range, and the graticule interval.
 * Keys: view and change bindings.
 * Data: installed packs, and on-demand download on or off.

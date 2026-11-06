@@ -95,6 +95,42 @@ tabs:
         default: 500
         min: 1
         max: 100000
+  # How much is said by itself (P2-T11; ACC-5, DP144). The preset sets the four switches
+  # after it; changing a switch makes the preset Custom. The presets are under "presets"
+  # at the end of this file. The tick has its switch in the Earcons tab.
+  - id: speech
+    label: Speech
+    fields:
+      - id: verbosity
+        label: "How much is said: the preset"
+        kind: choice
+        default: normal
+        choices:
+          - [terse, "Terse: only the smallest area that changed"]
+          - [normal, "Normal: every area that changed, the zoom, the step and the heading"]
+          - [detailed, "Detailed: the whole place when an area changes, and the heading after each step in free facing"]
+          - [custom, "Custom: your own choice of the switches below"]
+      - id: say_area
+        label: After a step
+        kind: choice
+        default: changed
+        choices:
+          - [smallest, "Say only the smallest area that changed"]
+          - [changed, "Say every area that changed"]
+          - [whole, "Say the whole place when an area changed"]
+          - ["off", "Say nothing, only the tick"]
+      - id: say_zoom_step
+        label: Say the zoom and the step when they change
+        kind: yes_no
+        default: true
+      - id: say_heading
+        label: Say the heading after a turn
+        kind: yes_no
+        default: true
+      - id: say_heading_on_step
+        label: "Free facing: say the heading after every step"
+        kind: yes_no
+        default: false
   - id: layers
     label: Layers
     fields:
@@ -192,6 +228,97 @@ tabs:
   - id: display
     label: Display
     fields:
+      # Themes and the map display setting (P2-T12; VIS-2, VIS-3, VIS-5, DP108). T and Shift+T
+      # also change the theme. In a high contrast theme a colour below 7 to 1 is not used.
+      - id: theme
+        label: Theme
+        kind: choice
+        default: standard
+        choices:
+          - [standard, Standard]
+          - [high_contrast_dark, High contrast dark]
+          - [high_contrast_light, High contrast light]
+          - [colour_blind_safe, Colour-blind safe]
+      - id: map_fill
+        label: Fill of the areas
+        kind: choice
+        default: neighbours
+        choices:
+          - [neighbours, "Different colours for neighbours"]
+          - [one, "One colour for all"]
+          - [none, "None: outlines only"]
+      - id: map_borders
+        label: Draw the borders
+        kind: yes_no
+        default: true
+      - id: fill_colour
+        label: "Colour of the fill, when it is one colour for all"
+        kind: choice
+        default: theme
+        choices:
+          - [theme, "The theme's own"]
+          - [black, Black]
+          - [white, White]
+          - [yellow, Yellow]
+          - [orange, Orange]
+          - [red, Red]
+          - [magenta, Magenta]
+          - [blue, Blue]
+          - [dark_blue, Dark blue]
+          - [cyan, Cyan]
+          - [green, Green]
+          - [grey, Grey]
+          - [light_grey, Light grey]
+      - id: border_colour
+        label: Colour of the borders
+        kind: choice
+        default: theme
+        choices:
+          - [theme, "The theme's own"]
+          - [black, Black]
+          - [white, White]
+          - [yellow, Yellow]
+          - [orange, Orange]
+          - [red, Red]
+          - [magenta, Magenta]
+          - [blue, Blue]
+          - [dark_blue, Dark blue]
+          - [cyan, Cyan]
+          - [green, Green]
+          - [grey, Grey]
+          - [light_grey, Light grey]
+      - id: outline_colour
+        label: Colour of the outline of the current area
+        kind: choice
+        default: theme
+        choices:
+          - [theme, "The theme's own"]
+          - [black, Black]
+          - [white, White]
+          - [yellow, Yellow]
+          - [orange, Orange]
+          - [red, Red]
+          - [magenta, Magenta]
+          - [blue, Blue]
+          - [dark_blue, Dark blue]
+          - [cyan, Cyan]
+          - [green, Green]
+          - [grey, Grey]
+          - [light_grey, Light grey]
+      - id: map_names
+        label: Show names on the map
+        kind: yes_no
+        default: true
+      - id: label_size
+        label: "Size of the names, in percent"
+        kind: number
+        default: 100
+        min: 50
+        max: 300
+      - id: heading_up
+        label: "Cardinal and free facing: turn the map so the way you face is up"
+        kind: yes_no
+        default: false
       - id: centre_cross
         label: Show the cross at the centre of the map
         kind: yes_no
@@ -200,3 +327,10 @@ tabs:
         label: Announce places when the mouse moves over the map
         kind: yes_no
         default: false
+
+# The verbosity presets (P2-T11; ACC-5, DP144): the switches each one sets. Custom sets
+# none; it is what the preset says when the switches match no preset.
+presets:
+  terse: {say_area: smallest, say_zoom_step: false, say_heading: false, say_heading_on_step: false}
+  normal: {say_area: changed, say_zoom_step: true, say_heading: true, say_heading_on_step: false}
+  detailed: {say_area: whole, say_zoom_step: true, say_heading: true, say_heading_on_step: true}

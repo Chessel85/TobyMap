@@ -1,0 +1,15 @@
+title: "Across the Channel with the terse preset: only the smallest area that changed"
+requirements: [ACC-5, ANN-1]
+pack: test
+start: {lat: 51.2, lon: 1.2, zoom_m: 25000, step_m: 25000}
+steps:
+  - {run: settings.set, args: {field: verbosity, value: terse}}
+  - {press: Down, say: ["North Atlantic Ocean"]}
+  - {press: Right, earcons: [tick]}
+  - {press: Right, say: ["Pas-de-Calais"]}
+  - {press: Down, earcons: [tick]}
+  - {press: Down, earcons: [tick]}
+  - {press: Down, say: ["Somme"]}
+  - {press: Page Up, say: [], earcons: [tick]}
+  - {press: Left, earcons: [tick]}
+  - {press: Left, say: ["North Atlantic Ocean"]}

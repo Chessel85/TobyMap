@@ -18,6 +18,8 @@ SCHEMA_FILE = Path(__file__).resolve().parent / "settings.yaml"
 # Settings renamed since they were first saved: old id -> new id. A saved value
 # under the old id is kept under the new one.
 RENAMED = {"crossed_earcon": "earcon_on_crossed_added"}
+# The switches a verbosity preset sets (P2-T11, DP144).
+PRESET_SWITCHES = ("say_area", "say_zoom_step", "say_heading", "say_heading_on_step")
 
 
 @lru_cache(maxsize=1)
@@ -52,6 +54,19 @@ def fields() -> dict[str, dict]:
 
 def defaults() -> dict:
     return {fid: f["default"] for fid, f in fields().items()}
+
+
+def presets() -> dict[str, dict]:
+    """The verbosity presets: the switches each one sets (P2-T11; ACC-5, DP144)."""
+    return schema().get("presets", {})
+
+
+def preset_matching(values: dict) -> str:
+    """The preset whose switches are all as in values, or "custom"."""
+    for name, switches in presets().items():
+        if all(values.get(k) == v for k, v in switches.items()):
+            return name
+    return "custom"
 
 
 def checked(field_id: str, value):
@@ -93,8 +108,15 @@ class Settings:
         return self.values[field_id]
 
     def set(self, field_id: str, value, quiet: bool = False) -> bool:
+        """Set one value. Choosing a verbosity preset sets its switches; changing a switch
+        makes the preset the one it now matches, or Custom (P2-T11, DP144)."""
         try:
             self.values[field_id] = checked(field_id, value)
+            switches = presets().get(self.values[field_id]) if field_id == "verbosity" else None
+            if switches:
+                self.values.update(switches)
+            elif field_id in PRESET_SWITCHES:
+                self.values["verbosity"] = preset_matching(self.values)
             return True
         except (ValueError, TypeError):
             if quiet:

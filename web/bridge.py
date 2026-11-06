@@ -84,6 +84,7 @@ def _extras(response, out: dict, width: int, height: int) -> dict:
     if response.settings_changed:
         out["registry"] = _session.registry()
     out["hold"] = _session.hold_info()   # the held key's timing, for the page's clicks (DP140)
+    out["toggles"] = _session.toggles()   # the ticks of the menu items
     out["save"] = json.dumps(_session.save())
     return out
 
@@ -119,6 +120,7 @@ def _extras_start(response, out: dict) -> dict:
     from mapcore.describe import earcon_list
 
     out["preload"] = [_session.earcon_file(e["event"]) for e in earcon_list()]   # every earcon, ready (P2-T8)
+    out["toggles"] = _session.toggles()
     out["save"] = json.dumps(_session.save())
     return out
 

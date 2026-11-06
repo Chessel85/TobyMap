@@ -136,6 +136,14 @@ Older documents written before this glossary, such as architecture section 6 and
 * Passed: a point, such as a railway station, that a move's path came within the passed nearby distance of.
 * Passed nearby distance: how near a move's path must come to a point for it to be listed as passed. A share of the step, 10% at first, or a fixed distance (DP58).
 * Beacon: a soft repeating sound from the direction of the North Pole, or later a pin, so you can feel which way you face (SON-10).
+* Verbosity preset: a named choice of how much is said by itself after a move: terse, normal or detailed. It sets four switches; changing one makes the preset Custom (ACC-5, DP144).
+* Theme: the set of colours the map is drawn in: standard, high contrast dark, high contrast light or colour-blind safe (VIS-2).
+* Contrast ratio: how much lighter one colour is than another, from 1 to 1 (the same) to 21 to 1 (black on white), measured as the web accessibility guidelines do. The high contrast themes keep every outline and name at 7 to 1 or more.
+* Map display setting: the choice of fill, borders and their colours, on top of the theme (DP108).
+* Isolate: showing only the area you are in, and its outline, on the map (VIS-2).
+* Names on the map: the areas' names drawn on the map for sighted users, placed by the core.
+* Text cursor: the small rectangle a Windows program says its typing point is at, also called the system caret. Magnifiers can follow it. The desktop map holds an invisible one at its centre (ACC-8).
+* Focus point: in the web version, the small invisible element at the map centre that has the keyboard focus when the map does, so a magnifier that follows the focus looks there (ACC-8).
 
 ## Planning
 

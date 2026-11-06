@@ -51,14 +51,27 @@ MIN_RING = 3
 ZOOM_RADIUS_PX = 300
 
 
-def view_for(world, width: float, height: float) -> globe.View:
+FOCUS_HALF_PX = 4   # half the side of the square that tells a magnifier where the map centre is (ACC-8)
+
+
+def focus_rect(width: float, height: float) -> dict:
+    """The small square round the map centre that the shells report to a magnifier, as a
+    text caret or a focused element, so it keeps the location in view (ACC-8, DP146). The
+    location is always at the centre of the map."""
+    return {"x": width / 2 - FOCUS_HALF_PX, "y": height / 2 - FOCUS_HALF_PX,
+            "width": 2 * FOCUS_HALF_PX, "height": 2 * FOCUS_HALF_PX}
+
+
+def view_for(world, width: float, height: float, heading_up: bool = False) -> globe.View:
     """The view for the world's location and zoom: the zoom distance is drawn
     ZOOM_RADIUS_PX from the centre (DP138, NAV-13). At the largest zoom the whole
-    hemisphere is a disc of that radius."""
+    hemisphere is a disc of that radius. With heading_up, in cardinal and free facing
+    the map is turned so the way you face is at the top (VIS-5)."""
     side = min(width, height)
     theta = min(world.zoom_m / geodesy.R_MEAN_M, math.pi / 2)
     radius = ZOOM_RADIUS_PX / math.sin(theta)
-    return globe.View(lat=world.lat, lon=world.lon, scale=radius / (side * globe.GLOBE_FRACTION))
+    up = float(world.heading) % 360.0 if heading_up and world.orientation != "north-fixed" else 0.0
+    return globe.View(lat=world.lat, lon=world.lon, scale=radius / (side * globe.GLOBE_FRACTION), up=up)
 
 
 def _cap(lat: float, lon: float, rho: float):
@@ -92,29 +105,31 @@ class SceneBuilder:
     def __init__(self, store, theme: dict | None = None):
         self.store = store
         self.theme = theme or globe.load_theme()
-        self._features: dict[tuple[int, int], tuple] = {}  # -> (id, layer order, colour, layer, width in km or None, intervals or None)
+        # -> (id, layer order, colour, layer, width in km or None, intervals or None, name)
+        self._features: dict[tuple[int, int], tuple] = {}
 
     def _feature(self, p: int, number: int):
         got = self._features.get((p, number))
         if got is None:
             area = self.store._area(p, number)
-            got = ("?", 9, 1, "", None, None) if area is None else (area.id, LAYER_ORDER.get(area.layer, 4),
-                                                              int(area.record.get("colour") or 1), area.layer,
-                                                              area.record.get("width_km"), area.record.get("intervals"))
+            got = ("?", 9, 1, "", None, None, "") if area is None else (
+                area.id, LAYER_ORDER.get(area.layer, 4), int(area.record.get("colour") or 1), area.layer,
+                area.record.get("width_km"), area.record.get("intervals"), area.name)
             self._features[(p, number)] = got
         return got
 
     def _source(self, zoom_km: float, index):
         return drawing_source(index, zoom_km)
 
-    def _collect(self, lat, lon, rho, zoom_km, layers=None, min_widths=None, interval=None):
+    def _collect(self, lat, lon, rho, zoom_km, layers=None, min_widths=None, interval=None, isolate=None):
         """The shapes (Shapely) for the cap in view, with the feature of each and
         the box of its tile. Each tile's shapes are decoded together, once, and
         kept with the tile (P2-T14c). `layers`, when given, is the set of layer ids
         that are shown: the shapes of every other layer are left out (SCP-6). `min_widths`,
         when given, is {layer id: the least width in km} for an area layer, and an area
         narrower than that is left out (the size rule, NAV-13, DP80). `interval`, when given, leaves out
-        a line that is not in the set of intervals its record names (DAT-13)."""
+        a line that is not in the set of intervals its record names (DAT-13). `isolate`, when given,
+        is the one feature to keep (VIS-2)."""
         geoms, feats, boxes, tile_of = [], [], [], []
         intervals, south, north = _cap(lat, lon, rho * 1.15)
         for p in self.store._covering(lat, lon)[:1]:
@@ -139,7 +154,13 @@ class SceneBuilder:
                         box = tiles.tile_box(level, x, y)
                         shapes, numbers = data.drawing_shapes(box)
                         found = [self._feature(p, n) for n in numbers.tolist()]
-                        if layers is not None:
+                        if isolate is not None:
+                            keep = np.fromiter((f[0] == isolate for f in found), bool, len(found))
+                            shapes = shapes[keep]
+                            found = [f for f, k in zip(found, keep) if k]
+                            if not len(shapes):
+                                continue
+                        elif layers is not None:
                             keep = np.fromiter((f[3] in layers and (not min_widths or f[4] is None
                                                                     or f[4] >= min_widths.get(f[3], 0.0))
                                                 and (interval is None or f[5] is None or interval in f[5])
@@ -159,15 +180,22 @@ class SceneBuilder:
         return np.concatenate(geoms), feats, box_of_shape, intervals, south, north
 
     def build(self, world, width: int, height: int, current: str | None = None, highlight: str | None = None,
-              centre_cross: bool = True, layers=None, min_widths=None, interval=None) -> dict:
+              centre_cross: bool = True, layers=None, min_widths=None, interval=None, theme: dict | None = None,
+              isolate: str | None = None, names: bool = False, label_scale: float = 1.0,
+              heading_up: bool = False) -> dict:
+        """One frame. theme is the theme to draw with (themes.effective), the builder's own when
+        None. isolate keeps only that feature (VIS-2). names places the areas' names, at
+        label_scale times their size (VIS-3, P2-T12d). heading_up turns the map (VIS-5)."""
         import shapely
 
+        if theme is not None:
+            self.theme = theme
         start = time.perf_counter()
-        view = view_for(world, width, height)
+        view = view_for(world, width, height, heading_up)
         cx, cy, r = width / 2, height / 2, globe._radius(view, width, height)
         rho = math.asin(min(1.0, math.hypot(cx, cy) / r))
         geoms, feats, boxes, intervals, south, north = self._collect(world.lat, world.lon, rho, world.zoom_m / 1000.0,
-                                                                     layers, min_widths, interval)
+                                                                     layers, min_widths, interval, isolate)
         empty = np.zeros(0, np.intp)
         lines, line_idx, dots, dot_idx = np.empty(0, object), empty, np.empty(0, object), empty
         if len(geoms):
@@ -208,14 +236,17 @@ class SceneBuilder:
         frame.update(self._lines(view, cx, cy, r, lines, line_idx, feats, highlight))
         frame.update(self._markers(view, width, height, cx, cy, r, dots, dot_idx, feats, highlight))
         frame["points"] += int(len(frame["line_coords"]) // 2)
+        frame.update(place_names(frame, self.theme, label_scale) if names else no_names(self.theme))
         frame["choose_ms"] = (chosen - start) * 1000            # finding and cutting the shapes in view (P2-T14b)
         frame["projecting_ms"] = (time.perf_counter() - chosen) * 1000   # turning them into screen pixels
         if centre_cross:
             frame["cross"] = {"x": cx, "y": cy, "size": 9, "colour": self.theme["cross"], "halo": self.theme["cross_halo"]}
         else:
             frame["cross"] = None
-        frame["heading"] = {"x": cx, "y": cy, "degrees": float(world.heading), "colour": self.theme["cross"],
+        frame["heading"] = {"x": cx, "y": cy, "degrees": (float(world.heading) - view.up) % 360.0,
+                            "colour": self.theme["cross"],
                             "halo": self.theme["cross_halo"], "length": 26}
+        frame["focus"] = focus_rect(width, height)
         frame["project_ms"] = (time.perf_counter() - start) * 1000   # the whole of the core's part
         return frame
 
@@ -341,15 +372,16 @@ class SceneBuilder:
         shapes = np.concatenate([[0], np.cumsum(rings_per_poly)]).astype(np.int32)
 
         land = theme["land"]
-        styles = [{"fill": c, "stroke": theme["border"], "width": 1} for c in land]
+        styles = [{"fill": c, "stroke": theme["border"], "width": theme.get("border_width", 1)} for c in land]
         while len(styles) < OCEAN_STYLE:
             styles.append(styles[-1])
         styles.append({"fill": theme["ocean"], "stroke": "#00000000", "width": 0})   # OCEAN_STYLE
         styles.append({"fill": theme["highlight_fill"], "stroke": theme["highlight_outline"], "width": 2})
-        shape_area, shape_style = [], []
+        shape_area, shape_style, shape_name = [], [], []
         for j in kept_polys:
             ident, layer, colour = feats[tile_of_poly[j]][:3]
             shape_area.append(ident)
+            shape_name.append(feats[tile_of_poly[j]][6])
             shape_style.append(OCEAN_STYLE if layer == 0 else (colour - 1) % len(land))
         hi = [i for i, a in enumerate(shape_area) if highlight and a == highlight]
         for i in hi:
@@ -360,6 +392,122 @@ class SceneBuilder:
             "globe": {"cx": cx, "cy": cy, "r": r, "fill": theme["ocean"], "edge": theme["globe_edge"]},
             "coords": coords, "seam": seam[point_ok].astype(np.uint8), "rings": rings, "shapes": shapes,
             "shape_style": np.asarray(shape_style, np.int32), "shape_area": shape_area, "styles": styles,
-            "current": cur, "current_style": {"stroke": theme["current_outline"], "width": 3},
+            "shape_name": shape_name,
+            "current": cur, "current_style": {"stroke": theme["current_outline"], "width": theme.get("current_width", 3)},
             "highlight": hi, "points": int(len(coords) // 2),
         }
+
+
+# Names on the map (P2-T12d; VIS-3, SCP-2) ------------------------------------------------
+
+NAME_MIN_PX = 11.0        # the smallest name, at 100%
+NAME_MAX_PX = 22.0        # the largest name, at 100%
+NAME_PER_SIDE = 0.06      # a name's size grows with the square root of its area on the map
+CHAR_WIDTH = 0.6          # the width of an average letter, as a share of the size, for a plain sans-serif font
+LINE_HEIGHT = 1.25
+NAME_GAP_PX = 3.0         # the least space between two names
+NAME_CANDIDATES = 150     # at most this many areas, the largest, are tried
+CENTRE_CLEAR_PX = 30      # no name over the centre cross and the heading arrow
+
+
+def no_names(theme: dict) -> dict:
+    return {"names": [], "name_style": {"colour": theme["name_text"], "halo": theme["name_halo"]}}
+
+
+def name_size(area_px: float, scale: float = 1.0) -> float:
+    """The size of a name in pixels, for an area of area_px square pixels on the map: larger
+    for a larger area, so names grow as you zoom in (VIS-3), times the label size setting."""
+    base = min(NAME_MAX_PX, max(NAME_MIN_PX, NAME_PER_SIDE * math.sqrt(max(area_px, 0.0))))
+    return round(base * 2) / 2 * scale
+
+
+def name_box(x: float, y: float, text: str, size: float) -> tuple[float, float, float, float]:
+    """The box a name centred on (x, y) takes: left, top, right, bottom."""
+    half_w = (CHAR_WIDTH * size * len(text)) / 2 + 1
+    half_h = LINE_HEIGHT * size / 2
+    return x - half_w, y - half_h, x + half_w, y + half_h
+
+
+def place_names(frame: dict, theme: dict, scale: float = 1.0) -> dict:
+    """Where to put each visible area's name, as plain data for the shells: {"text", "x",
+    "y", "size"}, centred on (x, y), in pixels. Larger areas first. A name goes inside its
+    area, at the point furthest from its edges, only where the whole name fits; it never
+    overlaps another name or the centre cross. Only areas on the map have names, so every
+    name is one Where am I can say (SCP-2)."""
+    import shapely
+
+    out = no_names(theme)
+    names = frame.pop("shape_name", None) or []
+    shapes, rings = frame["shapes"], frame["rings"]
+    if len(shapes) < 2:
+        return out
+    xy = np.asarray(frame["coords"], np.float64).reshape(-1, 2)
+    try:
+        polys = shapely.from_ragged_array(shapely.GeometryType.POLYGON, xy,
+                                          (np.asarray(rings, np.intp), np.asarray(shapes, np.intp)))
+    except Exception:   # a ring too short to be a polygon: no names this frame rather than no map
+        return out
+    width, height = frame["width"], frame["height"]
+    area = shapely.area(polys)
+    # The largest piece of each area, among the largest areas.
+    best: dict[str, int] = {}
+    for i in np.argsort(-area, kind="stable").tolist():
+        ident = frame["shape_area"][i]
+        if ident not in best and names[i]:
+            best[ident] = i
+            if len(best) >= NAME_CANDIDATES:
+                break
+    if not best:
+        return out
+    idx = np.fromiter(best.values(), np.intp, len(best))
+    # A pixel of simplification is invisible in where a name goes, and makes the rest quick.
+    pieces = shapely.clip_by_rect(shapely.simplify(polys[idx], 1.0, preserve_topology=False), 0, 0, width, height)
+    bad = ~shapely.is_valid(pieces)
+    if bad.any():   # a ring folded over the horizon
+        pieces[bad] = shapely.make_valid(pieces[bad])
+    pieces = np.array([_largest_polygon(g) for g in pieces], dtype=object)
+    sizes = shapely.area(pieces)
+    order = np.argsort(-sizes, kind="stable")
+    cx, cy = width / 2, height / 2
+    taken = [(cx - CENTRE_CLEAR_PX, cy - CENTRE_CLEAR_PX, cx + CENTRE_CLEAR_PX, cy + CENTRE_CLEAR_PX)]
+    placed = []
+    for k in order.tolist():
+        piece = pieces[k]
+        if piece is None or sizes[k] <= 0:
+            continue
+        text = names[idx[k]]
+        size = name_size(sizes[k], scale)
+        x0, y0, x1, y1 = shapely.bounds(piece)
+        if (x1 - x0) < CHAR_WIDTH * size * len(text) or (y1 - y0) < LINE_HEIGHT * size:
+            continue   # it cannot fit, so no need to look further
+        try:
+            centre = shapely.get_point(shapely.maximum_inscribed_circle(piece, max(0.5, math.sqrt(sizes[k]) / 100)), 0)
+            x, y = shapely.get_x(centre), shapely.get_y(centre)
+        except Exception:
+            point = shapely.point_on_surface(piece)
+            x, y = shapely.get_x(point), shapely.get_y(point)
+        box = name_box(x, y, text, size)
+        if box[0] < 0 or box[1] < 0 or box[2] > width or box[3] > height:
+            continue
+        if not shapely.contains(piece, shapely.box(*box)):
+            continue
+        g = NAME_GAP_PX
+        if any(box[0] < b[2] + g and b[0] < box[2] + g and box[1] < b[3] + g and b[1] < box[3] + g for b in taken):
+            continue
+        taken.append(box)
+        placed.append({"text": text, "x": round(float(x), 1), "y": round(float(y), 1), "size": size})
+    out["names"] = placed
+    return out
+
+
+def _largest_polygon(geom):
+    """The largest polygon in a geometry, or None."""
+    import shapely
+
+    if geom is None or shapely.is_empty(geom):
+        return None
+    parts = shapely.get_parts(geom)
+    parts = parts[shapely.get_type_id(parts) == 3]
+    if not len(parts):
+        return None
+    return parts[int(np.argmax(shapely.area(parts)))]

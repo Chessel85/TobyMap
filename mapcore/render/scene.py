@@ -92,28 +92,29 @@ class SceneBuilder:
     def __init__(self, store, theme: dict | None = None):
         self.store = store
         self.theme = theme or globe.load_theme()
-        self._features: dict[tuple[int, int], tuple] = {}  # -> (id, layer order, colour, layer, width in km or None)
+        self._features: dict[tuple[int, int], tuple] = {}  # -> (id, layer order, colour, layer, width in km or None, intervals or None)
 
     def _feature(self, p: int, number: int):
         got = self._features.get((p, number))
         if got is None:
             area = self.store._area(p, number)
-            got = ("?", 9, 1, "", None) if area is None else (area.id, LAYER_ORDER.get(area.layer, 4),
+            got = ("?", 9, 1, "", None, None) if area is None else (area.id, LAYER_ORDER.get(area.layer, 4),
                                                               int(area.record.get("colour") or 1), area.layer,
-                                                              area.record.get("width_km"))
+                                                              area.record.get("width_km"), area.record.get("intervals"))
             self._features[(p, number)] = got
         return got
 
     def _source(self, zoom_km: float, index):
         return drawing_source(index, zoom_km)
 
-    def _collect(self, lat, lon, rho, zoom_km, layers=None, min_widths=None):
+    def _collect(self, lat, lon, rho, zoom_km, layers=None, min_widths=None, interval=None):
         """The shapes (Shapely) for the cap in view, with the feature of each and
         the box of its tile. Each tile's shapes are decoded together, once, and
         kept with the tile (P2-T14c). `layers`, when given, is the set of layer ids
         that are shown: the shapes of every other layer are left out (SCP-6). `min_widths`,
         when given, is {layer id: the least width in km} for an area layer, and an area
-        narrower than that is left out (the size rule, NAV-13, DP80)."""
+        narrower than that is left out (the size rule, NAV-13, DP80). `interval`, when given, leaves out
+        a line that is not in the set of intervals its record names (DAT-13)."""
         geoms, feats, boxes, tile_of = [], [], [], []
         intervals, south, north = _cap(lat, lon, rho * 1.15)
         for p in self.store._covering(lat, lon)[:1]:
@@ -141,6 +142,7 @@ class SceneBuilder:
                         if layers is not None:
                             keep = np.fromiter((f[3] in layers and (not min_widths or f[4] is None
                                                                     or f[4] >= min_widths.get(f[3], 0.0))
+                                                and (interval is None or f[5] is None or interval in f[5])
                                                 for f in found), bool, len(found))
                             if not keep.all():
                                 shapes = shapes[keep]
@@ -157,7 +159,7 @@ class SceneBuilder:
         return np.concatenate(geoms), feats, box_of_shape, intervals, south, north
 
     def build(self, world, width: int, height: int, current: str | None = None, highlight: str | None = None,
-              centre_cross: bool = True, layers=None, min_widths=None) -> dict:
+              centre_cross: bool = True, layers=None, min_widths=None, interval=None) -> dict:
         import shapely
 
         start = time.perf_counter()
@@ -165,7 +167,7 @@ class SceneBuilder:
         cx, cy, r = width / 2, height / 2, globe._radius(view, width, height)
         rho = math.asin(min(1.0, math.hypot(cx, cy) / r))
         geoms, feats, boxes, intervals, south, north = self._collect(world.lat, world.lon, rho, world.zoom_m / 1000.0,
-                                                                     layers, min_widths)
+                                                                     layers, min_widths, interval)
         empty = np.zeros(0, np.intp)
         lines, line_idx, dots, dot_idx = np.empty(0, object), empty, np.empty(0, object), empty
         if len(geoms):

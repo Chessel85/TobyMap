@@ -78,6 +78,19 @@ tabs:
         default: 8
         min: 1
         max: 30
+  - id: layers
+    label: Layers
+    fields:
+      - id: graticule_interval
+        label: Degrees between lines of latitude and longitude
+        kind: choice
+        default: "10"
+        choices:
+          - ["1", "1 degree"]
+          - ["5", "5 degrees"]
+          - ["10", "10 degrees"]
+          - ["15", "15 degrees"]
+          - ["30", "30 degrees"]
   - id: sound
     label: Sound
     fields:

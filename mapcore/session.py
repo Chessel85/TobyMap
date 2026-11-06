@@ -325,7 +325,8 @@ class MapSession:
         frame = self._scene.build(copy.copy(self.world), width, height, current=current, highlight=self.selected,
                                   centre_cross=self.settings["centre_cross"],
                                   layers=self.visible.shown_layers(self.world.zoom_m),
-                                  min_widths=self.visible.min_widths(self.world.zoom_m))
+                                  min_widths=self.visible.min_widths(self.world.zoom_m),
+                                  interval=self._interval())
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
 
@@ -341,7 +342,7 @@ class MapSession:
         shown = self.visible.shown_layers(zoom)
         heading = describer.facing(self.world)
         key = (self.world.lat, self.world.lon, self.settings["units"], self.settings["bearing"],
-               self.settings["nearby_count"], zoom, shown, heading)
+               self.settings["nearby_count"], zoom, shown, heading, self._interval())
         if self._panel_cache and self._panel_cache[0] == key:
             return self._panel_cache[1]
         within = [{"id": a.id, "label": a.name, "level": 1} for a in self.areas]
@@ -349,7 +350,8 @@ class MapSession:
         count = self.settings["nearby_count"]
         # Nearby searches within the zoom (NAV-13), and lists only visible features.
         near = self.store.nearby(self.world.lat, self.world.lon, zoom, limit=count + len(inside), exclude=inside,
-                                 layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom))
+                                 layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom)
+                                 and self._interval_ok(a.record))
         units = self.settings["units"]
         nearby = [{"id": n.area.id, "label": describer.nearby_label(n, units, self.settings["bearing"], heading),
                    "level": 1} for n in near[:count]]
@@ -476,6 +478,28 @@ class MapSession:
     def _zoom_step(self) -> str:
         return describer.zoom_step_text(self.world, self._units())
 
+    def _interval(self) -> int:
+        """Degrees between lines of latitude and longitude (DAT-13)."""
+        return int(self.settings["graticule_interval"])
+
+    def _interval_ok(self, record: dict) -> bool:
+        """A line that names the intervals it belongs to is used only at an interval it names.
+        Nothing here knows which layer it is (AD-11)."""
+        intervals = record.get("intervals")
+        return intervals is None or self._interval() in intervals
+
+    def _crossing_sounds(self, r: Response, path) -> Response:
+        """Add the crossing sound of each line a step's path crosses, in the order crossed, for
+        the layers that are shown and have one (SCP-7, DAT-13). A layer with no crossing sound,
+        or that is off or out of its zoom range, costs nothing."""
+        shown = self.visible.shown_layers(self.world.zoom_m)
+        sounds = {l.id: l.crossing_earcon for l in self.layers.layers() if l.id in shown and l.crossing_earcon}
+        if not sounds:
+            return r
+        for crossing in self.store.crossed_lines(path, layers=set(sounds), accept=lambda a: self._interval_ok(a.record)):
+            r.earcon(sounds[crossing.area.layer])
+        return r
+
     def _moved(self, **extra) -> Response:
         self.selected = None
         return Response(redraw=True, panel_stale=True, details_stale=True, **extra)
@@ -519,14 +543,16 @@ class MapSession:
             self.selected = None
             self.held_moves += 1
             r = Response(redraw=self._draw_due(now))
-            return r.earcon("tick") if repeat else r
+            if repeat:
+                r.earcon("tick")
+            return self._crossing_sounds(r, result.path)
         self.held_moves = 0
         self._drawn_at = now
         r = self._moved()
         if result.pole:   # over a pole, the heading turns round, and is said (NAV-3)
             r.speak(say("movement.pole_crossed", pole=say(f"movement.poles.{result.pole}"),
                         heading=describer.facing_text(self.world)), ASSERTIVE)
-        return self._arrived(r)
+        return self._crossing_sounds(self._arrived(r), result.path)
 
     def _turned(self, held: bool, repeat: bool, now: float) -> Response:
         """A turn on the spot (NAV-3, NAV-12): the heading arrow is drawn again, and the

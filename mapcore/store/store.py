@@ -370,12 +370,13 @@ class Store:
 
     # Lines along a path (P2-T10a) ---------------------------------------------------
 
-    def crossed_lines(self, path, layers=None) -> list[Crossing]:
+    def crossed_lines(self, path, layers=None, accept=None) -> list[Crossing]:
         """The line features a move's path crosses, in the order it crosses them, each
         once, where it is first crossed (ANN-2, for Crossed and passed). `path` is the
         move's (lat, lon) points (geodesy.Move.path). `layers` limits the answer to
         some layer ids. Only layers whose definition says geometry: line are looked
-        at, so a pack with none reads nothing."""
+        at, so a pack with none reads nothing. `accept`, when given, is a function of an
+        area that says whether to count it."""
         import shapely
 
         pieces = [shapely.LineString(c) for c in path_pieces(path)]
@@ -406,7 +407,8 @@ class Store:
                             if met.is_empty:
                                 continue
                             area = self._area(p, entry.feature)
-                            if area is None or area.layer not in line_layers:
+                            if area is None or area.layer not in line_layers or (
+                                    accept is not None and not accept(area)):
                                 continue
                             for point in shapely.get_coordinates(met).tolist():
                                 along = _along_m(path, point[1], point[0])

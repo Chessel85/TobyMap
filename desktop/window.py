@@ -100,6 +100,33 @@ class _HoldClock(QObject):
         self.due.emit()
 
 
+class _Background(QObject):
+    """Crossed and passed (P2-T5, architecture 7.5): the search along a move's path runs on a
+    thread of its own, so the announcement never waits for it. The result comes back to the
+    window's thread through a signal. A newer move makes the core throw an older search away."""
+
+    done = Signal(object, object)
+
+    def __init__(self, parent, session):
+        super().__init__(parent)
+        self.session = session
+        self.thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        job = self.session.crossed_job()
+        if job is None:
+            return
+        self.thread = threading.Thread(target=self._run, args=(job,), name="crossed and passed", daemon=True)
+        self.thread.start()
+
+    def _run(self, job) -> None:
+        try:
+            found = self.session.crossed_search(job)
+        except Exception:   # a damaged pack tile must never stop the window; the list stays empty
+            found = None
+        self.done.emit(job, found)
+
+
 class _MenuTabFilter(QObject):
     """Tab inside an open menu closes it and moves on to the next region."""
 
@@ -141,7 +168,7 @@ class MainWindow(QMainWindow):
     REGIONS = ("map", "panel", "details")  # Tab never goes to the menu bar (DP93)
 
     def __init__(self, session: MapSession | None = None, announcer=None, sounds=None, data_folder=None,
-                 install_filter: bool = True, start_at: str | None = None):
+                 install_filter: bool = True, start_at: str | None = None, spatial=None):
         super().__init__()
         self.data_folder = data_folder
         self.session = session or self._new_session(start_at)
@@ -149,12 +176,22 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.words["window_title"])
         self.announcer = announcer or Announcer(self)
         self.sounds = sounds if sounds is not None else SoundPlayer()
+        # Sounds placed in space (P2-T6b). A window given stand-in sounds, as in the tests, never
+        # opens the sound device (rule 5).
+        if spatial is None:
+            from desktop.audio.player import RecordingSpatial, SpatialPlayer
+
+            spatial = SpatialPlayer() if sounds is None else RecordingSpatial()
+        self.spatial = spatial
+        self._told: set[str] = set()   # sound problems already told, each said once
         self._registry = self.session.registry()
         self._dialogs: list[QDialog] = []
         self._held_key: str | None = None
         self._held_seen = 0.0              # when the system last said the held key is down
         self._hold_clock = _HoldClock(self)
         self._hold_clock.due.connect(self._hold_step)
+        self._background = _Background(self, self.session)
+        self._background.done.connect(lambda job, found: self.handle(self.session.crossed_finish(job, found)))
         self.spoken_times: list[float] = []
 
         self.map = MapWidget(self, self.session)
@@ -219,6 +256,7 @@ class MainWindow(QMainWindow):
         self._hold_clock.stop()
         QApplication.instance().removeEventFilter(self._key_filter)
         self.map.stop_drawing()
+        self.spatial.close()
         self.session.store.close()
         super().closeEvent(event)
 
@@ -387,6 +425,8 @@ class MainWindow(QMainWindow):
                 self.spoken_times.append(time.time())
         for event in response.earcons:
             self._play(event)
+        for placed in response.sounds:
+            self._play_placed(placed)
         if response.announcements or response.earcons:
             from mapcore import diagnostics
 
@@ -409,11 +449,24 @@ class MainWindow(QMainWindow):
             self._open_dialog(response.dialog)
         if response.action == "exit":
             self.close()
+        if response.background:
+            self._background.start()
 
     def _play(self, event: str) -> None:
         played, custom_failed = self.sounds.play(self.session.earcon_file(event))
         if custom_failed:
             self.handle(self.session.earcon_failed(event))
+
+    def _play_placed(self, placed: dict) -> None:
+        """A sound placed in space by the core (P2-T6). A missing sound device, or HRTF data, is
+        told once, in the core's words, and the sound carries on as well as it can."""
+        _played, custom_failed = self.spatial.play(placed)
+        if custom_failed:
+            self.handle(self.session.earcon_failed(placed["sound"]))
+        for problem, happened in (("no_device", self.spatial.missing), ("no_hrtf", self.spatial.hrtf_missing)):
+            if happened and problem not in self._told:
+                self._told.add(problem)
+                self.handle(self.session.sound_problem(problem))
 
     def _apply_focus(self, focus: dict):
         if focus["region"] == "map":

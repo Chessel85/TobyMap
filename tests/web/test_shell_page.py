@@ -562,3 +562,55 @@ def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refuse
     app.keyboard.press("Space")
     wait_said(app, 3)
     assert said(app)[-1] == "Kent, England, United Kingdom"
+
+
+def test_crossed_and_passed_is_filled_between_key_presses_and_shift_5_goes_there(page, site_url):
+    """P2-T5, ANN-2: a 1 km step across the River Itchen lists it in Crossed and passed, with the
+    earcon and nothing more spoken. Shift+5 goes to the group, whatever symbol the key makes (DP109)."""
+    from pathlib import Path
+
+    data = json.loads((Path(__file__).resolve().parents[1] / "samples" / "osm" / "southampton-itchen.geojson")
+                      .read_text(encoding="utf-8"))
+    river = next(f for f in data["features"] if f["properties"]["name"] == "River Itchen")
+    line = max(river["geometry"]["coordinates"], key=len)
+    lon, lat = line[len(line) // 2]
+    import math
+    west = lon - 300 / (6_371_000 * math.cos(math.radians(lat)) * math.pi / 180)
+    app = open_app(page, site_url, state={"lat": lat, "lon": west, "zoom_m": 5000, "step_m": 1000})
+    app.keyboard.press("ArrowRight")
+    app.wait_for_function("window.tobymap.earcons.includes('crossed_added')", timeout=30_000)
+    assert len(said(app)) == 1   # still Southampton: only the tick; the river is never spoken
+    app.keyboard.press("Shift+Digit5")
+    app.wait_for_function("document.getElementById('tree').contains(document.activeElement)")
+    assert app.evaluate("document.activeElement.textContent").startswith("River Itchen, crossed")
+
+
+def test_the_web_player_turns_the_scene_into_the_cores_pan_pitch_and_filter_values(app, test_pack):
+    """P2-T6c, AD-10: the same placed sounds as the desktop's player gets, carried out by Web Audio."""
+    import math
+
+    from mapcore.session import MapSession
+
+    s = MapSession(packs=[test_pack], saved_state={"lat": 0.0, "lon": 0.0, "zoom_m": 100000, "step_m": 1000})
+    cases = []
+    for mode in ("stereo", "hrtf"):
+        s.settings.set("sound_mode", mode)
+        for lat, lon in ((0.0, 0.3), (-0.3, 0.0), (0.0, -3.0)):   # right; behind; left, beyond the view
+            cases.append(s.place_sound("ding", lat, lon))
+    s.store.close()
+    made = app.evaluate("""async (cases) => {
+        const sounds = await import(new URL('./js/sounds.js', location.href).href);
+        for (const p of cases) await sounds.playPlaced(p);
+        return sounds.placed.slice(-cases.length);
+    }""", cases)
+    assert len(made) == len(cases)
+    for p, m in zip(cases, made):
+        assert m["pitch"] == pytest.approx(p["pitch"], abs=1e-6)
+        assert m["gain"] == pytest.approx(p["gain"], abs=1e-6)
+        assert m["cutoff_hz"] == pytest.approx(p["cutoff_hz"], rel=1e-5)
+        if p["mode"] == "stereo":
+            assert m["pan"] == pytest.approx(p["pan"], abs=1e-6)
+        else:
+            r = math.radians(p["relative_deg"])
+            assert (m["x"], m["z"]) == (pytest.approx(math.sin(r), abs=1e-6), pytest.approx(-math.cos(r), abs=1e-6))
+    assert made[1]["pitch"] < 1 and made[0]["pan"] == pytest.approx(1.0)

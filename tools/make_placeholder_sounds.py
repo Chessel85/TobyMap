@@ -30,6 +30,9 @@ TONES = {
     "no_data": [(330, 0.1), (330, 0.1)],
     "ambiguous_up": [(660, 0.08), (990, 0.08), (660, 0.08)],
     "line_crossing": [(1200, 0.04), (900, 0.04)],
+    "beyond_view": [(500, 0.15)],
+    "meridian_crossed": [(700, 0.05), (1050, 0.05)],    # stand-ins only: the product owner's own files are kept in git
+    "equator_crossed": [(1050, 0.05), (700, 0.05)],
 }
 VOLUME = 0.35
 

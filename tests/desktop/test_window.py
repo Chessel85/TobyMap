@@ -313,7 +313,8 @@ def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(window, qtbot, mon
     qtbot.waitUntil(window.map.drawing_done, timeout=3000)
     qtbot.wait(50)
 
-    ticks = [t for t in window.sounds.times[ticks_before:] if t > first_due - 0.05]   # not the press's own
+    ticks = [t for t, e in zip(window.sounds.times[ticks_before:], window.sounds.played[ticks_before:])
+             if e == "tick" and t > first_due - 0.05]   # not the press's own, nor Crossed and passed's earcon
     due_before_release = sum(1 for k in range(40) if first_due + k / 6 < released)
     assert len(ticks) >= 15 and abs(len(ticks) - due_before_release) <= 1   # 2.5 seconds after the delay, 6 a second
     after_wake = [round((t - max(w for w in woke if w <= t)) * 1000, 1) for t in ticks]
@@ -742,3 +743,30 @@ def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_al
     QApplication.processEvents()
     counties = window.session.layers.get("counties")
     assert (counties.min_zoom_m, counties.max_zoom_m, counties.crossing_earcon) == (250000, None, "line_crossing")
+
+
+def test_crossed_and_passed_is_filled_in_the_background_and_shift_5_goes_there(qtbot, test_pack, tmp_path):
+    """P2-T5, ANN-2: after the step is spoken, the search runs on a thread of its own; the group is
+    filled and the earcon plays, with nothing more spoken. Shift+5 goes to the group (DP109)."""
+    import json as _json
+    from pathlib import Path as _Path
+
+    from mapcore.geo import geodesy
+
+    data = _json.loads((_Path(__file__).resolve().parents[1] / "samples" / "osm" / "southampton-itchen.geojson")
+                       .read_text(encoding="utf-8"))
+    river = next(f for f in data["features"] if f["properties"]["name"] == "River Itchen")
+    line = max(river["geometry"]["coordinates"], key=len)
+    lon, lat = line[len(line) // 2]
+    west = lon - 300 / (geodesy.parallel_radius_m(lat) * 3.141592653589793 / 180)
+    w = make_window(qtbot, test_pack, tmp_path, state={"lat": lat, "lon": west, "zoom_m": 5000, "step_m": 1000})
+    spoken = len(w.announcer.texts)
+    qtbot.keyClick(w.map, Qt.Key.Key_Right)
+    group = w._group_item("crossed")
+    qtbot.waitUntil(lambda: group.childCount() and group.child(0).text(0).startswith("River Itchen, crossed"),
+                    timeout=5000)
+    qtbot.waitUntil(lambda: "crossed_added" in w.sounds.played, timeout=2000)
+    assert len(w.announcer.texts) == spoken    # still Southampton: only the tick; the river is never spoken
+    qtbot.keyClick(w.map, Qt.Key.Key_5, Qt.KeyboardModifier.ShiftModifier)
+    assert region(w) == "panel"
+    assert w.tree.currentItem().text(0).startswith("River Itchen, crossed")

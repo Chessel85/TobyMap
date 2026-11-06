@@ -132,7 +132,8 @@ def load_sources(config_dir: Path = CONFIG_DIR) -> dict[str, Source]:
 # What a layer definition may say about how the application shows and sounds the
 # layer (SCP-7, mapcore/layers/catalogue.py). These are written into the pack, and
 # only the write stage depends on them, so changing them does not build the areas again.
-SHOWN_FIELDS = ("group", "geometry", "switched_on", "min_zoom_m", "max_zoom_m", "min_size", "crossing_earcon", "sound")
+SHOWN_FIELDS = ("group", "geometry", "switched_on", "min_zoom_m", "max_zoom_m", "min_size", "crossing_earcon",
+                "crossing_earcons", "sound")
 GEOMETRIES = ("area", "line", "point")
 
 
@@ -174,15 +175,18 @@ def _check_shown(item: dict, path: Path) -> tuple:
             raise BuildStopped(f"{name} has {field}: {value}; use a number, 0 or more.")
     if item.get("max_zoom_m") is not None and (item.get("min_zoom_m") or 0) > item["max_zoom_m"]:
         raise BuildStopped(f"{name} has min_zoom_m larger than max_zoom_m. The closest zoom comes first.")
-    for field in ("crossing_earcon", "sound"):
-        value = item.get(field)
-        if value is not None:
-            from mapcore.describe import earcon_list
+    from mapcore.describe import earcon_list
 
-            events = [e["event"] for e in earcon_list()]
-            if value not in events:
-                raise BuildStopped(f"{name} has {field}: {value}, which is not one of the application's sounds: "
-                                   f"{', '.join(events)}.")
+    events = [e["event"] for e in earcon_list()]
+    by_type = item.get("crossing_earcons")
+    if by_type is not None and (not isinstance(by_type, dict) or not all(isinstance(k, str) for k in by_type)):
+        raise BuildStopped(f"{name} has crossing_earcons that is not a list of line types, each with a sound, "
+                           "such as {equator: equator_crossed}.")
+    for field, value in [(f, item.get(f)) for f in ("crossing_earcon", "sound")] + \
+            [(f"crossing_earcons for {k}", v) for k, v in (by_type or {}).items()]:
+        if value is not None and value not in events:
+            raise BuildStopped(f"{name} has {field}: {value}, which is not one of the application's sounds: "
+                               f"{', '.join(events)}.")
     return tuple((k, item[k]) for k in SHOWN_FIELDS if k in item)
 
 

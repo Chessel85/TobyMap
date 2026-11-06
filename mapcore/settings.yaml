@@ -78,6 +78,23 @@ tabs:
         default: 8
         min: 1
         max: 30
+      - id: passed_nearby
+        label: "Crossed and passed: the passed nearby distance"
+        kind: choice
+        default: percent
+        choices: [[percent, "A share of the step"], [fixed, "A fixed distance"]]
+      - id: passed_percent
+        label: "Crossed and passed: share of the step, in percent"
+        kind: number
+        default: 10
+        min: 1
+        max: 100
+      - id: passed_fixed_m
+        label: "Crossed and passed: fixed distance, in metres"
+        kind: number
+        default: 500
+        min: 1
+        max: 100000
   - id: layers
     label: Layers
     fields:
@@ -98,6 +115,31 @@ tabs:
         label: Mute all of TobyMap's sound
         kind: yes_no
         default: false
+      - id: crossed_earcon
+        label: Play a sound when something is added to Crossed and passed
+        kind: yes_no
+        default: true
+      - id: sound_mode
+        label: Sound in space
+        kind: choice
+        default: stereo
+        choices: [[stereo, "Stereo, with a lower pitch behind"], [hrtf, "HRTF for headphones, with a lower pitch behind"]]
+      - id: sound_curve
+        label: How loudness falls with distance
+        kind: choice
+        default: linear
+        choices: [[linear, "Evenly, to the edge of the view"], [log, "Equally quieter for each doubling of distance"]]
+      - id: min_volume
+        label: "Minimum volume, in percent: no sound is quieter"
+        kind: number
+        default: 20
+        min: 0
+        max: 100
+      - id: beyond_view
+        label: Sounds beyond the view
+        kind: choice
+        default: quiet
+        choices: [[quiet, "At the minimum volume, muffled"], [tone, "A fixed tone"]]
       - id: earcon_tick
         label: "Your own sound file for the tick (empty for the default)"
         kind: text

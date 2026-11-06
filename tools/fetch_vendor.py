@@ -6,6 +6,9 @@
   Shapely is used by the pack reader, from spike S4 on.
 * The NVDA Controller Client, 64-bit, into desktop/vendor, for Braille-only
   messages (architecture 4.4). It is LGPL-2.1.
+* The MIT KEMAR head-related impulse responses (Gardner and Martin, MIT Media
+  Lab, 1994, provided without usage restrictions), into desktop/vendor, for the
+  desktop's HRTF sound mode (AD-10, P2-T6b). About 230 KB.
 * Piper in the browser (spike S6, architecture 4.6), into web/vendor/piper:
   ONNX Runtime Web (MIT), which runs the voice, and phonemizer.js
   (Apache-2.0, with the eSpeak NG library and data built in, GPL-3.0), which
@@ -14,7 +17,7 @@
 Each download is checked against a pinned SHA-256, so a changed file is never
 used silently. Already-present files are kept.
 
-Run: python tools/fetch_vendor.py [--web] [--nvda] [--piper] [--axe]   (--web and --nvda if none is given)
+Run: python tools/fetch_vendor.py [--web] [--nvda] [--kemar] [--piper] [--axe]   (--web, --nvda and --kemar if none is given)
 Standard library only.
 """
 from __future__ import annotations
@@ -46,6 +49,10 @@ NVDA_VERSION = "2026.3"
 NVDA_URL = f"https://download.nvaccess.org/releases/{NVDA_VERSION}/nvda_{NVDA_VERSION}_controllerClient.zip"
 NVDA_SHA256 = "e38a00689eab422f13aaed9aaaacdd3ae96411643b6f2f5fbf86222660ac7938"
 NVDA_DIR = ROOT / "desktop" / "vendor"
+
+KEMAR_URL = "http://sound.media.mit.edu/resources/KEMAR/compact.zip"
+KEMAR_SHA256 = "0bcd69f8e8760cf8eacff4a89594ceca7d44fb94f28ecf0bf19970003bbfb3e0"
+KEMAR_FILE = ROOT / "desktop" / "vendor" / "mit_kemar_compact.zip"
 
 # npm packages for Piper in the browser: (tarball URL, SHA-256, {file in the archive: name in web/vendor/piper}).
 PIPER_DIR = ROOT / "web" / "vendor" / "piper"
@@ -133,6 +140,15 @@ def fetch_nvda() -> None:
     print(f"NVDA Controller Client {NVDA_VERSION} is in {NVDA_DIR}")
 
 
+def fetch_kemar() -> None:
+    if not KEMAR_FILE.is_file():
+        data = download(KEMAR_URL)
+        check(data, KEMAR_SHA256, "MIT KEMAR responses")
+        KEMAR_FILE.parent.mkdir(parents=True, exist_ok=True)
+        KEMAR_FILE.write_bytes(data)
+    print(f"The MIT KEMAR responses are in {KEMAR_FILE}")
+
+
 def fetch_piper() -> None:
     for what, (url, sha, files) in PIPER_PACKAGES.items():
         if all((PIPER_DIR / name).is_file() for name in files.values()):
@@ -162,14 +178,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Fetch third-party files that are not kept in git.")
     parser.add_argument("--web", action="store_true", help="Pyodide for the web shell")
     parser.add_argument("--nvda", action="store_true", help="the NVDA Controller Client for the desktop")
+    parser.add_argument("--kemar", action="store_true", help="the MIT KEMAR responses, for the desktop's HRTF mode")
     parser.add_argument("--piper", action="store_true", help="ONNX Runtime Web and phonemizer.js, for Piper in the browser")
     parser.add_argument("--axe", action="store_true", help="axe-core, for the browser tests' accessibility check (test tool only)")
     args = parser.parse_args(argv)
-    both = not (args.web or args.nvda or args.piper or args.axe)
+    both = not (args.web or args.nvda or args.kemar or args.piper or args.axe)
     if args.web or both:
         fetch_pyodide()
     if args.nvda or both:
         fetch_nvda()
+    if args.kemar or both:
+        fetch_kemar()
     if args.piper:
         fetch_piper()
     if args.axe:

@@ -13,6 +13,7 @@ export class WorkerClient {
     this.inFlight = null;
     this.nextId = 1;
     this.latestOnly = new Set();
+    this.waiting = null;        // background work, sent only when nothing else is waiting (P2-T5)
     this.onNotice = () => {};   // progress messages from the worker, such as the map download
   }
 
@@ -34,12 +35,27 @@ export class WorkerClient {
     });
   }
 
+  // Background work, such as the Crossed and passed search: sent when the worker has
+  // nothing else to do, so a key press never waits for it. A newer one replaces one not yet sent.
+  idle(message) {
+    return new Promise((resolve, reject) => {
+      if (this.waiting) this.waiting.resolve(null);
+      this.waiting = { message, resolve, reject };
+      this._pump();
+    });
+  }
+
   _isMovement(message) {
     return message.type === "run" && message.commands.every(([name]) => this.latestOnly.has(name));
   }
 
   _pump() {
-    if (this.inFlight || !this.queue.length) return;
+    if (this.inFlight) return;
+    if (!this.queue.length && this.waiting) {
+      this.queue.push({ ...this.waiting, message: { ...this.waiting.message, id: this.nextId++ } });
+      this.waiting = null;
+    }
+    if (!this.queue.length) return;
     this.inFlight = this.queue.shift();
     this.worker.postMessage(this.inFlight.message);
   }
@@ -56,7 +72,8 @@ export class WorkerClient {
   }
 
   _fail(message) {
-    const all = [this.inFlight, ...this.queue].filter(Boolean);
+    const all = [this.inFlight, ...this.queue, this.waiting].filter(Boolean);
+    this.waiting = null;
     this.inFlight = null;
     this.queue = [];
     for (const entry of all) entry.reject(new Error(message));

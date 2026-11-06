@@ -11,6 +11,10 @@ export function keyName(event) {
   if (MODIFIER_KEYS.has(event.key)) return null;
   let base = NAMED[event.key];
   if (!base && /^F([1-9]|1[0-2])$/.test(event.key)) base = event.key;
+  // Shift with a number key makes a symbol, which differs by keyboard layout ("%" or "("),
+  // so the key itself is used: Shift+5 is "Shift+5" everywhere (DP109).
+  const digit = /^Digit([0-9])$/.exec(event.code || "");
+  if (!base && digit && event.shiftKey) base = digit[1];
   if (!base && event.key.length === 1) base = event.key.toUpperCase();
   if (!base) return null;
   const parts = [];

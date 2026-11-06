@@ -42,6 +42,7 @@ These say how the application shows and sounds the layer (SCP-7). They are writt
 * min_zoom_m and max_zoom_m: the zoom range, as zoom distances in metres. The layer is visible from the closer zoom, min_zoom_m, to the farther one, max_zoom_m (NAV-13). (0, and no limit)
 * min_size: for an area layer, how wide an area must be, as a share of the zoom distance, to be visible (DP80). (0.02, which is 2%)
 * crossing_earcon: the sound played when a line of the layer is crossed, by its event name in mapcore/describe/earcons.yaml, such as line_crossing. (none)
+* crossing_earcons: a sound of its own for some types of line in the layer, as each line type with its sound's event name, such as {equator: equator_crossed, prime-meridian: meridian_crossed}. A line of a type not named here plays crossing_earcon. If the user switches the layer's crossing sound off, every line of it is silent. The special-lines layer uses this, so the meridians, the equator, the tropics and the polar circles sound different from the date line. (none)
 * sound: the sound of the layer's features in "hear its direction" and look around, by event name. (none)
 
 The layer file `samples.yaml` holds three layers for the test pack only: rivers (a line, with a crossing sound), lakes (an area) and railway stations (a point). The samples stage keeps the lines and points of a line or point layer as they are, and checks that a feature's shape fits its layer.

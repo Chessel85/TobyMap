@@ -1,12 +1,19 @@
 # User Experience Description
 
-Version 0.6 draft, 30 October 2026, for product owner review.
+Version 0.7, 6 November 2026. Sections 8.2 and 8.3 now follow your answers to DP100 and DP137.
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.7
+
+These bring the sound sections into line with what you chose after the Phase 1 listening test. Made in P2-T6.
+
+* Section 8.2: stereo with a lower pitch behind is the default, and HRTF with the same lower pitch is the option (DP100). Behind you, a sound is also slightly muffled, in both.
+* Section 8.3: loudness falls evenly to the edge of the view, never below the minimum volume, with the "equally quieter for each doubling" curve kept as a setting (DP137). Beyond the view, a sound plays at the minimum volume, muffled, or as a fixed tone if you choose that setting.
 
 ## Changes in version 0.6
 
@@ -401,19 +408,20 @@ Speech says what something is. Sound says where it is, and what is changing as t
 
 ### 8.2 Spatial sound
 
-* By default the application assumes headphones and uses HRTF spatial sound. The "speakers" option uses stereo panning plus pitch: higher in front, lower behind (SON-1).
+* By default, sounds are placed with stereo panning, and a sound behind you is about three semitones lower, so ahead and behind can be told apart, on headphones or speakers (SON-1, DP100).
+* The other sound mode is HRTF, for headphones, with the same lower pitch behind. Without the pitch, every HRTF you tried left sounds behind unclear. The mode is a setting, in the Sound tab.
+* Behind you, a sound is also slightly muffled, in both modes.
 * Which way is ahead follows the orientation (SON-2). North is ahead in north-fixed. The way the user faces is ahead in cardinal facing and free facing.
-* A known weakness of HRTF is confusing front and back. To reduce it, sounds behind the listener are slightly muffled, and the front-and-back pitch cue from speaker mode can be added.
-* You will test this yourself in Phase 1, using a small standalone listening test, before the rest of the sound design is built on it (DP47).
+* You tested this in the Phase 1 listening test, before the rest of the sound design was built on it (DP47).
 
 ### 8.3 Distance follows the zoom
 
 Distance is always heard relative to the zoom, never the step (SON-9, DP67). Whatever is in view can be heard.
 
 * The hearing range is the zoom distance. At a 1 km zoom you hear things up to 1 km away. At 1000 km, up to 1000 km away.
-* Within the range, loudness falls with the logarithm of distance. Each doubling of distance is about equally quieter, from full loudness at one twentieth of the range to quiet at the edge. This matches how hearing works, and it keeps near things clearly different from fairly near things.
+* Within the range, loudness falls evenly with distance, from full loudness at one twentieth of the range to the minimum volume at the edge (DP137). No sound is ever quieter than the minimum volume, a setting, 20% at first. The other curve, in which each doubling of distance is about equally quieter, is a setting too.
 * So a feature halfway to the edge of the view sounds the same at every zoom.
-* Beyond the range, sounds play at the quietest level, with the optional second cue (muffling) at full strength, so "far away" is still recognisable.
+* Beyond the range, sounds play at the minimum volume, muffled as much as they ever are, so "far away" is still recognisable. A setting plays a brief fixed tone instead (DP80).
 * You asked how loud a bordering country should sound when it is not on the map (DP80). Items in Within, Bordering, Overlapping, Crossing and Search can be out of view. They play from their true direction, at the quiet, muffled "beyond the view" level, and the spoken label gives the real distance: "Spain, south, 680 kilometres". So the sound says "that way, and further than you can see", and the speech gives the figure. We will try this in the Phase 1 listening test. One alternative to try there is a brief fixed tone for anything beyond the view, instead of a quiet version of the normal sound.
 * The optional second cue is either reverb (farther sounds more distant) or a repeating click that speeds up as the user gets closer.
 * The spoken label always includes the distance, so sound gives the feel and speech gives the figure.

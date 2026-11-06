@@ -15,6 +15,11 @@ Libraries in the desktop application
 * NVDA Controller Client, from NV Access. GNU Lesser General Public License
   version 2.1. Included unchanged as nvdaControllerClient.dll; its licence is
   in desktop/vendor/nvdaControllerClient-license.txt.
+* python-sounddevice, by Matthias Geier. MIT License. It plays TobyMap's
+  sounds placed in space, through PortAudio (MIT License), which it includes.
+* The MIT KEMAR head-related impulse responses, by Bill Gardner and Keith
+  Martin, MIT Media Lab, 1994, provided without usage restrictions. Used by
+  the HRTF sound mode, as desktop/vendor/mit_kemar_compact.zip.
 
 Libraries in the web version
 

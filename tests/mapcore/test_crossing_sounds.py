@@ -15,7 +15,12 @@ from mapdata.stages.write import drawing_shapes
 LAYERS = [{"id": "countries", "name": "Countries", "geometry": "area", "group": "Boundaries"},
           {"id": "graticule", "name": "Lines of latitude and longitude", "geometry": "line", "group": "Graticule",
            "switched_on": True, "crossing_earcon": "line_crossing"},
-          {"id": "quiet", "name": "Quiet lines", "geometry": "line", "group": "Graticule", "switched_on": True}]
+          {"id": "quiet", "name": "Quiet lines", "geometry": "line", "group": "Graticule", "switched_on": True},
+          {"id": "special-lines", "name": "Special lines", "geometry": "line", "group": "Graticule", "switched_on": True,
+           "crossing_earcon": "line_crossing",
+           "crossing_earcons": {"prime-meridian": "meridian_crossed", "antimeridian": "meridian_crossed",
+                                "equator": "equator_crossed", "tropic": "equator_crossed",
+                                "polar-circle": "equator_crossed"}}]
 LEVELS = [{"id": 0, "tolerance_m": 2000, "min_km2": 1, "tile_level": 3, "view_km": 10000}]
 
 
@@ -36,6 +41,12 @@ FEATURES = [
     line("grat:lon9e", "graticule", 9.9, [1]),             # only in the 1 degree set
     line("quiet:lon11e", "quiet", 11.0),
 ]
+# Special lines, each of its own type. Only the type matters to the sound, so they are all
+# drawn as meridians here, where a step east crosses them.
+SPECIAL = {12.5: "prime-meridian", 13.0: "equator", 14.5: "date-line", 16.0: "tropic", 17.5: "polar-circle",
+           18.5: "antimeridian"}
+FEATURES += [({"id": f"special:{t}", "layer": "special-lines", "type": t, "name": t}, meridian(lon))
+             for lon, t in SPECIAL.items()]
 
 
 @pytest.fixture(scope="module")
@@ -112,3 +123,32 @@ def test_joined_held_moves_keep_every_crossing_sound(pack_path):
     r = s.run_many([("move.east", {"held": True, "repeat": True})] * 2)
     assert r.earcons.count("line_crossing") == 1
     assert "crossings" not in r.to_dict()
+
+
+@pytest.mark.parametrize("lon, sounds", [
+    (12.0, ["meridian_crossed", "equator_crossed"]),   # the prime meridian, then the equator, in the order crossed
+    (14.0, ["line_crossing"]),                         # the date line keeps the layer's own sound
+    (15.5, ["equator_crossed"]),                       # a tropic
+    (17.0, ["equator_crossed"]),                       # a polar circle
+    (18.0, ["meridian_crossed"]),                      # the 180 degree meridian
+])
+def test_special_lines_play_the_sound_their_type_has_in_the_layer_file(pack_path, lon, sounds):
+    s = session(pack_path, lon)
+    earcons = [e for e in s.run("move.east").earcons if e != "tick"]
+    assert earcons == sounds
+
+
+def test_switching_the_layers_crossing_sound_off_silences_every_special_line(pack_path):
+    s = session(pack_path, 12.0)
+    s.run("layers.set", layer="special-lines", field="crossing_earcon", value=None)
+    assert [e for e in s.run("move.east").earcons if e != "tick"] == []
+
+
+def test_the_world_packs_special_lines_layer_names_the_product_owners_sounds():
+    from mapdata.pipeline.settings import load_pack
+
+    special = load_pack("world").layers["special-lines"].definition()
+    assert special["crossing_earcons"] == {"prime-meridian": "meridian_crossed", "antimeridian": "meridian_crossed",
+                                           "equator": "equator_crossed", "tropic": "equator_crossed",
+                                           "polar-circle": "equator_crossed"}
+    assert special["crossing_earcon"] == "line_crossing"

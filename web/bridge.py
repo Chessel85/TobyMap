@@ -143,6 +143,12 @@ def release(width: int, height: int):
     return _js(_extras(_session.release(), {}, width, height))
 
 
+def crossed(width: int, height: int):
+    """The Crossed and passed search (P2-T5), which the page asks for when nothing else is
+    waiting, so it never delays a key press. A newer move has already made an old one empty."""
+    return _js(_extras(_session.crossed_now(), {}, width, height))
+
+
 def hold():
     """The held key's timing, when the press's own answer was joined to a later one."""
     return _js({"hold": _session.hold_info()})

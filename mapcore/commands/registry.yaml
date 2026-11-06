@@ -58,6 +58,8 @@ commands:
   - {name: focus.map, label: Go to the map, key: F2, region: global, menu: Map}
   - {name: focus.panel, label: Go to the Information panel, key: F3, region: global, menu: Map}
   - {name: focus.details, label: Go to Details, key: F4, region: global, menu: Map}
+  # Crossed and passed (ANN-2, INF-10): your key, from the key list (DP109).
+  - {name: panel.crossed, label: Go to Crossed and passed, key: Shift+5, region: global, menu: Map}
   - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
   - {name: speech.repeat, label: Repeat the last announcement, key: Shift+Space, region: global, menu: Speech}

@@ -26,7 +26,7 @@ Write-Output "Making the placeholder earcons that are not there yet"
 if ($LASTEXITCODE -ne 0) { throw "make_placeholder_sounds failed" }
 
 Write-Output "Fetching the NVDA Controller Client if needed"
-& $py tools\fetch_vendor.py --nvda
+& $py tools\fetch_vendor.py --nvda --kemar
 if ($LASTEXITCODE -ne 0) { throw "fetch_vendor failed" }
 
 Write-Output "Writing the version information for TobyMap $version"

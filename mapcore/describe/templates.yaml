@@ -56,6 +56,9 @@ details:
     regions: first-level division
     counties: county
     oceans: ocean or sea
+    rivers: river
+    lakes: lake
+    stations: railway station
   part_of: "Part of: {value}"
   disputed: "This land is disputed."
   area: "Area: {value}"
@@ -66,6 +69,8 @@ sound:
   muted: "Sound muted."
   unmuted: "Sound on."
   own_file_failed: "Your own sound file for {sound} could not be played, so the default sound is used."
+  no_device: "No sound device was found, so sounds placed around you are silent. Speech and the other sounds carry on."
+  no_hrtf: "The HRTF sound data is missing, so stereo is used instead. Reinstalling TobyMap puts it back."
 
 settings:
   title: Settings
@@ -312,6 +317,14 @@ history:
 nearby:
   item: "{name}, {distance} {direction}"
   none: "Nothing nearby."
+
+# Crossed and passed (ANN-2): what the last move went over or near. The distance and
+# direction are from where you are now; closest is how near the path came.
+crossed:
+  crossed: "{name}, crossed, {distance} {direction}"
+  passed_over: "{name}, passed over, {distance} {direction}"
+  passed: "{name}, passed, closest {closest}, {distance} {direction}"
+  none: "Nothing crossed or passed on the last move."
 
 # Which unit system, bearing style and coordinate format is chosen (ANN-5, LOC-1).
 # Why a pack was not opened, or what is wrong with it (PCK-5, NFR-4, P1-T2).

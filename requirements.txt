@@ -8,3 +8,5 @@ shapely==2.2.0
 PyYAML==6.0.3
 # Geodesy on the WGS 84 ellipsoid (AD-7). MIT. Pure Python; tools/stage_web.py copies it for the web version.
 geographiclib==2.1
+# Plays the sounds placed in space on the desktop (AD-10, P2-T6b). MIT, with PortAudio (MIT) inside. Desktop only.
+sounddevice==0.5.6

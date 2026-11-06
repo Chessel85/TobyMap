@@ -14,7 +14,7 @@ from __future__ import annotations
 import copy
 import math
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 import yaml
@@ -63,6 +63,12 @@ class Response:
     # The crossing sounds among the earcons, kept so that joined moves lose none (SCP-7, ANN-3).
     # Not sent to the shells: the earcons already hold them.
     crossings: list[str] = field(default_factory=list)
+    # Work for the shell to start in the background after this response is handled:
+    # the Crossed and passed search (P2-T5). The shell calls crossed_job() and so on.
+    background: bool = False
+    # Sounds placed in space by the sound scene (P2-T6, AD-10): each is mapcore.sound.scene.Placed
+    # as a dict, with "file", the earcon_file() to play. The shells' sound players carry them out.
+    sounds: list[dict] = field(default_factory=list)
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -131,6 +137,12 @@ class MapSession:
         self.last_frame: dict | None = None
         self.map_size: tuple[int, int] = (800, 600)
         self.trace: list[dict] = []
+        # Crossed and passed (P2-T5, ANN-2): the most recent move's list, the search waiting to
+        # be done, and a number that changes with every move, so an old search is thrown away.
+        self.crossed: list = []
+        self._crossed_gen = 0
+        self._crossed_job: dict | None = None
+        self._held_path: list = []        # the path of a held key's steps, joined, until the release
         self._panel_cache: tuple | None = None
         self._scene = None
         self._handlers = {
@@ -152,6 +164,7 @@ class MapSession:
             "focus.details": lambda **a: Response(focus={"region": "details"}, details_stale=True),
             "focus.menu": lambda **a: Response(focus={"region": "menu"}),
             "panel.select": self._select,
+            "panel.crossed": lambda **a: Response(focus={"region": "panel", "group": "crossed"}, panel_stale=True),
             "speech.repeat": self._repeat,
             "speech.history": self._history,
             "speech.braille_test": self._braille_test,
@@ -237,6 +250,7 @@ class MapSession:
             merged.dialog = r.dialog or merged.dialog
             merged.action = r.action or merged.action
             merged.settings_changed |= r.settings_changed
+            merged.background |= r.background
             merged.error = r.error or merged.error
         return merged
 
@@ -282,7 +296,9 @@ class MapSession:
             return Response()
         self.held_moves = 0
         self._drawn_at = self.clock()
-        return self._record("release", self._arrived(Response(redraw=True)))
+        r = self._arrived(Response(redraw=True))
+        path, self._held_path = self._held_path, []
+        return self._record("release", self._crossed_after(r, path))
 
     # Holding a movement key (DP129, DP140) --------------------------------
 
@@ -354,7 +370,8 @@ class MapSession:
         shown = self.visible.shown_layers(zoom)
         heading = describer.facing(self.world)
         key = (self.world.lat, self.world.lon, self.settings["units"], self.settings["bearing"],
-               self.settings["nearby_count"], zoom, shown, heading, self._interval())
+               self.settings["nearby_count"], zoom, shown, heading, self._interval(), self._crossed_gen,
+               id(self.crossed))
         if self._panel_cache and self._panel_cache[0] == key:
             return self._panel_cache[1]
         within = [{"id": a.id, "label": a.name, "level": 1} for a in self.areas]
@@ -370,6 +387,8 @@ class MapSession:
         groups = [
             {"id": "within", "label": say("panel.within"), "items": within, "empty": say("place.none")},
             {"id": "nearby", "label": say("panel.nearby"), "items": nearby, "empty": say("nearby.none")},
+            {"id": "crossed", "label": say("panel.crossed"), "items": self._crossed_items(heading),
+             "empty": say("crossed.none")},
         ]
         self._panel_cache = (key, groups)
         return groups
@@ -387,7 +406,9 @@ class MapSession:
             lines.append(say("details.part_of", value=say("place.list_separator").join(p.name for p in parents)))
         if rec.get("disputed"):
             lines.append(say("details.disputed"))
-        lines.append(say("details.area", value=words.area_text(area.area_km2, self.settings["units"])))
+        layer = self.layers.get(area.layer)
+        if layer is None or layer.geometry == "area":   # a line or a point has no area (P2-T5)
+            lines.append(say("details.area", value=words.area_text(area.area_km2, self.settings["units"])))
         s = self.world
         if self.selected and (not self.areas or self.areas[0].id != self.selected):
             lines.append(say("details.centre", value=words.coordinates_text(s.lat, s.lon, self.settings["coordinates"],
@@ -416,6 +437,34 @@ class MapSession:
         default = next((e["file"] for e in earcon_list() if e["event"] == event), None)
         custom = self.settings.values.get(f"earcon_{event}", "")
         return {"event": event, "custom": custom or None, "default": default}
+
+    # The sound scene (P2-T6a; SON-1, SON-2, SON-9, AD-10) --------------------------
+
+    def curve(self):
+        """The distance curve, with the user's choices: linear or logarithmic, and the minimum volume (DP137)."""
+        from mapcore.sound import CurveSettings
+
+        base = CurveSettings.from_defaults(self.defaults)
+        return replace(base, model=self.settings["sound_curve"], min_gain=self.settings["min_volume"] / 100.0)
+
+    def place_sound(self, sound: str, lat: float, lon: float) -> dict:
+        """How to play `sound` heard from (lat, lon), from where you are: its direction relative to
+        ahead in the orientation you are in (SON-2), its loudness for its distance against the zoom
+        (SON-9), the lower pitch and muffling behind, and beyond the view (DP80). As a dict for the
+        shells, with the file to play. Nothing is played here (AD-10)."""
+        from mapcore.sound.scene import place
+
+        w = self.world
+        distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
+        ahead = describer.facing(w) or 0.0
+        placed = place(sound, bearing, distance, ahead, w.zoom_m, self.curve(), self.settings["sound_mode"],
+                       beyond_tone=self.settings["beyond_view"] == "tone").to_dict()
+        placed["file"] = self.earcon_file(placed["sound"])
+        return placed
+
+    def sound_problem(self, problem: str) -> Response:
+        """The shell's sound player could not do something: "no_device" or "no_hrtf" (P2-T6b)."""
+        return Response().speak(say(f"sound.{problem}"), ASSERTIVE)
 
     def earcon_failed(self, event: str) -> Response:
         """The shell could not play the user's own file: the default plays, and the user is told (SON-8)."""
@@ -455,6 +504,7 @@ class MapSession:
         if self.settings["mute"]:
             response.earcons = []
             response.crossings = []
+            response.sounds = []
         spoken = [a["text"] for a in response.announcements if a["channel"] == SPEECH]
         if spoken and name not in ("speech.repeat", "speech.history"):
             self.last_spoken = " ".join(spoken)
@@ -506,13 +556,112 @@ class MapSession:
         the layers that are shown and have one (SCP-7, DAT-13). A layer with no crossing sound,
         or that is off or out of its zoom range, costs nothing."""
         shown = self.visible.shown_layers(self.world.zoom_m)
-        sounds = {l.id: l.crossing_earcon for l in self.layers.layers() if l.id in shown and l.crossing_earcon}
-        if not sounds:
+        layers = {l.id: l for l in self.layers.layers() if l.id in shown and l.crossing_earcon}
+        if not layers:
             return r
-        for crossing in self.store.crossed_lines(path, layers=set(sounds), accept=lambda a: self._interval_ok(a.record)):
-            r.earcon(sounds[crossing.area.layer])
-            r.crossings.append(sounds[crossing.area.layer])
+        for crossing in self.store.crossed_lines(path, layers=set(layers), accept=lambda a: self._interval_ok(a.record)):
+            sound = layers[crossing.area.layer].crossing_sound(crossing.area.record)   # its type's own, or the layer's
+            r.earcon(sound)
+            r.crossings.append(sound)
         return r
+
+    # Crossed and passed (P2-T5, ANN-2, architecture 7.5) ------------------------
+
+    def _hold_path(self, path) -> None:
+        """Join a held step's path to the steps before it, so the list after the release
+        covers the whole run. Longitudes carry on, as in a path, so the joins never look
+        like a jump over a pole."""
+        path = list(path)
+        if self._held_path and path:
+            shift = round((self._held_path[-1][1] - path[0][1]) / 360.0) * 360.0
+            path = [(lat, lon + shift) for lat, lon in path[1:]]
+        self._held_path += path
+
+    def _crossed_clear(self) -> None:
+        """A jump: there is no path, so the list of the last move is emptied."""
+        self._crossed_gen += 1
+        self._crossed_job = None
+        self.crossed = []
+        self._held_path = []
+
+    def passed_distance_m(self) -> float:
+        """The passed nearby distance: a share of the step, or a fixed distance (ANN-2, DP58)."""
+        if self.settings["passed_nearby"] == "fixed":
+            return float(self.settings["passed_fixed_m"])
+        return self.world.step_m * self.settings["passed_percent"] / 100.0
+
+    def _crossed_after(self, r: Response, path) -> Response:
+        """After a move is described, the search along its path waits to be done in the
+        background (architecture 7.5); the list is emptied until it is."""
+        self._crossed_gen += 1
+        self.crossed = []
+        path = [tuple(p) for p in path or ()]
+        if len(path) < 2:
+            self._crossed_job = None
+            return r
+        self._crossed_job = {"gen": self._crossed_gen, "path": path, "passed_m": self.passed_distance_m(),
+                             "zoom_m": self.world.zoom_m, "layers": self.visible.shown_layers(self.world.zoom_m)}
+        r.background = True
+        return r
+
+    def crossed_job(self) -> dict | None:
+        """The search waiting to be done, taken, or None. Call on the shell's own thread."""
+        job, self._crossed_job = self._crossed_job, None
+        return job
+
+    def crossed_search(self, job: dict, cancelled=None) -> list | None:
+        """Search along the job's path. Safe on another thread: it only reads the store. Gives
+        None when a newer move or jump has come since, or `cancelled` says to stop."""
+        from mapcore.store.store import Cancelled
+
+        zoom = job["zoom_m"]
+
+        def stale() -> bool:
+            return job["gen"] != self._crossed_gen or (cancelled is not None and cancelled())
+
+        def accept(area) -> bool:
+            return self.visible.big_enough(self.layers.get(area.layer), area.record, zoom) \
+                and self._interval_ok(area.record)
+
+        try:
+            found = self.store.along_path(job["path"], job["passed_m"], layers=job["layers"], accept=accept,
+                                          cancelled=stale)
+        except Cancelled:
+            return None
+        return None if stale() else found
+
+    def crossed_finish(self, job: dict, found: list | None) -> Response:
+        """The search is done: the list replaces the last one, and the earcon says something
+        was added, if it is switched on. Nothing is spoken (ANN-2). Call on the shell's thread."""
+        if found is None or job["gen"] != self._crossed_gen:
+            return Response()
+        self.crossed = list(found)
+        self._panel_cache = None
+        r = Response(panel_stale=True)
+        if found and self.settings["crossed_earcon"] and not self.settings["mute"]:
+            r.earcon("crossed_added")
+        return r
+
+    def crossed_now(self) -> Response:
+        """The whole search at once, for the web worker between key presses, and for tests."""
+        job = self.crossed_job()
+        if job is None:
+            return Response()
+        return self.crossed_finish(job, self.crossed_search(job))
+
+    def _crossed_items(self, heading: float | None) -> list[dict]:
+        """The list's items, in the order along the path, each with its distance and direction
+        from where you are now, relative to the way you face (ANN-2, NAV-12)."""
+        units, style, w = self.settings["units"], self.settings["bearing"], self.world
+        items = []
+        for c in self.crossed:
+            distance, bearing, _ = geodesy.inverse(w.lat, w.lon, c.lat, c.lon)
+            fields = {"name": c.area.name, "distance": words.distance_text(distance, units),
+                      "direction": words.direction_text(bearing, style, heading),
+                      "closest": words.distance_text(c.closest_m, units)}
+            kind = {"crossed": "crossed", "passed over": "passed_over", "passed": "passed"}[c.kind]
+            items.append({"id": c.area.id, "label": say(f"crossed.{kind}", **fields), "level": 1})
+        return items
 
     def _moved(self, **extra) -> Response:
         self.selected = None
@@ -559,6 +708,7 @@ class MapSession:
             r = Response(redraw=self._draw_due(now))
             if repeat:
                 r.earcon("tick")
+            self._hold_path(result.path)
             return self._crossing_sounds(r, result.path)
         self.held_moves = 0
         self._drawn_at = now
@@ -566,7 +716,8 @@ class MapSession:
         if result.pole:   # over a pole, the heading turns round, and is said (NAV-3)
             r.speak(say("movement.pole_crossed", pole=say(f"movement.poles.{result.pole}"),
                         heading=describer.facing_text(self.world)), ASSERTIVE)
-        return self._crossing_sounds(self._arrived(r), result.path)
+        self._held_path = []
+        return self._crossed_after(self._crossing_sounds(self._arrived(r), result.path), result.path)
 
     def _turned(self, held: bool, repeat: bool, now: float) -> Response:
         """A turn on the spot (NAV-3, NAV-12): the heading arrow is drawn again, and the
@@ -657,6 +808,7 @@ class MapSession:
         """Move without a step. The zoom stays unless a place with its own is given."""
         self._remember_jump()
         self._go_to(lat, lon, zoom_m, step_m)
+        self._crossed_clear()
         return Response(redraw=True, panel_stale=True, details_stale=True, settings_changed=True)
 
     def _go_to(self, lat: float, lon: float, zoom_m: float | None, step_m: float | None) -> None:
@@ -684,6 +836,7 @@ class MapSession:
         del other[:-PLACE_LIMIT]
         place = source.pop()
         self._go_to(place["lat"], place["lon"], place["zoom_m"], place["step_m"])
+        self._crossed_clear()
         return self._land(Response(redraw=True, panel_stale=True, details_stale=True, settings_changed=True))
 
     def _changed_sizes(self, zoom_before: float, step_before: float) -> str:
@@ -978,6 +1131,7 @@ class MapSession:
         self._remember_jump()
         self.world.lat = max(-90.0, min(90.0, round(point[0], 6)))
         self.world.lon = round(geodesy.wrap_lon(point[1]), 6)
+        self._crossed_clear()
         return self._arrived(self._moved(settings_changed=False))
 
     def _drag(self, dx: float, dy: float, width: float, height: float, **_a) -> Response:
@@ -991,6 +1145,7 @@ class MapSession:
         self.world.lat = max(-90.0, min(90.0, round(point[0], 6)))
         self.world.lon = round(geodesy.wrap_lon(point[1]), 6)
         self.held_moves += 1
+        self._crossed_clear()
         return self._moved()
 
     def _hover(self, x: float, y: float, width: float, height: float, **_a) -> Response:

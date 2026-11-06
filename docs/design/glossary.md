@@ -130,6 +130,11 @@ Older documents written before this glossary, such as architecture section 6 and
 * Jump: going straight to a place without stepping, such as to typed coordinates, a click on the map, or an announcement history entry (NAV-8).
 * Position history: the places you were at before each jump, which Backspace and Shift+Backspace go back and forward through (NAV-10).
 * Sound scene: the core's list of the sounds to play, each with its direction relative to ahead, its loudness and its pitch. The desktop and the web version each play it with their own sound player (AD-10).
+* Crossed and passed: the Information panel group that lists what the last move went over or near without stopping on it. It is never spoken by itself; a soft earcon says something was added (ANN-2).
+* Crossed: a line, such as a river, that a move's path went across.
+* Passed over: an area, such as a small lake, that a move's path entered and left, with neither the start nor the end of the move in it.
+* Passed: a point, such as a railway station, that a move's path came within the passed nearby distance of.
+* Passed nearby distance: how near a move's path must come to a point for it to be listed as passed. A share of the step, 10% at first, or a fixed distance (DP58).
 * Beacon: a soft repeating sound from the direction of the North Pole, or later a pin, so you can feel which way you face (SON-10).
 
 ## Planning

@@ -4,4 +4,6 @@
 
 layers:
   - {id: graticule, name: Lines of latitude and longitude, rank: 8, kind: land, group: Graticule, geometry: line, switched_on: false, crossing_earcon: line_crossing}
-  - {id: special-lines, name: "Special lines: equator, prime meridian, tropics, polar circles and date line", rank: 8, kind: land, group: Graticule, geometry: line, switched_on: false, crossing_earcon: line_crossing}
+  # The meridians and the circles of latitude each have a sound of their own; the date line keeps the layer's.
+  - {id: special-lines, name: "Special lines: equator, prime meridian, tropics, polar circles and date line", rank: 8, kind: land, group: Graticule, geometry: line, switched_on: false, crossing_earcon: line_crossing,
+     crossing_earcons: {prime-meridian: meridian_crossed, antimeridian: meridian_crossed, equator: equator_crossed, tropic: equator_crossed, polar-circle: equator_crossed}}

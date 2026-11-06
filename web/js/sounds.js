@@ -66,3 +66,42 @@ function audioTime(ctx, at) {
   if (stamp && stamp.performanceTime) return Math.max(0, stamp.contextTime + (at - stamp.performanceTime) / 1000);
   return Math.max(0, ctx.currentTime + (at - performance.now()) / 1000);
 }
+
+// Sounds placed in space by the core's sound scene (P2-T6c; AD-10, SON-1). The core says
+// how each is heard: pan, pitch, loudness and muffling. This only carries the numbers
+// out, as the desktop's player does, so both place a sound the same way.
+// placed is the list of what was made, for the browser tests.
+export const placed = [];
+
+export async function playPlaced(p) {
+  try {
+    const buffer = await load(p.file.default);
+    const ctx = audio();
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = p.pitch;                  // lower behind you, in both modes
+    const filter = ctx.createBiquadFilter();               // the muffling
+    filter.type = "lowpass";
+    filter.frequency.value = Math.min(p.cutoff_hz, ctx.sampleRate / 2);
+    filter.Q.value = -3.0103;                              // in decibels: no peak at the cut-off
+    const gain = ctx.createGain();
+    gain.gain.value = p.gain;
+    let panner;
+    if (p.mode === "hrtf") {
+      // Web Audio's own HRTF. The listener faces -z with +x to the right; the distance
+      // is the core's loudness, so the panner itself changes nothing with distance.
+      const r = (p.relative_deg * Math.PI) / 180;
+      panner = new PannerNode(ctx, { panningModel: "HRTF", distanceModel: "linear", rolloffFactor: 0,
+        positionX: Math.sin(r), positionY: 0, positionZ: -Math.cos(r) });
+    } else {
+      panner = new StereoPannerNode(ctx, { pan: p.pan });  // equal-power, as the desktop's
+    }
+    source.connect(filter).connect(gain).connect(panner).connect(ctx.destination);
+    placed.push({ sound: p.sound, mode: p.mode, pitch: source.playbackRate.value, cutoff_hz: filter.frequency.value,
+      gain: gain.gain.value, pan: p.mode === "hrtf" ? null : panner.pan.value,
+      x: p.mode === "hrtf" ? panner.positionX.value : null, z: p.mode === "hrtf" ? panner.positionZ.value : null });
+    source.start();
+  } catch (e) {
+    // No sound file or no audio: nothing to do; the sound is only a help.
+  }
+}

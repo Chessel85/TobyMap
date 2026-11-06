@@ -27,24 +27,29 @@ from mapcore.sound import CurveSettings, gain, muffle_cutoff_hz
 
 RATE = 44100
 BEHIND_PITCH = 0.84   # about three semitones lower for sounds behind
-KEMAR_ZIP = Path(__file__).resolve().parents[2] / "tools" / "spikes" / "s1" / "downloads" / "mit_kemar_compact.zip"
+# The KEMAR responses: fetched into desktop/vendor by tools/fetch_vendor.py, or the spike's own copy.
+KEMAR_ZIP = next((p for p in (Path(__file__).resolve().parents[1] / "vendor" / "mit_kemar_compact.zip",
+                              Path(__file__).resolve().parents[2] / "tools" / "spikes" / "s1" / "downloads"
+                              / "mit_kemar_compact.zip") if p.is_file()),
+                 Path(__file__).resolve().parents[1] / "vendor" / "mit_kemar_compact.zip")
 CURVE = CurveSettings()
 
 
 def lowpass(x: np.ndarray, cutoff_hz: float) -> np.ndarray:
-    """A gentle two-pole low-pass (two one-pole stages), enough for muffling."""
+    """A gentle two-pole low-pass (two one-pole stages), enough for muffling.
+
+    Worked out all at once through the Fourier transform, with enough silence added
+    after the sound that the filter's tail has died away, so it gives the same samples
+    as running the two stages one sample at a time, but in about a millisecond (NFR-1)."""
     if cutoff_hz >= RATE / 2 * 0.9:
         return x
     a = math.exp(-2 * math.pi * cutoff_hz / RATE)
-    y = x.astype(np.float64)
     b = 1 - a
-    for _ in range(2):
-        out = np.empty_like(y)
-        state = 0.0
-        for i, v in enumerate(y):
-            state = b * v + a * state
-            out[i] = state
-        y = out
+    tail = int(math.ceil(math.log(1e-7) / math.log(a))) + 8 if a > 0 else 8   # until a ** n is negligible
+    n = 1 << int(math.ceil(math.log2(len(x) + tail)))
+    w = np.exp(-2j * np.pi * np.fft.rfftfreq(n))
+    response = (b / (1 - a * w)) ** 2
+    y = np.fft.irfft(np.fft.rfft(x.astype(np.float64), n) * response, n)[:len(x)]
     return y.astype(np.float32)
 
 
@@ -137,6 +142,22 @@ def render_moving(mode: str, mono: np.ndarray, start: float, end: float, fractio
         bearing = start + delta * (k + 0.5) / pieces
         parts.append(render(mode, mono[edges[k]:edges[k + 1]], bearing, fraction, curve))
     return np.concatenate(parts)
+
+
+def placed(mono: np.ndarray, p: dict) -> np.ndarray:
+    """A sound as the core's sound scene placed it (P2-T6b, mapcore.sound.scene): the pitch,
+    then the equal-power pan or the KEMAR response, the muffling and the loudness. The
+    numbers are the core's, unchanged, so the web version's player makes the same sound."""
+    source = resample(mono, p["pitch"]) if p["pitch"] != 1.0 else mono
+    if p["mode"] == "hrtf" and hrtf_available():
+        h = kemar().response(p["relative_deg"])
+        both = np.stack([np.convolve(source, h[:, 0]), np.convolve(source, h[:, 1])], axis=1)
+    else:
+        angle = (p["pan"] + 1) * math.pi / 4          # equal-power law, as Web Audio's stereo panner
+        both = np.stack([source * math.cos(angle), source * math.sin(angle)], axis=1)
+    left = lowpass(both[:, 0].astype(np.float32), p["cutoff_hz"])
+    right = lowpass(both[:, 1].astype(np.float32), p["cutoff_hz"])
+    return (np.stack([left, right], axis=1) * p["gain"]).astype(np.float32)
 
 
 def to_wav_bytes(stereo_samples: np.ndarray) -> bytes:

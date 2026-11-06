@@ -15,6 +15,9 @@ for name in ("nvdaControllerClient.dll", "nvdaControllerClient-license.txt"):
     if not path.is_file():
         raise SystemExit(f"{path} is missing. Run: python tools/fetch_vendor.py --nvda")
     datas.append((str(path), "desktop/vendor"))
+# The KEMAR responses for the HRTF sound mode (P2-T6b). Without them, HRTF falls back to stereo.
+if (ROOT / "desktop" / "vendor" / "mit_kemar_compact.zip").is_file():
+    datas.append((str(ROOT / "desktop" / "vendor" / "mit_kemar_compact.zip"), "desktop/vendor"))
 # The earcons (P1-T12). They are made by tools/make_placeholder_sounds.py, which build.ps1 runs first.
 # Only the files named in the earcon list ship: other sounds in the folder may not be ours to share (DP127).
 import yaml  # noqa: E402

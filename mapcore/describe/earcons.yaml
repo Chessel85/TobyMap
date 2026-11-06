@@ -7,4 +7,7 @@
 - {event: ding, file: ding.wav, label: Ding, meaning: "Passing a point of interest while driving.", phase: 2}
 - {event: no_data, file: no-data.wav, label: No data, meaning: "There is no data here for what you asked.", phase: 2}
 - {event: ambiguous_up, file: ambiguous-up.wav, label: Ambiguous up, meaning: "More than one way up in the hierarchy.", phase: 2}
+- {event: beyond_view, file: beyond-view.wav, label: Beyond the view, meaning: "A sound from beyond the view, when Sounds beyond the view is set to a fixed tone.", phase: 2}
 - {event: line_crossing, file: line-crossing.wav, label: Line crossed, meaning: "Crossing a line of a layer that has a crossing sound.", phase: 2}
+- {event: meridian_crossed, file: meridianCrossed.wav, label: Meridian crossed, meaning: "Crossing the prime meridian or the 180 degree meridian.", phase: 2}
+- {event: equator_crossed, file: equatorCrossed.wav, label: Equator or tropic crossed, meaning: "Crossing the equator, a tropic or a polar circle.", phase: 2}

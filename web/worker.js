@@ -144,6 +144,7 @@ self.onmessage = async (event) => {
     else if (type === "run") out = finish(bridge.run(JSON.stringify(commands), width, height));
     else if (type === "press") out = finish(bridge.press(key, region, width, height));
     else if (type === "release") out = finish(bridge.release(width, height));
+    else if (type === "crossed") out = finish(bridge.crossed(width, height));
     else if (type === "scene") out = finish(bridge.scene(width, height));
     else if (type === "hold") out = { result: bridge.hold(), transfer: [] };
     else if (type === "schema") out = { result: bridge.settings_schema(), transfer: [] };

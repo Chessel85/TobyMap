@@ -31,7 +31,8 @@ Current progress is in `docs/plan/phase-N.md`. Spike findings are in `docs/spike
 * `mapcore/commands/registry.yaml`: every command, its key, region and menu (AD-3).
 * `mapcore/describe/templates.yaml`: every word the application says or shows, including region names (3.4). The approved wording is held in `tests/mapcore/test_session.py`.
 * `mapcore/render/globe.py`: the orthographic globe and the shape list the shells paint (AD-6).
-* `mapcore/store/world_sample.py` and `mapcore/data/world_110m.json`: the Natural Earth stand-in for packs, until Phase 1.
+* `mapcore/sound/scene.py`: the sound scene, each sound's direction, pan, loudness, pitch and muffling (AD-10). `desktop/audio/player.py` and `web/js/sounds.js` play it, using those numbers unchanged.
+* Crossed and passed: `Store.along_path` searches a move's path; the session hands the search to the shell as `Response.background`, and the shell runs it off the main thread (desktop) or when the worker is idle (web).
 * `mapdata/pipeline/`: the build engine: settings, stages and their fingerprints, progress, the created files list and the run switch. Stages are in `mapdata/stages/`. The data manager's guide is `docs/data-manager/guide.md`.
 * `continue.txt` (repository top folder, not in git) is the PO's run switch: every build reads its first line before each stage and stops cleanly on "no". Never write into it. Tests pass their own switch file.
 * The test pack is built from `tests/samples/` by the `test_pack` fixture in `tests/conftest.py`.

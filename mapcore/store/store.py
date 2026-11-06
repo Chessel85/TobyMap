@@ -136,8 +136,34 @@ def path_pieces(path) -> list[np.ndarray]:
     return out
 
 
+@dataclass(frozen=True)
+class Passed:
+    """Something a move went over or near (P2-T5, ANN-2, architecture 7.5): a line it
+    crossed ("crossed"), an area it entered and left with neither end in it ("passed
+    over"), or a point within the passed nearby distance of the path ("passed"). lat
+    and lon are where: the crossing, the last point of the path in the area, or the
+    point itself. closest_m is the least distance from the path; along_m how far along
+    the path that is, which puts the list in order."""
+    area: Area
+    kind: str
+    lat: float
+    lon: float
+    closest_m: float
+    along_m: float
+
+
+class Cancelled(Exception):
+    """A search along a path was given up, because a newer move made it out of date."""
+
+
 def _along_m(path, lat: float, lon: float) -> float:
     """How far along the path, in metres on the mean sphere, its nearest point to (lat, lon) is."""
+    return _closest_m(path, lat, lon)[1]
+
+
+def _closest_m(path, lat: float, lon: float) -> tuple[float, float]:
+    """How far (lat, lon) is from the path, and how far along the path its nearest point is,
+    in metres on the mean sphere. Exact enough for the short distances it is used for."""
     p = np.radians(np.asarray(path, dtype=np.float64).reshape(-1, 2))
     lat1, lon1, lat2, lon2 = p[:-1, 0], p[:-1, 1], p[1:, 0], p[1:, 1]
     seg = 2 * np.arcsin(np.sqrt(np.sin((lat2 - lat1) / 2) ** 2
@@ -152,7 +178,7 @@ def _along_m(path, lat: float, lon: float) -> float:
     t = np.clip(-(ax * dx + ay * dy) / np.where(length2 > 0, length2, 1.0), 0.0, 1.0)
     d = np.hypot(ax + t * dx, ay + t * dy)
     k = int(np.argmin(d))
-    return float(seg[:k].sum() + t[k] * seg[k]) * geodesy.R_MEAN_M
+    return float(d[k]) * geodesy.R_MEAN_M, float(seg[:k].sum() + t[k] * seg[k]) * geodesy.R_MEAN_M
 
 
 def _intervals(west: float, east: float) -> list[tuple[float, float]]:
@@ -416,6 +442,98 @@ class Store:
                                 if old is None or along < old.along_m:
                                     found[(p, entry.feature)] = Crossing(area, point[1], point[0], along)
         return sorted(found.values(), key=lambda c: (c.along_m, c.area.id))
+
+    def along_path(self, path, passed_m: float, layers=None, accept=None, cancelled=None) -> list[Passed]:
+        """Crossed and passed (P2-T5, ANN-2, architecture 7.5): what a move's path went over
+        or near, in the order along the path. Lines it crosses; areas it enters and leaves
+        with neither its start nor its end in them; points within passed_m of it. `layers`
+        and `accept` limit the answer as in nearby(); the view does not, because a long step
+        can reach beyond it. `cancelled`, when given, is asked between pack tiles, and when
+        it says yes the search stops with Cancelled.
+
+        It works across the 180 degree line and over the poles, through path_pieces()."""
+        import shapely
+
+        def check():
+            if cancelled is not None and cancelled():
+                raise Cancelled()
+
+        path = [tuple(p) for p in path]
+        pieces = [shapely.LineString(c) for c in path_pieces(path)]
+        if not pieces:
+            return []
+        out: list[Passed] = [Passed(c.area, "crossed", c.lat, c.lon, 0.0, c.along_m)
+                             for c in self.crossed_lines(path, layers=layers, accept=accept)]
+        check()
+        start, end = path[0], path[-1]
+        ends = {(a.pack, a.number) for a in self.at(*start) + self.at(*end)}
+        over: dict[tuple[int, int], Passed] = {}
+        near: dict[tuple[int, int], Passed] = {}
+        dlat = passed_m / M_PER_DEG_LAT_MIN
+        for p in range(len(self._indexes)):
+            index = self._indexes[p]
+            kinds = {d["id"]: d.get("geometry", "area") for d in index.pack.layers or []}
+            wanted = {k for k, g in kinds.items() if g in ("area", "point") and (layers is None or k in layers)}
+            if not wanted:
+                continue
+            for piece in pieces:
+                shapely.prepare(piece)
+                west, south, east, north = piece.bounds
+                worst = math.cos(math.radians(min(89.0, max(abs(south), abs(north)) + dlat)))
+                dlon = passed_m / (111_320.0 * worst)
+                reach = (max(-180.0, west - dlon), max(-90.0, south - dlat),
+                         min(180.0, east + dlon), min(90.0, north + dlat))
+                wide = shapely.buffer(piece, max(dlat, dlon)) if passed_m > 0 else piece
+                for level in index.pack.tile_levels:
+                    x0, y0 = tiles.tile_of(reach[0], reach[1], level)
+                    x1, y1 = tiles.tile_of(reach[2], reach[3], level)
+                    for x, y in index.tiles_in("tile", level, x0, x1, y0, y1):
+                        box = shapely.box(*tiles.tile_box(level, x, y))
+                        if not wide.intersects(box):
+                            continue
+                        check()
+                        data = self._tile(p, "tile", level, x, y)
+                        for i, entry in enumerate(data.entries):
+                            if entry.kind == tiles.LINES:
+                                continue
+                            key = (p, entry.feature)
+                            if entry.kind == tiles.POINTS:
+                                self._passed_point(data, i, key, path, passed_m, wanted, accept, near)
+                            elif key not in ends:
+                                self._passed_over(data, i, box, key, piece, path, wanted, accept, over)
+        out += over.values()
+        out += near.values()
+        return sorted(out, key=lambda c: (c.along_m, c.area.id))
+
+    def _passed_point(self, data, i, key, path, passed_m, wanted, accept, near) -> None:
+        import shapely
+
+        old = near.get(key)
+        for lon, lat in shapely.get_coordinates(data.shape(i)).tolist():
+            closest, along = _closest_m(path, lat, lon)
+            if closest > passed_m or (old is not None and old.closest_m <= closest):
+                continue
+            area = self._area(*key)
+            if area is None or area.layer not in wanted or (accept is not None and not accept(area)):
+                return
+            old = near[key] = Passed(area, "passed", lat, lon, closest, along)
+
+    def _passed_over(self, data, i, box, key, piece, path, wanted, accept, over) -> None:
+        import shapely
+
+        shape = box if data.entries[i].kind == tiles.COVERED else data.shape(i)
+        met = shapely.intersection(shape, piece)
+        if met.is_empty:
+            return
+        area = self._area(*key)
+        if area is None or area.layer not in wanted or (accept is not None and not accept(area)):
+            return
+        # Where the path leaves it, the last point inside along the path.
+        old = over.get(key)
+        for lon, lat in shapely.get_coordinates(met).tolist():
+            along = _along_m(path, lat, lon)
+            if old is None or along > old.along_m:
+                old = over[key] = Passed(area, "passed over", lat, lon, 0.0, along)
 
     # Nearby ------------------------------------------------------------------------
 

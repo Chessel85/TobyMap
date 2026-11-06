@@ -155,6 +155,8 @@ def test_adding_a_group_of_lines_does_not_make_the_areas_again(tmp_path):
     ("switched_on: maybe", "use true or false"),
     ("min_zoom_m: 5000, max_zoom_m: 100", "min_zoom_m larger than max_zoom_m"),
     ("crossing_earcon: trumpet", "not one of the application's sounds"),
+    ("crossing_earcons: {equator: trumpet}", "crossing_earcons for equator: trumpet, which is not one"),
+    ("crossing_earcons: [equator]", "not a list of line types"),
 ])
 def test_a_wrong_layer_definition_stops_the_build_with_the_reason(tmp_path, extra, words):
     config = tmp_path / "config"

@@ -50,6 +50,7 @@ function handle(result, keyAt, held = false) {
   for (const info of result.earcons || []) {
     if (!(held && info.event === "tick")) sounds.play(info);   // a held step's click was played on time already
   }
+  for (const p of r.sounds || []) sounds.playPlaced(p);   // placed in space by the core (P2-T6)
   if (spoke && keyAt !== undefined) {
     const now = performance.now();
     window.tobymap.timings.push(now - keyAt);
@@ -90,6 +91,10 @@ function handle(result, keyAt, held = false) {
     }
   }
   if (r.dialog) openDialog(r.dialog);
+  if (r.background) {   // the Crossed and passed search, when the worker is free (P2-T5)
+    const { width, height } = mapSize();
+    client.idle({ type: "crossed", width, height }).then((b) => handle(b)).catch(showError);
+  }
 }
 
 // The map's name is the place under the centre, so the screen reader says

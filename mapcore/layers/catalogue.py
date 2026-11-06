@@ -30,6 +30,7 @@ DEFAULTS = {
     "max_zoom_m": None,        # the farthest; None for no limit
     "min_size": DEFAULT_MIN_SIZE,
     "crossing_earcon": None,   # an earcon event, played when a line of the layer is crossed
+    "crossing_earcons": None,  # {line type: earcon event}: a line of that type plays its own instead
     "sound": None,             # the sound of its features in "hear its direction" and look around
 }
 # What the user can change in the layers list (SCP-7).
@@ -47,6 +48,7 @@ class Layer:
     max_zoom_m: float | None = None
     min_size: float = DEFAULT_MIN_SIZE
     crossing_earcon: str | None = None
+    crossing_earcons: tuple = ()   # (line type, earcon event) pairs, from the layer file
     sound: str | None = None
     changed: tuple = ()        # the fields the user has changed from the pack's definition
 
@@ -54,6 +56,14 @@ class Layer:
         """Whether a zoom distance is within the layer's zoom range (NAV-13)."""
         top = math.inf if self.max_zoom_m is None else self.max_zoom_m
         return self.min_zoom_m <= zoom_m <= top
+
+    def crossing_sound(self, record: dict) -> str | None:
+        """The sound for crossing one of the layer's lines: the one its type has, if the layer
+        file gives its type one, else the layer's own. A layer switched to no crossing sound is
+        silent for every line (SCP-7)."""
+        if self.crossing_earcon is None:
+            return None
+        return dict(self.crossing_earcons).get(record.get("type"), self.crossing_earcon)
 
     def to_dict(self) -> dict:
         return {"id": self.id, "name": self.name, "group": self.group, "geometry": self.geometry, "on": self.on,
@@ -102,6 +112,9 @@ def from_definition(d: dict) -> Layer:
         values["max_zoom_m"] = float(values["max_zoom_m"])
     values["min_size"] = float(values["min_size"])
     values["on"] = bool(values.pop("switched_on"))
+    by_type = values["crossing_earcons"]
+    values["crossing_earcons"] = tuple(sorted((str(k), str(v)) for k, v in by_type.items())) \
+        if isinstance(by_type, dict) else ()
     return Layer(id=d["id"], name=d.get("name") or d["id"], **values)
 
 

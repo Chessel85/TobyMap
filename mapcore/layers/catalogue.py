@@ -158,24 +158,30 @@ class LayerCatalogue:
         return list(out.items())
 
     def change(self, layer_id: str, field: str, value) -> Layer:
-        """Change one thing about a layer. A change back to the pack's own value is
-        forgotten, so a later pack with a new default is followed. ValueError for an
-        unknown layer or a value that cannot be used."""
+        """Change one thing about a layer: see change_many."""
+        return self.change_many(layer_id, {field: value})
+
+    def change_many(self, layer_id: str, values: dict) -> Layer:
+        """Change several things about a layer at once, all or none. A change back to the
+        pack's own value is forgotten, so a later pack with a new default is followed.
+        ValueError for an unknown layer or a value that cannot be used, or a closest zoom
+        farther than the farthest, judged on the layer as it will be, not step by step."""
         base = self._defined.get(layer_id)
         if base is None:
             raise ValueError(f"there is no layer {layer_id!r}")
-        value = checked(field, value)
+        values = {field: checked(field, value) for field, value in values.items()}
         current = self.get(layer_id)
-        low = value if field == "min_zoom_m" else current.min_zoom_m
-        high = value if field == "max_zoom_m" else current.max_zoom_m
+        low = values.get("min_zoom_m", current.min_zoom_m)
+        high = values.get("max_zoom_m", current.max_zoom_m)
         if high is not None and low > high:
             raise ValueError("the closest zoom must not be farther than the farthest zoom")
         changes = self._changes()
         mine = dict(changes.get(layer_id) or {})
-        if getattr(base, field) == value:
-            mine.pop(field, None)
-        else:
-            mine[field] = value
+        for field, value in values.items():
+            if getattr(base, field) == value:
+                mine.pop(field, None)
+            else:
+                mine[field] = value
         if mine:
             changes[layer_id] = mine
         else:

@@ -9,7 +9,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
                                QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QSpinBox, QTabWidget,
-                               QVBoxLayout, QWidget)
+                               QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
 from mapcore.commands.registry import key_text
@@ -260,6 +260,139 @@ class KeyCaptureDialog(QDialog):
             self._show_message(text)
             self.result_response = response
             self.field.setFocus()
+
+
+class LayerSettingsDialog(QDialog):
+    """The settings of one layer: the closest and farthest zoom it is visible at, and the sound when
+    a line of it is crossed (SCP-7). OK checks the range with the core and stays open, saying why, if
+    the closest zoom is farther than the farthest. Every word and choice comes from the core."""
+
+    def __init__(self, parent, layer: dict, dialog: dict, check, speak=None):
+        super().__init__(parent)
+        words = dialog["words"]
+        self._check, self._speak = check, speak
+        self.setWindowTitle(words["settings_title"].format(layer=layer["name"]))
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        self.closest = self._zoom_box(dialog, words["closest"], layer["min_zoom_m"] or 0.0, 0.0)
+        self.farthest = self._zoom_box(dialog, words["farthest"], layer["max_zoom_m"], None)
+        self.crossing = QComboBox()
+        self.crossing.setAccessibleName(words["crossing"])
+        self.crossing.addItem(words["no_sound"], None)
+        for e in dialog["earcons"]:
+            self.crossing.addItem(e["label"], e["event"])
+        self.crossing.setCurrentIndex(max(0, self.crossing.findData(layer["crossing_earcon"])))
+        for label, box in ((words["closest"], self.closest), (words["farthest"], self.farthest),
+                           (words["crossing"], self.crossing)):
+            form.addRow(label, box)
+        layout.addLayout(form)
+        self.message = QLabel("")
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        self.ok_button, self.cancel_button = button_row(layout, [words["ok"], words["cancel"]])
+        self.ok_button.clicked.connect(self._ok)
+        self.cancel_button.clicked.connect(self.reject)
+        self.closest.setFocus()
+
+    @staticmethod
+    def _zoom_box(dialog: dict, name: str, current, none_value) -> QComboBox:
+        """A choice of the zoom list, with "no limit" first. A value not in the list, such as one a
+        pack chose, is added so it is kept."""
+        box = QComboBox()
+        box.setAccessibleName(name)
+        box.addItem(dialog["every_zoom"], none_value)
+        values = [z["value"] for z in dialog["zooms"]]
+        for z in dialog["zooms"]:
+            box.addItem(z["label"], z["value"])
+        if current is not None and current != none_value and current not in values:
+            box.addItem(f"{current:g} m", current)
+        box.setCurrentIndex(max(0, box.findData(current)))
+        return box
+
+    def values(self) -> dict:
+        return {"min_zoom_m": self.closest.currentData() or 0.0, "max_zoom_m": self.farthest.currentData(),
+                "crossing_earcon": self.crossing.currentData()}
+
+    def _ok(self):
+        v = self.values()
+        response = self._check(v["min_zoom_m"], v["max_zoom_m"])
+        if response.error:
+            self.message.setText(response.error)
+            self.message.setAccessibleDescription(response.error)
+            if self._speak is not None:
+                self._speak(response.error)
+            self.closest.setFocus()
+            return
+        self.accept()
+
+
+class LayersDialog(QDialog):
+    """The layers list (SCP-6, SCP-7): a check box for each layer under its group, Space switches it,
+    and a Settings button opens the selected layer's zoom range and crossing sound. OK keeps the changes,
+    which `changes` lists as (layer id, {field: value}), one entry for each layer changed; Cancel keeps none."""
+
+    def __init__(self, parent, dialog: dict, check, speak=None):
+        super().__init__(parent)
+        self.dialog, self._check, self._speak = dialog, check, speak
+        words = dialog["words"]
+        self.setWindowTitle(dialog["title"])
+        self.layers = {l["id"]: dict(l) for g in dialog["groups"] for l in g["layers"]}
+        self._start = {k: dict(v) for k, v in self.layers.items()}
+        layout = QVBoxLayout(self)
+        self.tree = QTreeWidget()
+        self.tree.setHeaderHidden(True)
+        self.tree.setAccessibleName(dialog["title"])
+        self.items: dict[str, QTreeWidgetItem] = {}
+        for group in dialog["groups"]:
+            top = QTreeWidgetItem([group["name"]])
+            self.tree.addTopLevelItem(top)
+            for layer in group["layers"]:
+                child = QTreeWidgetItem([layer["name"]])
+                child.setFlags(child.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                child.setCheckState(0, Qt.CheckState.Checked if layer["on"] else Qt.CheckState.Unchecked)
+                child.setData(0, Qt.ItemDataRole.UserRole, layer["id"])
+                top.addChild(child)
+                self.items[layer["id"]] = child
+            top.setExpanded(True)
+        layout.addWidget(self.tree)
+        (self.settings_button,) = button_row(layout, [words["settings_button"]])
+        self.settings_button.clicked.connect(self.open_settings)
+        self.ok_button, self.cancel_button = button_row(layout, [words["ok"], words["cancel"]])
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+        self.tree.itemChanged.connect(self._item_changed)
+        first = next(iter(self.items.values()), None)
+        if first is not None:
+            self.tree.setCurrentItem(first)
+        self.resize(560, 460)
+        self.tree.setFocus()
+
+    def _item_changed(self, item, _column):
+        layer_id = item.data(0, Qt.ItemDataRole.UserRole)
+        if layer_id in self.layers:
+            self.layers[layer_id]["on"] = item.checkState(0) == Qt.CheckState.Checked
+
+    def selected_layer(self) -> str | None:
+        item = self.tree.currentItem()
+        return item.data(0, Qt.ItemDataRole.UserRole) if item is not None else None
+
+    def open_settings(self):
+        layer_id = self.selected_layer()
+        if layer_id is None:   # a group heading is selected
+            return
+        box = LayerSettingsDialog(self, self.layers[layer_id], self.dialog, self._check, self._speak)
+        box.accepted.connect(lambda: self.layers[layer_id].update(box.values()))
+        box.exec()
+        self.tree.setFocus()
+
+    def changes(self) -> list[tuple[str, dict]]:
+        out = []
+        for layer_id, now in self.layers.items():
+            changed = {f: now[f] for f in ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon")
+                       if now[f] != self._start[layer_id][f]}
+            if changed:
+                out.append((layer_id, changed))
+        return out
 
 
 class SettingsDialog(QDialog):

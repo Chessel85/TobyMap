@@ -13,7 +13,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -190,7 +190,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -254,7 +254,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [settingsDialog, inputDialog, dialog].find((d) => d.open);
+  const open = [settingsDialog, inputDialog, layersDialog, dialog].find((d) => d.open);
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -298,6 +298,7 @@ function openDialog(d) {
   returnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : mapEl;
   if (d.kind === "settings") return openSettings(d);
   if (d.kind === "input") return openInput(d);
+  if (d.kind === "layers") return openLayers(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
   dialog.querySelectorAll(".sounds").forEach((el) => el.remove());
@@ -384,6 +385,127 @@ function submit(name, args, message, box) {
   }).catch(showError);
 }
 
+// The layers list (SCP-6, SCP-7): a check box for each layer under its group; Space switches it. A
+// Settings button opens the zoom range and crossing sound of the layer last focused, in the same box.
+// OK sends one layers.set for each layer changed, Cancel sends nothing. All words come from the core.
+function openLayers(d) {
+  const box = layersDialog;
+  const layers = {};
+  for (const g of d.groups) for (const l of g.layers) layers[l.id] = { ...l };
+  const start = JSON.parse(JSON.stringify(layers));
+  let current = null;
+
+  const showList = () => {
+    box.replaceChildren();
+    box.setAttribute("aria-label", d.title);
+    const title = document.createElement("h2");
+    title.textContent = d.title;
+    box.append(title);
+    for (const g of d.groups) {
+      const set = document.createElement("fieldset");
+      const legend = document.createElement("legend");
+      legend.textContent = g.name;
+      set.append(legend);
+      for (const l of g.layers) {
+        const label = document.createElement("label");
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.checked = layers[l.id].on;
+        check.dataset.layer = l.id;
+        check.addEventListener("change", () => { layers[l.id].on = check.checked; });
+        check.addEventListener("focus", () => { current = l.id; });
+        label.append(check, " " + l.name);
+        set.append(label, document.createElement("br"));
+      }
+      box.append(set);
+    }
+    current = current || Object.keys(layers)[0];
+    const settings = button(d.words.settings_button, () => showSettings(), "layers-settings");
+    const ok = button(d.words.ok, apply, "layers-ok");
+    const cancel = button(d.words.cancel, () => box.close(), "layers-cancel");
+    box.append(settings, ok, cancel);
+  };
+
+  const apply = () => {
+    const commands = [];
+    for (const id of Object.keys(layers)) {
+      const values = {};
+      for (const f of ["on", "min_zoom_m", "max_zoom_m", "crossing_earcon"]) {
+        if (layers[id][f] !== start[id][f]) values[f] = layers[id][f];
+      }
+      if (Object.keys(values).length) commands.push([d.set, { layer: id, values }]);
+    }
+    box.close();
+    if (!commands.length) return;
+    const { width, height } = mapSize();
+    client.send({ type: "run", commands, width, height }).then(handle).catch(showError);
+  };
+
+  const zoomSelect = (name, value, none) => {
+    const sel = document.createElement("select");
+    sel.setAttribute("aria-label", name);
+    const add = (v, text) => {
+      const o = document.createElement("option");
+      o.value = JSON.stringify(v);
+      o.textContent = text;
+      sel.append(o);
+    };
+    add(none, d.every_zoom);
+    for (const z of d.zooms) add(z.value, z.label);
+    if (value !== null && value !== none && !d.zooms.some((z) => z.value === value)) add(value, value + " m");
+    sel.value = JSON.stringify(value === undefined ? none : value);
+    return sel;
+  };
+
+  const showSettings = () => {
+    const l = layers[current];
+    box.replaceChildren();
+    const title = document.createElement("h2");
+    title.textContent = d.words.settings_title.replace("{layer}", l.name);
+    box.setAttribute("aria-label", title.textContent);
+    const row = (text, control) => {
+      const label = document.createElement("label");
+      label.append(text + " ", control);
+      return label;
+    };
+    const closest = zoomSelect(d.words.closest, l.min_zoom_m || 0, 0);
+    const farthest = zoomSelect(d.words.farthest, l.max_zoom_m, null);
+    const crossing = document.createElement("select");
+    crossing.setAttribute("aria-label", d.words.crossing);
+    for (const [v, text] of [[null, d.words.no_sound], ...d.earcons.map((e) => [e.event, e.label])]) {
+      const o = document.createElement("option");
+      o.value = JSON.stringify(v);
+      o.textContent = text;
+      crossing.append(o);
+    }
+    crossing.value = JSON.stringify(l.crossing_earcon);
+    const message = document.createElement("p");
+    message.setAttribute("role", "alert");
+    const ok = button(d.words.ok, () => {
+      const low = JSON.parse(closest.value), high = JSON.parse(farthest.value);
+      const { width, height } = mapSize();
+      client.send({ type: "run", commands: [[d.check, { low, high }]], width, height }).then((r) => {
+        if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
+        Object.assign(l, { min_zoom_m: low, max_zoom_m: high, crossing_earcon: JSON.parse(crossing.value) });
+        showList();
+        box.querySelector(`[data-layer="${current}"]`).focus();
+      }).catch(showError);
+    }, "layer-settings-ok");
+    const cancel = button(d.words.cancel, () => {
+      showList();
+      box.querySelector(`[data-layer="${current}"]`).focus();
+    }, "layer-settings-cancel");
+    box.append(title, row(d.words.closest, closest), document.createElement("br"),
+               row(d.words.farthest, farthest), document.createElement("br"),
+               row(d.words.crossing, crossing), message, ok, cancel);
+    closest.focus();
+  };
+
+  showList();
+  box.showModal();
+  box.querySelector("input").focus();
+}
+
 // A box to type in, with OK and Cancel: a bearing or coordinates (NAV-8, NAV-12, ACC-7).
 function openInput(d) {
   const box = inputDialog;
@@ -423,6 +545,7 @@ function afterClose() {
 dialog.addEventListener("close", afterClose);
 settingsDialog.addEventListener("close", afterClose);
 inputDialog.addEventListener("close", afterClose);
+layersDialog.addEventListener("close", afterClose);
 // Enter in a settings field presses OK, as on the desktop (web checklist 5).
 settingsDialog.addEventListener("keydown", (e) => {
   const el = e.target;

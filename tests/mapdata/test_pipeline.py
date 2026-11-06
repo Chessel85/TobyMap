@@ -106,7 +106,7 @@ def test_how_a_layer_is_shown_changes_only_the_pack_writing(tmp_path):
     assert run_build(data, config_dir=config)[0] == 0
     layers = config / "layers" / "base.yaml"
     layers.write_text(layers.read_text(encoding="utf-8").replace(
-        "name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true",
+        "name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000",
         "name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: false, "
         "min_zoom_m: 1000, max_zoom_m: 2500000, crossing_earcon: line_crossing"), encoding="utf-8")
     code, lines = run_build(data, config_dir=config)
@@ -161,7 +161,7 @@ def test_a_wrong_layer_definition_stops_the_build_with_the_reason(tmp_path, extr
     shutil.copytree(CONFIG_DIR, config, ignore=shutil.ignore_patterns("paths.yaml"))
     layers = config / "layers" / "base.yaml"
     layers.write_text(layers.read_text(encoding="utf-8").replace(
-        "name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true",
+        "name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 100000",
         f"name: Counties, rank: 6, kind: land, group: Boundaries, {extra}"), encoding="utf-8")
     with pytest.raises(BuildStopped, match=words):
         load_pack("test", config)

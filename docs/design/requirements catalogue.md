@@ -9,6 +9,7 @@ These changes come from your answers to DP106 and DP108.
 * ACC-2: F2 goes to the map, F3 to the Information panel and F4 to Details, from any region, on the desktop and the web (DP106). Ctrl+Alt+Space is dropped.
 * INF-10: F3 goes to the Information panel, back to the item last focused there. Shift+Space (Within) and R (Nearby) are dropped. Whether the other groups keep their own keys is DP109.
 * VIS-2: a map display setting for outlines and fill colours (DP108).
+* NAV-3: in free facing, Left and Right turn 5° and Ctrl with them 1°, not 15° (DP147, accepted on 6 November 2026).
 
 ## Changes in version 0.9
 
@@ -445,7 +446,7 @@ The high level requirements document stays the product owner's own statement of 
 * Acceptance criteria:
   * Cardinal facing: in stepping mode, Left and Right turn by 90°, so the user always faces north, east, south or west.
   * Cardinal facing (DP69): moving east or west follows the line of latitude, as in north-fixed. Moving north or south follows the meridian and carries on over the pole, after which the user faces the opposite way.
-  * Free facing: in stepping mode, Left and Right turn by a fine amount that can be set (default 15°). The turning keys in NAV-12 also work.
+  * Free facing: in stepping mode, Left and Right turn by a fine amount that can be set (default 5°, DP147), and Ctrl with Left and Right by a finer amount that can be set (default 1°). Shift with Left and Right still turn 90°, as in NAV-12. Held, the keys repeat, so 5° a step gives about 30° a second.
   * Free facing: moving forward follows the shortest path over the globe (a great circle). Afterwards, the heading is the direction of travel on arrival. From 80° N 0° E, facing 0°, moving forward 2000 km arrives at about 82° N 180° E, and the heading becomes 180°. This is checked to within 0.01°.
   * The new heading is announced after crossing a pole.
 

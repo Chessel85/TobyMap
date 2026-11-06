@@ -165,6 +165,8 @@ class MapSession:
             "history.go": self._history_go,
             "settings.open": self._settings_open,
             "settings.set": self._settings_set,
+            "layers.open": self._layers_open,
+            "layers.check": self._layers_check,
             "layers.set": self._layers_set,
             "keys.remap": self._remap,
             "help.keys": self._help_keys,
@@ -321,7 +323,9 @@ class MapSession:
         # A copy of the place: on the desktop the map is drawn in a thread of its
         # own while the held key steps on (P2-T14).
         frame = self._scene.build(copy.copy(self.world), width, height, current=current, highlight=self.selected,
-                                  centre_cross=self.settings["centre_cross"], layers=self.layers.active())
+                                  centre_cross=self.settings["centre_cross"],
+                                  layers=self.visible.shown_layers(self.world.zoom_m),
+                                  min_widths=self.visible.min_widths(self.world.zoom_m))
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
 
@@ -333,17 +337,19 @@ class MapSession:
 
     def panel(self) -> list[dict]:
         """The Information panel groups (UX section 6), as plain data."""
-        active = self.layers.active()
+        zoom = self.world.zoom_m
+        shown = self.visible.shown_layers(zoom)
         heading = describer.facing(self.world)
         key = (self.world.lat, self.world.lon, self.settings["units"], self.settings["bearing"],
-               self.settings["nearby_count"], self.settings["nearby_radius_km"], active, heading)
+               self.settings["nearby_count"], zoom, shown, heading)
         if self._panel_cache and self._panel_cache[0] == key:
             return self._panel_cache[1]
         within = [{"id": a.id, "label": a.name, "level": 1} for a in self.areas]
-        inside = {a.id for a in self.areas}
+        inside = {a.id for a in self.areas}   # Contains is never limited by the zoom (ANN-7)
         count = self.settings["nearby_count"]
-        near = self.store.nearby(self.world.lat, self.world.lon, self.settings["nearby_radius_km"] * 1000.0,
-                                 limit=count + len(inside), exclude=inside, layers=active)
+        # Nearby searches within the zoom (NAV-13), and lists only visible features.
+        near = self.store.nearby(self.world.lat, self.world.lon, zoom, limit=count + len(inside), exclude=inside,
+                                 layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom))
         units = self.settings["units"]
         nearby = [{"id": n.area.id, "label": describer.nearby_label(n, units, self.settings["bearing"], heading),
                    "level": 1} for n in near[:count]]
@@ -775,13 +781,48 @@ class MapSession:
             {"name": group or say("layers.other_group"), "layers": [layer.to_dict() for layer in members]}
             for group, members in self.layers.groups()]}
 
-    def _layers_set(self, layer: str, field: str, value, **_a) -> Response:
+    def _layers_open(self, **_a) -> Response:
+        """The layers dialog (SCP-6, SCP-7): a check box for each layer, in its group, and a Settings
+        button for the selected layer. All its words and choices come from here. The shell sends one
+        layers.set for each change when OK is pressed, and nothing when Cancel is."""
+        from mapcore.describe import earcon_list
+
+        units = self.settings["units"]
+        zooms = [{"value": z, "label": words.distance_text(z, units)} for z in self.world.zoom_list]
+        every = say("layers.every_zoom")
+        data = self.layer_list()
+        lines = []
+        for group in data["groups"]:
+            lines.append(group["name"])
+            lines.extend(say("layers.item_on" if l["on"] else "layers.item_off", layer=l["name"])
+                         for l in group["layers"])
+        return Response(dialog={
+            "kind": "layers", "title": data["title"], "groups": data["groups"], "text": "\n".join(lines),
+            "zooms": zooms, "every_zoom": every,
+            "earcons": [{"event": e["event"], "label": e["label"]} for e in earcon_list()],
+            "words": {k: say(f"layers.{k}") for k in ("settings_button", "settings_title", "closest", "farthest",
+                                                      "crossing", "no_sound")}
+            | {"ok": say("ui.ok"), "cancel": say("ui.cancel")},
+            "set": "layers.set", "check": "layers.check"})
+
+    def _layers_check(self, low=0.0, high=None, **_a) -> Response:
+        """Whether a closest and farthest zoom can go together; the words say what is wrong."""
+        try:
+            low = float(low or 0.0)
+            high = None if high in (None, "") else float(high)
+        except (TypeError, ValueError):
+            return Response(error=say("settings.bad_value"))
+        if high is not None and low > high:
+            return Response(error=say("layers.range_error"))
+        return Response()
+
+    def _layers_set(self, layer: str, field: str = "", value=None, values: dict | None = None, **_a) -> Response:
         """Change one thing about a layer: switch it on or off, its zoom range or its
         sounds (SCP-6, SCP-7). The change is saved with the settings, by layer id.
         A layer switched off is gone from the map, the Information panel and every
         announcement at once. Nothing is said: the list the change was made in says it."""
         try:
-            self.layers.change(layer, field, value)
+            self.layers.change_many(layer, values if values is not None else {field: value})
         except (ValueError, TypeError):
             return Response().speak(say("settings.bad_value"), ASSERTIVE)
         self._panel_cache = None

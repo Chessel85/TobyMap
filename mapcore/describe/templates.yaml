@@ -288,6 +288,17 @@ movement:
 layers:
   title: "Layers"
   other_group: "Other layers"
+  list: "Layers"
+  settings_button: "Settings for this layer"
+  settings_title: "Settings for {layer}"
+  closest: "Closest zoom"
+  farthest: "Farthest zoom"
+  every_zoom: "No limit"
+  crossing: "Sound when a line of this layer is crossed"
+  no_sound: "No sound"
+  range_error: "The closest zoom must not be farther than the farthest zoom."
+  item_off: "{layer}, off"
+  item_on: "{layer}, on"
 
 history:
   title: Announcement history

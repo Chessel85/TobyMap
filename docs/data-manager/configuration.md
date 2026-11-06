@@ -46,6 +46,19 @@ These say how the application shows and sounds the layer (SCP-7). They are writt
 
 A setting the build does not know, a geometry other than the three, a closer zoom farther than the farther one, or a sound that is not one of the application's stops the build with the reason.
 
+### The zoom ranges chosen (P2-T4b)
+
+They start from the Shortbread schema (data sources, version 0.7), which says the zoom at which each kind of boundary first appears on a web map. A web map zoom is turned into a view radius: at web zoom 7 a 1,024 pixel wide map is about 1,250 km across, so about 600 km from the centre to the edge. TobyMap's zooms are a list, so the range ends on the nearest zoom in the list.
+
+* countries: no limit. Shortbread draws country boundaries from the whole world down. They are the top of the hierarchy and are heard at every zoom.
+* oceans: no limit, for the same reason.
+* regions: visible to a zoom of 1,000 km (max_zoom_m 1000000). Shortbread draws boundaries at administrative level 4 from web zoom 7, a view radius of about 600 km. Farther out, the regions of large countries are too many to be useful in a list.
+* counties: visible to a zoom of 100 km (max_zoom_m 100000). Shortbread draws level 6 boundaries from web zoom 10, a view radius of about 80 km.
+* graticule and special lines: no limit. The graticule thins itself by its interval setting (DAT-13), and the special lines are few. They are off at first.
+* No layer has a closest zoom yet: the closest zoom in the list is 100 m, and every layer is useful there.
+
+Where TobyMap differs from Shortbread: it keeps countries at every zoom, because someone listening wants to hear the country however far out they are. Shortbread has no sounds, so there is no other difference yet. Changing a range makes the build write the pack again, which takes about 26 minutes for the world pack.
+
 ## packs
 
 One file per pack, such as `packs\test.yaml`. The file name is the pack's name.

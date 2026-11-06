@@ -47,6 +47,8 @@ commands:
   - {name: goto.coordinates, label: Go to coordinates, key: Ctrl+G, region: map, menu: Map}
   - {name: history.back, label: Back to the previous place, key: "Alt+,", region: map, menu: Map}
   - {name: history.forward, label: Forward to the next place, key: "Alt+.", region: map, menu: Map}
+  # The layers list (SCP-6, SCP-7).
+  - {name: layers.open, label: Layers, key: Ctrl+Shift+L, region: global, menu: Map}
   # Where am I (LOC-1, LOC-7).
   - {name: where.am_i, label: Where am I, key: Space, region: map, menu: Map}
   - {name: where.coordinates, label: Coordinates, key: C, region: map, menu: Map}
@@ -86,6 +88,7 @@ commands:
   - {name: sound.preview, label: Play a sound from the list of sounds, key: "", region: global, menu: "", pointer: true}
   - {name: settings.set, label: Change a setting, key: "", region: global, menu: "", pointer: true}
   - {name: layers.set, label: Change a layer, key: "", region: global, menu: "", pointer: true}
+  - {name: layers.check, label: Check a layer's zoom range, key: "", region: global, menu: "", pointer: true}
   - {name: bearing.set, label: Face the typed bearing, key: "", region: map, menu: "", pointer: true}
   - {name: goto.set, label: Go to the typed coordinates, key: "", region: map, menu: "", pointer: true}
   - {name: history.go, label: Go to the place of an announcement history entry, key: "", region: global, menu: "", pointer: true}

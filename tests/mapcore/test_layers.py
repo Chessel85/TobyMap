@@ -126,6 +126,8 @@ def test_with_regions_off_the_map_draws_no_region(session):
 
 
 def test_with_countries_off_nearby_leaves_france_out(session):
+    session.world.zoom_index = session.world.zoom_list.index(100000)   # Nearby searches within the zoom (NAV-13)
+
     def nearby():
         return [i["label"] for g in session.panel() if g["id"] == "nearby" for i in g["items"]]
     assert any(label.startswith("France") for label in nearby())
@@ -191,3 +193,79 @@ def test_the_layers_list_for_the_shells(session):
 def test_a_bad_layer_change_says_the_value_cannot_be_used(session):
     assert spoken(session.run("layers.set", layer="nowhere", field="on", value=False)) == [
         "That value cannot be used for this setting."]
+
+
+# Using the visible rule (P2-T4b; NAV-13, SCP-7, ANN-7) --------------------------------
+
+def _nearby(session):
+    return [i["label"] for g in session.panel() if g["id"] == "nearby" for i in g["items"]]
+
+
+def test_nearby_searches_within_the_zoom_not_a_separate_radius(session):
+    session.world.zoom_index = session.world.zoom_list.index(5000)
+    assert not any(label.startswith("France") for label in _nearby(session))   # France is 35 km off
+    session.world.zoom_index = session.world.zoom_list.index(100000)
+    assert any(label.startswith("France") for label in _nearby(session))
+    assert "nearby_radius_km" not in session.settings.values
+
+
+def test_nearby_leaves_out_a_layer_whose_zoom_range_is_passed(session):
+    session.world.zoom_index = session.world.zoom_list.index(100000)
+    session.run("layers.set", layer="countries", field="max_zoom_m", value=50000)
+    assert not any(label.startswith("France") for label in _nearby(session))
+    session.run("layers.set", layer="countries", field="max_zoom_m", value=None)
+    assert any(label.startswith("France") for label in _nearby(session))
+
+
+def test_the_map_draws_only_layers_in_their_zoom_range_but_where_am_i_is_not_limited(session):
+    ids = regions(session)
+    session.world.zoom_index = session.world.zoom_list.index(250000)
+    assert ids & set(session.scene(800, 600)["shape_area"])
+    session.run("layers.set", layer="regions", field="max_zoom_m", value=100000)
+    assert not ids & set(session.scene(800, 600)["shape_area"])
+    assert spoken(session.press("Space")) == ["Kent, England, United Kingdom"]   # ANN-7
+
+
+def test_the_map_leaves_out_an_area_too_small_to_see_at_this_zoom(session):
+    session.world.lat, session.world.lon = CALAIS
+    session.world.zoom_index = session.world.zoom_list.index(250000)
+    drawn = set(session.scene(800, 600)["shape_area"])
+    session.run("layers.set", layer="counties", field="on", value=True)
+    assert drawn <= set(session.scene(800, 600)["shape_area"])
+    widths = session.visible.min_widths(250000)
+    assert widths["countries"] == 0.02 * 250000 / 1000.0
+
+
+def test_the_panel_follows_the_zoom(session):
+    session.world.zoom_index = session.world.zoom_list.index(100000)
+    far = _nearby(session)
+    session.world.zoom_index = session.world.zoom_list.index(5000)
+    assert _nearby(session) != far or not far
+
+
+# The layers dialog's data (P2-T3b, P2-T3c; SCP-6, SCP-7) ---------------------------------
+
+def test_the_layers_command_has_its_key_and_gives_the_dialog_its_words_and_choices(session):
+    assert session.press("Ctrl+Shift+L").dialog["kind"] == "layers"
+    d = session.run("layers.open").dialog
+    assert d["title"] == "Layers" and [g["name"] for g in d["groups"]][:2] == ["Boundaries", "Water"]
+    assert d["every_zoom"] == "No limit" and {"value": 1000.0, "label": "1 kilometre"} in d["zooms"]
+    assert "line_crossing" in {e["event"] for e in d["earcons"]}
+    assert d["words"]["settings_button"] and d["words"]["ok"] == "OK" and d["words"]["cancel"] == "Cancel"
+    assert "Countries, on" in d["text"].split("\n")
+
+
+def test_a_range_check_says_what_is_wrong(session):
+    assert not session.run("layers.check", low=0, high=None).error
+    assert not session.run("layers.check", low=1000, high=5000).error
+    assert session.run("layers.check", low=5000, high=1000).error == \
+        "The closest zoom must not be farther than the farthest zoom."
+
+
+def test_several_changes_to_a_layer_are_judged_together(session):
+    session.run("layers.set", layer="counties", values={"min_zoom_m": 250000, "max_zoom_m": None})
+    counties = session.layers.get("counties")
+    assert (counties.min_zoom_m, counties.max_zoom_m) == (250000, None)
+    r = session.run("layers.set", layer="counties", values={"min_zoom_m": 900000, "max_zoom_m": 500000})
+    assert spoken(r) == ["That value cannot be used for this setting."]
+    assert session.layers.get("counties").min_zoom_m == 250000   # all or none

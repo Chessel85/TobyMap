@@ -527,3 +527,38 @@ def test_enter_on_an_entry_with_no_place_keeps_the_history_open(app):
     app.keyboard.press("Enter")
     app.wait_for_function("document.getElementById('history-message').textContent === 'No place for this entry.'")
     assert app.evaluate("document.getElementById('dialog').open")
+
+
+# The layers dialog (P2-T3c; SCP-6, SCP-7) -------------------------------------------------
+
+def test_the_layers_dialog_lists_layers_in_groups_and_ok_switches_one(app):
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    assert app.eval_on_selector("#layersdialog h2", "e => e.textContent") == "Layers"
+    assert app.eval_on_selector_all("#layersdialog legend", "els => els.map(e => e.textContent)")[:2] == \
+        ["Boundaries", "Water"]
+    assert app.evaluate("document.activeElement.dataset.layer") == "countries"
+    app.uncheck("[data-layer=regions]")
+    app.click("#layers-ok")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
+    app.keyboard.press("Space")
+    wait_said(app, 2)
+    assert said(app)[-1] == "Kent, United Kingdom"
+    assert app.evaluate("document.activeElement.id") == "map"
+
+
+def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refused(app):
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    app.uncheck("[data-layer=regions]")
+    app.focus("[data-layer=counties]")
+    app.click("#layers-settings")
+    app.select_option("#layersdialog select >> nth=0", label="250 kilometres")
+    app.click("#layer-settings-ok")
+    app.wait_for_function("document.querySelector('#layersdialog [role=alert]').textContent.startsWith('The closest zoom')")
+    app.click("#layer-settings-cancel")
+    app.click("#layers-cancel")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
+    app.keyboard.press("Space")
+    wait_said(app, 3)
+    assert said(app)[-1] == "Kent, England, United Kingdom"

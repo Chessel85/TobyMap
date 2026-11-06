@@ -157,6 +157,11 @@ class VisibleRule:
         """The ids of the layers that are on and whose zoom range holds the zoom."""
         return frozenset(layer.id for layer in self.layers.layers() if layer.on and layer.in_zoom(zoom_m))
 
+    def min_widths(self, zoom_m: float) -> dict:
+        """For each area layer that is shown, the least width in km an area must have (DP80)."""
+        return {layer.id: layer.min_size * zoom_m / 1000.0 for layer in self.layers.layers()
+                if layer.on and layer.in_zoom(zoom_m) and layer.geometry == "area"}
+
     @staticmethod
     def big_enough(layer, record: dict, zoom_m: float) -> bool:
         """The size rule: an area at least its layer's minimum size across, as a share of

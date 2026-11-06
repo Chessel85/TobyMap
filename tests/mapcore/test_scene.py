@@ -55,7 +55,8 @@ def test_a_frame_stays_inside_the_point_budget_at_every_zoom(test_pack, zoom):
 
 
 def test_the_centre_is_in_the_shape_of_the_current_area(test_pack):
-    s = make(test_pack, lat=51.2, lon=1.2, zoom_m=250_000, step_m=25_000)
+    # 100 km: the counties, the smallest areas here, are in their zoom range (NAV-13)
+    s = make(test_pack, lat=51.2, lon=1.2, zoom_m=100_000, step_m=25_000)
     f = s.scene(800, 600)
     assert f["current"], "the current area has shapes to outline"
     assert all(f["shape_area"][i] == s.areas[0].id for i in f["current"])

@@ -8,7 +8,8 @@ from PySide6.QtGui import QImage, QKeyEvent, QPainter
 from PySide6.QtWidgets import QApplication
 
 from desktop.announcer import RecordingAnnouncer
-from desktop.dialogs import (HistoryDialog, InputDialog, KeyCaptureDialog, ListDialog, SettingsDialog, SoundsDialog,
+from desktop.dialogs import (HistoryDialog, InputDialog, KeyCaptureDialog, LayerSettingsDialog, LayersDialog, ListDialog,
+                             SettingsDialog, SoundsDialog,
                              TextDialog)
 from desktop.map_widget import paint_scene
 from desktop.sounds import RecordingSounds
@@ -638,3 +639,67 @@ def test_enter_on_an_entry_with_no_place_keeps_the_list_open(window, qtbot):
     QApplication.processEvents()
     assert box.isVisible() and box.message.text() == "No place for this entry."
     assert window.announcer.texts[-1] == "No place for this entry."
+
+
+# The layers dialog (P2-T3b; SCP-6, SCP-7, ACC-7) ----------------------------------------
+
+def layer_item(dialog, layer_id):
+    return dialog.items[layer_id]
+
+
+def test_ctrl_shift_l_opens_the_layers_list_with_a_check_box_for_each_layer_in_its_group(window, qtbot):
+    qtbot.keyClick(window.map, Qt.Key.Key_L, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+    dialog = click_dialog(window, LayersDialog)
+    assert dialog.windowTitle() == "Layers"
+    groups = [dialog.tree.topLevelItem(i) for i in range(dialog.tree.topLevelItemCount())]
+    assert [g.text(0) for g in groups][:2] == ["Boundaries", "Water"]
+    boundaries = [groups[0].child(i).text(0) for i in range(groups[0].childCount())]
+    assert boundaries == ["Countries", "Regions", "Counties"]
+    assert layer_item(dialog, "countries").checkState(0) == Qt.CheckState.Checked
+    assert dialog.ok_button.text() == "OK" and dialog.cancel_button.text() == "Cancel"
+    dialog.cancel_button.click()
+
+
+def test_ok_in_the_layers_list_switches_the_layers_changed(window, qtbot):
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    layer_item(dialog, "regions").setCheckState(0, Qt.CheckState.Unchecked)
+    assert dialog.changes() == [("regions", {"on": False})]
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    assert not window.session.layers.is_on("regions")
+    window.dispatch("where.am_i")
+    assert window.announcer.texts[-1] == "Kent, United Kingdom"
+
+
+def test_cancel_in_the_layers_list_changes_nothing(window, qtbot):
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    layer_item(dialog, "regions").setCheckState(0, Qt.CheckState.Unchecked)
+    dialog.cancel_button.click()
+    QApplication.processEvents()
+    assert window.session.layers.is_on("regions")
+
+
+def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_aloud(window, qtbot):
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    layer = dialog.layers["counties"]
+    box = LayerSettingsDialog(dialog, layer, dialog.dialog, dialog._check, speak=window.announcer.speak)
+    qtbot.addWidget(box)
+    assert box.farthest.currentText() == "100 kilometres"
+    box.closest.setCurrentIndex(box.closest.findData(250000))
+    box.ok_button.click()      # the closest zoom is farther than the farthest
+    assert "must not be farther" in box.message.text() and window.announcer.texts[-1] == box.message.text()
+    assert box.result() == 0
+    box.farthest.setCurrentIndex(box.farthest.findData(None))
+    box.crossing.setCurrentIndex(box.crossing.findData("line_crossing"))
+    box.ok_button.click()
+    assert box.values() == {"min_zoom_m": 250000, "max_zoom_m": None, "crossing_earcon": "line_crossing"}
+    dialog.layers["counties"].update(box.values())
+    assert dialog.changes() == [("counties", {"min_zoom_m": 250000, "max_zoom_m": None,
+                                               "crossing_earcon": "line_crossing"})]
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    counties = window.session.layers.get("counties")
+    assert (counties.min_zoom_m, counties.max_zoom_m, counties.crossing_earcon) == (250000, None, "line_crossing")

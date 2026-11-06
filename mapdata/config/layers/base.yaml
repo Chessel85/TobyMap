@@ -15,5 +15,5 @@
 layers:
   - {id: countries, name: Countries, rank: 2, kind: land, group: Boundaries, geometry: area, switched_on: true}
   - {id: oceans, name: Oceans and seas, rank: 2, kind: water, group: Water, geometry: area, switched_on: true}
-  - {id: regions, name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true}
-  - {id: counties, name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true}
+  - {id: regions, name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000}
+  - {id: counties, name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 100000}

@@ -418,13 +418,15 @@ class Store:
     # Nearby ------------------------------------------------------------------------
 
     def nearby(self, lat: float, lon: float, radius_m: float, limit: int = 20,
-               layers=None, exclude=()) -> list[Near]:
+               layers=None, exclude=(), accept=None) -> list[Near]:
         """The areas within radius_m of the point, nearest first, at most `limit`.
 
         Each has its nearest point, found in a flat view round the location
         and then measured on the ellipsoid (INF-3, INF-7). Areas the point is
         inside come first with distance 0; callers that want only the
         surroundings leave them out. `exclude` is a collection of identifiers.
+        `accept`, when given, is a function of an area that says whether to count it
+        (the visible rule's size test, NAV-13).
         """
         lon = geodesy.wrap_lon(lon)
         flat = Flat(lat, lon)
@@ -439,7 +441,7 @@ class Store:
                 if len(results) >= limit and results[limit - 1].distance_m <= bound[k]:
                     break
                 area = self._area(p, int(numbers[k]))
-                if area is None or area.id in exclude or (layers is not None and area.layer not in layers):
+                if area is None or area.id in exclude or (layers is not None and area.layer not in layers)                         or (accept is not None and not accept(area)):
                     continue
                 found = self._nearest(p, area, flat, lat, lon, float(bound[k]), radius_m)
                 if found is not None:

@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import HistoryDialog, InputDialog, ListDialog, SettingsDialog, SoundsDialog, TextDialog
+from desktop.dialogs import HistoryDialog, InputDialog, LayersDialog, ListDialog, SettingsDialog, SoundsDialog, TextDialog
 from desktop.keys import key_name
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
@@ -451,6 +451,11 @@ class MainWindow(QMainWindow):
                                 go=lambda index: self.session.run(dialog["go"], index=index),
                                 speak=lambda text: self.announcer.speak(text, "assertive"))
             box.accepted.connect(lambda b=box: self.handle(b.response))
+        elif kind == "layers":
+            box = LayersDialog(self, dialog, check=lambda low, high: self.session.run(dialog["check"], low=low, high=high),
+                               speak=lambda text: self.announcer.speak(text, "assertive"))
+            box.accepted.connect(lambda b=box: [self.handle(self.session.run(dialog["set"], layer=i, values=v))
+                                                for i, v in b.changes()])
         elif kind == "input":
             box = InputDialog(self, dialog, submit=lambda text: self.session.run(dialog["submit"], text=text),
                               speak=lambda text: self.announcer.speak(text, "assertive"))

@@ -93,7 +93,11 @@ class _HoldClock(QObject):
                 if self._at != at:
                     continue
                 self._at = None
-            self.due.emit()
+            self._fire()
+
+    def _fire(self) -> None:
+        """Woken: tell the window. A method of its own so a test can see when the clock woke."""
+        self.due.emit()
 
 
 class _MenuTabFilter(QObject):

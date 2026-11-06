@@ -38,8 +38,9 @@ def earcon_fields(each: dict) -> list[dict]:
 
     out = []
     for e in earcon_list():
-        out.append({"id": f"earcon_on_{e['event']}", "label": each["on_label"].format(name=e["label"]),
-                    "kind": "yes_no", "default": True, "earcon": e["event"]})
+        if e.get("switch", True):
+            out.append({"id": f"earcon_on_{e['event']}", "label": each["on_label"].format(name=e["label"]),
+                        "kind": "yes_no", "default": True, "earcon": e["event"]})
         out.append({"id": f"earcon_{e['event']}", "label": each["file_label"].format(name=e["label"]),
                     "kind": "sound_file", "default": "", "earcon": e["event"], "name": e["label"]})
     return out

@@ -168,13 +168,14 @@ class SpatialPlayer:
             self.hrtf_missing = True
         return spatial.placed(mono, placed), custom_failed
 
-    def play(self, placed: dict) -> tuple[bool, bool]:
-        """Play a placed sound at once, alongside anything already playing. Returns (played,
-        own file failed), as the earcon player does."""
+    def play(self, placed: dict, tag: str | None = None) -> tuple[bool, bool]:
+        """Play a placed sound at once, alongside anything already playing. With a tag, it
+        replaces a sound with the same tag still playing. Returns (played, own file failed), as
+        the earcon player does."""
         samples, custom_failed = self.render(placed)
         if samples is None or self.stream is None:
             return False, custom_failed
-        self.mixer.add(samples)
+        self.mixer.add(samples, tag)
         return True, custom_failed
 
     @property
@@ -192,7 +193,7 @@ class RecordingSpatial:
         self.hrtf_missing = False
         self.last_end = 0
 
-    def play(self, placed: dict) -> tuple[bool, bool]:
+    def play(self, placed: dict, tag: str | None = None) -> tuple[bool, bool]:
         self.played.append(placed)
         return True, False
 

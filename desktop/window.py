@@ -23,7 +23,7 @@ import threading
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QObject, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QGuiApplication
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, QMenu, QPlainTextEdit, QSplitter,
                                QTreeWidgetItem)
@@ -40,7 +40,39 @@ from mapcore.session import HOLD_SILENCE_S, MapSession, Response
 
 ITEM_ID = Qt.ItemDataRole.UserRole
 TOGGLES = {"step.link": lambda s: s.world.link, "sound.mute": lambda s: s.settings["mute"],
-           "help.describer": lambda s: s.describing}
+           "help.describer": lambda s: s.describing, "beacon.toggle": lambda s: s.settings["beacon_on"]}
+
+
+class _Beacon(QObject):
+    """The orientation beacon (P2-T9, SON-10): plays the core's beacon at once when it starts,
+    then every interval from where the core last placed it, so a turn or a step moves it at the
+    next sound without waiting for a new beat. A response's beacon of None changes nothing."""
+
+    def __init__(self, window: "MainWindow"):
+        super().__init__(window)
+        self._window = window
+        self._placed: dict | None = None
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._play)
+
+    def update(self, beacon: dict | None) -> None:
+        if beacon is None:
+            return
+        self._placed = beacon["placed"]
+        if self._placed is None:
+            self._timer.stop()
+            return
+        self._timer.setInterval(round(beacon["interval_s"] * 1000))
+        if not self._timer.isActive():
+            self._play()
+            self._timer.start()
+
+    def _play(self) -> None:
+        if self._placed is not None:
+            self._window._play_placed(self._placed, tag="beacon")
+
+    def stop(self) -> None:
+        self._timer.stop()
 
 
 class _HoldClock(QObject):
@@ -196,6 +228,7 @@ class MainWindow(QMainWindow):
         self._held_seen = 0.0              # when the system last said the held key is down
         self._hold_clock = _HoldClock(self)
         self._hold_clock.due.connect(self._hold_step)
+        self._beacon = _Beacon(self)
         self._background = _Background(self, self.session)
         self._background.done.connect(lambda job, found: self.handle(self.session.crossed_finish(job, found)))
         self.spoken_times: list[float] = []
@@ -260,6 +293,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         self.save()
         self._hold_clock.stop()
+        self._beacon.stop()
         QApplication.instance().removeEventFilter(self._key_filter)
         self.map.stop_drawing()
         self.voice.close()
@@ -436,6 +470,7 @@ class MainWindow(QMainWindow):
             self._play_placed(placed)
         if response.voice:
             self._say(response.voice, self.spatial.last_end if response.voice["after"] and response.sounds else None)
+        self._beacon.update(response.beacon)
         if response.announcements or response.earcons:
             from mapcore import diagnostics
 
@@ -482,10 +517,11 @@ class MainWindow(QMainWindow):
             self._told.add(f"voice_{state}")
             self.handle(self.session.voice_problem(state))
 
-    def _play_placed(self, placed: dict) -> None:
+    def _play_placed(self, placed: dict, tag: str | None = None) -> None:
         """A sound placed in space by the core (P2-T6). A missing sound device, or HRTF data, is
-        told once, in the core's words, and the sound carries on as well as it can."""
-        _played, custom_failed = self.spatial.play(placed)
+        told once, in the core's words, and the sound carries on as well as it can. A tag, such as
+        the beacon's, stops the last sound with the same tag, so they never pile up."""
+        _played, custom_failed = self.spatial.play(placed, tag=tag)
         self._tell_own_file_failed(placed["file"], custom_failed)
         for problem, happened in (("no_device", self.spatial.missing), ("no_hrtf", self.spatial.hrtf_missing)):
             if happened and problem not in self._told:

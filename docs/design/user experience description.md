@@ -1,12 +1,19 @@
 # User Experience Description
 
-Version 0.9, 6 November 2026. Section 8.6 now says how earcons are switched, how loud they are, and how your own files work in the web version (DP123).
+Version 0.10, 6 November 2026. Section 8.4 now says how the orientation beacon sounds, how it repeats, and what happens near the North Pole.
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.10
+
+Made in P2-T9, the orientation beacon.
+
+* Section 8.4: the beacon sounds about once a second, a setting, with the lower pitch behind you. It has its own volume, not the earcon volume. It fades from 200 km and is silent within 100 km of the North Pole; you are told once when it goes silent and when it comes back. Its sound is in the Earcons tab for your own file, with no second switch, because B is its switch. Until pins come in Phase 4, the North Pole is its only target.
+* Section 8.6: the beacon has its own volume now.
 
 ## Changes in version 0.9
 
@@ -447,7 +454,9 @@ B switches on the orientation beacon (SON-10). It is a soft repeating sound that
 
 * It is most useful in cardinal facing and free facing. In north-fixed it is always straight ahead.
 * While driving along a curving road, the beacon swings from side to side as the heading changes. That is how the shape of the line can be felt.
-* Near the North Pole, north is unstable, so the beacon fades out within 100 km of the pole, and says so.
+* Near the North Pole, north is unstable. The beacon fades from 200 km and is silent within 100 km of the pole. Going inside, you hear "Beacon off near the North Pole." once; coming back out, "Beacon back on." Switched on near the pole, it says "Beacon on, but silent near the North Pole."
+* It plays about once a second; the time between each sound is a setting. Behind you it has the lower pitch and slight muffling, like every sound placed in space. Its loudness does not change with distance.
+* The Sound tab of Settings has the beacon on or off, its volume, the seconds between each sound, and where it comes from. Ctrl+M silences it with everything else. Its sound is a placeholder until you choose one; your own file goes in the Earcons tab, as for every earcon.
 * The beacon can point at any pin instead, such as "home" (DP72). It then works as a homing sound. Choose the target in settings, or with "Beacon to this pin" in a pin's actions.
 
 ### 8.5 Hearing where things are
@@ -481,7 +490,7 @@ The graticule layer (DAT-13) holds the lines of latitude and longitude at an int
 
 Every earcon is a WAV file and can be replaced (SON-8). You will supply all of them (DP61). Until each one arrives, a simple placeholder tone is used. Users can point any earcon at their own file in settings.
 
-The Earcons tab of Settings has, for every earcon, a switch to play it or not, and your own file, with Choose file and Use the default buttons. One volume at the top of the tab sets how loud all the earcons are, including those placed in space. The spatial voice has its own volume in the Sound tab, and the beacon will have its own too. Ctrl+M silences everything at once. The sounds, in Help, plays any earcon, even one that is switched off, so you can hear it first.
+The Earcons tab of Settings has, for every earcon, a switch to play it or not, and your own file, with Choose file and Use the default buttons. One volume at the top of the tab sets how loud all the earcons are, including those placed in space. The spatial voice and the beacon have their own volumes in the Sound tab. The beacon has no "play it" switch here, because B switches it. Ctrl+M silences everything at once. The sounds, in Help, plays any earcon, even one that is switched off, so you can hear it first.
 
 On the desktop, your own file is kept where it is, by its path. In the web version, a page cannot read a path on your computer, so Choose file reads the file you pick and keeps a copy in the browser's storage, and it plays from there from then on (DP123). Every earcon plays in the web version with no set-up. A file that is not a WAV sound is refused when you choose it, and you are told. If your own file cannot be played later, for example because it was moved, the default plays and you are told once.
 

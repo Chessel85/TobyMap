@@ -135,6 +135,20 @@ export async function playPlaced(p) {
   }
 }
 
+// The orientation beacon (P2-T9, SON-10): a placed sound that stops its last one still
+// playing, so a long sound of your own never piles up.
+let beaconSource = null;
+export async function playBeacon(p) {
+  try {
+    const buffer = await bufferFor(p.file);
+    if (beaconSource) { try { beaconSource.stop(); } catch (e) { /* already ended */ } }
+    beaconSource = connectPlaced(buffer, p);
+    beaconSource.start();
+  } catch (e) {
+    // No sound file or no audio: nothing to do; the beacon is only a help.
+  }
+}
+
 // A buffer through the core's numbers: pitch, muffling, loudness, then the pan or the browser's
 // HRTF. Gives the source, not started. The spatial voice uses it too (js/voice.js).
 export function connectPlaced(buffer, p) {

@@ -57,8 +57,10 @@ def test_every_earcon_has_a_switch_and_an_own_file_in_the_earcons_tab():
     fields = {f["id"]: f for f in earcons_tab()["fields"]}
     assert fields["earcon_volume"]["kind"] == "number"
     for e in earcon_list():
-        on, own = fields[f"earcon_on_{e['event']}"], fields[f"earcon_{e['event']}"]
-        assert on["kind"] == "yes_no" and on["default"] is True and on["label"] == f"{e['label']}: play it"
+        own = fields[f"earcon_{e['event']}"]
+        if e.get("switch", True):   # the beacon's switch is B and its own setting (P2-T9)
+            on = fields[f"earcon_on_{e['event']}"]
+            assert on["kind"] == "yes_no" and on["default"] is True and on["label"] == f"{e['label']}: play it"
         assert own["kind"] == "sound_file" and own["default"] == ""
         assert own["label"] == f"{e['label']}: your own sound file"
     sound = next(t for t in settings_mod.schema()["tabs"] if t["id"] == "sound")

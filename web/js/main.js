@@ -22,7 +22,7 @@ const STORAGE_KEY = "tobymap";
 const client = new WorkerClient(new URL("../worker.js", import.meta.url));
 let registry = null, words = null, menubar = null, tree = null;
 let lastScene = null, returnFocus = null, describing = false, heldKey = null, lastSave = null;
-let toggles = { "step.link": false, "sound.mute": false, "help.describer": false };
+let toggles = { "step.link": false, "sound.mute": false, "help.describer": false, "beacon.toggle": false };
 
 // window.tobymap is for the browser tests and diagnostics only.
 window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.heard, clicks: sounds.clicks, ready: false, error: null,
@@ -50,6 +50,22 @@ function paint(scene) {
   client.send({ type: "painted", paintMs: ms }).catch(() => {});
 }
 
+// The orientation beacon (P2-T9, SON-10): played at once when it starts, then every interval
+// from where the core last placed it, so a turn or a step moves it at the next sound. A
+// response's beacon of null changes nothing; placed null stops it.
+const beacon = { placed: null, timer: null, intervalMs: 1000 };
+function beaconUpdate(b) {
+  if (!b) return;
+  beacon.placed = b.placed;
+  const ms = Math.round(b.interval_s * 1000);
+  if (!b.placed || ms !== beacon.intervalMs) { clearInterval(beacon.timer); beacon.timer = null; }
+  beacon.intervalMs = ms;
+  if (b.placed && beacon.timer === null) {
+    sounds.playBeacon(b.placed);
+    beacon.timer = setInterval(() => { if (beacon.placed) sounds.playBeacon(beacon.placed); }, ms);
+  }
+}
+
 function handle(result, keyAt, held = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
   const r = result.response;
@@ -72,6 +88,7 @@ function handle(result, keyAt, held = false) {
       client.send({ type: "voice_problem", problem: state, width, height }).then((b) => handle(b)).catch(showError);
     }
   }
+  beaconUpdate(r.beacon);
   if (spoke && keyAt !== undefined) {
     const now = performance.now();
     window.tobymap.timings.push(now - keyAt);
@@ -87,6 +104,7 @@ function handle(result, keyAt, held = false) {
     toggles["help.describer"] = describing;
     if (result.save) toggles["sound.mute"] = JSON.parse(result.save).settings.values.mute;
     if (result.save) toggles["step.link"] = JSON.parse(result.save).state.link;
+    if (result.save) toggles["beacon.toggle"] = JSON.parse(result.save).settings.values.beacon_on;
     if (menubar) menubar.setChecked(toggles);
   }
   if (result.save && result.save !== lastSave) {

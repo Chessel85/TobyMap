@@ -76,6 +76,11 @@ class Response:
     voice: dict | None = None
     # A spatial label for the announcement history, kept even when muted (ANN-4). Not sent to the shells.
     label: str | None = None
+    # The orientation beacon now (P2-T9, SON-10): {"on", "placed", "interval_s"}, as beacon() gives it.
+    # Every command's response has it; None, as in a sound problem's response, means no change. The
+    # shell repeats placed every interval_s on its own timer, from where it is now; placed is None
+    # when the beacon is off, muted or silent near the North Pole.
+    beacon: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -154,6 +159,7 @@ class MapSession:
         self._panel_cache: tuple | None = None
         self._spots: dict[str, tuple] = {}   # panel item id: (feature, lat, lon) of Nearby and Crossed and passed
         self._scene = None
+        self._beacon_near: bool | None = None   # the beacon is on and silent near the North Pole (P2-T9)
         self._handlers = {
             "move.north": lambda **a: self._move("north", **a),
             "move.south": lambda **a: self._move("south", **a),
@@ -179,6 +185,7 @@ class MapSession:
             "speech.history": self._history,
             "speech.braille_test": self._braille_test,
             "sound.mute": self._mute,
+            "beacon.toggle": self._beacon_toggle,
             "orientation.cycle": self._orientation_cycle,
             "turn.left": lambda **a: self._turn(sign=-1),
             "turn.right": lambda **a: self._turn(sign=1),
@@ -265,6 +272,7 @@ class MapSession:
             merged.sounds += r.sounds
             merged.voice = r.voice or merged.voice
             merged.label = r.label or merged.label
+            merged.beacon = r.beacon or merged.beacon
         return merged
 
     def press(self, key: str, region: str = "map") -> Response | None:
@@ -486,6 +494,71 @@ class MapSession:
         placed["gain"] *= placed["file"]["gain"]   # the earcon volume (P2-T8)
         return placed
 
+    # The orientation beacon (P2-T9; SON-10, SON-2) -----------------------------------
+
+    def beacon(self) -> dict:
+        """The beacon now: whether it is on, how often it repeats, and how to play it, placed by the
+        sound scene from the direction of its target, the North Pole, relative to the way you face,
+        with the lower pitch and muffling behind. Its loudness is its own volume, not the distance:
+        it fades near the North Pole, where north is unstable, and is silent within 100 km.
+        placed is None when it is off, muted or silent. Nothing is played here (AD-10)."""
+        from mapcore.sound.scene import place
+
+        on = bool(self.settings["beacon_on"])
+        out = {"on": on, "placed": None, "interval_s": float(self.settings["beacon_interval_s"])}
+        if not on or self.settings["mute"]:
+            return out
+        w = self.world
+        distance, bearing = self._beacon_target()
+        fade = self._beacon_fade(distance)
+        if fade <= 0.0:
+            return out
+        placed = place("beacon", bearing, 0.0, describer.facing(w) or 0.0, w.zoom_m, self.curve(),
+                       self.settings["sound_mode"]).to_dict()
+        placed["distance_m"] = distance
+        placed["file"] = self.earcon_file("beacon")
+        placed["file"]["gain"] = self.settings["beacon_volume"] / 100.0   # its own volume, not the earcons'
+        placed["gain"] = placed["file"]["gain"] * fade
+        out["placed"] = placed
+        return out
+
+    def _beacon_target(self) -> tuple[float, float]:
+        """The distance and bearing from here to the beacon's target: the North Pole, the only
+        target until pins come in Phase 4."""
+        w = self.world
+        distance, bearing, _ = geodesy.inverse(w.lat, w.lon, 90.0, w.lon)
+        return distance, bearing
+
+    def _beacon_fade(self, distance_m: float) -> float:
+        """1 away from the pole, falling evenly to 0 at the silent distance."""
+        d = self.defaults.get("beacon", {})
+        silent, start = float(d.get("silent_within_m", 100000)), float(d.get("fade_from_m", 200000))
+        if distance_m <= silent:
+            return 0.0
+        return min(1.0, (distance_m - silent) / (start - silent)) if start > silent else 1.0
+
+    def _beacon_toggle(self, **_a) -> Response:
+        on = not self.settings["beacon_on"]
+        self.settings.set("beacon_on", on)
+        r = Response(settings_changed=True)
+        if not on:
+            return r.speak(say("beacon.off"), ASSERTIVE)
+        if self._beacon_fade(self._beacon_target()[0]) <= 0.0:
+            return r.speak(say("beacon.on_near_pole"), ASSERTIVE)
+        return r.speak(say("beacon.on_muted" if self.settings["mute"] else "beacon.on"), ASSERTIVE)
+
+    def _beacon_told(self, name: str, response: Response) -> None:
+        """Says once when the beacon goes silent near the North Pole, and when it comes back
+        further away (SON-10). Then gives the response the beacon as it is now."""
+        if self.settings["beacon_on"]:
+            near = self._beacon_fade(self._beacon_target()[0]) <= 0.0
+            if name != "beacon.toggle" and self._beacon_near is not None and near != self._beacon_near:
+                response.speak(say("beacon.near_pole" if near else "beacon.back"), POLITE)
+            self._beacon_near = near
+        else:
+            self._beacon_near = None
+        response.beacon = self.beacon()
+
     def sound_problem(self, problem: str) -> Response:
         """The shell's sound player could not do something: "no_device" or "no_hrtf" (P2-T6b)."""
         return Response().speak(say(f"sound.{problem}"), ASSERTIVE)
@@ -528,6 +601,7 @@ class MapSession:
     # Internals -------------------------------------------------------------
 
     def _record(self, name: str, response: Response, started: float | None = None) -> Response:
+        self._beacon_told(name, response)
         if self.settings["mute"]:
             response.earcons = []
             response.crossings = []

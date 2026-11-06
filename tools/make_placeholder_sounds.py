@@ -34,26 +34,29 @@ TONES = {
     "item_direction": [(520, 0.07), (780, 0.1)],
     "meridian_crossed": [(700, 0.05), (1050, 0.05)],    # stand-ins only: the product owner's own files are kept in git
     "equator_crossed": [(1050, 0.05), (700, 0.05)],
+    "beacon": [(440, 0.2)],   # soft and low, as it repeats every second while on (P2-T9)
 }
 VOLUME = 0.35
+SOFTER = {"beacon": 0.2}   # earcons quieter than VOLUME
 
 
-def samples(tones) -> list[int]:
+def samples(tones, volume: float = VOLUME) -> list[int]:
     out: list[int] = []
     for freq, seconds in tones:
         n = int(RATE * seconds)
         for i in range(n):
             fade = min(1.0, i / (RATE * 0.004), (n - i) / (RATE * 0.008))   # no clicks at the ends
-            out.append(int(32767 * VOLUME * fade * math.sin(2 * math.pi * freq * i / RATE)))
+            out.append(int(32767 * volume * fade * math.sin(2 * math.pi * freq * i / RATE)))
     return out
 
 
-def write(path: Path, tones) -> None:
+def write(path: Path, tones, volume: float = VOLUME) -> None:
+    data = samples(tones, volume)
     with wave.open(str(path), "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(RATE)
-        w.writeframes(struct.pack(f"<{len(samples(tones))}h", *samples(tones)))
+        w.writeframes(struct.pack(f"<{len(data)}h", *data))
 
 
 def main(argv=None) -> int:
@@ -66,7 +69,7 @@ def main(argv=None) -> int:
         if target.exists():
             print(f"Kept {target.name}, which is already there.")
             continue
-        write(target, TONES[e["event"]])
+        write(target, TONES[e["event"]], SOFTER.get(e["event"], VOLUME))
         print(f"Wrote {target.name}.")
     return 0
 

@@ -44,6 +44,8 @@ commands:
   - {name: turn.fine_left, label: Fine turn left in free facing, key: Ctrl+Left, region: map, menu: Map}
   - {name: turn.fine_right, label: Fine turn right in free facing, key: Ctrl+Right, region: map, menu: Map}
   - {name: bearing.type, label: Type a bearing, key: Ctrl+B, region: map, menu: Map}
+  # The orientation beacon (SON-10): your key, from the key list.
+  - {name: beacon.toggle, label: Orientation beacon, key: B, region: map, menu: Map, toggle: true}
   # Going to coordinates and back through the places you have been (NAV-8, NAV-10).
   - {name: goto.coordinates, label: Go to coordinates, key: Ctrl+G, region: map, menu: Map}
   - {name: history.back, label: Back to the previous place, key: "Alt+,", region: map, menu: Map}

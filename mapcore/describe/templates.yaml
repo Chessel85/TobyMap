@@ -73,6 +73,13 @@ details:
   centre: "The location is {value}"
   source: "Source: {value}"
 
+beacon:
+  "on": "Beacon on."
+  "off": "Beacon off."
+  on_near_pole: "Beacon on, but silent near the North Pole."
+  on_muted: "Beacon on, but all sound is muted."
+  near_pole: "Beacon off near the North Pole."
+  back: "Beacon back on."
 sound:
   muted: "Sound muted."
   unmuted: "Sound on."

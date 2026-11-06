@@ -42,3 +42,9 @@ sound:
     bright_hz: 16000
     dull_hz: 1500
     beyond_hz: 900
+
+# The orientation beacon (P2-T9, SON-10). Near the North Pole north is unstable: the beacon
+# fades from fade_from_m and is silent within silent_within_m of the pole. Metres.
+beacon:
+  silent_within_m: 100000
+  fade_from_m: 200000

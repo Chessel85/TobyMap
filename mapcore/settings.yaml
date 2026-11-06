@@ -152,6 +152,28 @@ tabs:
         label: Also speak spatial labels through the screen reader
         kind: yes_no
         default: false
+      # The orientation beacon (P2-T9, SON-10). B switches it too. Pins join the target in Phase 4.
+      - id: beacon_on
+        label: Orientation beacon on
+        kind: yes_no
+        default: false
+      - id: beacon_volume
+        label: "Orientation beacon: volume, in percent"
+        kind: number
+        default: 100
+        min: 0
+        max: 100
+      - id: beacon_interval_s
+        label: "Orientation beacon: seconds between each sound"
+        kind: number
+        default: 1
+        min: 0.5
+        max: 5
+      - id: beacon_target
+        label: "Orientation beacon: comes from"
+        kind: choice
+        default: north_pole
+        choices: [[north_pole, The North Pole]]
   # The earcons (P2-T8; SON-6, SON-8): the volume, then for every earcon in
   # mapcore/describe/earcons.yaml a switch, earcon_on_<event>, and your own file,
   # earcon_<event>, made by mapcore/settings.py from the two labels below.

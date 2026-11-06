@@ -1,0 +1,7 @@
+# The graticule layers (P2-T10b, DAT-13, SCP-7, AD-11): lines of latitude and longitude,
+# and the special lines. Both are lines, off at first, and never part of "where am I".
+# The reference for each setting is docs/data-manager/configuration.md.
+
+layers:
+  - {id: graticule, name: Lines of latitude and longitude, rank: 8, kind: land, group: Graticule, geometry: line, switched_on: false, crossing_earcon: line_crossing}
+  - {id: special-lines, name: "Special lines: equator, prime meridian, tropics, polar circles and date line", rank: 8, kind: land, group: Graticule, geometry: line, switched_on: false, crossing_earcon: line_crossing}

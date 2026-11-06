@@ -35,7 +35,7 @@ def drawing_shapes(records, geoms, levels, say) -> dict[int, list]:
             idx = [i for i, r in enumerate(records) if r["layer"] == layer]
             for i, g in zip(idx, drawing_levels.simplify_layer([geoms[i] for i in idx], lv["tolerance_m"],
                                                                lv["min_km2"])):
-                shapes[i] = g
+                shapes[i] = geoms[i] if records[i].get("exact") else g   # exact: every point kept (P2-T10b)
         out[lv["id"]] = shapes
         per_layer = ", ".join(
             f"{layer} {drawing_levels.points([g for g, r in zip(shapes, records) if r['layer'] == layer]):,}"

@@ -52,6 +52,10 @@ def cut_to_rect(geom, bounds):
     gives an invalid one, the general intersection is used instead.
     """
     part = shapely.clip_by_rect(geom, *bounds)
+    if part.is_empty and shapely.get_type_id(geom) in (1, 2, 5):
+        # A line along the edge of the rectangle, such as the equator or the prime meridian on a pack
+        # tile edge, is dropped by clip_by_rect, but it is on the rectangle's edge (P2-T10b).
+        return shapely.intersection(geom, shapely.box(*bounds))
     if part.is_empty or part.is_valid:
         return part
     return shapely.intersection(geom, shapely.box(*bounds))

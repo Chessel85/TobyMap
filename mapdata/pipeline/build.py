@@ -51,6 +51,8 @@ STAGES = {
                          ("mapdata.stages.squares", "mapdata.stages.grid")),
     "join": StageKind("joining the grid squares into areas", "mapdata.stages.join",
                       ("mapdata.stages.join", "mapdata.stages.grid", "mapdata.stages.geodesy")),
+    "graticule": StageKind("writing the graticule and special lines", "mapdata.stages.graticule",
+                           ("mapdata.stages.graticule",)),
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
                         ("mapdata.stages.checks", "mapdata.stages.lookup")),
     "write": StageKind("writing the pack", "mapdata.stages.write",

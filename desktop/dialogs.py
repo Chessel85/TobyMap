@@ -296,16 +296,13 @@ class LayerSettingsDialog(QDialog):
 
     @staticmethod
     def _zoom_box(dialog: dict, name: str, current, none_value) -> QComboBox:
-        """A choice of the zoom list, with "no limit" first. A value not in the list, such as one a
-        pack chose, is added so it is kept."""
+        """A choice of the zoom list, with "no limit" first. The core's list already holds any zoom
+        a layer has that is not one of the usual ones, such as one a pack chose."""
         box = QComboBox()
         box.setAccessibleName(name)
         box.addItem(dialog["every_zoom"], none_value)
-        values = [z["value"] for z in dialog["zooms"]]
         for z in dialog["zooms"]:
             box.addItem(z["label"], z["value"])
-        if current is not None and current != none_value and current not in values:
-            box.addItem(f"{current:g} m", current)
         box.setCurrentIndex(max(0, box.findData(current)))
         return box
 
@@ -378,7 +375,9 @@ class LayersDialog(QDialog):
 
     def open_settings(self):
         layer_id = self.selected_layer()
-        if layer_id is None:   # a group heading is selected
+        if layer_id is None:   # a group heading is selected: say so, rather than nothing
+            if self._speak is not None:
+                self._speak(self.dialog["words"]["choose_layer"])
             return
         box = LayerSettingsDialog(self, self.layers[layer_id], self.dialog, self._check, self._speak)
         box.accepted.connect(lambda: self.layers[layer_id].update(box.values()))

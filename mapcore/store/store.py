@@ -443,7 +443,8 @@ class Store:
                 if len(results) >= limit and results[limit - 1].distance_m <= bound[k]:
                     break
                 area = self._area(p, int(numbers[k]))
-                if area is None or area.id in exclude or (layers is not None and area.layer not in layers)                         or (accept is not None and not accept(area)):
+                if area is None or area.id in exclude or (layers is not None and area.layer not in layers) \
+                        or (accept is not None and not accept(area)):
                     continue
                 found = self._nearest(p, area, flat, lat, lon, float(bound[k]), radius_m)
                 if found is not None:

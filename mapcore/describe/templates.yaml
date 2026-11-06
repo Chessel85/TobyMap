@@ -297,6 +297,7 @@ layers:
   crossing: "Sound when a line of this layer is crossed"
   no_sound: "No sound"
   range_error: "The closest zoom must not be farther than the farthest zoom."
+  choose_layer: "Choose a layer first. The settings are for one layer."
   item_off: "{layer}, off"
   item_on: "{layer}, on"
 

@@ -256,6 +256,14 @@ def test_the_layers_command_has_its_key_and_gives_the_dialog_its_words_and_choic
     assert "Countries, on" in d["text"].split("\n")
 
 
+def test_a_layers_own_zoom_outside_the_list_comes_with_its_words_from_the_core(session):
+    # The shells add no words of their own (3.4), so the core lists a zoom such as one a pack chose.
+    session.run("layers.set", layer="counties", field="max_zoom_m", value=1234.0)
+    zooms = session.run("layers.open").dialog["zooms"]
+    assert [z for z in zooms if z["value"] == 1234.0] == [{"value": 1234.0, "label": "1.2 kilometres"}]
+    assert [z["value"] for z in zooms] == sorted(z["value"] for z in zooms)
+
+
 def test_a_range_check_says_what_is_wrong(session):
     assert not session.run("layers.check", low=0, high=None).error
     assert not session.run("layers.check", low=1000, high=5000).error

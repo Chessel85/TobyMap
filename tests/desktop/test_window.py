@@ -681,6 +681,16 @@ def test_cancel_in_the_layers_list_changes_nothing(window, qtbot):
     assert window.session.layers.is_on("regions")
 
 
+def test_settings_on_a_group_heading_says_to_choose_a_layer(window, qtbot):
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    dialog.tree.setCurrentItem(dialog.tree.topLevelItem(0))   # Boundaries, a group heading
+    dialog.settings_button.click()
+    assert window.announcer.texts[-1] == "Choose a layer first. The settings are for one layer."
+    assert dialog.isVisible()
+    dialog.cancel_button.click()
+
+
 def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_aloud(window, qtbot):
     window.dispatch("layers.open")
     dialog = click_dialog(window, LayersDialog)

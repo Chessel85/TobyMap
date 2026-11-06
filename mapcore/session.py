@@ -60,6 +60,9 @@ class Response:
     action: str | None = None
     settings_changed: bool = False
     error: str | None = None    # a typed answer was refused: the box stays open and shows and says this
+    # The crossing sounds among the earcons, kept so that joined moves lose none (SCP-7, ANN-3).
+    # Not sent to the shells: the earcons already hold them.
+    crossings: list[str] = field(default_factory=list)
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -70,7 +73,9 @@ class Response:
         return self
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        out = asdict(self)
+        out.pop("crossings")
+        return out
 
 
 class MapSession:
@@ -208,8 +213,10 @@ class MapSession:
     def run_many(self, commands: list[tuple[str, dict]]) -> Response:
         """Carry out several commands that arrived faster than they could be
         answered. Every one is carried out, but only the last one is described,
-        so speech never falls behind (ANN-3)."""
+        so speech never falls behind (ANN-3). The crossing sounds of every one are
+        kept, in order, so a line crossed on the way is still heard (SCP-7)."""
         merged = Response()
+        others: list[str] = []
         last = len(commands) - 1
         for i, (name, args) in enumerate(commands):
             args = dict(args)
@@ -217,7 +224,12 @@ class MapSession:
                 args["held"] = True
             r = self.run(name, **args)
             merged.announcements = r.announcements or merged.announcements
-            merged.earcons = r.earcons or merged.earcons
+            if r.earcons:
+                others = list(r.earcons)
+                for sound in r.crossings:
+                    others.remove(sound)
+            merged.crossings += r.crossings
+            merged.earcons = others + merged.crossings
             merged.redraw |= r.redraw
             merged.panel_stale |= r.panel_stale
             merged.details_stale |= r.details_stale
@@ -442,6 +454,7 @@ class MapSession:
     def _record(self, name: str, response: Response, started: float | None = None) -> Response:
         if self.settings["mute"]:
             response.earcons = []
+            response.crossings = []
         spoken = [a["text"] for a in response.announcements if a["channel"] == SPEECH]
         if spoken and name not in ("speech.repeat", "speech.history"):
             self.last_spoken = " ".join(spoken)
@@ -498,6 +511,7 @@ class MapSession:
             return r
         for crossing in self.store.crossed_lines(path, layers=set(sounds), accept=lambda a: self._interval_ok(a.record)):
             r.earcon(sounds[crossing.area.layer])
+            r.crossings.append(sounds[crossing.area.layer])
         return r
 
     def _moved(self, **extra) -> Response:
@@ -814,9 +828,15 @@ class MapSession:
         from mapcore.describe import earcon_list
 
         units = self.settings["units"]
-        zooms = [{"value": z, "label": words.distance_text(z, units)} for z in self.world.zoom_list]
         every = say("layers.every_zoom")
         data = self.layer_list()
+        # The zoom list, and any zoom a layer already has that is not in it, such as one a pack
+        # chose, so the shells can show it in words without making any of their own (3.4).
+        values = set(self.world.zoom_list)
+        for group in data["groups"]:
+            for layer in group["layers"]:
+                values.update(z for z in (layer["min_zoom_m"], layer["max_zoom_m"]) if z)
+        zooms = [{"value": z, "label": words.distance_text(z, units)} for z in sorted(values)]
         lines = []
         for group in data["groups"]:
             lines.append(group["name"])
@@ -827,7 +847,7 @@ class MapSession:
             "zooms": zooms, "every_zoom": every,
             "earcons": [{"event": e["event"], "label": e["label"]} for e in earcon_list()],
             "words": {k: say(f"layers.{k}") for k in ("settings_button", "settings_title", "closest", "farthest",
-                                                      "crossing", "no_sound")}
+                                                      "crossing", "no_sound", "choose_layer")}
             | {"ok": say("ui.ok"), "cancel": say("ui.cancel")},
             "set": "layers.set", "check": "layers.check"})
 

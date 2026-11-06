@@ -102,3 +102,13 @@ def test_the_interval_is_a_setting_in_the_layers_tab_and_the_map_follows_it(pack
     s.run("settings.set", field="graticule_interval", value="1")
     one = set(s.scene(800, 600)["line_area"])
     assert "grat:lon9e" not in ten and "grat:lon9e" in one and "grat:lon10e" in ten
+
+
+def test_joined_held_moves_keep_every_crossing_sound(pack_path):
+    # The web joins held moves that arrive while the worker is busy (ANN-3). The first
+    # crosses the 10 degree line and the second crosses nothing, but clicks: the crossing
+    # sound must not be lost to the second move's click.
+    s = session(pack_path, 9.5, graticule_interval="10")
+    r = s.run_many([("move.east", {"held": True, "repeat": True})] * 2)
+    assert r.earcons.count("line_crossing") == 1
+    assert "crossings" not in r.to_dict()

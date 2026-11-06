@@ -361,7 +361,6 @@ function historyList(d) {
   const message = document.createElement("p");
   message.id = "history-message";
   message.className = "history";
-  message.setAttribute("role", "alert");
   list.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -452,7 +451,6 @@ function openLayers(d) {
     };
     add(none, d.every_zoom);
     for (const z of d.zooms) add(z.value, z.label);
-    if (value !== null && value !== none && !d.zooms.some((z) => z.value === value)) add(value, value + " m");
     sel.value = JSON.stringify(value === undefined ? none : value);
     return sel;
   };
@@ -480,7 +478,7 @@ function openLayers(d) {
     }
     crossing.value = JSON.stringify(l.crossing_earcon);
     const message = document.createElement("p");
-    message.setAttribute("role", "alert");
+    message.id = "layer-settings-message";   // shown here and said by the announcer, once
     const ok = button(d.words.ok, () => {
       const low = JSON.parse(closest.value), high = JSON.parse(farthest.value);
       const { width, height } = mapSize();
@@ -527,7 +525,6 @@ function openInput(d) {
   field.setAttribute("aria-describedby", "input-help");
   const message = document.createElement("p");
   message.id = "input-message";
-  message.setAttribute("role", "alert");
   const go = () => submit(d.submit, { text: field.value }, message, box).then(() => { if (box.open) field.select(); });
   const ok = button(d.ok, go, "input-ok");
   const cancel = button(d.cancel, () => box.close(), "input-cancel");

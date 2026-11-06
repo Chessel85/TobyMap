@@ -555,7 +555,7 @@ def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refuse
     app.click("#layers-settings")
     app.select_option("#layersdialog select >> nth=0", label="250 kilometres")
     app.click("#layer-settings-ok")
-    app.wait_for_function("document.querySelector('#layersdialog [role=alert]').textContent.startsWith('The closest zoom')")
+    app.wait_for_function("document.querySelector('#layer-settings-message').textContent.startsWith('The closest zoom')")
     app.click("#layer-settings-cancel")
     app.click("#layers-cancel")
     app.wait_for_function("!document.getElementById('layersdialog').open")

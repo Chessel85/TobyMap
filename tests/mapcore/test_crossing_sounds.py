@@ -144,6 +144,11 @@ def test_switching_the_layers_crossing_sound_off_silences_every_special_line(pac
     assert [e for e in s.run("move.east").earcons if e != "tick"] == []
 
 
+def test_each_crossing_earcon_has_its_own_switch(pack_path):
+    s = session(pack_path, 12.0, earcon_on_meridian_crossed=False)
+    assert [e for e in s.run("move.east").earcons if e != "tick"] == ["equator_crossed"]
+
+
 def test_the_world_packs_special_lines_layer_names_the_product_owners_sounds():
     from mapdata.pipeline.settings import load_pack
 

@@ -1,12 +1,18 @@
 # User Experience Description
 
-Version 0.8, 6 November 2026. Section 8.5 now says how "hear its direction" works in Phase 2 (DP143).
+Version 0.9, 6 November 2026. Section 8.6 now says how earcons are switched, how loud they are, and how your own files work in the web version (DP123).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.9
+
+Made in P2-T8, earcons in full.
+
+* Section 8.6: each earcon has its own switch and your own file, in the Earcons tab of Settings, with one volume for all the earcons. The spatial voice has its own volume, and the beacon will have its own. Ctrl+M silences them all. In the web version, Choose file keeps the file you pick in the browser's storage (DP123).
 
 ## Changes in version 0.8
 
@@ -474,6 +480,10 @@ There are no earcons by default for crossing a border or for moving between land
 The graticule layer (DAT-13) holds the lines of latitude and longitude at an interval you set, and the special lines: the equator, the prime meridian, the antimeridian, the tropics and the polar circles. Each has its own crossing earcon, off by default. Like any layer, it can be shown on the map, listed in the crossed and passed list, and followed in network mode.
 
 Every earcon is a WAV file and can be replaced (SON-8). You will supply all of them (DP61). Until each one arrives, a simple placeholder tone is used. Users can point any earcon at their own file in settings.
+
+The Earcons tab of Settings has, for every earcon, a switch to play it or not, and your own file, with Choose file and Use the default buttons. One volume at the top of the tab sets how loud all the earcons are, including those placed in space. The spatial voice has its own volume in the Sound tab, and the beacon will have its own too. Ctrl+M silences everything at once. The sounds, in Help, plays any earcon, even one that is switched off, so you can hear it first.
+
+On the desktop, your own file is kept where it is, by its path. In the web version, a page cannot read a path on your computer, so Choose file reads the file you pick and keeps a copy in the browser's storage, and it plays from there from then on (DP123). Every earcon plays in the web version with no set-up. A file that is not a WAV sound is refused when you choose it, and you are told. If your own file cannot be played later, for example because it was moved, the default plays and you are told once.
 
 ### 8.7 Grid layers as pitch
 

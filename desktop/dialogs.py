@@ -6,9 +6,11 @@ the web version shows the same settings.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QSpinBox, QTabWidget,
+                               QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
@@ -394,6 +396,62 @@ class LayersDialog(QDialog):
         return out
 
 
+class SoundFileField(QWidget):
+    """Your own sound file for an earcon (P2-T8, SON-8): its path, Choose file and Use the
+    default. A chosen file that is not a WAV sound TobyMap can play is refused, and you are
+    told why, so the sound is not changed."""
+
+    def __init__(self, value: str, field: dict, words: dict, speak=None, choose=None):
+        super().__init__()
+        from desktop.sounds import readable_wav
+
+        self._readable, self._speak, self.words = readable_wav, speak, words
+        self._choose_dialog = choose or self._ask
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        self.edit = QLineEdit(value)
+        self.edit.setPlaceholderText(words["default_sound"])
+        self.choose_button = QPushButton(words["choose_file"])
+        self.choose_button.setAccessibleName(words["choose_file_for"].format(name=field["name"]))
+        self.default_button = QPushButton(words["use_default"])
+        self.default_button.setAccessibleName(words["use_default_for"].format(name=field["name"]))
+        for w in (self.edit, self.choose_button, self.default_button):
+            row.addWidget(w)
+        self.choose_button.clicked.connect(self.choose)
+        self.default_button.clicked.connect(self.use_default)
+        self.message = ""
+
+    def setAccessibleName(self, name: str) -> None:   # the field's label goes on the path box
+        self.edit.setAccessibleName(name)
+
+    def _ask(self) -> str:
+        from PySide6.QtWidgets import QFileDialog
+
+        path, _ = QFileDialog.getOpenFileName(self, self.choose_button.accessibleName(), self.edit.text(),
+                                              self.words["sound_files"])
+        return path
+
+    def choose(self) -> None:
+        path = self._choose_dialog()
+        if not path:
+            return
+        if self._readable(Path(path)):
+            self.edit.setText(path)
+            self.message = ""
+        else:
+            self.message = self.words["file_unreadable"].format(file=Path(path).name)
+            if self._speak:
+                self._speak(self.message, "assertive")
+        self.choose_button.setFocus()
+
+    def use_default(self) -> None:
+        self.edit.clear()
+        self.edit.setFocus()
+
+    def text(self) -> str:
+        return self.edit.text()
+
+
 class SettingsDialog(QDialog):
     """The settings, from the core's schema, with OK and Cancel (PLT-5, ACC-7)."""
 
@@ -414,7 +472,11 @@ class SettingsDialog(QDialog):
                 control.setAccessibleName(f["label"])
                 self.controls[f["id"]] = control
                 form.addRow(f["label"], control)
-            self.tabs.addTab(page, tab["label"])
+            scroll = QScrollArea()   # the Earcons tab is taller than the dialog (P2-T8)
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+            scroll.setWidget(page)
+            self.tabs.addTab(scroll, tab["label"])
         self.keys_page = QWidget()
         key_layout = QVBoxLayout(self.keys_page)
         self.key_list = QListWidget()
@@ -445,6 +507,9 @@ class SettingsDialog(QDialog):
         self.responses: list = []
 
     def _control(self, f: dict, value):
+        if f["kind"] == "sound_file":
+            announcer = getattr(self.parent(), "announcer", None)
+            return SoundFileField(str(value), f, self.words, speak=announcer.speak if announcer is not None else None)
         if f["kind"] == "choice":
             box = QComboBox()
             for v, label in f["choices"]:

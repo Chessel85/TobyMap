@@ -311,7 +311,7 @@ def test_settings_dialog_has_ok_and_cancel_and_the_settings_are_kept(app, page, 
     app.wait_for_function("document.getElementById('settings').open")
     assert app.locator("#settings-ok").text_content() == "OK" and app.locator("#settings-cancel").text_content() == "Cancel"
     tabs = app.locator("#settings [role=tab]").all_text_contents()
-    assert tabs == ["Units", "Movement", "Layers", "Sound", "Display", "Keys"]   # pages, not one long dialog (web checklist 2)
+    assert tabs == ["Units", "Movement", "Layers", "Sound", "Earcons", "Display", "Keys"]   # pages, not one long dialog (web checklist 2)
     assert app.evaluate("document.activeElement.textContent") == "Units"
     assert app.locator("#settings [role=tabpanel]:not([hidden])").count() == 1
     app.keyboard.press("Tab")

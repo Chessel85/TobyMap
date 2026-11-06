@@ -5,6 +5,7 @@
 import { speak, log } from "./announcer.js";
 import { keyName } from "./keys.js";
 import { MenuBar } from "./menu.js";
+import * as ownSounds from "./own_sounds.js";
 import { paintScene } from "./painter.js";
 import * as sounds from "./sounds.js";
 import { Tree } from "./tree.js";
@@ -24,9 +25,18 @@ let lastScene = null, returnFocus = null, describing = false, heldKey = null, la
 let toggles = { "step.link": false, "sound.mute": false, "help.describer": false };
 
 // window.tobymap is for the browser tests and diagnostics only.
-window.tobymap = { announcements: log, earcons: sounds.played, clicks: sounds.clicks, ready: false, error: null,
+window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.heard, clicks: sounds.clicks, ready: false, error: null,
   paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceState: voice.getState };
-const told = new Set();   // voice problems already told, each said once
+const told = new Set();   // voice problems and own sound files that failed, each said once
+
+// Your own sound file could not be played, so the default was: said once for each file (SON-8).
+sounds.setOwnFailed((info) => {
+  const key = `own ${info.event} ${info.custom}`;
+  if (told.has(key)) return;
+  told.add(key);
+  const { width, height } = mapSize();
+  client.send({ type: "earcon_failed", event: info.event, width, height }).then((b) => handle(b)).catch(showError);
+});
 
 function mapSize() {
   const r = mapEl.getBoundingClientRect();
@@ -628,6 +638,7 @@ async function openSettings() {
     if (focus) tabs[i].focus();
   };
   const controls = {};
+  const ownChanges = new Map();   // your own sound files chosen, kept in the browser only on OK
   for (const tab of schema.tabs) {
     const page = addPage(tab.id, tab.label);
     for (const f of tab.fields) {
@@ -647,6 +658,8 @@ async function openSettings() {
         control = document.createElement("input");
         control.type = "checkbox";
         control.checked = !!schema.values[f.id];
+      } else if (f.kind === "sound_file") {
+        control = soundFileField(f, schema.values[f.id], ownChanges);
       } else {
         control = document.createElement("input");
         control.type = f.kind === "number" ? "number" : "text";
@@ -660,6 +673,7 @@ async function openSettings() {
       controls[f.id] = control;
       label.appendChild(control);
       page.appendChild(label);
+      if (control.extras) page.append(" ", ...control.extras);
       page.appendChild(document.createElement("br"));
     }
   }
@@ -692,6 +706,13 @@ async function openSettings() {
   choose(0);
   const bar = document.createElement("div");
   bar.appendChild(button(words.ok, async () => {
+    for (const [event, change] of ownChanges) {
+      try {
+        if (change) await ownSounds.put(event, change.name, change.bytes);
+        else await ownSounds.remove(event);
+      } catch (e) { /* no storage, as in private browsing: the default plays and you are told */ }
+    }
+    if (ownChanges.size) sounds.forgetOwn();
     for (const [id, control] of Object.entries(controls)) {
       const value = control.dataset.kind === "yes_no" ? control.checked
         : control.dataset.kind === "number" ? Number(control.value) : control.value;
@@ -710,6 +731,55 @@ async function openSettings() {
   settingsDialog.appendChild(bar);
   settingsDialog.showModal();
   tabs[0].focus();
+}
+
+// Your own sound file for an earcon (P2-T8b, SON-8, DP123): a read-only box with the file's
+// name, empty for the default, then Choose file and Use the default. A file that is not a
+// WAV sound the browser can play is refused, shown and said. Nothing is kept until OK.
+function soundFileField(f, value, ownChanges) {
+  const control = document.createElement("input");
+  control.type = "text";
+  control.readOnly = true;
+  control.value = value;
+  control.placeholder = words.default_sound;
+  const picker = document.createElement("input");
+  picker.type = "file";
+  picker.accept = ".wav,audio/wav,audio/x-wav,audio/wave";
+  picker.hidden = true;
+  picker.id = `settings-file-${f.earcon}`;
+  const message = document.createElement("span");
+  message.setAttribute("role", "status");
+  message.id = `settings-file-message-${f.earcon}`;
+  const choose = button(words.choose_file, () => picker.click(), `settings-choose-${f.earcon}`);
+  choose.setAttribute("aria-label", words.choose_file_for.replace("{name}", f.name));
+  const useDefault = button(words.use_default, () => {
+    control.value = "";
+    message.textContent = "";
+    ownChanges.set(f.earcon, null);
+    control.focus();
+  }, `settings-default-${f.earcon}`);
+  useDefault.setAttribute("aria-label", words.use_default_for.replace("{name}", f.name));
+  picker.addEventListener("change", async () => {
+    const file = picker.files[0];
+    picker.value = "";
+    if (!file) return;
+    const bytes = await file.arrayBuffer();
+    let ok = ownSounds.isWav(bytes);
+    if (ok) {
+      try { await sounds.audio().decodeAudioData(bytes.slice(0)); } catch (e) { ok = false; }
+    }
+    if (ok) {
+      control.value = file.name;
+      message.textContent = "";
+      ownChanges.set(f.earcon, { name: file.name, bytes });
+    } else {
+      message.textContent = words.file_unreadable.replace("{file}", file.name);   // shown and said once
+      speak(message.textContent, "assertive");
+    }
+    choose.focus();
+  });
+  control.extras = [choose, useDefault, picker, message];   // on the box's line, after its label
+  return control;
 }
 
 function exportSettings() {

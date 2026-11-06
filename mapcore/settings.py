@@ -15,9 +15,34 @@ import yaml
 SCHEMA_FILE = Path(__file__).resolve().parent / "settings.yaml"
 
 
+# Settings renamed since they were first saved: old id -> new id. A saved value
+# under the old id is kept under the new one.
+RENAMED = {"crossed_earcon": "earcon_on_crossed_added"}
+
+
 @lru_cache(maxsize=1)
 def schema() -> dict:
-    return yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8"))
+    data = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8"))
+    for tab in data["tabs"]:
+        each = tab.pop("each_earcon", None)
+        if each:
+            tab["fields"] += earcon_fields(each)
+    return data
+
+
+def earcon_fields(each: dict) -> list[dict]:
+    """A switch and an own file for every earcon (P2-T8; SON-6, SON-8). Every earcon is
+    on at first. The file is a "sound_file": the desktop keeps its path, the web version
+    the name of the file kept in the browser."""
+    from mapcore.describe import earcon_list
+
+    out = []
+    for e in earcon_list():
+        out.append({"id": f"earcon_on_{e['event']}", "label": each["on_label"].format(name=e["label"]),
+                    "kind": "yes_no", "default": True, "earcon": e["event"]})
+        out.append({"id": f"earcon_{e['event']}", "label": each["file_label"].format(name=e["label"]),
+                    "kind": "sound_file", "default": "", "earcon": e["event"], "name": e["label"]})
+    return out
 
 
 def fields() -> dict[str, dict]:
@@ -42,7 +67,7 @@ def checked(field_id: str, value):
         if value not in [c[0] for c in f["choices"]]:
             raise ValueError(f"{value!r} is not a choice for {field_id}")
         return value
-    if kind == "text":
+    if kind in ("text", "sound_file"):
         if not isinstance(value, str):
             raise ValueError(f"{field_id} must be text")
         return value.strip()
@@ -59,6 +84,8 @@ class Settings:
         # The user's changes to layers, by layer id: {"regions": {"on": False}} (SCP-6, SCP-7).
         self.layers: dict[str, dict] = {k: dict(v) for k, v in (layers or {}).items() if isinstance(v, dict)}
         for k, v in (values or {}).items():
+            if k in RENAMED and RENAMED[k] not in (values or {}):
+                k = RENAMED[k]
             self.set(k, v, quiet=True)
 
     def __getitem__(self, field_id: str):

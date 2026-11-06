@@ -118,7 +118,7 @@ def _extras_start(response, out: dict) -> dict:
     out["earcons"] = []
     from mapcore.describe import earcon_list
 
-    out["preload"] = [e["file"] for e in earcon_list() if e.get("phase") == 1]
+    out["preload"] = [_session.earcon_file(e["event"]) for e in earcon_list()]   # every earcon, ready (P2-T8)
     out["save"] = json.dumps(_session.save())
     return out
 

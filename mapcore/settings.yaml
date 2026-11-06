@@ -115,10 +115,6 @@ tabs:
         label: Mute all of TobyMap's sound
         kind: yes_no
         default: false
-      - id: crossed_earcon
-        label: Play a sound when something is added to Crossed and passed
-        kind: yes_no
-        default: true
       - id: sound_mode
         label: Sound in space
         kind: choice
@@ -156,14 +152,21 @@ tabs:
         label: Also speak spatial labels through the screen reader
         kind: yes_no
         default: false
-      - id: earcon_tick
-        label: "Your own sound file for the tick (empty for the default)"
-        kind: text
-        default: ""
-      - id: earcon_blocked
-        label: "Your own sound file for blocked (empty for the default)"
-        kind: text
-        default: ""
+  # The earcons (P2-T8; SON-6, SON-8): the volume, then for every earcon in
+  # mapcore/describe/earcons.yaml a switch, earcon_on_<event>, and your own file,
+  # earcon_<event>, made by mapcore/settings.py from the two labels below.
+  - id: earcons
+    label: Earcons
+    fields:
+      - id: earcon_volume
+        label: "Earcons: volume, in percent"
+        kind: number
+        default: 100
+        min: 0
+        max: 100
+    each_earcon:
+      on_label: "{name}: play it"
+      file_label: "{name}: your own sound file"
   - id: display
     label: Display
     fields:

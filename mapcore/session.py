@@ -343,7 +343,7 @@ class MapSession:
             left += 1
         return {"command": self.holding, "delay_ms": float(self.settings["repeat_delay_ms"]),
                 "every_ms": 1000.0 / rate, "left": left, "unlimited": left >= limit,
-                "tick": not self.settings["mute"], "earcon": self.earcon_file("tick"),
+                "tick": self.earcon_on("tick"), "earcon": self.earcon_file("tick"),
                 "silence_ms": HOLD_SILENCE_S * 1000}
 
     def _draw_due(self, now: float) -> bool:
@@ -446,12 +446,19 @@ class MapSession:
                 for c in registry.for_platform(self.platform) if not c.pointer]
 
     def earcon_file(self, event: str) -> dict:
-        """Which file to play for an earcon (SON-8): the user's own if one is set, else the default."""
+        """Which file to play for an earcon (SON-8): the user's own if one is set, else the
+        default, and how loud, from the earcon volume (P2-T8)."""
         from mapcore.describe import earcon_list
 
         default = next((e["file"] for e in earcon_list() if e["event"] == event), None)
         custom = self.settings.values.get(f"earcon_{event}", "")
-        return {"event": event, "custom": custom or None, "default": default}
+        return {"event": event, "custom": custom or None, "default": default,
+                "gain": self.settings["earcon_volume"] / 100.0}
+
+    def earcon_on(self, event: str) -> bool:
+        """Whether an earcon plays: sound not muted, and its own switch on (P2-T8; SON-6, SON-7).
+        A sound that is not an earcon, such as a layer's own, has no switch."""
+        return not self.settings["mute"] and self.settings.values.get(f"earcon_on_{event}", True)
 
     # The sound scene (P2-T6a; SON-1, SON-2, SON-9, AD-10) --------------------------
 
@@ -473,8 +480,10 @@ class MapSession:
         distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
         ahead = describer.facing(w) or 0.0
         placed = place(sound, bearing, distance, ahead, w.zoom_m, self.curve(), self.settings["sound_mode"],
-                       beyond_tone=self.settings["beyond_view"] == "tone").to_dict()
+                       beyond_tone=self.settings["beyond_view"] == "tone"   # the tone switched off: quiet and muffled
+                       and self.settings["earcon_on_beyond_view"]).to_dict()
         placed["file"] = self.earcon_file(placed["sound"])
+        placed["gain"] *= placed["file"]["gain"]   # the earcon volume (P2-T8)
         return placed
 
     def sound_problem(self, problem: str) -> Response:
@@ -483,7 +492,10 @@ class MapSession:
 
     def earcon_failed(self, event: str) -> Response:
         """The shell could not play the user's own file: the default plays, and the user is told (SON-8)."""
-        return Response().speak(say("sound.own_file_failed", sound=event), ASSERTIVE)
+        from mapcore.describe import earcon_list
+
+        name = next((e["label"] for e in earcon_list() if e["event"] == event), event)
+        return Response().speak(say("sound.own_file_failed", sound=name), ASSERTIVE)
 
     def map_label(self) -> str:
         """The map region's accessible name: the place under the centre."""
@@ -521,6 +533,10 @@ class MapSession:
             response.crossings = []
             response.sounds = []
             response.voice = None
+        elif name != "sound.preview":   # The sounds in Help plays an earcon even when it is switched off
+            response.earcons = [e for e in response.earcons if self.earcon_on(e)]
+            response.crossings = [e for e in response.crossings if self.earcon_on(e)]
+            response.sounds = [s for s in response.sounds if self.earcon_on(s["sound"])]
         spoken = [a["text"] for a in response.announcements if a["channel"] == SPEECH]
         label = response.label
         if label and label not in spoken:   # a spatial label goes into the history too (ANN-4)
@@ -657,7 +673,7 @@ class MapSession:
         self.crossed = list(found)
         self._panel_cache = None
         r = Response(panel_stale=True)
-        if found and self.settings["crossed_earcon"] and not self.settings["mute"]:
+        if found and self.earcon_on("crossed_added"):
             r.earcon("crossed_added")
         return r
 
@@ -1141,7 +1157,8 @@ class MapSession:
                                 "play": say("ui.play"), "text": "\n".join(i["label"] for i in items)})
 
     def _preview(self, event: str = "", **_a) -> Response:
-        """Play one sound from Help, The sounds (DP134). Mute still applies."""
+        """Play one sound from Help, The sounds (DP134). Mute still applies, but the earcon's
+        own switch does not, so you can hear one before switching it on (P2-T8)."""
         return Response().earcon(event)
 
     def _source_text(self, area) -> str:

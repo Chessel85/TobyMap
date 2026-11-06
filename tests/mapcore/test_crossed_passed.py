@@ -141,7 +141,7 @@ def test_a_layer_that_is_off_or_out_of_its_zoom_range_is_left_out(session):
 def test_the_earcon_can_be_switched_off(session):
     line = max(sample("osm:r7703089")["geometry"]["coordinates"], key=len)
     lon, lat = line[len(line) // 2]
-    session.run("settings.set", field="crossed_earcon", value=False)
+    session.run("settings.set", field="earcon_on_crossed_added", value=False)
     place(session, lat, lon - 300 / m_per_deg_lon(lat), 1000)
     _, done = step_east_and_search(session)
     assert labels(session) and done.earcons == []

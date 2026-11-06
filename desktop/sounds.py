@@ -7,10 +7,20 @@ the same time as speech and never waits for it. Tests use RecordingSounds.
 from __future__ import annotations
 
 import time
+import wave
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOUNDS = ROOT / "sounds"
+
+
+def readable_wav(path: Path) -> bool:
+    """Whether a file is a WAV sound TobyMap can play: 8, 16 or 32-bit samples, not empty (SON-8)."""
+    try:
+        with wave.open(str(path)) as w:
+            return w.getnframes() > 0 and w.getsampwidth() in (1, 2, 4)
+    except (OSError, EOFError, wave.Error):
+        return False
 
 
 class SoundPlayer:
@@ -21,7 +31,14 @@ class SoundPlayer:
         self._QUrl, self._Effect = QUrl, QSoundEffect
         self.folder = folder or SOUNDS
         self._effects: dict[str, object] = {}
+        self._readable: dict[str, bool] = {}
         self.failed: list[str] = []
+
+    def _usable(self, path: Path) -> bool:
+        key = str(path)
+        if key not in self._readable:
+            self._readable[key] = readable_wav(path)
+        return self._readable[key]
 
     def _effect(self, path: Path):
         key = str(path)
@@ -41,11 +58,11 @@ class SoundPlayer:
                 if not name:
                     continue
                 path = Path(name) if Path(name).is_absolute() else self.folder / name
-                if path.is_file():
-                    self._warm_up(self._effect(path))
+                if self._usable(path):
+                    self._warm_up(self._effect(path), info.get("gain", 1.0))
                     break
 
-    def _warm_up(self, effect) -> None:
+    def _warm_up(self, effect, gain: float = 1.0) -> None:
         state = {"done": False}
 
         def go():
@@ -53,7 +70,7 @@ class SoundPlayer:
                 return
             state["done"] = True
             effect.setVolume(0.0)
-            effect.playingChanged.connect(lambda: effect.isPlaying() or effect.setVolume(1.0))
+            effect.playingChanged.connect(lambda: effect.isPlaying() or effect.setVolume(gain))
             effect.play()
 
         effect.statusChanged.connect(go)
@@ -62,15 +79,16 @@ class SoundPlayer:
     def play(self, info: dict) -> tuple[bool, bool]:
         """info is the core's earcon_file(): the user's own file, else the default.
         Returns (played, own file failed): if the user's own file cannot be
-        played, the default plays and the caller tells the user (SON-8)."""
+        played, the default plays and the caller tells the user (SON-8). It plays
+        at the earcon volume (P2-T8)."""
         custom_failed = False
         for name in (info.get("custom"), info.get("default")):
             if not name:
                 continue
             path = Path(name) if Path(name).is_absolute() else self.folder / name
-            if path.is_file():
+            if self._usable(path):
                 effect = self._effect(path)
-                effect.setVolume(1.0)   # in case the silent warm-up is still playing
+                effect.setVolume(info.get("gain", 1.0))   # also ends a silent warm-up still playing
                 effect.play()
                 return True, custom_failed
             custom_failed = custom_failed or name == info.get("custom")
@@ -82,6 +100,7 @@ class RecordingSounds:
 
     def __init__(self):
         self.played: list[str] = []
+        self.gains: list[float] = []
         self.failed: list[str] = []
         self.preloaded: list[str] = []
         self.times: list[float] = []   # when each was played, for the held key test (P2-T14)
@@ -91,5 +110,6 @@ class RecordingSounds:
 
     def play(self, info: dict) -> tuple[bool, bool]:
         self.played.append(info["event"])
+        self.gains.append(info.get("gain", 1.0))
         self.times.append(time.perf_counter())
         return True, bool(info.get("custom")) and info["custom"] in self.failed

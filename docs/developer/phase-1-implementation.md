@@ -59,4 +59,4 @@ What was built in P1-T7 to P1-T15, where it is, and why. The design stays in doc
 * Nothing is spoken while a key is held; the first press is announced at once.
 * The widest map views have about 24,000 points (DP125).
 * Settings menu opened with Alt+T (DP126).
-* Own sound files: desktop only (DP123).
+* Own sound files: desktop only (DP123). Since P2-T8, the web version has them too, kept in the browser's storage (web/js/own_sounds.js).

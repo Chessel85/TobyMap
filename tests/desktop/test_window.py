@@ -346,7 +346,7 @@ def test_ctrl_comma_opens_settings_with_ok_and_cancel(window, qtbot):
     dialog = click_dialog(window, SettingsDialog)
     assert dialog.ok_button.text() == "OK" and dialog.cancel_button.text() == "Cancel"
     assert [dialog.tabs.tabText(i) for i in range(dialog.tabs.count())] == \
-        ["Units", "Movement", "Layers", "Sound", "Display", "Keys"]
+        ["Units", "Movement", "Layers", "Sound", "Earcons", "Display", "Keys"]
     dialog.controls["units"].setCurrentIndex(dialog.controls["units"].findData("imperial"))
     dialog.ok_button.click()
     QApplication.processEvents()

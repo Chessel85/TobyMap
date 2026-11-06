@@ -462,9 +462,17 @@ class MainWindow(QMainWindow):
             self._background.start()
 
     def _play(self, event: str) -> None:
-        played, custom_failed = self.sounds.play(self.session.earcon_file(event))
-        if custom_failed:
-            self.handle(self.session.earcon_failed(event))
+        info = self.session.earcon_file(event)
+        played, custom_failed = self.sounds.play(info)
+        self._tell_own_file_failed(info, custom_failed)
+
+    def _tell_own_file_failed(self, info: dict, failed: bool) -> None:
+        """Your own file could not be played, so the default was: said once for each file,
+        not at every step (SON-8)."""
+        told = f"own_file {info['event']} {info.get('custom')}"
+        if failed and told not in self._told:
+            self._told.add(told)
+            self.handle(self.session.earcon_failed(info["event"]))
 
     def _say(self, voice: dict, start_frame: int | None) -> None:
         """A label in the spatial voice (P2-T7). While the voice is starting, each label says so;
@@ -478,8 +486,7 @@ class MainWindow(QMainWindow):
         """A sound placed in space by the core (P2-T6). A missing sound device, or HRTF data, is
         told once, in the core's words, and the sound carries on as well as it can."""
         _played, custom_failed = self.spatial.play(placed)
-        if custom_failed:
-            self.handle(self.session.earcon_failed(placed["sound"]))
+        self._tell_own_file_failed(placed["file"], custom_failed)
         for problem, happened in (("no_device", self.spatial.missing), ("no_hrtf", self.spatial.hrtf_missing)):
             if happened and problem not in self._told:
                 self._told.add(problem)

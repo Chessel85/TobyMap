@@ -1,6 +1,10 @@
-// The stand-in sound player (P1-T10/T11, SON-7): the earcons through Web Audio.
+// The sound player (P1-T10/T11, P2-T8; SON-7, SON-8): the earcons through Web Audio.
 // Each is a short WAV, fetched and decoded once, and played at the same time
-// as speech. The page's mute is the core's: muted earcons never arrive here.
+// as speech, at the earcon volume. The page's mute and each earcon's switch are
+// the core's: an earcon that is off never arrives here. Your own file, kept in the
+// browser (js/own_sounds.js), plays instead of the default; if it cannot be
+// played, the default does and onOwnFailed is called, so you are told.
+import * as own from "./own_sounds.js";
 
 let context = null;
 const buffers = new Map();
@@ -33,11 +37,53 @@ async function load(file) {
   return promise;
 }
 
-export function preload(files) {
-  for (const f of files) load(f).catch(() => {});
+// The decoded sound of your own file for an earcon, kept by its name, so a new file is read again.
+function loadOwn(info) {
+  const key = `own:${info.event}:${info.custom}`;
+  if (buffers.has(key)) return buffers.get(key);
+  const promise = (async () => {
+    const kept = await own.get(info.event);
+    if (!kept || kept.name !== info.custom) throw new Error(`No own sound for ${info.event}`);
+    return audio().decodeAudioData(kept.bytes.slice(0));   // decoding takes the bytes; keep ours
+  })();
+  buffers.set(key, promise);
+  return promise;   // a failure is kept, so it is tried and told only once
 }
 
-// info is the core's earcon_file(). Your own files are a desktop feature: the page plays the default.
+// Called with the core's earcon_file() when your own file could not be played.
+export let onOwnFailed = () => {};
+export function setOwnFailed(callback) { onOwnFailed = callback; }
+
+// Which file each earcon was played from, your own or the default, for the browser tests.
+export const heard = [];
+
+// The sound for an earcon: your own if it plays, else the default.
+async function bufferFor(info, record = false) {
+  if (info.custom) {
+    try {
+      const buffer = await loadOwn(info);
+      if (record) heard.push({ event: info.event, own: true });
+      return buffer;
+    } catch (e) {
+      onOwnFailed(info);
+    }
+  }
+  const buffer = await load(info.default);
+  if (record) heard.push({ event: info.event, own: false });
+  return buffer;
+}
+
+// Forget the decoded sounds of your own files, after they are changed in Settings.
+export function forgetOwn() {
+  for (const key of [...buffers.keys()]) if (key.startsWith("own:")) buffers.delete(key);
+}
+
+// infos are the core's earcon_file() for every earcon.
+export function preload(infos) {
+  for (const info of infos) bufferFor(info).catch(() => {});
+}
+
+// info is the core's earcon_file(): the file and the earcon volume as gain.
 export const played = [];
 // The clicks of a held key: when each was due and when it was set to sound, on
 // the page's clock (performance.now), for the held key test (P2-T14).
@@ -49,11 +95,13 @@ export async function play(info, at) {
   played.push(info.event);
   if (at !== undefined) clicks.push({ due: at, at: Math.max(at, performance.now()) });
   try {
-    const buffer = await load(info.default);
+    const buffer = await bufferFor(info, true);
     const ctx = audio();
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(ctx.destination);
+    const gain = ctx.createGain();
+    gain.gain.value = info.gain === undefined ? 1 : info.gain;
+    source.connect(gain).connect(ctx.destination);
     source.start(at === undefined ? 0 : audioTime(ctx, at));
   } catch (e) {
     // No sound file or no audio: nothing to do, the earcon is only a help.
@@ -77,7 +125,7 @@ export const placed = [];
 // that waits for it can start then; 0 if it did not play.
 export async function playPlaced(p) {
   try {
-    const buffer = await load(p.file.default);
+    const buffer = await bufferFor(p.file);
     const source = connectPlaced(buffer, p);
     source.start();
     return audio().currentTime + buffer.duration / p.pitch;

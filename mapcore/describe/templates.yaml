@@ -40,6 +40,14 @@ ui:
   no_key: no key
   export: Export settings
   import: Import settings
+  # Your own sound file for an earcon, in the Earcons tab of Settings (P2-T8, SON-8)
+  choose_file: Choose file
+  use_default: Use the default
+  choose_file_for: "Choose file for {name}"
+  use_default_for: "Use the default for {name}"
+  default_sound: The default sound
+  sound_files: "Sound files (*.wav)"
+  file_unreadable: "{file} could not be read as a WAV sound file, so the sound is not changed."
   loading: "Loading TobyMap. This can take a few seconds the first time."
 
 panel:

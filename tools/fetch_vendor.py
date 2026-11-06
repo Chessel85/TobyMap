@@ -4,6 +4,10 @@
   web/vendor/pyodide, for the web shell (AD-9). Pyodide is MPL-2.0; NumPy is
   BSD; PyYAML is MIT; Shapely is BSD-3-Clause, with GEOS (LGPL-2.1) built in.
   Shapely is used by the pack reader, from spike S4 on.
+* coi-serviceworker 0.1.7 (MIT, Guido Zuidhof and contributors), into web/,
+  with --web: the small helper script that makes the page cross-origin isolated
+  where the server cannot send the headers, as on GitHub Pages, so the spatial
+  voice can use four threads (DP105, P2-T7b).
 * The NVDA Controller Client, 64-bit, into desktop/vendor, for Braille-only
   messages (architecture 4.4). It is LGPL-2.1.
 * The MIT KEMAR head-related impulse responses (Gardner and Martin, MIT Media
@@ -12,12 +16,15 @@
 * Piper in the browser (spike S6, architecture 4.6), into web/vendor/piper:
   ONNX Runtime Web (MIT), which runs the voice, and phonemizer.js
   (Apache-2.0, with the eSpeak NG library and data built in, GPL-3.0), which
-  turns text into the sounds of speech as Piper expects. Only with --piper.
+  turns text into the sounds of speech as Piper expects, and the Alba voice. Only with --piper.
+* The Alba voice for Piper (Scottish English, female, CC-BY 4.0, from
+  rhasspy/piper-voices), into desktop/vendor/piper, for the desktop's spatial
+  voice (P2-T7, SON-3). About 63 MB. With --voice, or --piper for the web copy.
 
 Each download is checked against a pinned SHA-256, so a changed file is never
 used silently. Already-present files are kept.
 
-Run: python tools/fetch_vendor.py [--web] [--nvda] [--kemar] [--piper] [--axe]   (--web, --nvda and --kemar if none is given)
+Run: python tools/fetch_vendor.py [--web] [--nvda] [--kemar] [--voice] [--piper] [--axe]   (--web, --nvda and --kemar if none is given)
 Standard library only.
 """
 from __future__ import annotations
@@ -44,6 +51,10 @@ PYODIDE_PACKAGES = ("numpy", "pyyaml", "shapely")
 PYODIDE_DIR = ROOT / "web" / "vendor" / "pyodide"
 # Node.js launchers and type files in the archive, which a browser never loads.
 BROWSER_UNUSED = {"python", "python.bat", "python.exe", "python_cli_entry.mjs"}
+
+COI_URL = "https://registry.npmjs.org/coi-serviceworker/-/coi-serviceworker-0.1.7.tgz"
+COI_SHA256 = "6a546d4748e215220de923cf5dbb887104cec1aa7bb9afc2e925ba376a229616"
+COI_FILE = ROOT / "web" / "coi-serviceworker.js"
 
 NVDA_VERSION = "2026.3"
 NVDA_URL = f"https://download.nvaccess.org/releases/{NVDA_VERSION}/nvda_{NVDA_VERSION}_controllerClient.zip"
@@ -75,6 +86,23 @@ PIPER_NOTICE = """Third-party files for Piper in the browser, fetched by tools/f
   ort.wasm.min.mjs, ort-wasm-simd-threaded.mjs and ort-wasm-simd-threaded.wasm.
 * phonemizer.js 1.2.1, Xenova, Apache-2.0 (github.com/xenova/phonemizer.js), see phonemizer-LICENSE.txt.
   It has the eSpeak NG library and its data built in, GPL-3.0 (github.com/espeak-ng/espeak-ng).
+"""
+
+
+# The Alba voice (P2-T7, SON-3): {file name: SHA-256}, from Piper's voice collection, version 1.0.0.
+VOICE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alba/medium/"
+VOICE_FILES = {
+    "en_GB-alba-medium.onnx": "401369c4a81d09fdd86c32c5c864440811dbdcc66466cde2d64f7133a66ad03b",
+    "en_GB-alba-medium.onnx.json": "aa965a2f02ecced632c2694e1fc72bbff6d65f265fab567ca945918c73dd89f4",
+    "MODEL_CARD": "fa166b1779404c470b0b6b4ba0238bc4a35bf89d2cd130c6788f697188b737d6",
+}
+VOICE_DIR = ROOT / "desktop" / "vendor" / "piper"
+VOICE_NOTICE = """The Alba voice for Piper, fetched by tools/fetch_vendor.py.
+
+Voice: Alba, Scottish English female, medium quality, from Piper voices (github.com/rhasspy/piper,
+huggingface.co/rhasspy/piper-voices), trained on the Alba recordings of the University of Edinburgh
+(datashare.ed.ac.uk/handle/10283/3270), licensed CC-BY 4.0 (creativecommons.org/licenses/by/4.0).
+See MODEL_CARD.
 """
 
 
@@ -128,6 +156,17 @@ def fetch_pyodide() -> None:
     print(f"Pyodide {PYODIDE_VERSION} is in {PYODIDE_DIR}")
 
 
+def fetch_coi() -> None:
+    """The helper script must be at the top of the site, so its scope covers the page."""
+    if not COI_FILE.is_file():
+        data = download(COI_URL)
+        check(data, COI_SHA256, "coi-serviceworker 0.1.7")
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+            COI_FILE.write_bytes(tar.extractfile("package/coi-serviceworker.js").read())
+            (COI_FILE.parent / "coi-serviceworker-LICENSE.txt").write_bytes(tar.extractfile("package/LICENSE").read())
+    print(f"coi-serviceworker is in {COI_FILE.parent}")
+
+
 def fetch_nvda() -> None:
     target = NVDA_DIR / "nvdaControllerClient.dll"
     if not target.is_file():
@@ -161,6 +200,31 @@ def fetch_piper() -> None:
                 (PIPER_DIR / name).write_bytes(tar.extractfile(member).read())
     (PIPER_DIR / "NOTICE.txt").write_text(PIPER_NOTICE, encoding="utf-8")
     print(f"ONNX Runtime Web and phonemizer.js are in {PIPER_DIR}")
+    fetch_voice(PIPER_DIR / "voice")
+
+
+def fetch_voice(folder: Path = VOICE_DIR) -> None:
+    """The Alba voice into folder, copied from the other copy if it is there, else downloaded."""
+    folder.mkdir(parents=True, exist_ok=True)
+    others = [d for d in (VOICE_DIR, PIPER_DIR / "voice", ROOT / "voices" / "piper") if d != folder]
+    for name, sha in VOICE_FILES.items():
+        target = folder / name
+        if target.is_file():
+            continue
+        data = None
+        for other in others:
+            for candidate in (other / name, other / name.replace("MODEL_CARD", "en_GB-alba-medium.MODEL_CARD.txt")):
+                if candidate.is_file() and hashlib.sha256(candidate.read_bytes()).hexdigest() == sha:
+                    data = candidate.read_bytes()
+                    break
+            if data:
+                break
+        if data is None:
+            data = download(VOICE_URL + name)
+            check(data, sha, f"the Alba voice, {name}")
+        target.write_bytes(data)
+    (folder / "NOTICE.txt").write_text(VOICE_NOTICE, encoding="utf-8")
+    print(f"The Alba voice is in {folder}")
 
 
 def fetch_axe() -> None:
@@ -179,16 +243,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--web", action="store_true", help="Pyodide for the web shell")
     parser.add_argument("--nvda", action="store_true", help="the NVDA Controller Client for the desktop")
     parser.add_argument("--kemar", action="store_true", help="the MIT KEMAR responses, for the desktop's HRTF mode")
-    parser.add_argument("--piper", action="store_true", help="ONNX Runtime Web and phonemizer.js, for Piper in the browser")
+    parser.add_argument("--voice", action="store_true", help="the Alba voice, for the desktop's spatial voice")
+    parser.add_argument("--piper", action="store_true", help="ONNX Runtime Web, phonemizer.js and the Alba voice, for Piper in the browser")
     parser.add_argument("--axe", action="store_true", help="axe-core, for the browser tests' accessibility check (test tool only)")
     args = parser.parse_args(argv)
-    both = not (args.web or args.nvda or args.kemar or args.piper or args.axe)
+    both = not (args.web or args.nvda or args.kemar or args.voice or args.piper or args.axe)
     if args.web or both:
         fetch_pyodide()
+        fetch_coi()
     if args.nvda or both:
         fetch_nvda()
     if args.kemar or both:
         fetch_kemar()
+    if args.voice:
+        fetch_voice()
     if args.piper:
         fetch_piper()
     if args.axe:

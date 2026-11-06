@@ -1,12 +1,18 @@
 # User Experience Description
 
-Version 0.7, 6 November 2026. Sections 8.2 and 8.3 now follow your answers to DP100 and DP137.
+Version 0.8, 6 November 2026. Section 8.5 now says how "hear its direction" works in Phase 2 (DP143).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.8
+
+Made in P2-T7, the spatial voice.
+
+* Section 8.5: in Phase 2, "hear its direction" is Space on an item of Nearby or Crossed and passed, your key from the key list (DP143). The item's sound plays first, then its name and distance in the spatial voice, from the same place, such as "France, 34 kilometres". The web version has no Braille-only route, so there the label reaches the screen reader only if "also speak spatial labels" is on.
 
 ## Changes in version 0.7
 
@@ -440,12 +446,14 @@ B switches on the orientation beacon (SON-10). It is a soft repeating sound that
 
 ### 8.5 Hearing where things are
 
-* "Hear its direction" on any item plays its layer's sound from that feature's direction and distance.
+* "Hear its direction" on any item plays its layer's sound from that feature's direction and distance, then says its name and distance in the built-in voice from the same place, such as "France, 34 kilometres". A layer with no sound of its own plays the "item's direction" sound.
+  * In Phase 2 it is Space on an item of Nearby or Crossed and passed, in the Information panel (DP143). It joins the item's actions (section 6.3) when they are built.
+  * A newer label stops one still being said.
 * Look around (L, SON-4) plays the Nearby list as sound. Nearby (R) gives you the features as a list to read. Look around plays the same features one after another in bearing order, clockwise from ahead, each from its own direction, at most 12 of them. So anything you hear in a scan is also in Nearby in the Information panel. Each feature's name is spoken from the same place as its sound (SON-3, DP39).
 * The spoken names come from a voice built into the application, because a screen reader voice cannot be placed in space (DP46). The defaults are:
   * The screen reader does not also speak the name, so you do not hear everything twice.
   * The names are added to the announcement history, so they can be reviewed afterwards.
-  * On the desktop with NVDA, the names are also sent to the Braille display without being spoken.
+  * On the desktop with NVDA, the names are also sent to the Braille display without being spoken. A browser has no way to send Braille alone, so in the web version the names reach the screen reader only when the setting below is on.
   * A setting, "also speak spatial labels through the screen reader", is off by default.
   * The built-in voice has its own speed and volume settings.
 

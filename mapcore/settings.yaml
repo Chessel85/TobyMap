@@ -140,6 +140,22 @@ tabs:
         kind: choice
         default: quiet
         choices: [[quiet, "At the minimum volume, muffled"], [tone, "A fixed tone"]]
+      - id: voice_volume
+        label: "Spatial voice: volume, in percent"
+        kind: number
+        default: 100
+        min: 0
+        max: 100
+      - id: voice_rate
+        label: "Spatial voice: speed, in percent"
+        kind: number
+        default: 100
+        min: 50
+        max: 200
+      - id: voice_also_speak
+        label: Also speak spatial labels through the screen reader
+        kind: yes_no
+        default: false
       - id: earcon_tick
         label: "Your own sound file for the tick (empty for the default)"
         kind: text

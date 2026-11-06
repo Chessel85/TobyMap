@@ -1,0 +1,7 @@
+A first visit fetches 75.8 MB for the voice, or about 60.0 MB if the server compresses it (gzip):
+  ort.wasm.min.mjs: 0.05 MB, 0.02 MB compressed
+  ort-wasm-simd-threaded.mjs: 0.02 MB, 0.01 MB compressed
+  ort-wasm-simd-threaded.wasm: 14.16 MB, 3.68 MB compressed
+  phonemizer.js: 1.26 MB, 0.65 MB compressed
+  en_GB-alba-medium.onnx: 60.27 MB, 55.64 MB compressed
+  en_GB-alba-medium.onnx.json: 0.00 MB, 0.00 MB compressed

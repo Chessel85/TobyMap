@@ -49,7 +49,7 @@ jobs:
           path: web/vendor
           key: pyodide-${{ hashFiles('tools/fetch_vendor.py') }}
       - name: Fetch Pyodide
-        run: python tools/fetch_vendor.py --web --axe
+        run: python tools/fetch_vendor.py --web --axe --piper
       - name: Browser tests
         # pytest-qt is not needed here, and Qt cannot load on the bare Linux runner.
         run: python -m pytest tests/web -p no:pytest-qt --browser chromium --browser firefox

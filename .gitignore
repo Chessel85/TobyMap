@@ -37,6 +37,9 @@ sounds/*.ogg
 !sounds/equatorCrossed.wav
 # A staged copy of the sounds folder, made by tools/stage_web.py
 /web/sounds/
+# The cross-origin isolation helper, fetched by tools/fetch_vendor.py --web
+/web/coi-serviceworker.js
+/web/coi-serviceworker-LICENSE.txt
 /voices/
 
 # Build output

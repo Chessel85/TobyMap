@@ -5,7 +5,7 @@
 let context = null;
 const buffers = new Map();
 
-function audio() {
+export function audio() {
   if (!context) {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
@@ -73,35 +73,46 @@ function audioTime(ctx, at) {
 // placed is the list of what was made, for the browser tests.
 export const placed = [];
 
+// Plays a placed sound and gives the time on the sound card's clock when it ends, so a label
+// that waits for it can start then; 0 if it did not play.
 export async function playPlaced(p) {
   try {
     const buffer = await load(p.file.default);
-    const ctx = audio();
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.playbackRate.value = p.pitch;                  // lower behind you, in both modes
-    const filter = ctx.createBiquadFilter();               // the muffling
-    filter.type = "lowpass";
-    filter.frequency.value = Math.min(p.cutoff_hz, ctx.sampleRate / 2);
-    filter.Q.value = -3.0103;                              // in decibels: no peak at the cut-off
-    const gain = ctx.createGain();
-    gain.gain.value = p.gain;
-    let panner;
-    if (p.mode === "hrtf") {
-      // Web Audio's own HRTF. The listener faces -z with +x to the right; the distance
-      // is the core's loudness, so the panner itself changes nothing with distance.
-      const r = (p.relative_deg * Math.PI) / 180;
-      panner = new PannerNode(ctx, { panningModel: "HRTF", distanceModel: "linear", rolloffFactor: 0,
-        positionX: Math.sin(r), positionY: 0, positionZ: -Math.cos(r) });
-    } else {
-      panner = new StereoPannerNode(ctx, { pan: p.pan });  // equal-power, as the desktop's
-    }
-    source.connect(filter).connect(gain).connect(panner).connect(ctx.destination);
-    placed.push({ sound: p.sound, mode: p.mode, pitch: source.playbackRate.value, cutoff_hz: filter.frequency.value,
-      gain: gain.gain.value, pan: p.mode === "hrtf" ? null : panner.pan.value,
-      x: p.mode === "hrtf" ? panner.positionX.value : null, z: p.mode === "hrtf" ? panner.positionZ.value : null });
+    const source = connectPlaced(buffer, p);
     source.start();
+    return audio().currentTime + buffer.duration / p.pitch;
   } catch (e) {
     // No sound file or no audio: nothing to do; the sound is only a help.
+    return 0;
   }
+}
+
+// A buffer through the core's numbers: pitch, muffling, loudness, then the pan or the browser's
+// HRTF. Gives the source, not started. The spatial voice uses it too (js/voice.js).
+export function connectPlaced(buffer, p) {
+  const ctx = audio();
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.playbackRate.value = p.pitch;                  // lower behind you, in both modes
+  const filter = ctx.createBiquadFilter();               // the muffling
+  filter.type = "lowpass";
+  filter.frequency.value = Math.min(p.cutoff_hz, ctx.sampleRate / 2);
+  filter.Q.value = -3.0103;                              // in decibels: no peak at the cut-off
+  const gain = ctx.createGain();
+  gain.gain.value = p.gain;
+  let panner;
+  if (p.mode === "hrtf") {
+    // Web Audio's own HRTF. The listener faces -z with +x to the right; the distance
+    // is the core's loudness, so the panner itself changes nothing with distance.
+    const r = (p.relative_deg * Math.PI) / 180;
+    panner = new PannerNode(ctx, { panningModel: "HRTF", distanceModel: "linear", rolloffFactor: 0,
+      positionX: Math.sin(r), positionY: 0, positionZ: -Math.cos(r) });
+  } else {
+    panner = new StereoPannerNode(ctx, { pan: p.pan });  // equal-power, as the desktop's
+  }
+  source.connect(filter).connect(gain).connect(panner).connect(ctx.destination);
+  placed.push({ sound: p.sound, mode: p.mode, pitch: source.playbackRate.value, cutoff_hz: filter.frequency.value,
+    gain: gain.gain.value, pan: p.mode === "hrtf" ? null : panner.pan.value,
+    x: p.mode === "hrtf" ? panner.positionX.value : null, z: p.mode === "hrtf" ? panner.positionZ.value : null });
+  return source;
 }

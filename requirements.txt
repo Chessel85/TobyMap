@@ -10,3 +10,6 @@ PyYAML==6.0.3
 geographiclib==2.1
 # Plays the sounds placed in space on the desktop (AD-10, P2-T6b). MIT, with PortAudio (MIT) inside. Desktop only.
 sounddevice==0.5.6
+# The spatial voice on the desktop (P2-T7a, SON-3): Piper (GPL-3.0-or-later), with ONNX Runtime (MIT)
+# and the eSpeak NG data built in (GPL-3.0). Desktop only; the web version runs its own copy (P2-T7b).
+piper-tts==1.8.0

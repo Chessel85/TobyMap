@@ -115,7 +115,7 @@ def key_of(command: Command, overrides: dict | None = None) -> str:
 
 def keymap(platform: str, overrides: dict | None = None) -> dict[str, dict[str, str]]:
     """{region: {key: command name}} for one platform."""
-    out: dict[str, dict[str, str]] = {"map": {}, "global": {}}
+    out: dict[str, dict[str, str]] = {"map": {}, "panel": {}, "global": {}}
     for c in for_platform(platform):
         key = key_of(c, overrides)
         if key:
@@ -124,12 +124,10 @@ def keymap(platform: str, overrides: dict | None = None) -> dict[str, dict[str, 
 
 
 def command_for_key(platform: str, key: str, region: str = "map", overrides: dict | None = None) -> Command | None:
-    """The command a key runs when the given region has focus: the map's own
-    keys first when the map has focus, then the keys that work anywhere."""
-    for c in for_platform(platform):
-        if key_of(c, overrides) == key and (c.region == "global" or (c.region == "map" and region == "map")):
-            return c
-    return None
+    """The command a key runs when the given region has focus: the region's own
+    keys (the map's, or the Information panel's), then the keys that work anywhere."""
+    found = [c for c in for_platform(platform) if key_of(c, overrides) == key and c.region in (region, "global")]
+    return next((c for c in found if c.region == region), found[0] if found else None)
 
 
 def commands_for_key(platform: str, key: str, overrides: dict | None = None) -> list[Command]:

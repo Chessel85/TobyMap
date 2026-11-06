@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
     REGIONS = ("map", "panel", "details")  # Tab never goes to the menu bar (DP93)
 
     def __init__(self, session: MapSession | None = None, announcer=None, sounds=None, data_folder=None,
-                 install_filter: bool = True, start_at: str | None = None, spatial=None):
+                 install_filter: bool = True, start_at: str | None = None, spatial=None, voice=None):
         super().__init__()
         self.data_folder = data_folder
         self.session = session or self._new_session(start_at)
@@ -183,6 +183,12 @@ class MainWindow(QMainWindow):
 
             spatial = SpatialPlayer() if sounds is None else RecordingSpatial()
         self.spatial = spatial
+        # The spatial voice (P2-T7a): loaded on a thread of its own while TobyMap starts.
+        if voice is None:
+            from desktop.audio.voice import RecordingVoice, SpatialVoice
+
+            voice = SpatialVoice(spatial) if sounds is None else RecordingVoice()
+        self.voice = voice
         self._told: set[str] = set()   # sound problems already told, each said once
         self._registry = self.session.registry()
         self._dialogs: list[QDialog] = []
@@ -256,6 +262,7 @@ class MainWindow(QMainWindow):
         self._hold_clock.stop()
         QApplication.instance().removeEventFilter(self._key_filter)
         self.map.stop_drawing()
+        self.voice.close()
         self.spatial.close()
         self.session.store.close()
         super().closeEvent(event)
@@ -418,7 +425,7 @@ class MainWindow(QMainWindow):
     def handle(self, response, key_at: float | None = None):
         for a in response.announcements:
             if a["channel"] == "braille":
-                if not self.announcer.braille(a["text"]):
+                if not self.announcer.braille(a["text"]) and a.get("fallback"):
                     self.announcer.speak(a["fallback"], "polite")
             else:
                 self.announcer.speak(a["text"], a["priority"])
@@ -427,6 +434,8 @@ class MainWindow(QMainWindow):
             self._play(event)
         for placed in response.sounds:
             self._play_placed(placed)
+        if response.voice:
+            self._say(response.voice, self.spatial.last_end if response.voice["after"] and response.sounds else None)
         if response.announcements or response.earcons:
             from mapcore import diagnostics
 
@@ -456,6 +465,14 @@ class MainWindow(QMainWindow):
         played, custom_failed = self.sounds.play(self.session.earcon_file(event))
         if custom_failed:
             self.handle(self.session.earcon_failed(event))
+
+    def _say(self, voice: dict, start_frame: int | None) -> None:
+        """A label in the spatial voice (P2-T7). While the voice is starting, each label says so;
+        a voice that is missing or would not start is told once."""
+        state = self.voice.say(voice, start_frame)
+        if state == "loading" or (state in ("missing", "failed") and f"voice_{state}" not in self._told):
+            self._told.add(f"voice_{state}")
+            self.handle(self.session.voice_problem(state))
 
     def _play_placed(self, placed: dict) -> None:
         """A sound placed in space by the core (P2-T6). A missing sound device, or HRTF data, is

@@ -136,7 +136,8 @@ function finish(result) {
 }
 
 self.onmessage = async (event) => {
-  const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs } = event.data;
+  const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs,
+          problem } = event.data;
   try {
     await ready;
     let out;
@@ -150,6 +151,7 @@ self.onmessage = async (event) => {
     else if (type === "schema") out = { result: bridge.settings_schema(), transfer: [] };
     else if (type === "key_text") out = { result: bridge.key_text(key), transfer: [] };
     else if (type === "earcon_failed") out = finish(bridge.earcon_failed(earcon, width, height));
+    else if (type === "voice_problem") out = finish(bridge.voice_problem(problem, width, height));
     else if (type === "painted") { bridge.frame_painted(paintMs); out = { result: null, transfer: [] }; }
     else if (type === "shell_times") { bridge.shell_times(keyMs, handedMs); out = { result: null, transfer: [] }; }
     else if (type === "packcheck") out = { result: bridge.pack_selfcheck(), transfer: [] };

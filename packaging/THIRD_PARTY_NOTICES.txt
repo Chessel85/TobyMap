@@ -20,12 +20,25 @@ Libraries in the desktop application
 * The MIT KEMAR head-related impulse responses, by Bill Gardner and Keith
   Martin, MIT Media Lab, 1994, provided without usage restrictions. Used by
   the HRTF sound mode, as desktop/vendor/mit_kemar_compact.zip.
+* Piper, by Michael Hansen and contributors (github.com/rhasspy/piper, now
+  OHF-Voice/piper1-gpl). GNU General Public License version 3 or later. It
+  makes the spatial voice's labels, with the eSpeak NG data (GNU General Public
+  License version 3) it includes.
+* ONNX Runtime, Microsoft. MIT License. It runs the voice model for Piper.
+* pathvalidate, by Tsuyoshi Hombashi. MIT License. Used by Piper.
+* FlatBuffers (Apache License 2.0), Protocol Buffers (BSD 3-Clause License)
+  and packaging (Apache License 2.0 or BSD 2-Clause License), used by ONNX Runtime.
 
 Libraries in the web version
 
 * Pyodide. Mozilla Public License 2.0.
 * NumPy, PyYAML and Shapely, as above, built for Pyodide.
 * GeographicLib for Python, as above, copied with the core.
+* ONNX Runtime Web, Microsoft. MIT License. It runs the voice model in the browser.
+* phonemizer.js, by Joshua Lochner (Xenova). Apache License 2.0. It includes
+  the eSpeak NG library and data, GNU General Public License version 3.
+* coi-serviceworker, by Guido Zuidhof and contributors. MIT License. It makes
+  the page cross-origin isolated, so the voice can use four threads.
 
 Data
 
@@ -33,6 +46,14 @@ Data
   * OpenStreetMap: countries, first-level divisions and the land. (c) OpenStreetMap contributors, Open Database Licence 1.0. https://www.openstreetmap.org/copyright
   * Flanders Marine Institute (VLIZ), Global Oceans and Seas, version 1, 2021. CC-BY 4.0. https://www.marineregions.org/ https://doi.org/10.14284/542
 * Natural Earth, public domain, https://www.naturalearthdata.com. Used in the automatic tests only.
+
+The spatial voice
+
+* Alba, Scottish English female, medium quality, from Piper voices
+  (huggingface.co/rhasspy/piper-voices). Trained on the Alba recordings of the
+  University of Edinburgh (datashare.ed.ac.uk/handle/10283/3270). Creative
+  Commons Attribution 4.0 (CC-BY 4.0). In both the desktop application and the
+  web version, with its model card.
 
 Sounds
 

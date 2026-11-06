@@ -32,6 +32,32 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+class _IsolatedHandler(_QuietHandler):
+    """Sends the two headers that make the page cross-origin isolated, as tools/serve_web.py does,
+    so the spatial voice can use four threads (DP105)."""
+
+    def end_headers(self):
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        super().end_headers()
+
+
+def _serve(handler_class):
+    handler = functools.partial(handler_class, directory=str(WEB_DIR))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+@pytest.fixture(scope="session")
+def plain_site_url(site_url):
+    """The same site with no isolating headers, as GitHub Pages serves it: the helper script,
+    coi-serviceworker.js, has to make the page isolated (P2-T7b)."""
+    server = _serve(_QuietHandler)
+    yield f"http://127.0.0.1:{server.server_address[1]}"
+    server.shutdown()
+
+
 @pytest.fixture(scope="session")
 def site_url(test_pack):
     if not (WEB_DIR / "vendor" / "pyodide" / "pyodide.mjs").is_file():
@@ -46,10 +72,7 @@ def site_url(test_pack):
     shutil.copyfile(test_pack, packs / "test.pack")
     (packs / "packs.json").write_text(
         json.dumps({"packs": [{"file": "test.pack", "bytes": (packs / "test.pack").stat().st_size}]}), encoding="utf-8")
-    handler = functools.partial(_QuietHandler, directory=str(WEB_DIR))
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    server = _serve(_IsolatedHandler)
     yield f"http://127.0.0.1:{server.server_address[1]}"
     server.shutdown()
     shutil.rmtree(packs, ignore_errors=True)

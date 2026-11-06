@@ -6,7 +6,8 @@
 #   name: the command name the shells send to the core
 #   label: the words used in menus, help and the key describer
 #   key: the default key, in the shared key names (see registry.py), or empty
-#   region: "map" (only when the map has focus) or "global" (anywhere)
+#   region: "map" (only when the map has focus), "panel" (only in the
+#     Information panel) or "global" (anywhere)
 #   menu: the menu it appears in, or empty for none
 #   platforms: desktop, web or both
 #   latest_only: if keys arrive faster than they can be handled, only the
@@ -60,6 +61,8 @@ commands:
   - {name: focus.details, label: Go to Details, key: F4, region: global, menu: Map}
   # Crossed and passed (ANN-2, INF-10): your key, from the key list (DP109).
   - {name: panel.crossed, label: Go to Crossed and passed, key: Shift+5, region: global, menu: Map}
+  # Hear its direction (DP143, SON-3): your key, from the key list. On an item of Nearby or Crossed and passed.
+  - {name: panel.hear, label: Hear its direction, key: Space, region: panel, menu: ""}
   - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
   - {name: speech.repeat, label: Repeat the last announcement, key: Shift+Space, region: global, menu: Speech}

@@ -40,7 +40,7 @@ PLACE_COMMANDS = {"start", "release", "move.north", "move.south", "move.east", "
                   "step.larger", "step.smaller", "step.link", "where.am_i", "where.coordinates", "where.heading",
                   "where.visible", "map.click", "map.hover", "map.drag", "orientation.cycle", "turn.left",
                   "turn.right", "turn.fine_left", "turn.fine_right", "bearing.set", "goto.set", "history.back",
-                  "history.forward", "history.go", "layers.set"}
+                  "history.forward", "history.go", "layers.set", "panel.hear"}
 REGIONS = ("map", "panel", "details", "menu")
 # Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
 # the times the core gives, so the clicks never wait for the map to be drawn.
@@ -69,6 +69,13 @@ class Response:
     # Sounds placed in space by the sound scene (P2-T6, AD-10): each is mapcore.sound.scene.Placed
     # as a dict, with "file", the earcon_file() to play. The shells' sound players carry them out.
     sounds: list[dict] = field(default_factory=list)
+    # A label in the spatial voice (P2-T7, SON-3, AD-10): {"text", "placed", "rate", "after"}.
+    # placed is the sound scene's Placed as a dict, for the voice; rate is the speed, 1 normal;
+    # after says the label waits for the sounds of this response to finish. A newer label
+    # stops an older one that is still playing (ANN-3).
+    voice: dict | None = None
+    # A spatial label for the announcement history, kept even when muted (ANN-4). Not sent to the shells.
+    label: str | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -81,6 +88,7 @@ class Response:
     def to_dict(self) -> dict:
         out = asdict(self)
         out.pop("crossings")
+        out.pop("label")
         return out
 
 
@@ -144,6 +152,7 @@ class MapSession:
         self._crossed_job: dict | None = None
         self._held_path: list = []        # the path of a held key's steps, joined, until the release
         self._panel_cache: tuple | None = None
+        self._spots: dict[str, tuple] = {}   # panel item id: (feature, lat, lon) of Nearby and Crossed and passed
         self._scene = None
         self._handlers = {
             "move.north": lambda **a: self._move("north", **a),
@@ -165,6 +174,7 @@ class MapSession:
             "focus.menu": lambda **a: Response(focus={"region": "menu"}),
             "panel.select": self._select,
             "panel.crossed": lambda **a: Response(focus={"region": "panel", "group": "crossed"}, panel_stale=True),
+            "panel.hear": self._hear,
             "speech.repeat": self._repeat,
             "speech.history": self._history,
             "speech.braille_test": self._braille_test,
@@ -252,6 +262,9 @@ class MapSession:
             merged.settings_changed |= r.settings_changed
             merged.background |= r.background
             merged.error = r.error or merged.error
+            merged.sounds += r.sounds
+            merged.voice = r.voice or merged.voice
+            merged.label = r.label or merged.label
         return merged
 
     def press(self, key: str, region: str = "map") -> Response | None:
@@ -382,6 +395,8 @@ class MapSession:
                                  layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom)
                                  and self._interval_ok(a.record))
         units = self.settings["units"]
+        self._spots = {n.area.id: (n.area, n.lat, n.lon) for n in near[:count]}
+        self._spots.update({c.area.id: (c.area, c.lat, c.lon) for c in self.crossed})
         nearby = [{"id": n.area.id, "label": describer.nearby_label(n, units, self.settings["bearing"], heading),
                    "level": 1} for n in near[:count]]
         groups = [
@@ -505,7 +520,11 @@ class MapSession:
             response.earcons = []
             response.crossings = []
             response.sounds = []
+            response.voice = None
         spoken = [a["text"] for a in response.announcements if a["channel"] == SPEECH]
+        label = response.label
+        if label and label not in spoken:   # a spatial label goes into the history too (ANN-4)
+            spoken.append(label)
         if spoken and name not in ("speech.repeat", "speech.history"):
             self.last_spoken = " ".join(spoken)
             self.history.append(self.last_spoken)
@@ -921,6 +940,40 @@ class MapSession:
         self.selected = item
         return Response(redraw=True, details_stale=True)
 
+    def _hear(self, item: str | None = None, **_a) -> Response:
+        """Hear its direction (DP143, SON-3): on an item of Nearby or Crossed and passed, its
+        layer's sound from its direction and distance, then its name and distance in the spatial
+        voice from the same place. The label also goes to Braille without speech, to the history,
+        and, if that setting is on, to the screen reader (ANN-4, ACC-1). Nothing is played here:
+        the sound scene says how, and the shells play it (AD-10)."""
+        from mapcore.sound.scene import place
+
+        self.panel()   # the items' places are kept as the panel is made
+        spot = self._spots.get(item or self.panel_item or "")
+        if spot is None:
+            return Response().speak(say("hear.choose"), ASSERTIVE)
+        area, lat, lon = spot
+        w = self.world
+        distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
+        label = say("hear.label", name=area.name, distance=words.distance_text(distance, self._units()))
+        r = Response()
+        layer = self.layers.get(area.layer)
+        r.sounds.append(self.place_sound((layer.sound if layer else None) or "item_direction", lat, lon))
+        voice = place("voice", bearing, distance, describer.facing(w) or 0.0, w.zoom_m, self.curve(),
+                      self.settings["sound_mode"]).to_dict()   # the label is never swapped for the fixed tone
+        voice["gain"] *= self.settings["voice_volume"] / 100.0
+        r.voice = {"text": label, "placed": voice, "rate": self.settings["voice_rate"] / 100.0, "after": True}
+        if self.settings["voice_also_speak"]:   # the screen reader speaks it, and brailles it as it does all speech
+            r.speak(label, POLITE)
+        elif self.platform == "desktop":         # Braille without speech; a browser has no such route
+            r.announcements.append({"text": label, "channel": BRAILLE, "priority": POLITE, "fallback": None})
+        r.label = label
+        return r
+
+    def voice_problem(self, problem: str) -> Response:
+        """The shell's voice could not do something: "missing", "failed" or "loading" (P2-T7)."""
+        return Response().speak(say(f"voice.{problem}"), ASSERTIVE)
+
     def _repeat(self, **_a) -> Response:
         return Response().speak(self.last_spoken or say("history.nothing_to_repeat"), ASSERTIVE)
 
@@ -1053,7 +1106,7 @@ class MapSession:
         region_name = say(f"ui.{'menu_bar' if region == 'menu' else region}")
         lines = [line.format(region=region_name) for line in templates()["dialogs"]["keys_intro_region"]]
         for c in registry.for_platform(self.platform):
-            if c.pointer or (c.region == "map" and region != "map"):
+            if c.pointer or c.region not in ("global", region):
                 continue
             key = registry.key_of(c, self.settings.keys)
             lines.append(say("dialogs.keys_line", label=c.label, key=registry.key_text(key)) if key

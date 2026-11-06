@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TobyMap</title>
 <link rel="stylesheet" href="css/app.css">
+<!-- Cross-origin isolation, so the spatial voice can use four threads (DP105, P2-T7b). Where the
+     server cannot send the headers, as on GitHub Pages, this helper script adds them, and reloads
+     the page once on the first visit. ?threads=1 in the address leaves it out. -->
+<script>window.coi = { shouldRegister: () => new URLSearchParams(location.search).get("threads") !== "1", quiet: true };</script>
+<script src="coi-serviceworker.js"></script>
 </head>
 <body>
 <!-- The four regions (UX section 2). Tab and Shift+Tab move between the map,

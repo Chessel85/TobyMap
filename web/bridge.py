@@ -169,6 +169,11 @@ def key_text(key: str) -> str:
     return text(key)
 
 
+def voice_problem(problem: str, width: int, height: int):
+    """The page's spatial voice is "loading", "missing" or "failed" (P2-T7b)."""
+    return _js(_extras(_session.voice_problem(problem), {}, width, height))
+
+
 def earcon_failed(event: str, width: int, height: int):
     return _js(_extras(_session.earcon_failed(event), {}, width, height))
 

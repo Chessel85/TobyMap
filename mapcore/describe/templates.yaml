@@ -72,6 +72,17 @@ sound:
   no_device: "No sound device was found, so sounds placed around you are silent. Speech and the other sounds carry on."
   no_hrtf: "The HRTF sound data is missing, so stereo is used instead. Reinstalling TobyMap puts it back."
 
+# Hear its direction (DP143, SON-3): the label said in the spatial voice, from the item's place.
+hear:
+  label: "{name}, {distance}"
+  choose: "Hear its direction works on an item of Nearby or Crossed and passed."
+
+# The spatial voice (P2-T7, SON-3). Each is said once, by the screen reader.
+voice:
+  loading: "The spatial voice is still starting. Try again in a few seconds."
+  missing: "The spatial voice is not installed, so labels are not spoken in space. They still go to Braille and the announcement history."
+  failed: "The spatial voice could not be started, so labels are not spoken in space. They still go to Braille and the announcement history."
+
 settings:
   title: Settings
   bad_value: "That value cannot be used for this setting."
@@ -147,7 +158,9 @@ dialogs:
   about_title: About TobyMap
   about_text: "TobyMap version {version}.
 An accessible map for blind and partially sighted people.
-TobyMap is free software under the GNU General Public License version 3."
+TobyMap is free software under the GNU General Public License version 3.
+The spatial voice is Alba, a Scottish English voice from Piper voices, made from recordings by the University of Edinburgh, licensed CC-BY 4.0.
+Every library and its licence is in THIRD_PARTY_NOTICES.txt, in the folder TobyMap is installed in."
   data_title: About the data
   data_pack: "{name}, version {version}, built {built}."
   data_none: "No map pack is installed."

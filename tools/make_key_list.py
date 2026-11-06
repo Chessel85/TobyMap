@@ -53,7 +53,7 @@ PANEL = [
 
 
 def where(region: str) -> str:
-    return "the map" if region == "map" else "anywhere"
+    return {"map": "the map", "panel": "the Information panel"}.get(region, "anywhere")
 
 
 def rows() -> list[list[str]]:

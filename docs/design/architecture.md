@@ -1,6 +1,10 @@
 # Architecture and High Level Design
 
-Version 0.6, 5 November 2026. Updated for P2-T14, the held key (DP140).
+Version 0.7, 6 November 2026. Updated for P2-T7, the spatial voice.
+
+## Changes in version 0.7
+
+* Section 4.6: the spatial voice as built, with the times measured, where the voice files come from, and how the web version is made cross-origin isolated.
 
 ## Changes in version 0.6
 
@@ -294,6 +298,14 @@ Piper in the browser, tried on 2 November 2026:
 * eSpeak NG was ruled out: you found it dated. The Windows voices were ruled out too, because the web version can't use them (DP90).
 
 In every case, the speech is generated as audio samples and placed in space like any other sound. The screen reader's own voice cannot be used, because it cannot be placed in space (DP46).
+
+As built in P2-T7, 6 November 2026:
+
+* The core gives each label as Response.voice: its words, the sound scene's numbers for its place (the same as the item's sound, with the voice's own volume), its speed, and whether it waits for the item's sound to end. The core plays nothing (AD-10).
+* Desktop, desktop/audio/voice.py: Piper is a runtime dependency. The voice loads on a thread of its own while TobyMap starts; labels are made on that thread and mixed by the spatial player's mixer, starting on the mixer's own clock when the item's sound ends. A newer label stops an older one, whether still being made or already playing. Measured on the laptop: a median of 59 ms from asking to sound, longest 168 ms.
+* Web, web/voice_worker.js and web/js/voice.js: one label is made at a time; one asked for meanwhile waits, and only the newest waiting one is made. Measured in Chromium and Firefox with four threads: short names such as "Berlin" in 120 to 180 ms, as in the spike; a label with its distance, such as "Southampton Central, 2.1 kilometres", in about 500 to 600 ms, because it is longer. With one thread, about 1 second.
+* Cross-origin isolation: tools/serve_web.py and the browser tests' server send the two headers themselves. On a site that cannot, such as GitHub Pages, coi-serviceworker.js (fetched by tools/fetch_vendor.py --web, not in git) adds them, reloading the page once on the first visit. A browser test serves the page without the headers and checks the page becomes isolated and still downloads and reads the pack. ?threads=1 in the address leaves the helper out and uses one thread.
+* The voice files come from Piper's voice collection, pinned by checksum: tools/fetch_vendor.py --voice for the desktop (desktop/vendor/piper, put in the installer) and --piper for the web version (web/vendor/piper/voice). Without them the voice is "missing": you are told once, and labels still go to Braille and the history.
 
 ### 4.7 Data pipeline tools
 The pipeline runs only on the build laptop, so it can use heavier libraries than the application:

@@ -8,7 +8,7 @@ from pathlib import Path
 from mapcore.commands import registry
 from mapcore.session import MapSession
 
-REGIONS = {"map", "global"}
+REGIONS = {"map", "panel", "global"}
 PLATFORMS = {"desktop", "web"}
 FORBIDDEN = yaml.safe_load((Path(__file__).resolve().parents[1] / "data" / "forbidden_keys.yaml").read_text())
 

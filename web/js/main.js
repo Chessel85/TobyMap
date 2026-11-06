@@ -8,6 +8,7 @@ import { MenuBar } from "./menu.js";
 import { paintScene } from "./painter.js";
 import * as sounds from "./sounds.js";
 import { Tree } from "./tree.js";
+import * as voice from "./voice.js";
 import { WorkerClient } from "./worker_client.js";
 
 const $ = (id) => document.getElementById(id);
@@ -24,7 +25,8 @@ let toggles = { "step.link": false, "sound.mute": false, "help.describer": false
 
 // window.tobymap is for the browser tests and diagnostics only.
 window.tobymap = { announcements: log, earcons: sounds.played, clicks: sounds.clicks, ready: false, error: null,
-  paints: 0, timings: [] };
+  paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceState: voice.getState };
+const told = new Set();   // voice problems already told, each said once
 
 function mapSize() {
   const r = mapEl.getBoundingClientRect();
@@ -43,14 +45,23 @@ function handle(result, keyAt, held = false) {
   const r = result.response;
   let spoke = false;
   for (const a of r.announcements) {
-    if (a.channel === "braille") speak(a.fallback, "polite");  // no Braille-only route in a browser
+    if (a.channel === "braille") { if (a.fallback) speak(a.fallback, "polite"); }  // no Braille-only route in a browser
     else speak(a.text, a.priority);
     spoke = true;
   }
   for (const info of result.earcons || []) {
     if (!(held && info.event === "tick")) sounds.play(info);   // a held step's click was played on time already
   }
-  for (const p of r.sounds || []) sounds.playPlaced(p);   // placed in space by the core (P2-T6)
+  const ends = (r.sounds || []).map((p) => sounds.playPlaced(p));   // placed in space by the core (P2-T6)
+  if (r.voice) {   // a label in the spatial voice (P2-T7), after the item's sound
+    const after = r.voice.after && ends.length ? Promise.all(ends).then((t) => Math.max(0, ...t)) : null;
+    const state = voice.say(r.voice, after);
+    if (state === "loading" || ((state === "missing" || state === "failed") && !told.has(state))) {
+      told.add(state);
+      const { width, height } = mapSize();
+      client.send({ type: "voice_problem", problem: state, width, height }).then((b) => handle(b)).catch(showError);
+    }
+  }
   if (spoke && keyAt !== undefined) {
     const now = performance.now();
     window.tobymap.timings.push(now - keyAt);
@@ -221,7 +232,8 @@ document.addEventListener("keydown", (e) => {
     client.send({ type: "press", key, region: region || "map", width, height }).then((r) => handle(r, keyAt)).catch(showError);
     return;
   }
-  const name = (region === "map" && registry.keymap.map[key]) || registry.keymap.global[key];
+  // The region's own keys (the map's, or the Information panel's), then the keys that work anywhere.
+  const name = (region && registry.keymap[region] && registry.keymap[region][key]) || registry.keymap.global[key];
   if (!name) return;
   e.preventDefault();
   if (registry.held.includes(name)) {
@@ -808,6 +820,7 @@ async function boot() {
   sounds.preload(result.preload);
   mapEl.focus();
   window.tobymap.ready = true;
+  voice.start();   // the spatial voice loads in its own worker while you start (P2-T7b)
 
   let resizeTimer = null;
   new ResizeObserver(() => {

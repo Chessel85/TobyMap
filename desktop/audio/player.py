@@ -53,12 +53,30 @@ class Mixer:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self._playing: list[list] = []   # [samples, position]
+        self._playing: list[list] = []   # [samples, position, tag]; a position below 0 is a wait
         self.block_ms: list[float] = []
+        self.frames = 0                  # frames mixed so far: the mixer's own clock
+        self.last_end = 0                # the frame the last sound added ends at
 
-    def add(self, samples: np.ndarray) -> None:
+    def add(self, samples: np.ndarray, tag: str | None = None, start_frame: int | None = None) -> int:
+        """Play samples from the next block, or from start_frame if that is later. A sound with a
+        tag replaces one with the same tag (a newer label stops the older, ANN-3). Gives the frame
+        it ends at."""
         with self._lock:
-            self._playing.append([samples, 0])
+            if tag is not None:
+                self._playing = [p for p in self._playing if p[2] != tag]
+            wait = max(0, (start_frame or 0) - self.frames)
+            self._playing.append([samples, -wait, tag])
+            self.last_end = self.frames + wait + len(samples)
+            return self.last_end
+
+    def stop(self, tag: str) -> None:
+        with self._lock:
+            self._playing = [p for p in self._playing if p[2] != tag]
+
+    def playing(self, tag: str) -> bool:
+        with self._lock:
+            return any(p[2] == tag for p in self._playing)
 
     @property
     def busy(self) -> bool:
@@ -71,13 +89,15 @@ class Mixer:
         with self._lock:
             keep = []
             for item in self._playing:
-                samples, at = item
-                part = samples[at:at + frames]
-                out[:len(part)] += part
+                samples, at, _tag = item
+                skip = min(frames, max(0, -at))   # still waiting to start
+                part = samples[max(0, at):max(0, at) + frames - skip]
+                out[skip:skip + len(part)] += part
                 item[1] = at + frames
                 if item[1] < len(samples):
                     keep.append(item)
             self._playing = keep
+            self.frames += frames
         np.clip(out, -1.0, 1.0, out=out)
         self.block_ms.append((time.perf_counter() - started) * 1000)
         del self.block_ms[:-BLOCK_TIMES]
@@ -157,6 +177,11 @@ class SpatialPlayer:
         self.mixer.add(samples)
         return True, custom_failed
 
+    @property
+    def last_end(self) -> int:
+        """The mixer frame the last sound played ends at: a label that waits for it starts there."""
+        return self.mixer.last_end
+
 
 class RecordingSpatial:
     """Stand-in for tests: records the placed sounds that would have played."""
@@ -165,6 +190,7 @@ class RecordingSpatial:
         self.played: list[dict] = []
         self.missing = False
         self.hrtf_missing = False
+        self.last_end = 0
 
     def play(self, placed: dict) -> tuple[bool, bool]:
         self.played.append(placed)

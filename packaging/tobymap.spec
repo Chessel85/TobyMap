@@ -18,6 +18,17 @@ for name in ("nvdaControllerClient.dll", "nvdaControllerClient-license.txt"):
 # The KEMAR responses for the HRTF sound mode (P2-T6b). Without them, HRTF falls back to stereo.
 if (ROOT / "desktop" / "vendor" / "mit_kemar_compact.zip").is_file():
     datas.append((str(ROOT / "desktop" / "vendor" / "mit_kemar_compact.zip"), "desktop/vendor"))
+# The spatial voice (P2-T7d): the Alba voice, fetched by tools/fetch_vendor.py --voice, which build.ps1 runs.
+for name in ("en_GB-alba-medium.onnx", "en_GB-alba-medium.onnx.json", "MODEL_CARD", "NOTICE.txt"):
+    path = ROOT / "desktop" / "vendor" / "piper" / name
+    if not path.is_file():
+        raise SystemExit(f"{path} is missing. Run: python tools/fetch_vendor.py --voice")
+    datas.append((str(path), "desktop/vendor/piper"))
+# Piper itself: its eSpeak NG data and its compiled part, which PyInstaller does not find alone.
+from PyInstaller.utils.hooks import collect_all  # noqa: E402
+
+piper_datas, piper_binaries, piper_hidden = collect_all("piper")
+datas += piper_datas
 # The earcons (P1-T12). They are made by tools/make_placeholder_sounds.py, which build.ps1 runs first.
 # Only the files named in the earcon list ship: other sounds in the folder may not be ours to share (DP127).
 import yaml  # noqa: E402
@@ -46,7 +57,8 @@ a = Analysis(
     [str(ROOT / "packaging" / "launch.py")],
     pathex=[str(ROOT)],
     datas=datas,
-    hiddenimports=[],
+    binaries=piper_binaries,
+    hiddenimports=piper_hidden,
     excludes=excludes,
     noarchive=False,
 )

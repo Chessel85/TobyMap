@@ -12,7 +12,9 @@ pytest.importorskip("playwright")
 
 def test_page_structure_before_the_core_loads(page, site_url):
     # A worker that never answers keeps the page in its loading state.
-    page.route("**/worker.js", lambda route: route.fulfill(body="", content_type="text/javascript"))
+    # The page is cross-origin isolated (P2-T7b), so the stand-in needs the header the server sends.
+    page.route("**/worker.js", lambda route: route.fulfill(body="", content_type="text/javascript",
+                                                         headers={"Cross-Origin-Embedder-Policy": "require-corp"}))
     page.goto(f"{site_url}/index.html")
     assert page.title() == "TobyMap"
     assert page.locator("#loading").text_content().startswith("Loading TobyMap")

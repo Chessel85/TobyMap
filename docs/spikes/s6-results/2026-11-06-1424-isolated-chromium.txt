@@ -1,0 +1,46 @@
+Spike S6 in Chrome 156.0.8078.4, 2026-11-06T14:24:42.230Z.
+eSpeak NG (phonemizer.js) loaded and started in 110 ms.
+The voice, 60.3 MB, downloaded and stored in 252 ms.
+ONNX Runtime started the voice in 2545 ms, with 4 thread(s).
+The first label, made silently, took 325 ms.
+Ready 3244 ms after the voice began to load.
+"Berlin" from 0 degrees: 228.1 ms to start playing (eSpeak NG 7 ms, voice 215.5 ms), plus 40 ms in the sound output as the browser reports it. 0.41 seconds long.
+"Bay of Biscay" from 45 degrees: 258.7 ms to start playing (eSpeak NG 18.5 ms, voice 237.6 ms), plus 40 ms in the sound output as the browser reports it. 0.92 seconds long.
+"Llívia" from 90 degrees: 143.7 ms to start playing (eSpeak NG 17.5 ms, voice 125.1 ms), plus 40 ms in the sound output as the browser reports it. 0.44 seconds long.
+"Isle of Skye" from 135 degrees: 163.2 ms to start playing (eSpeak NG 14.8 ms, voice 147.2 ms), plus 40 ms in the sound output as the browser reports it. 0.85 seconds long.
+"Mont Saint-Michel" from 180 degrees: 186.9 ms to start playing (eSpeak NG 5.4 ms, voice 180.3 ms), plus 40 ms in the sound output as the browser reports it. 1.07 seconds long.
+"Kilimanjaro" from 225 degrees: 197.2 ms to start playing (eSpeak NG 10.2 ms, voice 186 ms), plus 40 ms in the sound output as the browser reports it. 0.8 seconds long.
+"River Thames" from 270 degrees: 201.6 ms to start playing (eSpeak NG 23.8 ms, voice 176.4 ms), plus 40 ms in the sound output as the browser reports it. 1.04 seconds long.
+"Saint Petersburg" from 315 degrees: 201.3 ms to start playing (eSpeak NG 6.1 ms, voice 194.4 ms), plus 40 ms in the sound output as the browser reports it. 1.15 seconds long.
+"Berlin" from 0 degrees: 133.3 ms to start playing (eSpeak NG 2.3 ms, voice 130.1 ms), plus 40 ms in the sound output as the browser reports it. 0.38 seconds long.
+"Bay of Biscay" from 45 degrees: 156.6 ms to start playing (eSpeak NG 3.9 ms, voice 151.7 ms), plus 40 ms in the sound output as the browser reports it. 0.91 seconds long.
+"Llívia" from 90 degrees: 87.7 ms to start playing (eSpeak NG 3.3 ms, voice 83.6 ms), plus 40 ms in the sound output as the browser reports it. 0.44 seconds long.
+"Isle of Skye" from 135 degrees: 181.6 ms to start playing (eSpeak NG 6.2 ms, voice 174.3 ms), plus 40 ms in the sound output as the browser reports it. 0.82 seconds long.
+"Mont Saint-Michel" from 180 degrees: 173.2 ms to start playing (eSpeak NG 5.5 ms, voice 166.5 ms), plus 40 ms in the sound output as the browser reports it. 1.03 seconds long.
+"Kilimanjaro" from 225 degrees: 190.7 ms to start playing (eSpeak NG 5.7 ms, voice 183.9 ms), plus 40 ms in the sound output as the browser reports it. 0.82 seconds long.
+"River Thames" from 270 degrees: 141.7 ms to start playing (eSpeak NG 6.4 ms, voice 134.2 ms), plus 40 ms in the sound output as the browser reports it. 0.86 seconds long.
+"Saint Petersburg" from 315 degrees: 182.6 ms to start playing (eSpeak NG 3 ms, voice 178.4 ms), plus 40 ms in the sound output as the browser reports it. 1.19 seconds long.
+Labels: 16 spoken, 0 failed. Request to start of playing: median 182.6 ms, longest 258.7 ms, plus 40 ms in the sound output.
+Spike S6 in Chrome 156.0.8078.4, 2026-11-06T14:24:53.297Z.
+eSpeak NG (phonemizer.js) loaded and started in 145 ms.
+The voice, 60.3 MB, read from storage in 77 ms.
+ONNX Runtime started the voice in 2262 ms, with 4 thread(s).
+The first label, made silently, took 128 ms.
+Ready 2626 ms after the voice began to load.
+"Berlin" from 0 degrees: 184.3 ms to start playing (eSpeak NG 16.2 ms, voice 166.2 ms), plus 40 ms in the sound output as the browser reports it. 0.46 seconds long.
+"Bay of Biscay" from 45 degrees: 179 ms to start playing (eSpeak NG 16.6 ms, voice 160.1 ms), plus 40 ms in the sound output as the browser reports it. 0.88 seconds long.
+"Llívia" from 90 degrees: 104.2 ms to start playing (eSpeak NG 13.5 ms, voice 89.7 ms), plus 40 ms in the sound output as the browser reports it. 0.45 seconds long.
+"Isle of Skye" from 135 degrees: 139.5 ms to start playing (eSpeak NG 11.3 ms, voice 126.7 ms), plus 40 ms in the sound output as the browser reports it. 0.85 seconds long.
+"Mont Saint-Michel" from 180 degrees: 181.2 ms to start playing (eSpeak NG 6 ms, voice 174 ms), plus 40 ms in the sound output as the browser reports it. 1.08 seconds long.
+"Kilimanjaro" from 225 degrees: 176.8 ms to start playing (eSpeak NG 12.1 ms, voice 163.6 ms), plus 40 ms in the sound output as the browser reports it. 0.8 seconds long.
+"River Thames" from 270 degrees: 179.9 ms to start playing (eSpeak NG 26 ms, voice 152.8 ms), plus 40 ms in the sound output as the browser reports it. 0.79 seconds long.
+"Saint Petersburg" from 315 degrees: 186 ms to start playing (eSpeak NG 9.3 ms, voice 175.6 ms), plus 40 ms in the sound output as the browser reports it. 1.16 seconds long.
+"Berlin" from 0 degrees: 123.9 ms to start playing (eSpeak NG 5.6 ms, voice 117.2 ms), plus 40 ms in the sound output as the browser reports it. 0.45 seconds long.
+"Bay of Biscay" from 45 degrees: 160.9 ms to start playing (eSpeak NG 4.9 ms, voice 155.2 ms), plus 40 ms in the sound output as the browser reports it. 0.91 seconds long.
+"Llívia" from 90 degrees: 89.3 ms to start playing (eSpeak NG 2 ms, voice 86.5 ms), plus 40 ms in the sound output as the browser reports it. 0.42 seconds long.
+"Isle of Skye" from 135 degrees: 137.4 ms to start playing (eSpeak NG 6.4 ms, voice 129.9 ms), plus 40 ms in the sound output as the browser reports it. 0.9 seconds long.
+"Mont Saint-Michel" from 180 degrees: 159.8 ms to start playing (eSpeak NG 5.7 ms, voice 153 ms), plus 40 ms in the sound output as the browser reports it. 1.02 seconds long.
+"Kilimanjaro" from 225 degrees: 170.1 ms to start playing (eSpeak NG 3.9 ms, voice 165.3 ms), plus 40 ms in the sound output as the browser reports it. 0.81 seconds long.
+"River Thames" from 270 degrees: 138.6 ms to start playing (eSpeak NG 6.8 ms, voice 130.7 ms), plus 40 ms in the sound output as the browser reports it. 0.88 seconds long.
+"Saint Petersburg" from 315 degrees: 193 ms to start playing (eSpeak NG 6.9 ms, voice 184.8 ms), plus 40 ms in the sound output as the browser reports it. 1.17 seconds long.
+Labels: 16 spoken, 0 failed. Request to start of playing: median 170.1 ms, longest 193 ms, plus 40 ms in the sound output.

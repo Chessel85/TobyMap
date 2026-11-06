@@ -80,6 +80,89 @@ class ListDialog(QDialog):
         self.list.setFocus()
 
 
+class HistoryDialog(ListDialog):
+    """The announcement history, newest first. Enter on an entry goes back to the place it was said
+    at (ANN-4, DP141); an entry with no place says so and the list stays open. A Help line above
+    the list says what Enter does."""
+
+    def __init__(self, parent, title: str, lines: list[str], close_label: str, help_text: str, go, speak=None):
+        super().__init__(parent, title, lines, close_label)
+        self._go, self._speak = go, speak
+        self.response = None
+        self.help = QLabel(help_text)
+        self.help.setWordWrap(True)
+        self.list.setAccessibleDescription(help_text)
+        self.message = QLabel("")
+        self.layout().insertWidget(0, self.help)
+        self.layout().insertWidget(2, self.message)
+        self.list.itemActivated.connect(lambda _item: self.go_to_selected())
+
+    def go_to_selected(self):
+        if self.response is not None:   # Enter reaches both the list and the dialog: go once
+            return
+        row = self.list.currentRow()
+        response = self._go(row)
+        if response.error:
+            self.message.setText(response.error)
+            self.message.setAccessibleDescription(response.error)
+            if self._speak is not None:
+                self._speak(response.error)
+            self.list.setFocus()
+        else:
+            self.response = response
+            self.accept()
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):   # Enter goes there and never just closes
+            self.go_to_selected()
+            return
+        super().keyPressEvent(event)
+
+
+class InputDialog(QDialog):
+    """A box to type in, with OK and Cancel (ACC-7): a bearing or coordinates. The core reads what
+    was typed; if it can't, the words it gives are shown and spoken and the box stays open."""
+
+    def __init__(self, parent, dialog: dict, submit, speak=None):
+        super().__init__(parent)
+        self._submit, self._speak = submit, speak
+        self.response = None
+        self.setWindowTitle(dialog["title"])
+        layout = QVBoxLayout(self)
+        label = QLabel(dialog["label"])
+        layout.addWidget(label)
+        self.field = QLineEdit()
+        self.field.setAccessibleName(dialog["label"])
+        self.field.setAccessibleDescription(dialog["help"])
+        label.setBuddy(self.field)
+        layout.addWidget(self.field)
+        self.help = QLabel(dialog["help"])
+        self.help.setWordWrap(True)
+        layout.addWidget(self.help)
+        self.message = QLabel("")
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        self.ok_button, self.cancel_button = button_row(layout, [dialog["ok"], dialog["cancel"]])
+        self.ok_button.clicked.connect(self.apply)
+        self.cancel_button.clicked.connect(self.reject)
+        self.field.returnPressed.connect(self.apply)
+        self.resize(520, 200)
+        self.field.setFocus()
+
+    def apply(self):
+        response = self._submit(self.field.text())
+        if response.error:
+            self.message.setText(response.error)
+            self.message.setAccessibleDescription(response.error)
+            if self._speak is not None:
+                self._speak(response.error)
+            self.field.setFocus()
+            self.field.selectAll()
+        else:
+            self.response = response
+            self.accept()
+
+
 class SoundsDialog(ListDialog):
     """Help, The sounds: each sound with its file and meaning. Enter, Space or
     Play plays the selected one (DP134, PO feedback on checklist 12); Close leaves."""

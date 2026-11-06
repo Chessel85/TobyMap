@@ -227,7 +227,7 @@ def test_the_key_describer_describes_and_does_nothing(session):
     r = session.press("Shift+F1")
     assert "Key describer on" in spoken(r)[0]
     before = (session.world.lat, session.world.zoom_index)
-    assert spoken(session.press("Up")) == ["Up: Step north"]
+    assert spoken(session.press("Up")) == ["Up: Step north or forward"]
     assert spoken(session.press("Page Up")) == ["Page Up: Zoom out"]
     assert spoken(session.press("F9")) == ["F9: no command."]
     assert (session.world.lat, session.world.zoom_index) == before
@@ -241,7 +241,7 @@ def test_the_key_describer_is_the_same_in_every_region(session):
     and Tab is caught and does nothing."""
     session.press("Shift+F1")
     for region in ("map", "panel", "details"):
-        assert spoken(session.press("Down", region)) == ["Down: Step south"]
+        assert spoken(session.press("Down", region)) == ["Down: Step south or back"]
         assert spoken(session.press("Tab", region)) == ["Tab: no command."]
         assert spoken(session.press("Shift+Tab", region)) == ["Shift+Tab: no command."]
     assert session.world.lat == KENT["lat"]
@@ -257,14 +257,14 @@ def test_the_key_describer_lists_every_command_on_a_key(session, monkeypatch):
     monkeypatch.setattr(registry, "for_platform", lambda platform: real(platform) + [extra])
     session.press("Shift+F1")
     assert spoken(session.press("Down", "panel")) == [
-        "Down: Step south, on the map. Sort the list, in the Information panel."]
+        "Down: Step south or back, on the map. Sort the list, in the Information panel."]
 
 
 def test_f1_lists_the_commands_for_the_focused_region_with_keys(session):
     on_map = session.press("F1", "map").dialog["text"]
-    assert "Step north: Up" in on_map and "Heading: H" in on_map
+    assert "Step north or forward: Up" in on_map and "Heading: H" in on_map
     in_panel = session.press("F1", "panel").dialog["text"]
-    assert "Step north" not in in_panel and "Go to Details: F4" in in_panel
+    assert "Step north or forward" not in in_panel and "Go to Details: F4" in in_panel
     assert "Link step to zoom: in the Map menu" in on_map
 
 

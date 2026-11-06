@@ -118,6 +118,17 @@ describer:
 diagnostics:
   title: Diagnostics
 
+# The two boxes where you type: a bearing (NAV-12) and coordinates (NAV-8).
+typing:
+  bearing_title: "Type a bearing"
+  bearing_label: "Bearing"
+  bearing_help: "Type degrees from 0 to 360, such as 47, or a compass point, such as NE or south-west."
+  bearing_error: "That is not a bearing. Type degrees from 0 to 360, such as 47, or a compass point, such as NE or south-west."
+  goto_title: "Go to coordinates"
+  goto_label: "Coordinates"
+  goto_help: "Type latitude and then longitude, such as 51.5, -0.12 or 51.5N 0.12W or 51°30′N 0°07′W."
+  goto_error: "Those are not coordinates. Type latitude and then longitude, such as 51.5, -0.12 or 51.5N 0.12W or 51°30′N 0°07′W. Latitude is up to 90 degrees and longitude up to 180."
+
 dialogs:
   keys_title: Keys
   # One short sentence a line, so a screen reader moves through it a line at a
@@ -259,6 +270,11 @@ movement:
     north-fixed: "North-fixed."
     cardinal: "Cardinal facing."
     free: "Free facing."
+  # After the orientation key (NAV-11, NAV-12). The new facing is said, such as "Free facing, 47 degrees."
+  orientation_changed:
+    north-fixed: "North-fixed."
+    cardinal: "Cardinal facing, {heading}."
+    free: "Free facing, {heading}."
   # After a move over a pole (NAV-3).
   pole_crossed: "Crossed the {pole} Pole. Now facing {heading}."
   poles:
@@ -275,6 +291,9 @@ layers:
 
 history:
   title: Announcement history
+  # Enter on an entry goes back to the place it was said at (ANN-4, NAV-8).
+  help: "Press Enter on an entry to go back to the place it was said at."
+  no_place: "No place for this entry."
   empty: "Nothing has been announced yet."
   nothing_to_repeat: "Nothing to repeat."
 

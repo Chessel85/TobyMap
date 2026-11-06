@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import ListDialog, SettingsDialog, SoundsDialog, TextDialog
+from desktop.dialogs import HistoryDialog, InputDialog, ListDialog, SettingsDialog, SoundsDialog, TextDialog
 from desktop.keys import key_name
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
@@ -447,7 +447,14 @@ class MainWindow(QMainWindow):
             box = SoundsDialog(self, dialog["title"], dialog["items"], dialog["play"], self.words["close"],
                                play=lambda event: self.dispatch("sound.preview", event=event))
         elif kind == "history":
-            box = ListDialog(self, dialog["title"], dialog["lines"], self.words["close"])
+            box = HistoryDialog(self, dialog["title"], dialog["lines"], self.words["close"], dialog["help"],
+                                go=lambda index: self.session.run(dialog["go"], index=index),
+                                speak=lambda text: self.announcer.speak(text, "assertive"))
+            box.accepted.connect(lambda b=box: self.handle(b.response))
+        elif kind == "input":
+            box = InputDialog(self, dialog, submit=lambda text: self.session.run(dialog["submit"], text=text),
+                              speak=lambda text: self.announcer.speak(text, "assertive"))
+            box.accepted.connect(lambda b=box: self.handle(b.response))
         else:
             box = TextDialog(self, dialog["title"], dialog["text"], self.words["close"])
         self._dialogs.append(box)

@@ -13,7 +13,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -190,7 +190,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -254,7 +254,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [settingsDialog, dialog].find((d) => d.open);
+  const open = [settingsDialog, inputDialog, dialog].find((d) => d.open);
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -297,15 +297,19 @@ mapEl.addEventListener("wheel", (e) => {
 function openDialog(d) {
   returnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : mapEl;
   if (d.kind === "settings") return openSettings(d);
+  if (d.kind === "input") return openInput(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
   dialog.querySelectorAll(".sounds").forEach((el) => el.remove());
+  dialog.querySelectorAll(".history").forEach((el) => el.remove());
   if (d.kind === "sounds") soundsList(d);
-  dialogText.hidden = d.kind === "sounds";
+  if (d.kind === "history") historyList(d);
+  dialogText.hidden = d.kind === "sounds" || d.kind === "history";
   dialogText.value = d.text;
   dialogText.setAttribute("aria-label", d.title);
   dialog.showModal();
   if (d.kind === "sounds") return $("sounds-list").focus();
+  if (d.kind === "history") return $("history-list").focus();
   dialogText.focus();
   dialogText.setSelectionRange(0, 0);
 }
@@ -334,6 +338,83 @@ function soundsList(d) {
   dialogTitle.after(list, playButton);
 }
 
+// The announcement history: one list, newest first. Enter on an entry goes back to the place it was
+// said at, and closes the list; an entry with no place says so and the list stays (ANN-4, DP141).
+function historyList(d) {
+  const help = document.createElement("p");
+  help.id = "history-help";
+  help.className = "history";
+  help.textContent = d.help;
+  const list = document.createElement("select");
+  list.id = "history-list";
+  list.className = "history";
+  list.size = Math.min(d.lines.length, 10);
+  list.setAttribute("aria-label", d.title);
+  list.setAttribute("aria-describedby", "history-help");
+  for (const line of d.lines) {
+    const o = document.createElement("option");
+    o.textContent = line;
+    list.appendChild(o);
+  }
+  list.selectedIndex = 0;
+  const message = document.createElement("p");
+  message.id = "history-message";
+  message.className = "history";
+  message.setAttribute("role", "alert");
+  list.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    submit(d.go, { index: list.selectedIndex }, message, dialog);
+  });
+  dialogTitle.after(help, list, message);
+}
+
+// Send a typed answer or a chosen entry to the core. If it is refused, show and say why and keep the
+// box open; otherwise close the box and carry out the answer.
+function submit(name, args, message, box) {
+  const { width, height } = mapSize();
+  return client.send({ type: "run", commands: [[name, args]], width, height }).then((r) => {
+    if (r.response.error) {
+      message.textContent = r.response.error;
+      speak(r.response.error, "assertive");
+      return;
+    }
+    box.close();
+    handle(r);
+  }).catch(showError);
+}
+
+// A box to type in, with OK and Cancel: a bearing or coordinates (NAV-8, NAV-12, ACC-7).
+function openInput(d) {
+  const box = inputDialog;
+  box.replaceChildren();
+  const title = document.createElement("h2");
+  title.textContent = d.title;
+  box.setAttribute("aria-label", d.title);
+  const label = document.createElement("label");
+  label.textContent = d.label;
+  const field = document.createElement("input");
+  field.type = "text";
+  field.id = "input-field";
+  field.autocomplete = "off";
+  field.spellcheck = false;
+  label.htmlFor = field.id;
+  const help = document.createElement("p");
+  help.id = "input-help";
+  help.textContent = d.help;
+  field.setAttribute("aria-describedby", "input-help");
+  const message = document.createElement("p");
+  message.id = "input-message";
+  message.setAttribute("role", "alert");
+  const go = () => submit(d.submit, { text: field.value }, message, box).then(() => { if (box.open) field.select(); });
+  const ok = button(d.ok, go, "input-ok");
+  const cancel = button(d.cancel, () => box.close(), "input-cancel");
+  box.append(title, label, field, help, message, ok, cancel);
+  field.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  box.showModal();
+  field.focus();
+}
+
 dialogClose.addEventListener("click", () => dialog.close());
 function afterClose() {
   // Menu commands return focus to the map, as on the desktop.
@@ -341,6 +422,7 @@ function afterClose() {
 }
 dialog.addEventListener("close", afterClose);
 settingsDialog.addEventListener("close", afterClose);
+inputDialog.addEventListener("close", afterClose);
 // Enter in a settings field presses OK, as on the desktop (web checklist 5).
 settingsDialog.addEventListener("keydown", (e) => {
   const el = e.target;

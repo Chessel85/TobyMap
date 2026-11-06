@@ -8,7 +8,8 @@ from PySide6.QtGui import QImage, QKeyEvent, QPainter
 from PySide6.QtWidgets import QApplication
 
 from desktop.announcer import RecordingAnnouncer
-from desktop.dialogs import KeyCaptureDialog, ListDialog, SettingsDialog, SoundsDialog, TextDialog
+from desktop.dialogs import (HistoryDialog, InputDialog, KeyCaptureDialog, ListDialog, SettingsDialog, SoundsDialog,
+                             TextDialog)
 from desktop.map_widget import paint_scene
 from desktop.sounds import RecordingSounds
 from desktop.window import MainWindow
@@ -152,7 +153,7 @@ def test_menus_come_from_the_registry(window):
     bar = window.menuBar()
     assert [a.text() for a in bar.actions()] == ["&Map", "&Speech", "Se&ttings", "&Help"]
     texts = [a.text() for a in bar.actions()[0].menu().actions()]
-    assert "Step north\tUp" in texts and "Exit" in texts and "Link step to zoom" in texts
+    assert "Step north or forward\tUp" in texts and "Exit" in texts and "Link step to zoom" in texts
     assert window.actions_by_name["step.link"].isCheckable()
 
 
@@ -184,7 +185,7 @@ def test_braille_test_goes_to_braille_when_nvda_is_there(qtbot, test_pack, tmp_p
 def test_f1_opens_a_dialog_for_the_focused_region_with_a_close_button(window, qtbot):
     qtbot.keyClick(window.map, Qt.Key.Key_F1)
     dialog = click_dialog(window, TextDialog)
-    assert dialog.windowTitle() == "Keys" and "Step north: Up" in dialog.text.toPlainText()
+    assert dialog.windowTitle() == "Keys" and "Step north or forward: Up" in dialog.text.toPlainText()
     assert dialog.close_button.text() == "Close"
     dialog.close_button.click()
     QApplication.processEvents()
@@ -193,7 +194,7 @@ def test_f1_opens_a_dialog_for_the_focused_region_with_a_close_button(window, qt
     QApplication.processEvents()
     window.focus_region("panel")
     qtbot.keyClick(window.tree, Qt.Key.Key_F1)
-    assert "Step north" not in click_dialog(window, TextDialog).text.toPlainText()
+    assert "Step north or forward" not in click_dialog(window, TextDialog).text.toPlainText()
 
 
 def test_history_dialog_lists_the_announcements_with_a_close_button(window, qtbot):
@@ -207,7 +208,7 @@ def test_history_dialog_lists_the_announcements_with_a_close_button(window, qtbo
 def test_the_key_describer_describes_and_does_nothing(window, qtbot):
     qtbot.keyClick(window.map, Qt.Key.Key_F1, Qt.KeyboardModifier.ShiftModifier)
     qtbot.keyClick(window.map, Qt.Key.Key_Down)
-    assert window.announcer.texts[-1] == "Down: Step south"
+    assert window.announcer.texts[-1] == "Down: Step south or back"
     assert window.session.world.lat == 51.2
     qtbot.keyClick(window.map, Qt.Key.Key_F1, Qt.KeyboardModifier.ShiftModifier)
     assert window.announcer.texts[-1] == "Key describer off."
@@ -225,7 +226,7 @@ def test_the_key_describer_catches_tab_and_works_in_every_region(window, qtbot):
     assert region(window) == "panel"
     assert window.announcer.texts[-1] == "Shift+Tab: no command."
     qtbot.keyClick(window.tree, Qt.Key.Key_Down)
-    assert window.announcer.texts[-1] == "Down: Step south"
+    assert window.announcer.texts[-1] == "Down: Step south or back"
     assert window.tree.currentItem() is item
     qtbot.keyClick(window.tree, Qt.Key.Key_F1, Qt.KeyboardModifier.ShiftModifier)
     qtbot.keyClick(window.tree, Qt.Key.Key_Tab)
@@ -557,3 +558,83 @@ def test_nothing_in_the_code_asks_for_the_location_of_the_computer():
             text = f.read_text(encoding="utf-8", errors="ignore")
             for word in banned:
                 assert word not in text, (f, word)
+
+
+# Orientation, turning, typed bearings and coordinates, and the place history (P2-T1c, P2-T2, P2-T15) --------------
+
+def press(qtbot, widget, key, mods=Qt.KeyboardModifier.NoModifier):
+    qtbot.keyClick(widget, key, mods)
+    QApplication.processEvents()
+
+
+def test_the_orientation_and_turning_keys(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_O)
+    assert window.announcer.texts[-1] == "Cardinal facing, north."
+    press(qtbot, window.map, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    assert window.announcer.texts[-1] == "Facing east."
+    assert window.session.world.heading == 90.0
+    press(qtbot, window.map, Qt.Key.Key_O)
+    press(qtbot, window.map, Qt.Key.Key_Left, Qt.KeyboardModifier.ControlModifier)
+    assert window.announcer.texts[-1] == "Facing 89 degrees."
+
+
+def test_the_bearing_box_takes_a_bearing_and_refuses_what_it_cannot_read(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_B, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    assert box.windowTitle() == "Type a bearing" and box.ok_button.text() == "OK" and box.cancel_button.text() == "Cancel"
+    box.field.setText("sideways")
+    box.ok_button.click()
+    assert box.isVisible() and box.message.text().startswith("That is not a bearing")
+    assert window.announcer.texts[-1].startswith("That is not a bearing")
+    box.field.setText("NE")
+    box.ok_button.click()
+    QApplication.processEvents()
+    assert not box.isVisible() and window.announcer.texts[-1] == "Free facing, 45 degrees."
+    assert window.session.world.heading == 45.0
+
+
+def test_cancel_closes_the_go_to_box_and_moves_nothing(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    box.field.setText("10, 10")
+    box.cancel_button.click()
+    QApplication.processEvents()
+    assert not box.isVisible() and window.session.world.lat == 51.2
+
+
+def test_go_to_coordinates_then_back_through_the_places(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    box.field.setText("52.1 N 1.3 W")
+    box.ok_button.click()
+    QApplication.processEvents()
+    assert window.session.world.lat == pytest.approx(52.1) and window.session.world.lon == pytest.approx(-1.3)
+    window.activateWindow()   # offscreen: the window is not given back the keyboard when a box closes
+    qtbot.waitUntil(lambda: QApplication.activeWindow() is window)
+    press(qtbot, window.map, Qt.Key.Key_Comma, Qt.KeyboardModifier.AltModifier)
+    assert window.session.world.lat == pytest.approx(51.2)
+
+
+def test_enter_in_the_announcement_history_goes_back_there(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_PageUp)
+    zoom = window.session.world.zoom_m
+    window.session.run("goto.set", text="52.1, -1.3")
+    press(qtbot, window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+    box = click_dialog(window, HistoryDialog)
+    assert "Enter" in box.help.text()
+    box.list.setCurrentRow(box.list.count() - 2)
+    qtbot.keyClick(box.list, Qt.Key.Key_Return)
+    QApplication.processEvents()
+    assert not box.isVisible()
+    assert window.session.world.lat == pytest.approx(51.2) and window.session.world.zoom_m == zoom
+
+
+def test_enter_on_an_entry_with_no_place_keeps_the_list_open(window, qtbot):
+    window.session.run("sound.mute")
+    press(qtbot, window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+    box = click_dialog(window, HistoryDialog)
+    box.list.setCurrentRow(0)
+    qtbot.keyClick(box.list, Qt.Key.Key_Return)
+    QApplication.processEvents()
+    assert box.isVisible() and box.message.text() == "No place for this entry."
+    assert window.announcer.texts[-1] == "No place for this entry."

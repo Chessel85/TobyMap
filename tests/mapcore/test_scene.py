@@ -30,7 +30,7 @@ def test_the_scene_is_plain_arrays_and_lists(test_pack):
     assert f["coords"].dtype == np.float32 and f["rings"].dtype == np.int32 and f["shapes"].dtype == np.int32
     assert len(f["seam"]) == len(f["coords"]) // 2
     assert len(f["shape_style"]) == len(f["shapes"]) - 1 == len(f["shape_area"])
-    assert f["points"] == len(f["coords"]) // 2 > 0
+    assert f["points"] >= len(f["coords"]) // 2 > 0   # the lines and markers count too
     assert f["cross"] and f["heading"]["degrees"] == 0
 
 

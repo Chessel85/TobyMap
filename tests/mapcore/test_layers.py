@@ -41,11 +41,11 @@ class _Pack:
 
 def test_the_catalogue_comes_from_the_packs_layer_definitions(session):
     layers = session.layers.layers()
-    assert [layer.id for layer in layers] == ["countries", "oceans", "regions", "counties"]
+    assert [layer.id for layer in layers] == ["countries", "oceans", "regions", "counties", "rivers", "lakes", "stations"]
     countries = session.layers.get("countries")
     assert countries.name == "Countries" and countries.group == "Boundaries" and countries.geometry == "area"
     assert countries.on and countries.in_zoom(5000) and countries.in_zoom(10_000_000)
-    assert [g for g, _ in session.layers.groups()] == ["Boundaries", "Water"]
+    assert [g for g, _ in session.layers.groups()] == ["Boundaries", "Water", "Transport"]
 
 
 def test_an_old_pack_with_only_ids_and_names_gets_the_defaults():
@@ -93,7 +93,7 @@ def test_a_damaged_saved_change_is_left_out():
 def test_changing_one_layers_crossing_earcon_changes_that_layer_only(session):
     assert spoken(session.run("layers.set", layer="regions", field="crossing_earcon", value="line_crossing")) == []
     assert session.layers.get("regions").crossing_earcon == "line_crossing"
-    assert all(layer.crossing_earcon is None for layer in session.layers.layers() if layer.id != "regions")
+    assert all(layer.crossing_earcon is None for layer in session.layers.layers() if layer.id not in ("regions", "rivers"))   # the sample river has its own
 
 
 # A layer that is off is gone (SCP-6) -----------------------------------------------
@@ -185,7 +185,8 @@ def test_the_layers_list_for_the_shells(session):
     data = session.layer_list()
     assert data["title"] == "Layers"
     assert [(g["name"], [layer["id"] for layer in g["layers"]]) for g in data["groups"]] == [
-        ("Boundaries", ["countries", "regions", "counties"]), ("Water", ["oceans"])]
+        ("Boundaries", ["countries", "regions", "counties"]), ("Water", ["oceans", "rivers", "lakes"]),
+        ("Transport", ["stations"])]
     oceans = data["groups"][1]["layers"][0]
     assert oceans["name"] == "Oceans and seas" and oceans["on"] is False and oceans["changed"] == ["on"]
 
@@ -248,7 +249,7 @@ def test_the_panel_follows_the_zoom(session):
 def test_the_layers_command_has_its_key_and_gives_the_dialog_its_words_and_choices(session):
     assert session.press("Ctrl+Shift+L").dialog["kind"] == "layers"
     d = session.run("layers.open").dialog
-    assert d["title"] == "Layers" and [g["name"] for g in d["groups"]][:2] == ["Boundaries", "Water"]
+    assert d["title"] == "Layers" and [g["name"] for g in d["groups"]] == ["Boundaries", "Water", "Transport"]
     assert d["every_zoom"] == "No limit" and {"value": 1000.0, "label": "1 kilometre"} in d["zooms"]
     assert "line_crossing" in {e["event"] for e in d["earcons"]}
     assert d["words"]["settings_button"] and d["words"]["ok"] == "OK" and d["words"]["cancel"] == "Cancel"

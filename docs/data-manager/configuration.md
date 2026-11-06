@@ -44,6 +44,8 @@ These say how the application shows and sounds the layer (SCP-7). They are writt
 * crossing_earcon: the sound played when a line of the layer is crossed, by its event name in mapcore/describe/earcons.yaml, such as line_crossing. (none)
 * sound: the sound of the layer's features in "hear its direction" and look around, by event name. (none)
 
+The layer file `samples.yaml` holds three layers for the test pack only: rivers (a line, with a crossing sound), lakes (an area) and railway stations (a point). The samples stage keeps the lines and points of a line or point layer as they are, and checks that a feature's shape fits its layer.
+
 A setting the build does not know, a geometry other than the three, a closer zoom farther than the farther one, or a sound that is not one of the application's stops the build with the reason.
 
 ### The zoom ranges chosen (P2-T4b)

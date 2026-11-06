@@ -63,6 +63,8 @@ def test_the_store_agrees_with_a_slow_check_of_every_stored_part(store):
         if key.startswith("tile/"):
             _t, level, x, y = key.split("/")
             for entry in pack.tile(int(level), int(x), int(y)):
+                if entry.kind not in tiles.AREA_KINDS:
+                    continue   # lines and points have no inside (P2-T10a)
                 if entry.kind == tiles.COVERED:
                     parts.append((entry.feature, shapely.box(*tiles.tile_box(int(level), int(x), int(y)))))
                 else:

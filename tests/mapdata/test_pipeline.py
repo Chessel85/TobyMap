@@ -324,7 +324,7 @@ def test_inspect_gives_the_manifest_and_a_feature(test_pack, capsys):
     assert main(["inspect", str(test_pack), "manifest"]) == 0
     out = capsys.readouterr().out
     assert "Pack test, version 0.1.0, format 3" in out
-    assert "Layers: Countries, Oceans and seas, Regions, Counties." in out
+    assert "Layers: Countries, Oceans and seas, Regions, Counties, Rivers, Lakes, Railway stations." in out
     assert main(["inspect", str(test_pack), "feature", "osm:r154350"]) == 0
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "Isle of Wight: osm:r154350."

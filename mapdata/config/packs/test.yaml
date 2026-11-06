@@ -8,7 +8,7 @@ title: The test pack, a small world from the samples in the repository.
 version: 0.1.0
 app_versions: {from: 0.0.1}
 coverage: {kind: world}
-layer_groups: [base]
+layer_groups: [base, samples]
 space_needed_mb: 50
 
 stages:
@@ -23,6 +23,7 @@ stages:
       - {source: sample-osm, file: bering-strait.geojson}
       - {source: sample-osm, file: antarctica-south-pole.geojson}
       - {source: sample-osm, file: niagara-falls.geojson}
+      - {source: sample-osm, file: southampton-itchen.geojson}
   - stage: water
     land_layer: countries
   - stage: write

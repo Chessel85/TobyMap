@@ -13,7 +13,8 @@ one read before, or that names it in "replaces", takes over what is left of
 that area outside the box, so it stays one area: for example the USA from
 Natural Earth, with Niagara Falls from OSM.
 
-Shapes that are not valid are repaired, and each repair is logged.
+Shapes that are not valid are repaired, and each repair is logged. A feature in a line or
+point layer (P2-T10c) keeps its lines or points, and is never cut by a box.
 """
 from __future__ import annotations
 
@@ -27,6 +28,16 @@ from mapdata.stages.clip import polygonal
 
 NEEDED = ("id", "name", "layer", "type")
 KEPT = ("id", "name", "local_name", "layer", "type", "parent", "sovereign")
+
+
+def as_lines_or_points(geom, shape: str, props: dict, filename: str):
+    """A line layer's feature as a multi-part line, a point layer's as a multi-part point (P2-T10c)."""
+    kinds = {"line": (("LineString", "MultiLineString"), shapely.MultiLineString),
+             "point": (("Point", "MultiPoint"), shapely.MultiPoint)}[shape]
+    if geom.geom_type not in kinds[0] or geom.is_empty:
+        raise BuildStopped(f"The feature {props['id']}, {props['name']}, in the sample {filename} is in a {shape} "
+                           f"layer but its shape is {geom.geom_type}. Use {' or '.join(kinds[0])}.")
+    return geom if geom.geom_type == kinds[0][1] else kinds[1]([geom])
 
 
 def read_sample(path, layers: dict, say) -> tuple[list[dict], list, object | None]:
@@ -45,6 +56,12 @@ def read_sample(path, layers: dict, say) -> tuple[list[dict], list, object | Non
             raise BuildStopped(f"The feature {props['id']}, {props['name']}, in the sample {path.name}, is in the "
                                f"layer {props['layer']}, which the pack's layer groups do not define.")
         geom = shapely.from_geojson(json.dumps(f["geometry"]))
+        shape = getattr(layers[props["layer"]], "geometry", "area")
+        if shape in ("line", "point"):   # a river or a station: kept as it is, not made into an area
+            geom = as_lines_or_points(geom, shape, props, path.name)
+            records.append({"replaces": [], **{k: props[k] for k in KEPT if props.get(k)}})
+            geoms.append(geom)
+            continue
         if not geom.is_valid:
             reason = shapely.is_valid_reason(geom)
             geom = polygonal(shapely.make_valid(geom))
@@ -67,7 +84,7 @@ def combine(samples: list[tuple[list[dict], list, object | None]]) -> tuple[list
         if box is not None:
             layers = {r["layer"] for r in records}
             for key, (r, g) in list(held.items()):
-                if r["layer"] in layers:
+                if r["layer"] in layers and g.geom_type in ("Polygon", "MultiPolygon"):
                     left = polygonal(shapely.difference(g, box))
                     if left is None or left.is_empty:
                         del held[key]
@@ -79,7 +96,7 @@ def combine(samples: list[tuple[list[dict], list, object | None]]) -> tuple[list
                 if old in held:
                     parts.append(held.pop(old)[1])
             r = {k: v for k, v in r.items() if k != "replaces"}
-            held[r["id"]] = (r, polygonal(shapely.union_all(parts)) if len(parts) > 1 else g)
+            held[r["id"]] = (r, polygonal(shapely.union_all(parts)) if len(parts) > 1 and g.geom_type in ("Polygon", "MultiPolygon") else g)
     ids = sorted(held)
     return [held[i][0] for i in ids], [held[i][1] for i in ids]
 

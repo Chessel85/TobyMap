@@ -13,6 +13,7 @@ These small files are built into the test pack by `python -m mapdata build test`
   * `bering-strait.geojson`: Russia and the USA, with Big and Little Diomede, at 0.002 degrees.
   * `antarctica-south-pole.geojson`: Antarctica south of 86 degrees south.
   * `niagara-falls.geojson`: Canada, Ontario, the USA, New York and their counties at Niagara Falls, at 0.0001 degrees.
+  * `southampton-itchen.geojson`: the River Itchen through Southampton (a line, in the layer rivers), Longbridge Lake (an area, in lakes) and Southampton Central station (a point, in stations), read from the planet file of 26 October 2026 with GeoDesk and simplified to 0.0001 degrees (P2-T10c). They are for the tests of Crossed and passed (ANN-2) only. The world pack gets rivers and railways in Phase 3. Their layers are in `mapdata/config/layers/samples.yaml`, used by the test pack only. Made by `tools/make_itchen_samples.py`, which needs the planet file.
 
 Together they are about 4 MB.
 

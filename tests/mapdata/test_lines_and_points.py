@@ -89,6 +89,25 @@ def test_lines_and_points_are_stored_in_their_own_tile_entries(pack_path):
     pack.close()
 
 
+def test_the_pipeline_lookup_finds_only_areas_where_lines_and_points_are(pack_path):
+    # The world build's checks stopped here on 6 Nov 2026 when they read a line as an area (P2-T10d).
+    from mapdata.stages import lookup
+    with lookup.open_pack(pack_path) as pack:
+        assert [f["id"] for f in lookup.at(pack, 10.25, 50.25)] == ["test:land"]
+        assert lookup.at(pack, 179.5, 0.0) == []
+
+
+def test_the_build_summary_counts_lines_and_places_not_areas(pack_path, tmp_path):
+    from types import SimpleNamespace
+    from mapdata.pipeline.build import summary
+    from mapdata.pipeline.progress import Progress
+    shown = []
+    summary(SimpleNamespace(name="lines"), pack_path, [], [], Progress(say=shown.append), tmp_path / "log.txt")
+    assert "Countries: 1 area." in shown
+    assert "Lines of latitude and longitude: 6 lines." in shown
+    assert "Railway stations: 1 place." in shown
+
+
 def test_a_point_on_a_pack_tile_edge_is_stored_once(pack_path):
     pack = Pack(pack_path)
     station = pack.feature_number("test:station")

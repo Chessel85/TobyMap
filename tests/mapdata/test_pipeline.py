@@ -128,6 +128,27 @@ def test_the_build_fingerprint_of_a_layer_is_what_it_was_before_p2_t3():
         "id": "regions", "name": "Regions", "rank": 4, "kind": "land"}
 
 
+def test_adding_a_group_of_lines_does_not_make_the_areas_again(tmp_path):
+    """The graticule (P2-T10d): the stages that make the countries and divisions, from
+    the planet file, are fingerprinted only by the area layers and their groups."""
+    from mapdata.pipeline.build import fingerprint
+
+    config = tmp_path / "config"
+    shutil.copytree(CONFIG_DIR, config, ignore=shutil.ignore_patterns("paths.yaml"))
+    world = config / "packs" / "world.yaml"
+    world.write_text(world.read_text(encoding="utf-8").replace("layer_groups: [base, graticule]",
+                                                               "layer_groups: [base]"), encoding="utf-8")
+    without = load_pack("world", config)
+    with_lines = load_pack("world", CONFIG_DIR)
+    assert "graticule" in with_lines.layers and "graticule" not in without.layers
+    prints = {"planet": "p", "land-polygons": "l", "vliz-oceans": "v", "naturalearth-geographic-lines": "n"}
+    for name in ("osm-areas", "squares", "join"):
+        stage = next(s for s in with_lines.stages if s["stage"] == name)
+        assert fingerprint(without, stage, "x", prints) == fingerprint(with_lines, stage, "x", prints)
+    write = next(s for s in with_lines.stages if s["stage"] == "write")
+    assert fingerprint(without, write, "x", prints) != fingerprint(with_lines, write, "x", prints)
+
+
 @pytest.mark.parametrize("extra, words", [
     ("colour: red", "a setting mapdata does not know: colour"),
     ("geometry: blob", "use area, line or point"),

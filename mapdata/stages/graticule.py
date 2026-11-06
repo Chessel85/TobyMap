@@ -23,6 +23,7 @@ simplified to its two ends would be drawn as a great circle, not along the paral
 from __future__ import annotations
 
 import json
+import math
 
 import numpy as np
 import shapely
@@ -116,6 +117,42 @@ def densify(coords: list[tuple[float, float]]) -> list[tuple[float, float]]:
     return out
 
 
+ON_180 = 0.001     # degrees: an end this close to the 180 degree line is on it
+JOIN = 0.02        # degrees, about 2 km: ends of two parts this close are joined
+
+
+def close_gaps(parts: list[list[tuple[float, float]]]) -> list[list[tuple[float, float]]]:
+    """Natural Earth's date line is in parts that stop a little short of the 180 degree
+    line and of each other: 150 metres at 51 degrees south, 1 km along the 180 degree
+    line at 2.5 degrees south (P2-T10d). A step through such a gap would cross without
+    meeting the line, so ends near the 180 degree line are put on it, and two ends close
+    together are joined by a short segment."""
+    parts = [list(p) for p in parts]
+    for p in parts:
+        for k in (0, -1):
+            lon, lat = p[k]
+            if abs(abs(lon) - 180.0) < ON_180:
+                p[k] = (math.copysign(180.0, lon), lat)
+    ends = [(i, k) for i in range(len(parts)) for k in (0, -1)]
+    for a, (i, k) in enumerate(ends):
+        for j, m in ends[a + 1:]:
+            if i == j:
+                continue
+            (lon1, lat1), (lon2, lat2) = parts[i][k], parts[j][m]
+            if abs(lon1) == 180.0 and abs(lon2) == 180.0:
+                gap = abs(lat1 - lat2)            # the same meridian, seen from either side
+                meet = (lon1, lat2)
+            else:
+                gap = math.hypot(lon1 - lon2, lat1 - lat2)
+                meet = (lon2, lat2)
+            if 0.0 < gap < JOIN:
+                if k == 0:
+                    parts[i].insert(0, meet)
+                else:
+                    parts[i].append(meet)
+    return parts
+
+
 def date_line(path, say=lambda _line: None):
     """The international date line from Natural Earth's geographic lines (a GeoJSON file), with
     points at most 1 degree apart, in two sides where it crosses the 180 degree line."""
@@ -134,6 +171,7 @@ def date_line(path, say=lambda _line: None):
     if not parts:
         raise BuildStopped(f"The file {path.name} has no line called the date line. "
                            "Check the source named in the graticule stage.")
+    parts = close_gaps(parts)
     say(f"The international date line: {len(parts)} part(s) from {path.name}.")
     return shapely.MultiLineString(parts) if len(parts) > 1 else shapely.LineString(parts[0])
 

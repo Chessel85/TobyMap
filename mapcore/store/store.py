@@ -179,6 +179,7 @@ class _PackIndex:
         self.pack = pack
         self.problems = problems
         self._boxes = None
+        self._sizes = None
         self._tile_index: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
         by_kind: dict[tuple[str, int], list[tuple[int, int]]] = {}
         for key in pack.keys():
@@ -204,18 +205,33 @@ class _PackIndex:
     def boxes(self):
         """Arrays of the features' numbers and boxes: west, south, east, north."""
         if self._boxes is None:
-            numbers, box = [], []
-            for g, start in enumerate(self.pack.group_starts):
-                try:
-                    group = self.pack._group(g)
-                except DamagedRecord as exc:
-                    self.problems.append(exc.message)
-                    continue
-                for i, record in enumerate(group):
-                    numbers.append(start + i)
-                    box.append(record["bbox"])
-            self._boxes = (np.array(numbers, dtype=np.intp), np.array(box, dtype=np.float64).reshape(-1, 4))
+            self._read_table()
         return self._boxes
+
+    @property
+    def sizes(self):
+        """In the order of `boxes`: each feature's width in kilometres (infinity where the
+        record has none) and its layer id, for the visible rule (P2-T4a)."""
+        if self._boxes is None:
+            self._read_table()
+        return self._sizes
+
+    def _read_table(self) -> None:
+        numbers, box, widths, layer_of = [], [], [], []
+        for g, start in enumerate(self.pack.group_starts):
+            try:
+                group = self.pack._group(g)
+            except DamagedRecord as exc:
+                self.problems.append(exc.message)
+                continue
+            for i, record in enumerate(group):
+                numbers.append(start + i)
+                box.append(record["bbox"])
+                width = record.get("width_km")
+                widths.append(math.inf if width is None else float(width))
+                layer_of.append(record.get("layer", ""))
+        self._sizes = (np.array(widths, dtype=np.float64), np.array(layer_of, dtype=object))
+        self._boxes = (np.array(numbers, dtype=np.intp), np.array(box, dtype=np.float64).reshape(-1, 4))
 
     def tiles_in(self, kind: str, level: int, x0: int, x1: int, y0: int, y1: int):
         """The (x, y) of stored tiles at a level within the ranges, both ends included."""

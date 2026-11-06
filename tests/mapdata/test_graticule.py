@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import shapely
 
+from mapcore.store.store import path_pieces
 from mapdata.paths import CONFIG_DIR
 from mapdata.pipeline.errors import BuildStopped
 from mapdata.pipeline.settings import load_layers, load_sources
@@ -72,6 +73,25 @@ def test_the_date_line_is_read_from_the_geographic_lines_and_the_rest_ignored(tm
     assert c[:, 1].max() == 70 and c[:, 1].min() == -90
     records, geoms = graticule.special_lines("special-lines", 2026, got)
     assert records[-1]["name"] == "International date line" and len(geoms) == 8
+
+
+def test_the_small_gaps_between_the_date_lines_parts_are_closed(tmp_path):
+    # As in Natural Earth's file (P2-T10d): its parts stop a little short of 180 degrees
+    # and of each other, so a step through a gap would cross without meeting the line.
+    path = tmp_path / "lines.geojson"
+    parts = [[[180, 89.9], [180, 59.5], [179.99967, 59.501864]],
+             [[-179.999971, 59.501864], [-172, 53], [-179.999971, -2.509434]],
+             [[179.999984, -2.500048], [-179.9, -40], [-179.998742, -51.003774]],
+             [[-179.999971, -51.005267], [-180, -89.9]]]
+    path.write_text(json.dumps({"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"featurecla": "Date line", "name": "International Date Line"},
+         "geometry": {"type": "MultiLineString", "coordinates": parts}}]}), encoding="utf-8")
+    got = graticule.date_line(path)
+    # Steps across each gap now meet the line. A move's path carries its longitudes on past 180.
+    for path_line in ([(179.9, 59.5018), (180.1, 59.5018)], [(179.99, -2.505), (180.01, -2.505)],
+                      [(-179.99, -51.0045), (-179.9999, -51.0045)]):
+        sides = [shapely.LineString(c) for c in path_pieces([(lat, lon) for lon, lat in path_line])]
+        assert any(shapely.intersects(got, s) for s in sides), path_line
 
 
 def test_a_file_with_no_date_line_stops_the_build(tmp_path):

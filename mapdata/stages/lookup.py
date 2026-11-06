@@ -29,8 +29,9 @@ class Lookup:
         key = (level, x, y)
         if self.cache is not None and key in self.cache:
             return self.cache[key]
+        # Only areas are "at" a point; lines and points (pack format 3) are left out, as in the store.
         entries = [(e.feature, None if e.kind == tiles.COVERED else coords.to_shape(e.data))
-                   for e in self.pack.tile(level, x, y)]
+                   for e in self.pack.tile(level, x, y) if e.kind not in (tiles.LINES, tiles.POINTS)]
         if self.cache is not None:
             self.cache[key] = entries
         return entries

@@ -143,6 +143,11 @@ class Layer:
     rank: int
     kind: str  # land or water
     shown: tuple = ()   # (field, value) pairs from SHOWN_FIELDS, as the layer file gives them
+    group_file: str = ""   # the layer file it came from, such as base for mapdata/config/layers/base.yaml
+
+    @property
+    def geometry(self) -> str:
+        return dict(self.shown).get("geometry", "area")
 
     def build_fields(self) -> dict:
         """What the stages that make the areas depend on (their fingerprints)."""
@@ -195,7 +200,7 @@ def load_layers(groups: list[str], config_dir: Path = CONFIG_DIR) -> dict[str, L
             if item["id"] in out:
                 raise BuildStopped(f"The layer {item['id']} is defined twice. Keep one, then build again.")
             out[item["id"]] = Layer(item["id"], item["name"], int(item["rank"]), item["kind"],
-                                    _check_shown(item, path))
+                                    _check_shown(item, path), group)
     return out
 
 

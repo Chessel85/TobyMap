@@ -4,8 +4,16 @@
 # rank orders what is at a point, lowest first, then smallest first (LOC-2).
 # kind is land or water. The land is taken out of water layers.
 
+#
+# The rest is written into the pack for the application's layers list (SCP-7):
+# group, geometry (area, line or point), switched_on (true or false at first), the zoom
+# range min_zoom_m to max_zoom_m (left out for no limit), min_size (an area's
+# width against the zoom distance, DP80), crossing_earcon and sound (sound
+# events from mapcore/describe/earcons.yaml). Changing these makes the build
+# write the pack again, but does not build the areas again.
+
 layers:
-  - {id: countries, name: Countries, rank: 2, kind: land}
-  - {id: oceans, name: Oceans and seas, rank: 2, kind: water}
-  - {id: regions, name: Regions, rank: 4, kind: land}
-  - {id: counties, name: Counties, rank: 6, kind: land}
+  - {id: countries, name: Countries, rank: 2, kind: land, group: Boundaries, geometry: area, switched_on: true}
+  - {id: oceans, name: Oceans and seas, rank: 2, kind: water, group: Water, geometry: area, switched_on: true}
+  - {id: regions, name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true}
+  - {id: counties, name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true}

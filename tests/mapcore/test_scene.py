@@ -141,3 +141,53 @@ def test_every_drawn_layer_is_one_where_am_i_can_find(test_pack):
     layers = {s.store.feature(a).layer for a in set(f["shape_area"])}
     findable = {a.layer for a in s.store.at(51.2, 1.2)} | {"countries", "regions", "counties", "oceans"}
     assert layers <= findable
+
+
+def _one_by_one(self, box):
+    """The drawing's shapes as before P2-T14c: each entry decoded on its own."""
+    import shapely
+
+    from mapcore.packs import tiles
+
+    geoms = np.empty(len(self.entries), object)
+    for i, e in enumerate(self.entries):
+        geoms[i] = shapely.box(*box) if e.kind == tiles.COVERED else self.shape(i)
+    return geoms, np.asarray([e.feature for e in self.entries], np.int64)
+
+
+@pytest.mark.parametrize("zoom", [10_000, 250_000, 2_500_000])
+def test_a_drawing_from_shapes_kept_with_their_tiles_matches_a_fresh_one(test_pack, monkeypatch, zoom):
+    """P2-T14c: each tile's shapes are decoded together and kept. The picture is the
+    same, point for point within a pixel, as one drawn afresh, and as one from
+    shapes decoded one by one."""
+    from mapcore.store.cache import TileData
+
+    s = make(test_pack, lat=51.2, lon=1.2, zoom_m=zoom, step_m=25_000)
+    s.scene(800, 600)
+    s.world.lon += 0.3
+    s.scene(800, 600)
+    s.world.lon -= 0.3
+    kept = s.scene(800, 600)                                  # from the shapes kept with the tiles
+    fresh = make(test_pack, lat=51.2, lon=1.2, zoom_m=zoom, step_m=25_000).scene(800, 600)
+    monkeypatch.setattr(TileData, "drawing_shapes", _one_by_one)
+    old = make(test_pack, lat=51.2, lon=1.2, zoom_m=zoom, step_m=25_000).scene(800, 600)
+    for other in (fresh, old):
+        assert kept["points"] == other["points"] > 0
+        assert np.abs(np.asarray(kept["coords"]) - np.asarray(other["coords"])).max() <= 1.0
+        for key in ("rings", "shapes", "shape_style", "seam"):
+            assert np.array_equal(kept[key], other[key]), key
+        assert kept["shape_area"] == other["shape_area"]
+
+
+def test_the_heading_arrow_turns_with_the_way_you_face(test_pack):
+    """P2-T1e, NAV-12: the arrow at the centre points the way you face, in the scene both shells paint."""
+    s = make(test_pack, lat=51.2, lon=1.2, zoom_m=250_000, step_m=25_000)
+    assert s.scene(800, 600)["heading"]["degrees"] == 0
+    s.run("orientation.cycle")
+    s.run("turn.right")
+    assert s.scene(800, 600)["heading"]["degrees"] == 90
+    s.run("bearing.set", text="47")
+    f = s.scene(800, 600)
+    assert f["heading"]["degrees"] == 47 and (f["heading"]["x"], f["heading"]["y"]) == (400, 300)
+    s.run("orientation.cycle")   # north-fixed again: the arrow points up
+    assert s.scene(800, 600)["heading"]["degrees"] == 0

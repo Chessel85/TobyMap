@@ -14,6 +14,8 @@ Kinds:
 
 * COVERED (0): a covered note. The area covers the whole pack tile; no bytes.
 * COMPACT (2): part of the area's shape, in compact coordinates (coords.py).
+* LINES (3): part of a line feature's shape, from format 3 (P2-T10a).
+* POINTS (4): a point feature's points in this tile, from format 3.
 
 Kind 1 was WKB in the spike S2 packs and is refused.
 """
@@ -22,8 +24,9 @@ from __future__ import annotations
 import struct
 from typing import NamedTuple
 
-COVERED, COMPACT = 0, 2
-KINDS = (COVERED, COMPACT)
+COVERED, COMPACT, LINES, POINTS = 0, 2, 3, 4
+KINDS = (COVERED, COMPACT, LINES, POINTS)
+AREA_KINDS = (COVERED, COMPACT)   # what "where am I" looks at: lines and points have no inside
 MAX_TILE_LEVEL = 18
 # AD-5, from spike S2: a tile entry holds at most this many points, and a
 # pack tile at most TILE_POINTS in all its tile entries together, except at

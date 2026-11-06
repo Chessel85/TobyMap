@@ -26,6 +26,9 @@ def line(event: dict, origin: float) -> str:
         parts.append("said: " + " | ".join(event["spoken"]))
     if event.get("earcons"):
         parts.append("earcons: " + ", ".join(event["earcons"]))
+    if event["command"] == "draw":   # the parts of a drawing (P2-T14b)
+        parts.append(f"choosing {event['choose_ms']:.1f} ms, projecting {event['project_ms']:.1f} ms, "
+                     f"painting {event['paint_ms']:.1f} ms, {event['points']} points")
     for key in ("key_to_start_ms", "handed_to_screen_reader_ms"):
         if key in event:
             parts.append(f"{key.removesuffix('_ms').replace('_', ' ')}: {event[key]:.1f} ms")
@@ -34,9 +37,9 @@ def line(event: dict, origin: float) -> str:
 
 def add_shell(session, key_pressed_at: float | None = None, handed_over_at: float | None = None) -> None:
     """The shell reports times (seconds on the same clock as the core's) for the latest event."""
-    if not session.trace:
+    event = next((e for e in reversed(session.trace) if e["command"] != "draw"), None)   # drawings come in between
+    if event is None:
         return
-    event = session.trace[-1]
     started = event["at"] - event["ms"] / 1000
     if key_pressed_at is not None:
         event["key_to_start_ms"] = max(0.0, (started - key_pressed_at) * 1000)

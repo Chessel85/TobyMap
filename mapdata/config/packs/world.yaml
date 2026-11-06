@@ -8,7 +8,7 @@ title: "Base pack lite: countries, first-level divisions, and oceans and seas, f
 version: 0.1.0
 app_versions: {from: 0.0.1}
 coverage: {kind: world}
-layer_groups: [base]
+layer_groups: [base, graticule]
 space_needed_mb: 40000
 
 stages:
@@ -28,6 +28,10 @@ stages:
       - {name: Ilemi Triangle, point: [35.22, 4.81], disputed: true, note: "Land that South Sudan and Kenya both claim; Ethiopia has also claimed part of it."}
     named_waters:
       - {id: "water:caspian-sea", name: Caspian Sea, point: [50.5, 41.5]}
+  - stage: graticule
+    # The tropics and polar circles are worked out for this year (the tilt of the Earth's axis changes slowly).
+    year: 2026
+    source: naturalearth-geographic-lines
   - stage: write
     drawing_levels:
       # The zoom each serves is the view radius in kilometres (architecture 6.9). The core picks the finest

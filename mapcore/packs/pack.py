@@ -1,8 +1,8 @@
-"""Pack format 2: the writer and the reader (AD-5, architecture 6.2, PCK-5, DAT-9, NFR-4).
+"""Pack format 3 (and reading format 2): the writer and the reader (AD-5, architecture 6.2, PCK-5, DAT-9, NFR-4).
 
 The specification is docs/developer/pack-format.md. In short:
 
-* A 40-byte header: b"TOBYPACK", the format number (2), flags, reserved,
+* A 40-byte header: b"TOBYPACK", the format number (3), flags, reserved,
   where the directory starts and its length, the directory's check number,
   and the header's own check number.
 * The records, one after another, each compressed with zlib.
@@ -36,7 +36,8 @@ from mapcore.packs import coords, tiles
 from mapcore.packs.source import FileSource
 
 MAGIC = b"TOBYPACK"
-FORMAT = 2
+FORMAT = 3          # written: format 3 adds line and point tile entries (P2-T10a)
+OLDEST_FORMAT = 2   # read: format 2 is format 3 without them, so it is read as it is
 _HEADER = struct.Struct("<8sHHIQQII")
 HEADER_SIZE = _HEADER.size  # 40
 GROUP_SIZE = 256  # feature records per group, on average
@@ -184,7 +185,7 @@ def require_checksum(path) -> None:
 # Writing -------------------------------------------------------------------
 
 class PackWriter:
-    """Writes a pack in format 2.
+    """Writes a pack in format 3.
 
     The order of calls is: add_features once, then any number of add_tile and
     add_drawing_tile, then finish. Given the same calls in the same order,
@@ -266,7 +267,7 @@ class PackWriter:
                 if e.data:
                     raise PackWriteError("a covered note has no bytes")
                 continue
-            points = coords.point_count(e.data)
+            points = coords.point_count(e.data) if e.kind == tiles.COMPACT else coords.line_point_count(e.data)
             total += points
             if exact and points > tiles.ENTRY_POINTS and level < tiles.MAX_TILE_LEVEL:
                 raise PackWriteError(f"a tile entry at tile level {level} has {points} points; "
@@ -378,7 +379,7 @@ def read_format(source) -> int | None:
 
 
 class Pack:
-    """Reads records on demand from a pack in format 2.
+    """Reads records on demand from a pack in format 3 or 2.
 
     `source` is a path or a byte source (source.py). The pack is refused,
     with a PackError whose message comes from the templates, when it is not a
@@ -411,11 +412,12 @@ class Pack:
         magic, fmt, _flags, _reserved, offset, length, dir_check, head_check = _HEADER.unpack(head)
         if magic != MAGIC:
             raise NotAPack(self.name)
-        if fmt < FORMAT:
+        if fmt < OLDEST_FORMAT:
             raise NotAPack(self.name)
         if fmt > FORMAT:
             raise NewerFormat(self.name)
-        if fmt != FORMAT or check_number(head[:-4]) != head_check:
+        self.format = fmt
+        if check_number(head[:-4]) != head_check:
             raise DamagedPack(self.name, record="header")
         stored = bytes(self.source.read(offset, length)) if offset + length <= self.source.size else b""
         if len(stored) != length or check_number(stored) != dir_check:

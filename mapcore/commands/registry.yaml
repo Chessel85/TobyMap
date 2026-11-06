@@ -26,16 +26,27 @@ menus:
 
 commands:
   # Moving (NAV-1). Arrow keys step north, south, west and east.
-  - {name: move.north, label: Step north, key: Up, region: map, menu: Map, latest_only: true, held: true}
-  - {name: move.south, label: Step south, key: Down, region: map, menu: Map, latest_only: true, held: true}
-  - {name: move.west, label: Step west, key: Left, region: map, menu: Map, latest_only: true, held: true}
-  - {name: move.east, label: Step east, key: Right, region: map, menu: Map, latest_only: true, held: true}
+  - {name: move.north, label: Step north or forward, key: Up, region: map, menu: Map, latest_only: true, held: true}
+  - {name: move.south, label: Step south or back, key: Down, region: map, menu: Map, latest_only: true, held: true}
+  - {name: move.west, label: Step west or turn left, key: Left, region: map, menu: Map, latest_only: true, held: true}
+  - {name: move.east, label: Step east or turn right, key: Right, region: map, menu: Map, latest_only: true, held: true}
   # Zoom and step (NAV-2, NAV-13).
   - {name: zoom.out, label: Zoom out, key: Page Up, region: map, menu: Map}
   - {name: zoom.in, label: Zoom in, key: Page Down, region: map, menu: Map}
   - {name: step.larger, label: Larger step, key: Shift+Page Up, region: map, menu: Map}
   - {name: step.smaller, label: Smaller step, key: Shift+Page Down, region: map, menu: Map}
   - {name: step.link, label: Link step to zoom, key: "", region: global, menu: Map, toggle: true}
+  # Orientation and turning (NAV-3, NAV-11, NAV-12). Left and Right also turn, in the facing orientations.
+  - {name: orientation.cycle, label: "Change orientation: north-fixed, cardinal facing, free facing", key: O, region: map, menu: Map}
+  - {name: turn.left, label: Turn 90 degrees left, key: Shift+Left, region: map, menu: Map}
+  - {name: turn.right, label: Turn 90 degrees right, key: Shift+Right, region: map, menu: Map}
+  - {name: turn.fine_left, label: Fine turn left in free facing, key: Ctrl+Left, region: map, menu: Map}
+  - {name: turn.fine_right, label: Fine turn right in free facing, key: Ctrl+Right, region: map, menu: Map}
+  - {name: bearing.type, label: Type a bearing, key: Ctrl+B, region: map, menu: Map}
+  # Going to coordinates and back through the places you have been (NAV-8, NAV-10).
+  - {name: goto.coordinates, label: Go to coordinates, key: Ctrl+G, region: map, menu: Map}
+  - {name: history.back, label: Back to the previous place, key: "Alt+,", region: map, menu: Map}
+  - {name: history.forward, label: Forward to the next place, key: "Alt+.", region: map, menu: Map}
   # Where am I (LOC-1, LOC-7).
   - {name: where.am_i, label: Where am I, key: Space, region: map, menu: Map}
   - {name: where.coordinates, label: Coordinates, key: C, region: map, menu: Map}
@@ -74,3 +85,7 @@ commands:
   - {name: keys.remap, label: Change the key of a command, key: "", region: global, menu: "", pointer: true}
   - {name: sound.preview, label: Play a sound from the list of sounds, key: "", region: global, menu: "", pointer: true}
   - {name: settings.set, label: Change a setting, key: "", region: global, menu: "", pointer: true}
+  - {name: layers.set, label: Change a layer, key: "", region: global, menu: "", pointer: true}
+  - {name: bearing.set, label: Face the typed bearing, key: "", region: map, menu: "", pointer: true}
+  - {name: goto.set, label: Go to the typed coordinates, key: "", region: map, menu: "", pointer: true}
+  - {name: history.go, label: Go to the place of an announcement history entry, key: "", region: global, menu: "", pointer: true}

@@ -90,6 +90,32 @@ def test_fast_decoder_gives_exactly_what_the_first_one_did():
         assert shapely.equals_exact(new, old, tolerance=0)
 
 
+def test_decoding_a_whole_tile_at_once_gives_the_same_shapes():
+    """P2-T14c: a drawing decodes every shape of a tile in one go, which must give
+    exactly the shapes decoded one by one, in the same order."""
+    rng = np.random.default_rng(14)
+    shapes = [
+        shapely.box(-1, 50, -0.9, 50.1),
+        shapely.MultiPolygon([shapely.box(0, 0, 1, 1).difference(shapely.box(0.2, 0.2, 0.4, 0.4)),
+                              shapely.box(5, 5, 6, 6)]),
+        shapely.Polygon([(-179.9999999, -89.5), (179.9999999, -89.5), (0, 89.9999999)]),
+        shapely.MultiPolygon([shapely.Point(x, y).buffer(r, quad_segs=int(q)) for x, y, r, q in
+                              zip(rng.uniform(0, 30, 50), rng.uniform(55, 71, 50), rng.uniform(1e-5, 0.01, 50),
+                                  rng.integers(1, 40, 50))]),
+        shapely.box(170, -20, 179.5, -10),
+    ]
+    blobs = [coords.encode(coords.rings_of(g)) for g in shapes]
+    together = coords.to_shapes(blobs)
+    assert len(together) == len(shapes)
+    for blob, got in zip(blobs, together):
+        one = coords.to_shape(blob)
+        expected = one if one.geom_type == "MultiPolygon" else shapely.MultiPolygon([one])
+        assert shapely.equals_exact(got, expected, tolerance=0)
+    assert len(coords.to_shapes([])) == 0
+    with pytest.raises(ValueError):
+        coords.decode_many([blobs[1], blobs[0][:3]])          # a shape cut short
+
+
 def test_negative_and_large_deltas():
     geom = shapely.Polygon([(-179.9999999, -89.5), (179.9999999, -89.5), (0, 89.9999999)])
     back = coords.to_shape(coords.encode(coords.rings_of(geom)))

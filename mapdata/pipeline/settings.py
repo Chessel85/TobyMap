@@ -129,12 +129,56 @@ def load_sources(config_dir: Path = CONFIG_DIR) -> dict[str, Source]:
     return out
 
 
+# What a layer definition may say about how the application shows and sounds the
+# layer (SCP-7, mapcore/layers/catalogue.py). These are written into the pack, and
+# only the write stage depends on them, so changing them does not build the areas again.
+SHOWN_FIELDS = ("group", "geometry", "switched_on", "min_zoom_m", "max_zoom_m", "min_size", "crossing_earcon", "sound")
+GEOMETRIES = ("area", "line", "point")
+
+
 @dataclass(frozen=True)
 class Layer:
     id: str
     name: str
     rank: int
     kind: str  # land or water
+    shown: tuple = ()   # (field, value) pairs from SHOWN_FIELDS, as the layer file gives them
+
+    def build_fields(self) -> dict:
+        """What the stages that make the areas depend on (their fingerprints)."""
+        return {"id": self.id, "name": self.name, "rank": self.rank, "kind": self.kind}
+
+    def definition(self) -> dict:
+        """The layer definition written into the pack (docs/developer/pack-format.md)."""
+        return {"id": self.id, "name": self.name, "rank": self.rank, **dict(self.shown)}
+
+
+def _check_shown(item: dict, path: Path) -> tuple:
+    name = f"The layer {item['id']} in {path.name}"
+    unknown = sorted(set(item) - {"id", "name", "rank", "kind", *SHOWN_FIELDS})
+    if unknown:
+        raise BuildStopped(f"{name} has a setting mapdata does not know: {', '.join(unknown)}. "
+                           "Check the spelling against docs/data-manager/configuration.md.")
+    if item.get("geometry", "area") not in GEOMETRIES:
+        raise BuildStopped(f"{name} has geometry {item['geometry']}; use area, line or point.")
+    if "switched_on" in item and not isinstance(item["switched_on"], bool):
+        raise BuildStopped(f"{name} has switched_on: {item['switched_on']}; use true or false.")
+    for field in ("min_zoom_m", "max_zoom_m", "min_size"):
+        value = item.get(field)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0):
+            raise BuildStopped(f"{name} has {field}: {value}; use a number, 0 or more.")
+    if item.get("max_zoom_m") is not None and (item.get("min_zoom_m") or 0) > item["max_zoom_m"]:
+        raise BuildStopped(f"{name} has min_zoom_m larger than max_zoom_m. The closest zoom comes first.")
+    for field in ("crossing_earcon", "sound"):
+        value = item.get(field)
+        if value is not None:
+            from mapcore.describe import earcon_list
+
+            events = [e["event"] for e in earcon_list()]
+            if value not in events:
+                raise BuildStopped(f"{name} has {field}: {value}, which is not one of the application's sounds: "
+                                   f"{', '.join(events)}.")
+    return tuple((k, item[k]) for k in SHOWN_FIELDS if k in item)
 
 
 def load_layers(groups: list[str], config_dir: Path = CONFIG_DIR) -> dict[str, Layer]:
@@ -150,7 +194,8 @@ def load_layers(groups: list[str], config_dir: Path = CONFIG_DIR) -> dict[str, L
                                    "use land or water.")
             if item["id"] in out:
                 raise BuildStopped(f"The layer {item['id']} is defined twice. Keep one, then build again.")
-            out[item["id"]] = Layer(item["id"], item["name"], int(item["rank"]), item["kind"])
+            out[item["id"]] = Layer(item["id"], item["name"], int(item["rank"]), item["kind"],
+                                    _check_shown(item, path))
     return out
 
 

@@ -34,9 +34,13 @@ COVERED, SHAPE = tiles.COVERED, tiles.COMPACT
 
 
 def simplify_layer(geoms: list, tolerance_m: float, min_km2: float) -> list:
-    """One layer's shapes simplified together as a coverage, with small parts left out."""
+    """One layer's shapes simplified together as a coverage, with small parts left out.
+    Lines are simplified one by one, and points are kept as they are (P2-T10a)."""
     if not geoms:
         return []
+    if not all(shapely.get_type_id(g) in (3, 6) for g in geoms if g is not None):
+        return [g if g is None or shapely.get_type_id(g) not in (1, 2, 5)
+                else shapely.simplify(g, tolerance_m / METRES_PER_DEGREE, preserve_topology=False) for g in geoms]
     arr = np.empty(len(geoms), dtype=object)
     arr[:] = geoms
     out = shapely.coverage_simplify(arr, tolerance_m / METRES_PER_DEGREE, simplify_boundary=True)
@@ -67,14 +71,30 @@ def drop_small(g, min_km2: float):
     return kept[0] if len(kept) == 1 else shapely.MultiPolygon(kept)
 
 
-def _clip(geom, bounds):
-    from mapdata.stages.pack_write import _areas, cut_to_rect
+def _clip(geom, bounds, kind=SHAPE, level=0, x=0, y=0):
+    from mapdata.stages.pack_write import cut_to_rect, keep_kind, points_in_tile
 
-    return _areas(cut_to_rect(geom, bounds))
+    if kind == tiles.POINTS:
+        return keep_kind(points_in_tile(geom, level, x, y), kind)
+    return keep_kind(cut_to_rect(geom, bounds), kind)
 
 
 def _cut(geom, level: int, x: int, y: int, target: int, out: dict, index: int) -> None:
     """Cut a shape (already clipped to tile level/x/y) down to the target tile level."""
+    from mapdata.stages.pack_write import encode, entry_kind
+
+    kind = entry_kind(geom)
+    if kind != SHAPE:   # a line or points: no covered notes
+        if level == target:
+            out.setdefault((x, y), []).append((index, kind, encode(kind, geom)))
+            return
+        for dx in (0, 1):
+            for dy in (0, 1):
+                cx, cy = 2 * x + dx, 2 * y + dy
+                inside = _clip(geom, tiles.tile_box(level + 1, cx, cy), kind, level + 1, cx, cy)
+                if inside is not None:
+                    _cut(inside, level + 1, cx, cy, target, out, index)
+        return
     if level == target:
         box = shapely.box(*tiles.tile_box(level, x, y))
         if abs(geom.area - box.area) <= 1e-12 * box.area and shapely.equals(geom, box):

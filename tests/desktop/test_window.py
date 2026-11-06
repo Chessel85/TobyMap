@@ -8,7 +8,8 @@ from PySide6.QtGui import QImage, QKeyEvent, QPainter
 from PySide6.QtWidgets import QApplication
 
 from desktop.announcer import RecordingAnnouncer
-from desktop.dialogs import KeyCaptureDialog, ListDialog, SettingsDialog, SoundsDialog, TextDialog
+from desktop.dialogs import (HistoryDialog, InputDialog, KeyCaptureDialog, ListDialog, SettingsDialog, SoundsDialog,
+                             TextDialog)
 from desktop.map_widget import paint_scene
 from desktop.sounds import RecordingSounds
 from desktop.window import MainWindow
@@ -152,7 +153,7 @@ def test_menus_come_from_the_registry(window):
     bar = window.menuBar()
     assert [a.text() for a in bar.actions()] == ["&Map", "&Speech", "Se&ttings", "&Help"]
     texts = [a.text() for a in bar.actions()[0].menu().actions()]
-    assert "Step north\tUp" in texts and "Exit" in texts and "Link step to zoom" in texts
+    assert "Step north or forward\tUp" in texts and "Exit" in texts and "Link step to zoom" in texts
     assert window.actions_by_name["step.link"].isCheckable()
 
 
@@ -184,7 +185,7 @@ def test_braille_test_goes_to_braille_when_nvda_is_there(qtbot, test_pack, tmp_p
 def test_f1_opens_a_dialog_for_the_focused_region_with_a_close_button(window, qtbot):
     qtbot.keyClick(window.map, Qt.Key.Key_F1)
     dialog = click_dialog(window, TextDialog)
-    assert dialog.windowTitle() == "Keys" and "Step north: Up" in dialog.text.toPlainText()
+    assert dialog.windowTitle() == "Keys" and "Step north or forward: Up" in dialog.text.toPlainText()
     assert dialog.close_button.text() == "Close"
     dialog.close_button.click()
     QApplication.processEvents()
@@ -193,7 +194,7 @@ def test_f1_opens_a_dialog_for_the_focused_region_with_a_close_button(window, qt
     QApplication.processEvents()
     window.focus_region("panel")
     qtbot.keyClick(window.tree, Qt.Key.Key_F1)
-    assert "Step north" not in click_dialog(window, TextDialog).text.toPlainText()
+    assert "Step north or forward" not in click_dialog(window, TextDialog).text.toPlainText()
 
 
 def test_history_dialog_lists_the_announcements_with_a_close_button(window, qtbot):
@@ -207,7 +208,7 @@ def test_history_dialog_lists_the_announcements_with_a_close_button(window, qtbo
 def test_the_key_describer_describes_and_does_nothing(window, qtbot):
     qtbot.keyClick(window.map, Qt.Key.Key_F1, Qt.KeyboardModifier.ShiftModifier)
     qtbot.keyClick(window.map, Qt.Key.Key_Down)
-    assert window.announcer.texts[-1] == "Down: Step south"
+    assert window.announcer.texts[-1] == "Down: Step south or back"
     assert window.session.world.lat == 51.2
     qtbot.keyClick(window.map, Qt.Key.Key_F1, Qt.KeyboardModifier.ShiftModifier)
     assert window.announcer.texts[-1] == "Key describer off."
@@ -225,35 +226,79 @@ def test_the_key_describer_catches_tab_and_works_in_every_region(window, qtbot):
     assert region(window) == "panel"
     assert window.announcer.texts[-1] == "Shift+Tab: no command."
     qtbot.keyClick(window.tree, Qt.Key.Key_Down)
-    assert window.announcer.texts[-1] == "Down: Step south"
+    assert window.announcer.texts[-1] == "Down: Step south or back"
     assert window.tree.currentItem() is item
     qtbot.keyClick(window.tree, Qt.Key.Key_F1, Qt.KeyboardModifier.ShiftModifier)
     qtbot.keyClick(window.tree, Qt.Key.Key_Tab)
     assert region(window) == "details"
 
 
-def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(window):
+def hold_key(window, qtbot, key, seconds: float) -> None:
+    """Hold a key in real time: the press, then the system's repeats every 33 ms, as Windows sends them."""
+    w = window.map
+    QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, key))
+    end = time.perf_counter() + seconds
+    while time.perf_counter() < end:
+        qtbot.wait(33)
+        QApplication.sendEvent(w, key_event(QEvent.Type.KeyRelease, key, auto=True))
+        QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, key, auto=True))
+
+
+def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(window, qtbot):
     """ANN-3: two seconds of key repeat, then let go."""
     announcer = window.announcer
-    w = window.map
-    clock = [100.0]
-    window.session.clock = lambda: clock[0]
-    QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, Qt.Key.Key_Down))          # the first press speaks
-    spoken_after_first = len(announcer.spoken)
-    start = time.perf_counter()
-    for _ in range(60):                                                                    # 2 seconds of repeats
-        clock[0] += 1 / 30
-        QApplication.sendEvent(w, key_event(QEvent.Type.KeyPress, Qt.Key.Key_Down, auto=True))
-        QApplication.sendEvent(w, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down, auto=True))
-    assert len(announcer.spoken) == spoken_after_first, "nothing is spoken while the key is held"
+    spoken_before = len(announcer.spoken)
+    hold_key(window, qtbot, Qt.Key.Key_Down, 2.0)
+    assert len(announcer.spoken) == spoken_before + 1, "only the press is spoken while the key is held"
     steps = round((51.2 - window.session.world.lat) / (25 / 111.2))
-    assert 9 <= steps <= 11, steps          # the press, then 6 a second after the 500 ms delay (DP129)
+    assert 10 <= steps <= 11, steps         # the press, then 6 a second after the 500 ms delay (DP129)
     assert window.sounds.played.count("tick") >= steps - 1   # each repeated step ticks
-    QApplication.sendEvent(w, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down))
-    assert len(announcer.spoken) == spoken_after_first + 1
+    QApplication.sendEvent(window.map, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down))
+    assert len(announcer.spoken) == spoken_before + 2
     assert announcer.spoken[-1][1] == "assertive"       # it interrupts what the screen reader was still saying
     assert announcer.texts[-1] == "France"             # about 250 km south of Kent
-    assert time.perf_counter() - start < 5
+
+
+def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(window, qtbot):
+    """DP140, P2-T14: each drawing takes 200 ms, yet a 3 second hold at 6 steps a
+    second clicks within 10 ms of each due time. The map is drawn at most 4 times a
+    second while the key is held, and once more after the release."""
+    session = window.session
+    real_scene = session.scene
+    started = []
+
+    def slow_scene(width, height):
+        started.append(time.perf_counter())
+        until = time.perf_counter() + 0.2
+        while time.perf_counter() < until:   # Python busy for 200 ms, as a real drawing is
+            sum(range(200))
+        return real_scene(width, height)
+
+    session.scene = slow_scene
+    qtbot.waitUntil(window.map.drawing_done)
+    ticks_before = len(window.sounds.times)
+    pressed = time.perf_counter()
+    hold_key(window, qtbot, Qt.Key.Key_Down, 0.0)
+    first_due = time.perf_counter() + session.hold_due()
+    end = pressed + 3.0
+    while time.perf_counter() < end:
+        qtbot.wait(33)
+        QApplication.sendEvent(window.map, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down, auto=True))
+        QApplication.sendEvent(window.map, key_event(QEvent.Type.KeyPress, Qt.Key.Key_Down, auto=True))
+    released = time.perf_counter()
+    QApplication.sendEvent(window.map, key_event(QEvent.Type.KeyRelease, Qt.Key.Key_Down))
+    qtbot.waitUntil(window.map.drawing_done, timeout=3000)
+    qtbot.wait(50)
+
+    ticks = [t for t in window.sounds.times[ticks_before:] if t > first_due - 0.05]   # not the press's own
+    due_before_release = sum(1 for k in range(40) if first_due + k / 6 < released)
+    assert len(ticks) >= 15 and abs(len(ticks) - due_before_release) <= 1   # 2.5 seconds after the delay, 6 a second
+    late = [round((t - (first_due + k / 6)) * 1000, 1) for k, t in enumerate(ticks)]
+    assert all(-2 <= d <= 10 for d in late), late
+    during = [t for t in started if pressed <= t < released]
+    assert len(during) <= 3 * 4 + 1, during                          # at most 4 a second, and the press's own
+    assert len([t for t in started if t >= released]) == 1           # one drawing of the final place
+    assert window.announcer.texts[-1] == "France"
 
 
 def test_a_step_is_announced_quickly(window, qtbot):
@@ -445,6 +490,17 @@ def test_dragging_turns_the_globe_and_speaks_only_at_the_end(window, qtbot):
     assert window.session.world.lon != 1.2
 
 
+def test_the_map_is_drawn_in_its_own_thread_and_shown(window, qtbot):
+    made = window.map.drawings_made
+    window.map.redraw()
+    qtbot.waitUntil(lambda: window.map.drawings_made > made)
+    image = window.map.grab().toImage()
+    centre = image.pixelColor(image.width() // 2 + 40, image.height() // 2 + 40).name()
+    assert centre != window.session.scene_background()               # the map, not the empty background
+    event = [e for e in window.session.trace if e["command"] == "draw"][-1]
+    assert event["paint_ms"] >= 0 and event["points"] > 0
+
+
 def test_scene_paints_quickly_on_an_image(window):
     scene = window.session.scene(1200, 900)
     image = QImage(1200, 900, QImage.Format.Format_ARGB32_Premultiplied)
@@ -456,8 +512,28 @@ def test_scene_paints_quickly_on_an_image(window):
     assert image.pixelColor(600, 450).name() != scene["background"]
 
 
-def test_timing_report_uses_the_last_paint(window):
-    window.map.repaint()
+def test_lines_and_markers_are_painted(window):
+    """P2-T10a: the shell strokes each run of a line and draws each marker where the core put it."""
+    import numpy as np
+
+    scene = window.session.scene(400, 300)
+    scene.update({"line_coords": np.array([50, 150, 350, 150], np.float32), "line_runs": np.array([0, 2], np.int32),
+                  "line_style": np.array([0], np.int32), "line_area": ["a"],
+                  "line_styles": [{"stroke": "#ff0000", "width": 3}],
+                  "marker_coords": np.array([200, 60], np.float32), "marker_style": np.array([0], np.int32),
+                  "marker_area": ["b"], "marker_styles": [{"fill": "#00ff00", "stroke": "#00ff00", "radius": 5}]})
+    scene["cross"] = scene["heading"] = None
+    image = QImage(400, 300, QImage.Format.Format_ARGB32_Premultiplied)
+    painter = QPainter(image)
+    paint_scene(painter, scene)
+    painter.end()
+    assert image.pixelColor(120, 150).name() == "#ff0000"
+    assert image.pixelColor(200, 60).name() == "#00ff00"
+
+
+def test_timing_report_uses_the_last_paint(window, qtbot):
+    window.map.redraw()
+    qtbot.waitUntil(lambda: window.map.drawing_done() and window.session.paint_ms is not None)
     window.actions_by_name["diagnostics.timing"].trigger()
     assert "painted in" in window.announcer.texts[-1]
 
@@ -482,3 +558,83 @@ def test_nothing_in_the_code_asks_for_the_location_of_the_computer():
             text = f.read_text(encoding="utf-8", errors="ignore")
             for word in banned:
                 assert word not in text, (f, word)
+
+
+# Orientation, turning, typed bearings and coordinates, and the place history (P2-T1c, P2-T2, P2-T15) --------------
+
+def press(qtbot, widget, key, mods=Qt.KeyboardModifier.NoModifier):
+    qtbot.keyClick(widget, key, mods)
+    QApplication.processEvents()
+
+
+def test_the_orientation_and_turning_keys(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_O)
+    assert window.announcer.texts[-1] == "Cardinal facing, north."
+    press(qtbot, window.map, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    assert window.announcer.texts[-1] == "Facing east."
+    assert window.session.world.heading == 90.0
+    press(qtbot, window.map, Qt.Key.Key_O)
+    press(qtbot, window.map, Qt.Key.Key_Left, Qt.KeyboardModifier.ControlModifier)
+    assert window.announcer.texts[-1] == "Facing 89 degrees."
+
+
+def test_the_bearing_box_takes_a_bearing_and_refuses_what_it_cannot_read(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_B, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    assert box.windowTitle() == "Type a bearing" and box.ok_button.text() == "OK" and box.cancel_button.text() == "Cancel"
+    box.field.setText("sideways")
+    box.ok_button.click()
+    assert box.isVisible() and box.message.text().startswith("That is not a bearing")
+    assert window.announcer.texts[-1].startswith("That is not a bearing")
+    box.field.setText("NE")
+    box.ok_button.click()
+    QApplication.processEvents()
+    assert not box.isVisible() and window.announcer.texts[-1] == "Free facing, 45 degrees."
+    assert window.session.world.heading == 45.0
+
+
+def test_cancel_closes_the_go_to_box_and_moves_nothing(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    box.field.setText("10, 10")
+    box.cancel_button.click()
+    QApplication.processEvents()
+    assert not box.isVisible() and window.session.world.lat == 51.2
+
+
+def test_go_to_coordinates_then_back_through_the_places(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    box.field.setText("52.1 N 1.3 W")
+    box.ok_button.click()
+    QApplication.processEvents()
+    assert window.session.world.lat == pytest.approx(52.1) and window.session.world.lon == pytest.approx(-1.3)
+    window.activateWindow()   # offscreen: the window is not given back the keyboard when a box closes
+    qtbot.waitUntil(lambda: QApplication.activeWindow() is window)
+    press(qtbot, window.map, Qt.Key.Key_Comma, Qt.KeyboardModifier.AltModifier)
+    assert window.session.world.lat == pytest.approx(51.2)
+
+
+def test_enter_in_the_announcement_history_goes_back_there(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_PageUp)
+    zoom = window.session.world.zoom_m
+    window.session.run("goto.set", text="52.1, -1.3")
+    press(qtbot, window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+    box = click_dialog(window, HistoryDialog)
+    assert "Enter" in box.help.text()
+    box.list.setCurrentRow(box.list.count() - 2)
+    qtbot.keyClick(box.list, Qt.Key.Key_Return)
+    QApplication.processEvents()
+    assert not box.isVisible()
+    assert window.session.world.lat == pytest.approx(51.2) and window.session.world.zoom_m == zoom
+
+
+def test_enter_on_an_entry_with_no_place_keeps_the_list_open(window, qtbot):
+    window.session.run("sound.mute")
+    press(qtbot, window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+    box = click_dialog(window, HistoryDialog)
+    box.list.setCurrentRow(0)
+    qtbot.keyClick(box.list, Qt.Key.Key_Return)
+    QApplication.processEvents()
+    assert box.isVisible() and box.message.text() == "No place for this entry."
+    assert window.announcer.texts[-1] == "No place for this entry."

@@ -49,6 +49,15 @@ sources:
     attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
     refresh_days: 365
 
+  naturalearth-geographic-lines:
+    name: Natural Earth, geographic lines, 1:10 million
+    about: The international date line, which is not straight (DAT-13). The graticule stage reads only that line.
+    url: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_geographic_lines.geojson
+    file: naturalearth/ne_10m_geographic_lines.geojson
+    licence: Public domain
+    attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
+    refresh_days: 365
+
   # The test pack's samples, kept in the repository (architecture 11.1).
   # tests/samples/README.md says how each was made.
   sample-world:

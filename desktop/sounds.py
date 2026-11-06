@@ -6,6 +6,7 @@ the same time as speech and never waits for it. Tests use RecordingSounds.
 """
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -83,10 +84,12 @@ class RecordingSounds:
         self.played: list[str] = []
         self.failed: list[str] = []
         self.preloaded: list[str] = []
+        self.times: list[float] = []   # when each was played, for the held key test (P2-T14)
 
     def preload(self, infos: list[dict]) -> None:
         self.preloaded = [i["event"] for i in infos]
 
     def play(self, info: dict) -> tuple[bool, bool]:
         self.played.append(info["event"])
+        self.times.append(time.perf_counter())
         return True, bool(info.get("custom")) and info["custom"] in self.failed

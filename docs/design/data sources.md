@@ -91,7 +91,7 @@ These change what we can use, so please read them even if you skip the rest.
 
 ### Graticule and special lines
 * Lines of latitude and longitude are written into the base pack by the pipeline at every 1 degree, and the interval the user chooses filters them (architecture AD-11). This keeps the graticule an ordinary layer defined by configuration, and costs well under 1 MB.
-* The equator, tropics, polar circles and the international date line come from Natural Earth "geographic lines" (public domain). The date line is not a straight line, so it must come from data.
+* The equator, tropics, polar circles and the international date line come from Natural Earth "geographic lines" (public domain). The date line is not a straight line, so it must come from data. Source key naturalearth-geographic-lines, ne_10m_geographic_lines.geojson, public domain; only its date line is used (P2-T10b). The tropics and polar circles are calculated for the build year from the tilt of the Earth's axis.
 * Agreed (DP74): this is an ordinary layer. Its definition, including its crossing earcons, is configuration (SCP-7).
 
 ### Coastline and land

@@ -1,4 +1,4 @@
-"""Pack format 2: writer, reader, check numbers, checksum and version checks (P1-T2).
+"""Pack format 3 (and 2): writer, reader, check numbers, checksum and version checks (P1-T2).
 
 Requirements: PCK-5, DAT-9, NFR-4 (detection), DMT-1, and the format for PCK-1.
 """
@@ -38,7 +38,7 @@ def test_selfcheck_finds_no_problems():
 
 def test_every_kind_of_record_comes_back(data):
     p = open_bytes(data)
-    assert p.manifest["format"] == 2
+    assert p.manifest["format"] == 3
     assert p.manifest["name"] == "selfcheck"
     assert p.manifest["sources"] == selfcheck.MANIFEST["sources"]
     assert p.manifest["coordinates"] == {"encoding": "compact", "scale": 10_000_000}
@@ -145,11 +145,22 @@ def test_this_application_version_is_used_by_default(data):
 
 def test_a_newer_format_is_refused(data):
     newer = bytearray(data)
-    newer[8:10] = (3).to_bytes(2, "little")
+    newer[8:10] = (pack.FORMAT + 1).to_bytes(2, "little")
     with pytest.raises(pack.NewerFormat) as caught:
         open_bytes(bytes(newer), "future.pack")
     assert caught.value.message == ("future.pack needs a newer version of TobyMap, so it was not opened. "
                                     "Update TobyMap to use it.")
+
+
+def test_a_format_2_pack_is_still_read(data):
+    """Format 3 only adds line and point tile entries, so a pack built before P2-T10a,
+    such as the Phase 1 world pack, is read as it is."""
+    older = bytearray(data)
+    older[8:10] = (2).to_bytes(2, "little")
+    older[36:40] = pack.check_number(bytes(older[:36])).to_bytes(4, "little")
+    p = open_bytes(bytes(older), "phase1.pack")
+    assert p.format == 2 and p.manifest["name"] == "selfcheck"
+    assert open_bytes(data).format == 3
 
 
 def test_something_else_is_not_a_pack():

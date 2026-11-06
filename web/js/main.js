@@ -13,7 +13,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -23,7 +23,8 @@ let lastScene = null, returnFocus = null, describing = false, heldKey = null, la
 let toggles = { "step.link": false, "sound.mute": false, "help.describer": false };
 
 // window.tobymap is for the browser tests and diagnostics only.
-window.tobymap = { announcements: log, earcons: sounds.played, ready: false, error: null, paints: 0, timings: [] };
+window.tobymap = { announcements: log, earcons: sounds.played, clicks: sounds.clicks, ready: false, error: null,
+  paints: 0, timings: [] };
 
 function mapSize() {
   const r = mapEl.getBoundingClientRect();
@@ -37,7 +38,7 @@ function paint(scene) {
   client.send({ type: "painted", paintMs: ms }).catch(() => {});
 }
 
-function handle(result, keyAt) {
+function handle(result, keyAt, held = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
   const r = result.response;
   let spoke = false;
@@ -46,7 +47,9 @@ function handle(result, keyAt) {
     else speak(a.text, a.priority);
     spoke = true;
   }
-  for (const info of result.earcons || []) sounds.play(info);
+  for (const info of result.earcons || []) {
+    if (!(held && info.event === "tick")) sounds.play(info);   // a held step's click was played on time already
+  }
   if (spoke && keyAt !== undefined) {
     const now = performance.now();
     window.tobymap.timings.push(now - keyAt);
@@ -108,7 +111,54 @@ function run(name, args = {}, keyAt) {
 function release() {
   const { width, height } = mapSize();
   heldKey = null;
-  return client.send({ type: "release", width, height }).then(handle).catch(showError);
+  stopHold();
+  return client.send({ type: "release", width, height }).then((r) => handle(r)).catch(showError);
+}
+
+// Holding a movement key (DP129, DP140). The page keeps the beat itself: at
+// each step's due time, from the core's timing, it plays the click on the sound
+// card's clock and sends the step to the worker. The click never waits for the
+// worker, which may be busy drawing the map. The core says how many of the next
+// steps will move, so a step that would be blocked, at a pole, has no click.
+const HOLD_LEAD_MS = 50;   // wake this early, so a busy page still has the click ready on time
+let hold = null;
+
+function startHold(name, pressedAt, info) {
+  stopHold();
+  if (!info || heldKey !== name) return;
+  hold = { name, pressedAt, info, k: 0, sent: 0, left: info.unlimited ? Infinity : info.left,
+           seen: performance.now(), timer: null };
+  armHold();
+}
+
+function stopHold() {
+  if (hold) clearTimeout(hold.timer);
+  hold = null;
+}
+
+function holdDue(h, k) {
+  return h.pressedAt + h.info.delay_ms + k * h.info.every_ms;
+}
+
+function armHold() {
+  hold.timer = setTimeout(holdStep, Math.max(0, holdDue(hold, hold.k) - HOLD_LEAD_MS - performance.now()));
+}
+
+function holdStep() {
+  const h = hold;
+  if (!h) return;
+  if (performance.now() - h.seen > h.info.silence_ms) { release(); return; }   // the key was let go unseen
+  if (h.info.tick && h.left > 0) sounds.play(h.info.earcon, holdDue(h, h.k));
+  h.left -= 1;
+  h.k += 1;
+  const sent = ++h.sent;
+  const { width, height } = mapSize();
+  client.send({ type: "run", commands: [[h.name, { held: true, repeat: true }]], width, height }).then((r) => {
+    handle(r, undefined, true);
+    // The core's count is from after this step; steps sent since are taken off.
+    if (r && r.hold && hold === h) h.left = (r.hold.unlimited ? Infinity : r.hold.left) - (h.sent - sent);
+  }).catch(showError);
+  armHold();
 }
 
 function showError(error) {
@@ -140,7 +190,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -170,9 +220,20 @@ document.addEventListener("keydown", (e) => {
   if (!name) return;
   e.preventDefault();
   if (registry.held.includes(name)) {
-    if (e.repeat) return run(name, { held: true, repeat: true });   // the core paces repeats (DP129) and speaks on release (ANN-3)
+    if (e.repeat) {   // the page's own beat steps; a repeat only shows the key is still down
+      if (hold && hold.name === name) hold.seen = performance.now();
+      return;
+    }
     heldKey = name;
-    return run(name, {}, keyAt);
+    stopHold();
+    const { width, height } = mapSize();
+    client.send({ type: "run", commands: [[name, {}]], width, height }).then(async (r) => {
+      handle(r, keyAt);
+      // Joined to a later movement, the press has no answer of its own: ask for the timing.
+      const info = r ? r.hold : (await client.send({ type: "hold" })).hold;
+      startHold(name, keyAt, info);
+    }).catch(showError);
+    return;
   }
   run(name, name === "help.keys" ? { region: region || "map" } : {}, keyAt);
 });
@@ -193,7 +254,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [settingsDialog, dialog].find((d) => d.open);
+  const open = [settingsDialog, inputDialog, dialog].find((d) => d.open);
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -236,15 +297,19 @@ mapEl.addEventListener("wheel", (e) => {
 function openDialog(d) {
   returnFocus = document.activeElement && document.activeElement !== document.body ? document.activeElement : mapEl;
   if (d.kind === "settings") return openSettings(d);
+  if (d.kind === "input") return openInput(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
   dialog.querySelectorAll(".sounds").forEach((el) => el.remove());
+  dialog.querySelectorAll(".history").forEach((el) => el.remove());
   if (d.kind === "sounds") soundsList(d);
-  dialogText.hidden = d.kind === "sounds";
+  if (d.kind === "history") historyList(d);
+  dialogText.hidden = d.kind === "sounds" || d.kind === "history";
   dialogText.value = d.text;
   dialogText.setAttribute("aria-label", d.title);
   dialog.showModal();
   if (d.kind === "sounds") return $("sounds-list").focus();
+  if (d.kind === "history") return $("history-list").focus();
   dialogText.focus();
   dialogText.setSelectionRange(0, 0);
 }
@@ -273,6 +338,83 @@ function soundsList(d) {
   dialogTitle.after(list, playButton);
 }
 
+// The announcement history: one list, newest first. Enter on an entry goes back to the place it was
+// said at, and closes the list; an entry with no place says so and the list stays (ANN-4, DP141).
+function historyList(d) {
+  const help = document.createElement("p");
+  help.id = "history-help";
+  help.className = "history";
+  help.textContent = d.help;
+  const list = document.createElement("select");
+  list.id = "history-list";
+  list.className = "history";
+  list.size = Math.min(d.lines.length, 10);
+  list.setAttribute("aria-label", d.title);
+  list.setAttribute("aria-describedby", "history-help");
+  for (const line of d.lines) {
+    const o = document.createElement("option");
+    o.textContent = line;
+    list.appendChild(o);
+  }
+  list.selectedIndex = 0;
+  const message = document.createElement("p");
+  message.id = "history-message";
+  message.className = "history";
+  message.setAttribute("role", "alert");
+  list.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    submit(d.go, { index: list.selectedIndex }, message, dialog);
+  });
+  dialogTitle.after(help, list, message);
+}
+
+// Send a typed answer or a chosen entry to the core. If it is refused, show and say why and keep the
+// box open; otherwise close the box and carry out the answer.
+function submit(name, args, message, box) {
+  const { width, height } = mapSize();
+  return client.send({ type: "run", commands: [[name, args]], width, height }).then((r) => {
+    if (r.response.error) {
+      message.textContent = r.response.error;
+      speak(r.response.error, "assertive");
+      return;
+    }
+    box.close();
+    handle(r);
+  }).catch(showError);
+}
+
+// A box to type in, with OK and Cancel: a bearing or coordinates (NAV-8, NAV-12, ACC-7).
+function openInput(d) {
+  const box = inputDialog;
+  box.replaceChildren();
+  const title = document.createElement("h2");
+  title.textContent = d.title;
+  box.setAttribute("aria-label", d.title);
+  const label = document.createElement("label");
+  label.textContent = d.label;
+  const field = document.createElement("input");
+  field.type = "text";
+  field.id = "input-field";
+  field.autocomplete = "off";
+  field.spellcheck = false;
+  label.htmlFor = field.id;
+  const help = document.createElement("p");
+  help.id = "input-help";
+  help.textContent = d.help;
+  field.setAttribute("aria-describedby", "input-help");
+  const message = document.createElement("p");
+  message.id = "input-message";
+  message.setAttribute("role", "alert");
+  const go = () => submit(d.submit, { text: field.value }, message, box).then(() => { if (box.open) field.select(); });
+  const ok = button(d.ok, go, "input-ok");
+  const cancel = button(d.cancel, () => box.close(), "input-cancel");
+  box.append(title, label, field, help, message, ok, cancel);
+  field.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  box.showModal();
+  field.focus();
+}
+
 dialogClose.addEventListener("click", () => dialog.close());
 function afterClose() {
   // Menu commands return focus to the map, as on the desktop.
@@ -280,6 +422,7 @@ function afterClose() {
 }
 dialog.addEventListener("close", afterClose);
 settingsDialog.addEventListener("close", afterClose);
+inputDialog.addEventListener("close", afterClose);
 // Enter in a settings field presses OK, as on the desktop (web checklist 5).
 settingsDialog.addEventListener("keydown", (e) => {
   const el = e.target;
@@ -524,7 +667,9 @@ async function boot() {
   try { saved = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) { saved = ""; }
   // ?at=43.08,-79.08 in the address starts there instead of the last place (for testing).
   const at = new URLSearchParams(location.search).get("at") || "";
-  const result = await client.send({ type: "start", width, height, saved, at });
+  // ?slowdraw=200 makes every drawing take 200 ms longer, for the held key test only (P2-T14).
+  const slowMs = Number(new URLSearchParams(location.search).get("slowdraw")) || 0;
+  const result = await client.send({ type: "start", width, height, saved, at, slowMs });
   registry = result.registry;
   words = result.words;
   client.latestOnly = new Set(registry.latest_only);

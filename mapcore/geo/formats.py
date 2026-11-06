@@ -130,6 +130,44 @@ def bearing_parts(bearing: float, style: str = "points8") -> Bearing:
     raise ValueError(f"unknown bearing style {style!r}")
 
 
+def relative_bearing(bearing: float, heading: float) -> float:
+    """A bearing turned to be relative to the way the user faces: 0 is ahead, 90 to the
+    right, 180 behind (NAV-12, SON-2). The one rule that the words, Nearby and the
+    sound all use, so they always agree."""
+    return (bearing - heading) % 360.0
+
+
+def relative_parts(relative: float, style: str = "points8") -> Bearing:
+    """A relative bearing in the user's chosen style (ANN-5, NAV-12).
+
+    Kinds: "ahead" and "behind"; "right" and "left" with a number of degrees, or
+    "about_right" and "about_left" when rounded; "clock" with an hour, 12 being
+    ahead; "relative_point" with a key such as "NE", which the templates say as
+    "ahead right". 16 and 32 points both use the 16 relative points.
+    """
+    r = relative % 360.0
+    if style == "clock":
+        return bearing_parts(r, "clock")
+    if style in ("exact", "round5", "round10"):
+        size = {"exact": 1, "round5": 5, "round10": 10}[style]
+        d = _half_up(r / size) * size % 360
+        if d == 0:
+            return Bearing("ahead", "")
+        if d == 180:
+            return Bearing("behind", "")
+        about = "" if style == "exact" else "about_"
+        return Bearing(f"{about}right", str(d)) if d < 180 else Bearing(f"{about}left", str(360 - d))
+    if style.startswith("points") and style[6:].isdigit():
+        points = min(16, int(style[6:]))
+        key = compass_point(r, points)
+        if key == "N":
+            return Bearing("ahead", "")
+        if key == "S":
+            return Bearing("behind", "")
+        return Bearing("relative_point", key)
+    raise ValueError(f"unknown bearing style {style!r}")
+
+
 # Coordinates -------------------------------------------------------------------------
 
 @dataclass(frozen=True)

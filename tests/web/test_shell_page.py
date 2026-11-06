@@ -127,6 +127,30 @@ def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(app):
     assert app.evaluate("window.tobymap.announcements.at(-1).priority") == "assertive"
 
 
+def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(page, site_url):
+    """DP140, P2-T14: every drawing takes 200 ms longer, yet a 3 second hold at 6
+    steps a second has every click set to sound within 10 ms of its due time. The
+    map is drawn at most 4 times a second while the key is held."""
+    app = open_app(page, site_url, query="?slowdraw=200")
+    paints = app.evaluate("window.tobymap.paints")
+    app.keyboard.down("ArrowDown")                     # the press is spoken at once
+    wait_said(app, 2)
+    for _ in range(30):                                # 3 seconds of the system's key repeats
+        app.wait_for_timeout(100)
+        app.keyboard.down("ArrowDown")
+    held_paints = app.evaluate("window.tobymap.paints") - paints
+    app.keyboard.up("ArrowDown")
+    wait_said(app, 3)
+    assert said(app)[-1] == "France"
+    clicks = app.evaluate("window.tobymap.clicks")
+    assert len(clicks) >= 14                           # 2.5 seconds after the delay, 6 a second
+    late = [round(c["at"] - c["due"], 1) for c in clicks]
+    assert all(0 <= d <= 10 for d in late), late
+    dues = [c["due"] for c in clicks]
+    assert all(abs(b - a - 1000 / 6) < 0.5 for a, b in zip(dues, dues[1:]))   # an even beat
+    assert held_paints <= 3 * 4 + 1, held_paints       # at most 4 a second, and the press's own
+
+
 def test_ten_rapid_taps_make_every_step_but_speech_keeps_up(page, site_url):
     app = open_app(page, site_url, values={"coordinate_places": "fixed"})   # every place, to see each step
     for _ in range(10):
@@ -250,7 +274,7 @@ def test_f1_dialog_for_the_focused_region_has_a_close_button(app):
     app.wait_for_function("document.getElementById('dialog').open")
     assert app.text_content("#dialog-title") == "Keys"
     text = app.input_value("#dialog-text")
-    assert "Step north: Up" in text and "Exit" not in text
+    assert "Step north or forward: Up" in text and "Exit" not in text
     app.keyboard.press("Tab")
     assert app.evaluate("document.activeElement.id") == "dialog-close"
     app.keyboard.press("Enter")
@@ -261,18 +285,18 @@ def test_f1_dialog_for_the_focused_region_has_a_close_button(app):
 def test_history_repeat_and_the_key_describer(app):
     app.keyboard.press("Space")
     wait_said(app, 2)
-    app.keyboard.press("Control+Space")
+    app.keyboard.press("Shift+Space")          # repeat (P2-T0c, your key)
     wait_said(app, 3)
     assert said(app)[-1] == "Kent, England, United Kingdom"
     app.keyboard.press("Control+Shift+Space")
     app.wait_for_function("document.getElementById('dialog').open")
-    assert app.input_value("#dialog-text").splitlines()[0] == "Kent, England, United Kingdom"
+    assert app.eval_on_selector("#history-list option", "o => o.textContent") == "Kent, England, United Kingdom"
     app.click("#dialog-close")
     app.keyboard.press("Shift+F1")
     wait_said(app, 4)
     app.keyboard.press("ArrowDown")
     wait_said(app, 5)
-    assert said(app)[-1] == "Down: Step south"
+    assert said(app)[-1] == "Down: Step south or back"
     assert len(said(app)) == 5
     app.keyboard.press("Tab")             # caught: it does nothing (checklist 2.2)
     wait_said(app, 6)
@@ -424,3 +448,82 @@ def test_axe_finds_no_serious_accessibility_problems(app):
         .then(r => r.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => n.target.join(' ')) })))""")
     serious = [v for v in result if v["impact"] in ("serious", "critical")]
     assert serious == [], serious
+
+
+# Orientation, turning, typed bearings and coordinates, the place history (P2-T1d, P2-T2c, P2-T15) -------------
+
+def test_the_orientation_and_turning_keys(app):
+    app.keyboard.press("o")
+    wait_said(app, 2)
+    assert said(app)[-1] == "Cardinal facing, north."
+    app.keyboard.press("Shift+ArrowRight")
+    wait_said(app, 3)
+    assert said(app)[-1] == "Facing east."
+    app.keyboard.press("o")
+    wait_said(app, 4)
+    app.keyboard.press("Control+ArrowLeft")
+    wait_said(app, 5)
+    assert said(app)[-1] == "Facing 89 degrees."
+
+
+def test_the_bearing_box_keeps_open_on_a_bad_answer_and_takes_a_good_one(app):
+    app.keyboard.press("Control+b")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    assert app.eval_on_selector("#inputdialog h2", "e => e.textContent") == "Type a bearing"
+    assert app.evaluate("document.activeElement.id") == "input-field"
+    app.fill("#input-field", "sideways")
+    app.click("#input-ok")
+    app.wait_for_function("document.getElementById('input-message').textContent.startsWith('That is not a bearing')")
+    assert app.evaluate("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "NE")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    assert said(app)[-1] == "Free facing, 45 degrees."
+    assert app.evaluate("document.activeElement.id") == "map"
+
+
+def test_go_to_coordinates_and_back_through_the_places(app):
+    app.keyboard.press("Control+g")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "52.1 N 1.3 W")
+    app.click("#input-ok")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    wait_said(app, 2)
+    app.keyboard.press("Control+g")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.click("#input-cancel")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    app.keyboard.press("Alt+,")
+    wait_said(app, 3)
+    assert said(app)[-1] == "Kent, England, United Kingdom"
+
+
+def test_enter_in_the_announcement_history_goes_back_there(app):
+    app.keyboard.press("PageUp")
+    wait_said(app, 2)
+    app.keyboard.press("Control+g")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "10, 10")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    wait_said(app, 3)
+    app.keyboard.press("Control+Shift+Space")
+    app.wait_for_function("document.getElementById('dialog').open")
+    app.keyboard.press("ArrowDown")          # the zoom entry, said at Kent
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('dialog').open")
+    wait_said(app, 4)
+    assert said(app)[-1] == "Kent, England, United Kingdom"
+    app.keyboard.press("Alt+,")
+    wait_said(app, 5)
+    assert said(app)[-1] != "Kent, England, United Kingdom"
+
+
+def test_enter_on_an_entry_with_no_place_keeps_the_history_open(app):
+    app.keyboard.press("Control+m")          # speaks, but has no place
+    wait_said(app, 2)
+    app.keyboard.press("Control+Shift+Space")
+    app.wait_for_function("document.getElementById('dialog').open")
+    app.keyboard.press("Enter")
+    app.wait_for_function("document.getElementById('history-message').textContent === 'No place for this entry.'")
+    assert app.evaluate("document.getElementById('dialog').open")

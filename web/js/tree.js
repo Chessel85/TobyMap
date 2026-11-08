@@ -73,11 +73,13 @@ export class Tree {
   }
 
   // F3: go to an item by its id (the item last focused, or Within's first), opening its group.
+  // An area can be in two groups, so the item is looked for in its own group first.
   focusItem(id, groupId) {
-    let item = id ? this._byId(id) : null;
-    if (!item && groupId) {
-      const g = this._byId(`group:${groupId}`);
-      if (g) { this._expand(g, true); item = g.querySelector('[role="group"] > [role="treeitem"]') || g; }
+    const g = groupId ? this._byId(`group:${groupId}`) : null;
+    let item = id ? (g && this._byId(id, g)) || this._byId(id) : null;
+    if (!item && g) {
+      this._expand(g, true);
+      item = g.querySelector('[role="group"] > [role="treeitem"]') || g;
     }
     if (!item) item = this.current;
     if (!item) return;
@@ -118,8 +120,8 @@ export class Tree {
     return li;
   }
 
-  _byId(id) {
-    return [...this.el.querySelectorAll('[role="treeitem"]')].find((i) => i.dataset.id === id) || null;
+  _byId(id, within = this.el) {
+    return [...within.querySelectorAll('[role="treeitem"]')].find((i) => i.dataset.id === id) || null;
   }
 
   _visible() {
@@ -140,7 +142,9 @@ export class Tree {
     item.setAttribute("aria-selected", "true");
     if (!quiet && (select || document.activeElement === item)) {
       const id = item.dataset.id;
-      this.onSelect(id && !id.startsWith("group:") ? id : null);
+      const group = item.parentElement.closest('[role="treeitem"]');
+      this.onSelect(id && !id.startsWith("group:") ? id : null,
+                    group ? group.dataset.id.replace(/^group:/, "") : null);
     }
   }
 

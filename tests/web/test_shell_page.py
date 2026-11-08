@@ -659,9 +659,9 @@ def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refuse
     assert said(app)[-1] == "Kent, England, United Kingdom"
 
 
-def test_crossed_and_passed_is_filled_between_key_presses_and_shift_5_goes_there(page, site_url):
+def test_crossed_and_passed_is_filled_between_key_presses_and_shift_3_goes_there(page, site_url):
     """P2-T5, ANN-2: a 1 km step across the River Itchen lists it in Crossed and passed, with the
-    earcon and nothing more spoken. Shift+5 goes to the group, whatever symbol the key makes (DP109)."""
+    earcon and nothing more spoken. Shift+3 goes to the group, the third, whatever symbol the key makes (DP109)."""
     from pathlib import Path
 
     data = json.loads((Path(__file__).resolve().parents[1] / "samples" / "osm" / "southampton-itchen.geojson")
@@ -675,7 +675,7 @@ def test_crossed_and_passed_is_filled_between_key_presses_and_shift_5_goes_there
     app.keyboard.press("ArrowRight")
     app.wait_for_function("window.tobymap.earcons.includes('crossed_added')", timeout=30_000)
     assert len(said(app)) == 1   # still Southampton: only the tick; the river is never spoken
-    app.keyboard.press("Shift+Digit5")
+    app.keyboard.press("Shift+Digit3")
     app.wait_for_function("document.getElementById('tree').contains(document.activeElement)")
     assert app.evaluate("document.activeElement.textContent").startswith("River Itchen, crossed")
 

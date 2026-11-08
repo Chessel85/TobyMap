@@ -133,6 +133,26 @@ def test_f3_lands_on_within_first_and_then_on_the_item_last_focused(window, qtbo
     assert window.tree.currentItem().parent().text(0) == "Nearby"
 
 
+def test_an_area_in_two_groups_is_selected_and_heard_in_the_group_focused(qtbot, test_pack, tmp_path):
+    """Phase 2 web checklist: the River Itchen, just crossed, is in Nearby and in Crossed and
+    passed. Each item says its own group, so each is heard from its own place, and F3 goes
+    back to the one last focused."""
+    w = make_window(qtbot, test_pack, tmp_path, state={"lat": 50.9074977, "lon": -1.4442289,
+                                                         "zoom_m": 10000, "step_m": 1000})
+    for _ in range(5):
+        w.dispatch("move.east")
+    near, crossed = w._group_item("nearby").child(0), w._group_item("crossed").child(0)
+    qtbot.waitUntil(lambda: crossed.text(0).startswith("River Itchen"), timeout=5000)
+    assert near.text(0) == "River Itchen, 320 metres north-west"
+    assert crossed.text(0) == "River Itchen, crossed, 730 metres west"
+    for item, said in ((near, "River Itchen, 320 metres"), (crossed, "River Itchen, 730 metres")):
+        w.tree.setCurrentItem(item)
+        assert w.session.run("panel.hear").voice["text"] == said
+    qtbot.keyClick(w.tree, Qt.Key.Key_F2)
+    qtbot.keyClick(w.map, Qt.Key.Key_F3)
+    assert w.tree.currentItem() is crossed
+
+
 def test_the_panel_keeps_its_items_when_refreshed(window):
     window.session.world.step_index = 0
     first = window.tree.topLevelItem(0).child(0)
@@ -774,9 +794,9 @@ def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_al
     assert (counties.min_zoom_m, counties.max_zoom_m, counties.crossing_earcon) == (250000, None, "line_crossing")
 
 
-def test_crossed_and_passed_is_filled_in_the_background_and_shift_5_goes_there(qtbot, test_pack, tmp_path):
+def test_crossed_and_passed_is_filled_in_the_background_and_shift_3_goes_there(qtbot, test_pack, tmp_path):
     """P2-T5, ANN-2: after the step is spoken, the search runs on a thread of its own; the group is
-    filled and the earcon plays, with nothing more spoken. Shift+5 goes to the group (DP109)."""
+    filled and the earcon plays, with nothing more spoken. Shift+3 goes to the group, the third (DP109)."""
     import json as _json
     from pathlib import Path as _Path
 
@@ -796,6 +816,6 @@ def test_crossed_and_passed_is_filled_in_the_background_and_shift_5_goes_there(q
                     timeout=5000)
     qtbot.waitUntil(lambda: "crossed_added" in w.sounds.played, timeout=2000)
     assert len(w.announcer.texts) == spoken    # still Southampton: only the tick; the river is never spoken
-    qtbot.keyClick(w.map, Qt.Key.Key_5, Qt.KeyboardModifier.ShiftModifier)
+    qtbot.keyClick(w.map, Qt.Key.Key_3, Qt.KeyboardModifier.ShiftModifier)
     assert region(w) == "panel"
     assert w.tree.currentItem().text(0).startswith("River Itchen, crossed")

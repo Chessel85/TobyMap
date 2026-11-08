@@ -101,6 +101,15 @@ class Response:
         return out
 
 
+def box_centre(bbox) -> tuple[float, float]:
+    """The centre of an area's bounding box (west, south, east, north), as (lat, lon). A bounding box across the
+    180 degree line has west greater than east (AD-17)."""
+    west, south, east, north = bbox
+    if west > east:
+        east += 360.0
+    return (south + north) / 2.0, geodesy.wrap_lon((west + east) / 2.0)
+
+
 class MapSession:
     def __init__(self, platform: str = "desktop", packs=None, store=None, settings: dict | None = None,
                  saved_state: dict | None = None, clock=time.perf_counter, start_at: str | None = None):
@@ -144,6 +153,7 @@ class MapSession:
         self.describing = False        # the key describer (Shift+F1)
         self.selected: str | None = None   # the Information panel item chosen, an area id
         self.panel_item: str | None = None  # the item last focused there, for F3 (DP106)
+        self.panel_group: str | None = None  # and its group, as an area can be in two groups
         self.held_moves = 0
         self.held_turns = 0               # turns made while Left or Right is held in a facing orientation
         self.holding: str | None = None   # the movement command whose key is down (DP140)
@@ -161,7 +171,9 @@ class MapSession:
         self._crossed_job: dict | None = None
         self._held_path: list = []        # the path of a held key's steps, joined, until the release
         self._panel_cache: tuple | None = None
-        self._spots: dict[str, tuple] = {}   # panel item id: (feature, lat, lon) of Nearby and Crossed and passed
+        # (group, item id): (feature, lat, lon) of Nearby and Crossed and passed. By group too, as an
+        # area can be in both, at its nearest point in one and where it was crossed in the other.
+        self._spots: dict[tuple[str, str], tuple] = {}
         self._scene = None
         self._beacon_near: bool | None = None   # the beacon is on and silent near the North Pole (P2-T9)
         self.isolated: str | None = None        # the one feature shown, with Isolate (VIS-2)
@@ -185,7 +197,9 @@ class MapSession:
             "focus.details": lambda **a: Response(focus={"region": "details"}, details_stale=True),
             "focus.menu": lambda **a: Response(focus={"region": "menu"}),
             "panel.select": self._select,
-            "panel.crossed": lambda **a: Response(focus={"region": "panel", "group": "crossed"}, panel_stale=True),
+            # Shift and a number: go to that group (INF-10, DP109).
+            **{f"panel.{g}": (lambda g=g, **a: Response(focus={"region": "panel", "group": g}, panel_stale=True))
+               for g in registry.panel_groups()},
             "panel.hear": self._hear,
             "speech.repeat": self._repeat,
             "speech.history": self._history,
@@ -443,16 +457,20 @@ class MapSession:
                                  layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom)
                                  and self._interval_ok(a.record))
         units = self.settings["units"]
-        self._spots = {n.area.id: (n.area, n.lat, n.lon) for n in near[:count]}
-        self._spots.update({c.area.id: (c.area, c.lat, c.lon) for c in self.crossed})
+        # Within: you are inside, so its place is the centre of the area, taken as the centre of
+        # its bounding box (the PO's answer, 8 November 2026).
+        self._spots = {("within", a.id): (a, *box_centre(a.record["bbox"])) for a in self.areas}
+        self._spots.update({("nearby", n.area.id): (n.area, n.lat, n.lon) for n in near[:count]})
+        self._spots.update({("crossed", c.area.id): (c.area, c.lat, c.lon) for c in self.crossed})
         nearby = [{"id": n.area.id, "label": describer.nearby_label(n, units, self.settings["bearing"], heading),
                    "level": 1} for n in near[:count]]
-        groups = [
+        groups = {g["id"]: g for g in [
             {"id": "within", "label": say("panel.within"), "items": within, "empty": say("place.none")},
             {"id": "nearby", "label": say("panel.nearby"), "items": nearby, "empty": say("nearby.none")},
             {"id": "crossed", "label": say("panel.crossed"), "items": self._crossed_items(heading),
              "empty": say("crossed.none")},
-        ]
+        ]}
+        groups = [groups[g] for g in registry.panel_groups()]   # in the registry's order, as their keys are
         self._panel_cache = (key, groups)
         return groups
 
@@ -955,11 +973,18 @@ class MapSession:
                                 "submit": "goto.set", "ok": say("ui.ok"), "cancel": say("ui.cancel")})
 
     def _goto_set(self, text: str = "", **_a) -> Response:
-        """Typed coordinates: jump there, keeping the zoom and step (NAV-8)."""
+        """Typed coordinates: jump there, keeping the zoom and step (NAV-8). One number keeps the
+        longitude, a comma and a number keep the latitude, and a direction and degrees, such as
+        "north 5", move by that much from here (parse_goto). Past a pole, the move stops at it."""
         try:
-            lat, lon = parse.parse_coordinates(text)
+            kind, a, b = parse.parse_goto(text)
         except ValueError:
             return Response(error=say("typing.goto_error"))
+        w = self.world
+        if kind == "by":
+            lat, lon = w.lat + a, w.lon + b
+        else:
+            lat, lon = (w.lat if a is None else a), (w.lon if b is None else b)
         return self._land(self._jump(lat, lon))
 
     # Jumping and the position history (NAV-8, NAV-10, DP142) -----------------
@@ -1089,22 +1114,25 @@ class MapSession:
                                     height=words.distance_text(across(height), units)), ASSERTIVE)
 
     def _focus_panel(self, **_a) -> Response:
-        item = self.panel_item
-        known = {i["id"] for g in self.panel() for i in g["items"]}
-        if item not in known:
+        item, group = self.panel_item, self.panel_group
+        known = {(g["id"], i["id"]) for g in self.panel() for i in g["items"]}
+        if (group, item) not in known:
+            group = next((g for g, i in known if i == item), None)
+        if group is None:
             item = self.areas[0].id if self.areas else None
-        return Response(focus={"region": "panel", "group": "within" if not self.panel_item else None,
-                               "item": item}, panel_stale=True)
+        return Response(focus={"region": "panel", "group": group or "within", "item": item}, panel_stale=True)
 
-    def _select(self, item: str | None = None, **_a) -> Response:
-        self.panel_item = item or self.panel_item
+    def _select(self, item: str | None = None, group: str | None = None, **_a) -> Response:
+        """The item focused in the Information panel, and its group (within, nearby or crossed)."""
+        if item:
+            self.panel_item, self.panel_group = item, group
         if item == self.selected:
             return Response()
         self.selected = item
         return Response(redraw=True, details_stale=True)
 
-    def _hear(self, item: str | None = None, **_a) -> Response:
-        """Hear its direction (DP143, SON-3): on an item of Nearby or Crossed and passed, its
+    def _hear(self, item: str | None = None, group: str | None = None, **_a) -> Response:
+        """Hear its direction (DP143, SON-3): on an item of the Information panel, its
         layer's sound from its direction and distance, then its name and distance in the spatial
         voice from the same place. The label also goes to Braille without speech, to the history,
         and, if that setting is on, to the screen reader (ANN-4, ACC-1). Nothing is played here:
@@ -1112,7 +1140,10 @@ class MapSession:
         from mapcore.sound.scene import place
 
         self.panel()   # the items' places are kept as the panel is made
-        spot = self._spots.get(item or self.panel_item or "")
+        if not item:
+            item, group = self.panel_item, self.panel_group
+        groups = [group] if group else ["within", "nearby", "crossed"]
+        spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
         if spot is None:
             return Response().speak(say("hear.choose"), ASSERTIVE)
         area, lat, lon = spot

@@ -99,8 +99,8 @@ Start with `--at 51.2,1.2`.
 Start with `--at 49.7,5.3`. Set the zoom to 1,000 kilometres and the step to 100 kilometres. You hear "Wallonia, Belgium".
 
 * 8.1 Press Right. You hear "Rhineland-Palatinate, Germany", and then a soft earcon: something was added to Crossed and passed. Nothing about it is spoken.
-* 8.2 Press Shift+5. Focus goes to Crossed and passed in the Information panel. It lists "Luxembourg, passed over, 15 kilometres west" and "Moselle condominium, passed over, 15 kilometres west".
-* 8.3 Press F2 to go back to the map. Hold Right for a few steps and let go. Shift+5 lists everything the whole held run went over, not only the last step.
+* 8.2 Press Shift+3. Focus goes to Crossed and passed in the Information panel. It lists "Luxembourg, passed over, 15 kilometres west" and "Moselle condominium, passed over, 15 kilometres west".
+* 8.3 Press F2 to go back to the map. Hold Right for a few steps and let go. Shift+3 lists everything the whole held run went over, not only the last step.
 * 8.4 Press Ctrl+G and jump somewhere. Crossed and passed is empty: a jump has no path.
 * 8.5 In Settings, Earcons, switch "Something added: play it" off. Take a large step: the earcon is silent. Switch it back on.
 
@@ -112,7 +112,7 @@ Start with `--at 51.2,1.2`, zoom 100 kilometres. Use headphones if you can.
 * 9.2 On North Atlantic Ocean, press Space. The item's direction sound plays from behind you, lower in pitch, then the Alba voice says "North Atlantic Ocean, 11 kilometres" from the same place.
 * 9.3 On France, press Space. It comes from behind and to the right.
 * 9.4 Press O for cardinal facing, then Shift+Right twice to face south. Go back to the panel and press Space on North Atlantic Ocean. It is now ahead of you, at normal pitch. Press O until north-fixed.
-* 9.5 On a group heading, such as Within, Space says "Hear its direction works on an item of Nearby or Crossed and passed."
+* 9.5 On an item of Within, Space plays its sound and says its name and distance from the centre of the area. On a group heading, such as Within, Space says "Hear its direction works on an item, not on a group."
 * 9.6 Each label is in the announcement history, and in NVDA's Braille viewer without being spoken. In Settings, Sound, switch on "Also speak spatial labels through the screen reader": NVDA now speaks each label as well.
 * 9.7 In Settings, Sound, change the spatial voice's volume and speed, and try again.
 

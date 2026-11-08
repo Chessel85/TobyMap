@@ -136,10 +136,30 @@ def test_muted_nothing_plays_but_the_label_is_kept_in_the_history(session):
 
 
 def test_not_on_an_item_it_says_where_it_works(session):
-    session.run("panel.select", item=session.areas[0].id)   # an item of Contains
-    r = session.press("Space", "panel")
+    r = session.run("panel.hear", item="no-such-item", group="within")
     assert r.voice is None
-    assert r.announcements[0]["text"] == "Hear its direction works on an item of Nearby or Crossed and passed."
+    assert r.announcements[0]["text"] == "Hear its direction works on an item, not on a group."
+
+
+def test_on_a_within_item_it_comes_from_the_centre_of_the_area(session):
+    """The PO's answer, 8 November 2026 (checklist 9.5): you are inside the area, so its sound
+    and its label come from the centre of the area, with the distance to it."""
+    from mapcore.describe import words
+    from mapcore.session import box_centre
+
+    area = session.areas[0]
+    session.run("panel.select", item=area.id, group="within")
+    r = session.press("Space", "panel")
+    lat, lon = box_centre(area.record["bbox"])
+    distance, _, _ = geodesy.inverse(session.world.lat, session.world.lon, lat, lon)
+    assert r.voice["text"] == f"{area.name}, {words.distance_text(distance, 'metric')}" and r.sounds
+
+
+def test_the_centre_of_a_box_across_the_180_degree_line():
+    from mapcore.session import box_centre
+
+    assert box_centre((170.0, -20.0, -170.0, -10.0)) == pytest.approx((-15.0, 180.0))
+    assert box_centre((-10.0, 40.0, 10.0, 60.0)) == pytest.approx((50.0, 0.0))
 
 
 def test_it_works_on_crossed_and_passed(session):
@@ -150,7 +170,7 @@ def test_it_works_on_crossed_and_passed(session):
     session.crossed_now()
     crossed = next(g for g in session.panel() if g["id"] == "crossed")["items"]
     item = next(i for i in crossed if i["label"].startswith("Southampton Central"))
-    session.run("panel.select", item=item["id"])
+    session.run("panel.select", item=item["id"], group="crossed")
     r = session.press("Space", "panel")
     assert r.voice["text"].startswith("Southampton Central, ")
     assert 180 < r.voice["placed"]["relative_deg"] < 360   # behind, to the west, after the step east
@@ -161,3 +181,56 @@ def test_joined_commands_keep_the_sound_and_the_label(session):
     session.run("panel.select", item=station_id(session))
     r = session.run_many([("panel.hear", {})])
     assert [s["sound"] for s in r.sounds] == ["item_direction"] and r.voice is not None
+
+
+def crossed_the_itchen(test_pack):
+    """Four steps of 1 km east from west of the station: the last crosses the River Itchen, which
+    is then in Crossed and passed, where it was crossed, and first in Nearby, nearer still."""
+    s = MapSession(packs=[test_pack], saved_state={"lat": STATION[0], "lon": STATION[1] - 0.03,
+                                                    "zoom_m": 10000, "step_m": 1000})
+    s.start()
+    for _ in range(5):
+        s.run("move.east")
+        s.crossed_now()
+    return s
+
+
+def distance_words(label):
+    """The distance in an item's words, such as "320 metres" in "River Itchen, 320 metres north-west"
+    or "730 metres" in "River Itchen, crossed, 730 metres west"."""
+    return next(" ".join(part.split(" ")[:2]) for part in label.split(", ")[1:] if part[0].isdigit())
+
+
+def test_an_area_in_nearby_and_in_crossed_and_passed_is_heard_from_each_ones_own_place(test_pack):
+    """Phase 2 web checklist: the first Nearby item said another distance. The area just crossed
+    is first in Nearby, and its Nearby item said where it was crossed, not its nearest point."""
+    s = crossed_the_itchen(test_pack)
+    groups = {g["id"]: g["items"] for g in s.panel()}
+    near = groups["nearby"][0]
+    crossed = next(i for i in groups["crossed"] if i["id"] == near["id"])
+    assert near["label"].startswith("River Itchen, ") and distance_words(near["label"]) != distance_words(crossed["label"])
+    for group, item in (("nearby", near), ("crossed", crossed)):
+        s.run("panel.select", item=item["id"], group=group)
+        said = s.press("Space", "panel").voice["text"]
+        assert said == f"River Itchen, {distance_words(item['label'])}", (group, item["label"], said)
+    s.store.close()
+
+
+def test_every_nearby_item_says_its_own_distance(test_pack):
+    s = crossed_the_itchen(test_pack)
+    for item in nearby(s):
+        s.run("panel.select", item=item["id"], group="nearby")
+        said = s.press("Space", "panel").voice["text"]
+        assert item["label"].startswith(said + " ") or item["label"] == said, (item["label"], said)
+    s.store.close()
+
+
+def test_f3_goes_back_to_the_group_of_the_item_last_focused(test_pack):
+    s = crossed_the_itchen(test_pack)
+    itchen = nearby(s)[0]["id"]
+    s.run("panel.select", item=itchen, group="crossed")
+    s.run("focus.map")
+    assert s.run("focus.panel").focus == {"region": "panel", "group": "crossed", "item": itchen}
+    s.run("panel.select", item=itchen, group="nearby")
+    assert s.run("focus.panel").focus == {"region": "panel", "group": "nearby", "item": itchen}
+    s.store.close()

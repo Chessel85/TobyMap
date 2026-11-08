@@ -2,7 +2,7 @@
 (P2-T1c, P2-T2, P2-T15; NAV-8, NAV-10, NAV-12, ANN-4, DP141, DP142)."""
 import pytest
 
-from mapcore.geo.parse import parse_bearing, parse_coordinates
+from mapcore.geo.parse import parse_bearing, parse_coordinates, parse_goto
 from mapcore.session import MapSession
 
 KENT = {"lat": 51.2, "lon": 1.2, "zoom_m": 25000, "step_m": 25000}
@@ -28,7 +28,8 @@ def session(test_pack):
 # Reading what is typed ---------------------------------------------------------------
 
 @pytest.mark.parametrize("text", [
-    "51.5, -0.12", "51.5 -0.12", "51.5,-0.12", "51.5N 0.12W", "51.5 N, 0.12 W", "N51.5 W0.12", "n 51.5 w 0.12",
+    "51.5, -0.12", "51.5 -0.12", "51.5,-0.12", "51.5N 0.12W", "51.5 N, 0.12 W", "51.5n0.12w",
+    "51d 30m N, 0d 7m 12s W", "51D 30M N 0D 7M 12S W", "51d30mN 0d7m12sW", "51.5d n, 0.12d w",
     "51.5°N 0.12°W", "51°30′N 0°07.2′W", "51°30'0\"N 0°7'12\"W", "51°30′00″N 0°07′12″W", "51°30'00''N 0°07'12''W",
     "51.5 N 0.12 W", "51.5; -0.12", "+51.5, -0.12",
 ])
@@ -45,11 +46,39 @@ def test_south_and_west_are_negative_and_seconds_may_have_decimals():
 
 @pytest.mark.parametrize("text", [
     "91, 0", "0, 181", "-91, 0", "51.5 W 0.12 N", "0.12W 51.5N", "-51.5S 0.12E", "51.5", "",
+    "48 51 30 N, 2 21 E", "51 30 N", "N51.5 W0.12",
     "hello", "51°75′N 0°E", "51°30′N 0°60′W", "51.5°30′N 0°E", "51 30 N 0 7 W", "51.5, -0.12, 3",
 ])
 def test_out_of_range_or_ambiguous_coordinates_are_refused(text):
     with pytest.raises(ValueError):
         parse_coordinates(text)
+
+
+def same(a, b):
+    return a[0] == b[0] and all((x is None and y is None) or (x is not None and y is not None and abs(x - y) < 1e-9)
+                                for x, y in zip(a[1:], b[1:]))
+
+
+@pytest.mark.parametrize("text, reading", [
+    ("48D 30M 15S S", ("to", -(48 + 30 / 60 + 15 / 3600), None)),   # the last S is south
+    ("48d 51m n, 2d 21m e", ("to", 48.85, 2.35)),
+    ("51.5", ("to", 51.5, None)), ("-33", ("to", -33.0, None)), ("33S", ("to", -33.0, None)),
+    (", -0.12", ("to", None, -0.12)), (",18", ("to", None, 18.0)), ("18E", ("to", None, 18.0)),
+    ("north 5", ("by", 5.0, 0.0)), ("n 5", ("by", 5.0, 0.0)), ("W 10", ("by", 0.0, -10.0)),
+    ("south 2 east 3", ("by", -2.0, 3.0)), ("s 2, e 3", ("by", -2.0, 3.0)), ("East 3 South 2", ("by", -2.0, 3.0)),
+    ("west 0d 30m", ("by", 0.0, -0.5)), ("N51.5 W0.12", ("by", 51.5, -0.12)),
+])
+def test_go_to_reads_one_number_a_comma_and_a_number_and_a_direction_and_an_amount(text, reading):
+    """The PO's answers, 8 November 2026. A direction first moves by that many degrees; a number
+    first is where to go."""
+    assert same(parse_goto(text), reading), parse_goto(text)
+
+
+@pytest.mark.parametrize("text", ["north 5 south 2", "n -5", "up 5", "north", "5 north 3", ", 0.12N", "91",
+                                  "48 51 30 N, 2 21 E"])
+def test_go_to_refuses_what_it_cannot_read(text):
+    with pytest.raises(ValueError):
+        parse_goto(text)
 
 
 @pytest.mark.parametrize("text, degrees", [
@@ -137,9 +166,25 @@ def test_a_held_turn_counts_for_the_web_clicks(session):
 
 def test_the_go_to_box_asks_and_refuses_what_it_cannot_read(session):
     d = session.press("Ctrl+G").dialog
-    assert d["kind"] == "input" and d["submit"] == "goto.set" and "51.5N 0.12W" in d["help"]
+    assert d["kind"] == "input" and d["submit"] == "goto.set"
+    assert d["label"] == "Enter latitude and longitude:" and d["help"] == ""   # the PO: no long help
     bad = session.run("goto.set", text="91, 0")
     assert bad.error.startswith("Those are not coordinates") and near(session, 51.2, 1.2)
+
+
+def test_go_to_with_one_number_keeps_the_other_and_a_direction_moves_by_it(session):
+    session.run("goto.set", text="52")
+    assert near(session, 52.0, 1.2)
+    session.run("goto.set", text=", -1.5")
+    assert near(session, 52.0, -1.5)
+    session.run("goto.set", text="south 2 east 3")
+    assert near(session, 50.0, 1.5)
+    session.run("goto.set", text="n 50")       # past the pole, the move stops at it
+    assert session.world.lat == 90.0
+    session.run("goto.set", text="0, 179")
+    session.run("goto.set", text="east 2")     # across the 180 degree line
+    assert near(session, 0.0, -179.0)
+    assert len(session.back_places) == 6       # each is a jump, so Alt+comma comes back
 
 
 def test_a_jump_keeps_the_zoom_and_says_the_place(session):

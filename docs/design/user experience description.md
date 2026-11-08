@@ -482,7 +482,7 @@ B switches on the orientation beacon (SON-10). It is a soft repeating sound that
 
 ### 8.5 Hearing where things are
 
-* "Hear its direction" on any item plays its layer's sound from that feature's direction and distance, then says its name and distance in the built-in voice from the same place, such as "France, 34 kilometres". A layer with no sound of its own plays the "item's direction" sound.
+* "Hear its direction" on any item plays its layer's sound from that feature's direction and distance (on a Within item, from the centre of the area), then says its name and distance in the built-in voice from the same place, such as "France, 34 kilometres". A layer with no sound of its own plays the "item's direction" sound.
   * In Phase 2 it is Space on an item of Nearby or Crossed and passed, in the Information panel (DP143). It joins the item's actions (section 6.3) when they are built.
   * A newer label stops one still being said.
 * Look around (L, SON-4) plays the Nearby list as sound. Nearby (R) gives you the features as a list to read. Look around plays the same features one after another in bearing order, clockwise from ahead, each from its own direction, at most 12 of them. So anything you hear in a scan is also in Nearby in the Information panel. Each feature's name is spoken from the same place as its sound (SON-3, DP39).

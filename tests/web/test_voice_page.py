@@ -139,3 +139,53 @@ def test_the_helper_script_isolates_the_page_and_the_pack_still_downloads(page, 
     assert info["isolated"] and info["threads"] > 1 or app.evaluate("navigator.hardwareConcurrency") == 1
     nearby = app.evaluate("[...document.querySelectorAll('#tree [role=treeitem]')].map(e => e.firstChild.textContent)")
     assert any(t.startswith("Southampton Central") for t in nearby), "the pack was downloaded and read"
+
+
+ITCHEN_WEST = {"lat": 50.9074977, "lon": -1.4442289, "zoom_m": 10000, "step_m": 1000}
+
+
+def items_of(page, group):
+    return page.evaluate(f"""() => [...document.querySelectorAll('[data-id="group:{group}"] [role=group] > [role=treeitem]')]
+        .map((e) => e.firstChild.textContent)""")
+
+
+def hear_item(page, group, index):
+    """Focus an item of a group, as the arrow keys do, press Space, and give the label said."""
+    page.evaluate(f"""() => {{
+        const g = document.querySelector('[data-id="group:{group}"]');
+        g.setAttribute('aria-expanded', 'true');
+        g.querySelectorAll('[role=group] > [role=treeitem]')[{index}].focus();
+    }}""")
+    page.wait_for_timeout(200)
+    count = page.evaluate("window.tobymap.labels.length")
+    page.keyboard.press("Space")
+    page.wait_for_function(f"window.tobymap.labels.length > {count}", timeout=30_000)
+    return page.evaluate("window.tobymap.labels.at(-1).text")
+
+
+def test_each_item_says_its_own_distance_when_an_area_is_in_two_groups(page, site_url):
+    """Phase 2 web checklist: the first Nearby item said another distance. Five steps east cross
+    the River Itchen, which is then first in Nearby, at its nearest point, and in Crossed and
+    passed, where it was crossed. The item's words are compared with what the voice says."""
+    app = open_app(page, site_url, state=ITCHEN_WEST)
+    voice_ready(app)
+    for _ in range(5):
+        app.keyboard.press("ArrowRight")
+        app.wait_for_timeout(300)
+    app.wait_for_function("""() => document.querySelector('[data-id="group:crossed"] [role=group] > [role=treeitem]')
+        .firstChild.textContent.startsWith('River Itchen')""", timeout=10_000)
+    app.keyboard.press("F3")
+    app.wait_for_function("document.activeElement.getAttribute('role') === 'treeitem'")
+    near = items_of(app, "nearby")
+    assert near[0] == "River Itchen, 320 metres north-west"
+    for i, words in enumerate(near):
+        said = hear_item(app, "nearby", i)
+        assert words.startswith(said + " "), (words, said)
+    assert items_of(app, "crossed")[0] == "River Itchen, crossed, 730 metres west"
+    assert hear_item(app, "crossed", 0) == "River Itchen, 730 metres"
+    # F3 goes back to the item last focused, in its own group.
+    app.keyboard.press("F2")
+    app.wait_for_function("document.activeElement.id === 'map'")
+    app.keyboard.press("F3")
+    app.wait_for_function("document.activeElement.getAttribute('role') === 'treeitem'")
+    assert app.evaluate("document.activeElement.closest('[aria-expanded]').dataset.id") == "group:crossed"

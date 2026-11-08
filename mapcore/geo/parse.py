@@ -47,35 +47,42 @@ def parse_bearing(text: str) -> float:
 _NUMBER = r"\d+(?:\.\d+)?"
 
 
-def _component(n: str, after: bool = True) -> str:
-    """One of the two coordinates: [letter] [sign] degrees [° [minutes ′ [seconds ″]]] [letter].
-    Minutes and seconds need their own marks, so "51.5 0.12" is two numbers, not minutes.
-    after: the letter may come after the number as well as before it."""
-    tail = rf"(?:\s*(?P<post{n}>[nsew]))?" if after else ""
-    return (rf"(?:(?P<pre{n}>[nsew])\s*)?(?P<sign{n}>[-+])?\s*(?P<deg{n}>{_NUMBER})\s*(?:°\s*"
-            rf"(?:(?P<min{n}>{_NUMBER})\s*'\s*(?:(?P<sec{n}>{_NUMBER})\s*\"\s*)?)?)?" + tail)
+def _amount(n: str) -> str:
+    """degrees [° or d [minutes ′ or m [seconds ″ or s]]]. Minutes and seconds need their own
+    marks, so "51.5 0.12" is two numbers, not minutes, and "48 51 30 N" is refused: with spaces
+    alone it is not clear which numbers are minutes (the PO's answer, 8 November 2026)."""
+    return (rf"(?P<deg{n}>{_NUMBER})\s*(?:[°d]\s*"
+            rf"(?:(?P<min{n}>{_NUMBER})\s*['m]\s*(?:(?P<sec{n}>{_NUMBER})\s*[\"s]\s*)?)?)?")
+
+
+def _component(n: str) -> str:
+    """One coordinate: [sign] amount [letter]. A letter before the number is a direction to
+    move in, not a hemisphere: "north 5", "n 5" (parse_goto)."""
+    return rf"(?P<sign{n}>[-+])?\s*{_amount(n)}(?:\s*(?P<post{n}>[nsew]))?"
 
 
 # Between the two: a comma or semicolon, or a space, or nothing after a letter or a mark ("51.5N0.12W").
-_SEP = r"(?:\s*[,;]\s*|\s+|(?<=[nsew°'\"]))"
+_SEP = r"(?:\s*[,;]\s*|\s+|(?<=[nsew°'\"dm]))"
 
-# "n 51.5 w 0.12" has a letter before the second number, which the first reading takes as the
-# first number's letter after it. So a second reading, with the first number's letter only
-# allowed before it, is tried when the first fails.
-_PAIRS = (re.compile(rf"{_component('1')}{_SEP}{_component('2')}"),
-          re.compile(rf"{_component('1', after=False)}{_SEP}{_component('2')}"))
+_PAIR = re.compile(rf"{_component('1')}{_SEP}{_component('2')}")
+_ONE = re.compile(rf"(?P<comma>[,;]\s*)?{_component('1')}")
+
+# Moving by an amount: a direction, by word or letter, then degrees, once or for each axis,
+# with or without a comma between: "north 5", "s 2, e 3", "west 0d 30m".
+_DIRECTIONS = {"north": "n", "south": "s", "east": "e", "west": "w", "n": "n", "s": "s", "e": "e", "w": "w"}
+_WAY = r"north|south|east|west|[nsew]"
+_MOVE = re.compile(rf"(?P<way1>{_WAY})\s*{_amount('1')}(?:(?:\s*,\s*|\s*)(?P<way2>{_WAY})\s*{_amount('2')})?")
 
 
-def _value(m: re.Match, n: str, letters: str, limit: float, what: str) -> float:
-    pre, post = m.group(f"pre{n}"), m.groupdict().get(f"post{n}")
-    if pre and post:
-        raise ValueError(f"two letters on the {what}")
-    letter = (pre or post or "").lower()
-    if letter and letter not in letters:
-        raise ValueError(f"{letter.upper()} cannot be the {what}")
-    sign = m.group(f"sign{n}")
-    if letter and sign:
-        raise ValueError(f"a sign and a letter on the {what} could be read two ways")
+def _clean(text: str) -> str:
+    cleaned = str(text).strip().lower()
+    for old, new in (("′′", '"'), ("''", '"'), ("′", "'"), ("’", "'"), ("‘", "'"), ("`", "'"), ("″", '"'),
+                     ("”", '"'), ("“", '"'), ("−", "-"), ("º", "°"), ("˚", "°")):
+        cleaned = cleaned.replace(old, new)
+    return cleaned
+
+
+def _degrees(m: re.Match, n: str, what: str) -> float:
     degrees, minutes, seconds = m.group(f"deg{n}"), m.group(f"min{n}"), m.group(f"sec{n}")
     if minutes is not None and "." in degrees:
         raise ValueError(f"decimal degrees with minutes on the {what}")
@@ -83,7 +90,17 @@ def _value(m: re.Match, n: str, letters: str, limit: float, what: str) -> float:
         raise ValueError(f"decimal minutes with seconds on the {what}")
     if (minutes is not None and float(minutes) >= 60) or (seconds is not None and float(seconds) >= 60):
         raise ValueError(f"minutes and seconds are under 60 on the {what}")
-    value = float(degrees) + float(minutes or 0) / 60.0 + float(seconds or 0) / 3600.0
+    return float(degrees) + float(minutes or 0) / 60.0 + float(seconds or 0) / 3600.0
+
+
+def _value(m: re.Match, n: str, letters: str, limit: float, what: str) -> float:
+    letter = (m.group(f"post{n}") or "").lower()
+    if letter and letter not in letters:
+        raise ValueError(f"{letter.upper()} cannot be the {what}")
+    sign = m.group(f"sign{n}")
+    if letter and sign:
+        raise ValueError(f"a sign and a letter on the {what} could be read two ways")
+    value = _degrees(m, n, what)
     if value > limit:
         raise ValueError(f"the {what} is out of range")
     negative = sign == "-" or letter == letters[1]
@@ -92,20 +109,50 @@ def _value(m: re.Match, n: str, letters: str, limit: float, what: str) -> float:
 
 def parse_coordinates(text: str) -> tuple[float, float]:
     """Latitude and longitude in decimal degrees from every format in NAV-8: "51.5, -0.12",
-    "51.5 -0.12", "51.5N 0.12W", "N51.5 W0.12" and "51°30′N 0°07′W". The latitude comes
-    first. S and W, or a minus sign, are negative; both together are refused. The near
-    variants people type are read too: ' and " for the prime marks, seconds with decimals.
-    Raises ValueError for anything out of range or that could be read two ways."""
-    cleaned = str(text).strip().lower()
-    for old, new in (("′′", '"'), ("''", '"'), ("′", "'"), ("’", "'"), ("‘", "'"), ("`", "'"), ("″", '"'),
-                     ("”", '"'), ("“", '"'), ("−", "-"), ("º", "°"), ("˚", "°")):
-        cleaned = cleaned.replace(old, new)
-    error = ValueError(f"not coordinates: {text!r}")
-    for pattern in _PAIRS:
-        m = pattern.fullmatch(cleaned)
-        if m:
-            try:
-                return _value(m, "1", "ns", 90.0, "latitude"), _value(m, "2", "ew", 180.0, "longitude")
-            except ValueError as e:
-                error = e
-    raise error
+    "51.5 -0.12", "51.5N 0.12W" and "51°30′N 0°07′W". The latitude comes first. S and W, or a
+    minus sign, are negative; both together are refused. The near variants people type are read
+    too: ' and " for the prime marks, D, M and S for degrees, minutes and seconds, in either case
+    ("48D 30M 15S S"), and seconds with decimals. Raises ValueError for anything out of range or
+    that could be read two ways."""
+    m = _PAIR.fullmatch(_clean(text))
+    if not m:
+        raise ValueError(f"not coordinates: {text!r}")
+    return _value(m, "1", "ns", 90.0, "latitude"), _value(m, "2", "ew", 180.0, "longitude")
+
+
+def parse_goto(text: str) -> tuple[str, float | None, float | None]:
+    """What is typed in Go to (NAV-8, the PO's answers of 8 November 2026), as one of:
+
+    * ("to", lat, lon): both coordinates, as parse_coordinates reads them.
+    * ("to", lat, None): one number, the latitude; the longitude stays. One with E or W is
+      the longitude, as there is no other way to read it.
+    * ("to", None, lon): a comma, then one number: the longitude; the latitude stays.
+    * ("by", north, east): a direction, by word or letter, then degrees, for one axis or both,
+      with or without a comma: "north 5", "s 2 e 3", "west 10, n 1". South and west are
+      negative. A direction comes first; a number first is always where to go, so "-33" is
+      33 degrees south and nothing clashes.
+
+    Raises ValueError for anything else."""
+    cleaned = _clean(text)
+    m = _MOVE.fullmatch(cleaned)
+    if m:
+        moves = {"n": 0.0, "e": 0.0}
+        ways = [w for w in ("1", "2") if m.group(f"way{w}")]
+        axes = set()
+        for n in ways:
+            way = _DIRECTIONS[m.group(f"way{n}")]
+            axis = "n" if way in "ns" else "e"
+            if axis in axes:
+                raise ValueError("two amounts for one direction")
+            axes.add(axis)
+            value = _degrees(m, n, "amount")
+            moves[axis] = -value if way in "sw" else value
+        return "by", moves["n"], moves["e"]
+    m = _ONE.fullmatch(cleaned)
+    if m:
+        longitude = bool(m.group("comma")) or (m.group("post1") or "") in ("e", "w")
+        if longitude:
+            return "to", None, _value(m, "1", "ew", 180.0, "longitude")
+        return "to", _value(m, "1", "ns", 90.0, "latitude"), None
+    lat, lon = parse_coordinates(text)
+    return "to", lat, lon

@@ -612,13 +612,14 @@ function openInput(d) {
   const help = document.createElement("p");
   help.id = "input-help";
   help.textContent = d.help;
-  field.setAttribute("aria-describedby", "input-help");
+  // Go to has no help: its label is enough (the PO, 8 November 2026).
+  if (d.help) field.setAttribute("aria-describedby", "input-help");
   const message = document.createElement("p");
   message.id = "input-message";
   const go = () => submit(d.submit, { text: field.value }, message, box).then(() => { if (box.open) field.select(); });
   const ok = button(d.ok, go, "input-ok");
   const cancel = button(d.cancel, () => box.close(), "input-cancel");
-  box.append(title, label, field, help, message, ok, cancel);
+  box.append(title, label, field, ...(d.help ? [help] : []), message, ok, cancel);
   field.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
   box.showModal();
   field.focus();
@@ -944,7 +945,7 @@ async function boot() {
   words = result.words;
   client.latestOnly = new Set(registry.latest_only);
   applyWords();
-  tree = new Tree(treeEl, (id) => run("panel.select", { item: id }));
+  tree = new Tree(treeEl, (id, group) => run("panel.select", { item: id, group }));
   menubar = new MenuBar($("menubar"), registry.menus, (name) => { mapEl.focus(); run(name, name === "help.keys" ? { region: "map" } : {}); },
     moveRegion, () => mapEl.focus());
   $("loading").remove();

@@ -8,12 +8,13 @@ This version adds turning and facing, going to places and back, layers, the soun
 
 * Three orientations, with O: north-fixed, cardinal facing and free facing. In the facing orientations, Left and Right turn, Shift with them 90 degrees, and Ctrl with them a fine turn in free facing. Ctrl+B types a bearing. Steps carry on over both poles, and say so (NAV-3, NAV-11, NAV-12).
 * In the facing orientations, Nearby says directions relative to the way you face, such as "ahead right" (NAV-12).
-* Ctrl+G goes to typed coordinates, in many forms. Alt+Comma and Alt+Full stop go back and forward through the places you jumped from, with their zoom and step (NAV-8, NAV-10).
+* Ctrl+G goes to typed coordinates, in many forms, including D, M and S for degrees, minutes and seconds. One number sets the latitude, and a comma then a number the longitude, keeping the other. A direction then degrees, such as "north 5" or "s 2 e 3", moves by that much. Alt+Comma and Alt+Full stop go back and forward through the places you jumped from, with their zoom and step (NAV-8, NAV-10).
 * Enter on an entry of the announcement history goes back to where it was said (DP141).
 * The layers list, Ctrl+Shift+L, switches layers on and off; a layer that is off is gone from what you hear and see. Each layer has a zoom range and a smallest size (SCP-6, SCP-7, NAV-13).
-* Crossed and passed, in the Information panel, lists what the last move went over, with a soft earcon; Shift+5 goes to it (ANN-2).
+* Crossed and passed, in the Information panel, lists what the last move went over, with a soft earcon (ANN-2).
+* Shift and a number go to the Information panel's groups: Shift+1 Within, Shift+2 Nearby, Shift+3 Crossed and passed, with one more number for each group added later (INF-10, DP109).
 * Holding an arrow key gives even clicks, whatever the map is doing (DP140).
-* Sound in space: Space on an item of Nearby or Crossed and passed plays its sound from its direction, then its name in the Alba voice from the same place. Sounds behind you are lower in pitch. Stereo, or HRTF for headphones (SON-1, SON-2, SON-3, DP143).
+* Sound in space: Space on an item of the Information panel plays its sound from its direction (for Within, from the centre of the area), then its name in the Alba voice from the same place. Sounds behind you are lower in pitch. Stereo, or HRTF for headphones (SON-1, SON-2, SON-3, DP143).
 * B switches on the orientation beacon, a soft tone from the North Pole (SON-10).
 * The lines of latitude and longitude and the special lines are layers, off at first, with crossing sounds, including yours for the prime meridian and the equator (DAT-13).
 * Every earcon has its own switch and your own file, and there is an earcon volume. In the web version your own files are kept in the browser (SON-6, SON-7, SON-8, DP123).

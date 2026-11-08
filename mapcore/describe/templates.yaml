@@ -103,7 +103,7 @@ sound:
 # Hear its direction (DP143, SON-3): the label said in the spatial voice, from the item's place.
 hear:
   label: "{name}, {distance}"
-  choose: "Hear its direction works on an item of Nearby or Crossed and passed."
+  choose: "Hear its direction works on an item, not on a group."
 
 # The spatial voice (P2-T7, SON-3). Each is said once, by the screen reader.
 voice:
@@ -169,9 +169,9 @@ typing:
   bearing_help: "Type degrees from 0 to 360, such as 47, or a compass point, such as NE or south-west."
   bearing_error: "That is not a bearing. Type degrees from 0 to 360, such as 47, or a compass point, such as NE or south-west."
   goto_title: "Go to coordinates"
-  goto_label: "Coordinates"
-  goto_help: "Type latitude and then longitude, such as 51.5, -0.12 or 51.5N 0.12W or 51°30′N 0°07′W."
-  goto_error: "Those are not coordinates. Type latitude and then longitude, such as 51.5, -0.12 or 51.5N 0.12W or 51°30′N 0°07′W. Latitude is up to 90 degrees and longitude up to 180."
+  goto_label: "Enter latitude and longitude:"
+  goto_help: ""
+  goto_error: "Those are not coordinates. Type latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W, or a direction and degrees to move, such as north 5. Latitude is up to 90 degrees and longitude up to 180."
 
 dialogs:
   keys_title: Keys

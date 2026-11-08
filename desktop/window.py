@@ -538,7 +538,7 @@ class MainWindow(QMainWindow):
             self.focus_region("menu")
             return
         if focus["region"] == "panel":
-            target = self._item_by_id(focus.get("item")) if focus.get("item") else None
+            target = self._item_by_id(focus.get("item"), focus.get("group")) if focus.get("item") else None
             if target is None:
                 group = self._group_item(focus.get("group") or "within")
                 target = group.child(0) if group is not None and group.childCount() else group
@@ -617,9 +617,11 @@ class MainWindow(QMainWindow):
                 return item
         return None
 
-    def _item_by_id(self, item_id: str):
-        for i in range(self.tree.topLevelItemCount()):
-            group = self.tree.topLevelItem(i)
+    def _item_by_id(self, item_id: str, group_id: str | None = None):
+        """An area can be in two groups, so the item is looked for in its own group first."""
+        groups = [self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())]
+        groups.sort(key=lambda g: g.data(0, ITEM_ID) != f"group:{group_id}")
+        for group in groups:
             for j in range(group.childCount()):
                 if group.child(j).data(0, ITEM_ID) == item_id:
                     return group.child(j)
@@ -660,4 +662,6 @@ class MainWindow(QMainWindow):
         item_id = current.data(0, ITEM_ID) if current is not None else None
         if item_id is not None and str(item_id).startswith("group:"):
             item_id = None
-        self.dispatch("panel.select", item=item_id)
+        parent = current.parent() if current is not None else None
+        group = str(parent.data(0, ITEM_ID)).removeprefix("group:") if parent is not None else None
+        self.dispatch("panel.select", item=item_id, group=group)

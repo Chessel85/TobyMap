@@ -82,6 +82,27 @@ def _raw() -> dict:
     return yaml.safe_load(REGISTRY_FILE.read_text(encoding="utf-8"))
 
 
+def panel_groups() -> list[str]:
+    """The Information panel's groups, by id, in order."""
+    return list(_raw()["panel_groups"])
+
+
+def _entries() -> list[dict]:
+    """The registry's commands, with an each_panel_group entry made into one command for each
+    panel group: panel.within on Shift+1, panel.nearby on Shift+2, and so on."""
+    from mapcore.describe import say
+
+    out = []
+    for c in _raw()["commands"]:
+        if not c.get("each_panel_group"):
+            out.append(c)
+            continue
+        for number, group in enumerate(panel_groups(), start=1):
+            out.append({**c, "name": f"panel.{group}", "label": c["label"].format(group=say(f"panel.{group}")),
+                        "key": c["key"].format(number=number) if number <= 9 else ""})
+    return out
+
+
 @lru_cache(maxsize=1)
 def load() -> tuple[Command, ...]:
     return tuple(
@@ -91,7 +112,7 @@ def load() -> tuple[Command, ...]:
             latest_only=bool(c.get("latest_only")), pointer=bool(c.get("pointer")),
             held=bool(c.get("held")), toggle=bool(c.get("toggle")),
         )
-        for c in _raw()["commands"]
+        for c in _entries()
     )
 
 

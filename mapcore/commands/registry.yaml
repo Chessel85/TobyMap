@@ -25,6 +25,10 @@ menus:
   - {label: Settings, access: T}
   - {label: Help, access: H}
 
+# The Information panel's groups, in order (UX section 6). The session makes them in this order,
+# and each has its Shift and number key from it. A new group is added here.
+panel_groups: [within, nearby, crossed]
+
 commands:
   # Moving (NAV-1). Arrow keys step north, south, west and east.
   - {name: move.north, label: Step north or forward, key: Up, region: map, menu: Map, latest_only: true, held: true}
@@ -67,8 +71,10 @@ commands:
   - {name: focus.map, label: Go to the map, key: F2, region: global, menu: Map}
   - {name: focus.panel, label: Go to the Information panel, key: F3, region: global, menu: Map}
   - {name: focus.details, label: Go to Details, key: F4, region: global, menu: Map}
-  # Crossed and passed (ANN-2, INF-10): your key, from the key list (DP109).
-  - {name: panel.crossed, label: Go to Crossed and passed, key: Shift+5, region: global, menu: Map}
+  # The Information panel's groups (INF-10, DP109): one command for each group in panel_groups,
+  # below, named panel.<group>, with Shift+1 for the first, Shift+2 for the second, and so on,
+  # for as many groups as there are (the PO's answer, 8 November 2026). "{group}" is the group's name.
+  - {name: panel.group, label: "Go to {group}", key: "Shift+{number}", region: global, menu: Map, each_panel_group: true}
   # Hear its direction (DP143, SON-3): your key, from the key list. On an item of Nearby or Crossed and passed.
   - {name: panel.hear, label: Hear its direction, key: Space, region: panel, menu: ""}
   - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}

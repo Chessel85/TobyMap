@@ -399,7 +399,9 @@ class LayersDialog(QDialog):
 class SoundFileField(QWidget):
     """Your own sound file for an earcon (P2-T8, SON-8): its path, Choose file and Use the
     default. A chosen file that is not a WAV sound TobyMap can play is refused, and you are
-    told why, so the sound is not changed."""
+    told why, so the sound is not changed. The words stay on screen under the field and take
+    the focus: spoken alone, NVDA read the focus coming back from the file dialog over them
+    (PO note on checklist 14.5)."""
 
     def __init__(self, value: str, field: dict, words: dict, speak=None, choose=None):
         super().__init__()
@@ -407,8 +409,10 @@ class SoundFileField(QWidget):
 
         self._readable, self._speak, self.words = readable_wav, speak, words
         self._choose_dialog = choose or self._ask
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(0, 0, 0, 0)
+        row = QHBoxLayout()
+        column.addLayout(row)
         self.edit = QLineEdit(value)
         self.edit.setPlaceholderText(words["default_sound"])
         self.choose_button = QPushButton(words["choose_file"])
@@ -419,7 +423,20 @@ class SoundFileField(QWidget):
             row.addWidget(w)
         self.choose_button.clicked.connect(self.choose)
         self.default_button.clicked.connect(self.use_default)
-        self.message = ""
+        # Shown only when there is something to say; it can take the focus, so Tab and the
+        # screen reader reach it, and its name is its words.
+        self.message = QLabel("")
+        self.message.setWordWrap(True)
+        self.message.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.message.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByKeyboard
+                                             | Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.message.hide()
+        column.addWidget(self.message)
+
+    def _tell(self, text: str) -> None:
+        self.message.setText(text)
+        self.message.setAccessibleName(text)
+        self.message.setVisible(bool(text))
 
     def setAccessibleName(self, name: str) -> None:   # the field's label goes on the path box
         self.edit.setAccessibleName(name)
@@ -437,15 +454,15 @@ class SoundFileField(QWidget):
             return
         if self._readable(Path(path)):
             self.edit.setText(path)
-            self.message = ""
+            self._tell("")
+            self.choose_button.setFocus()
         else:
-            self.message = self.words["file_unreadable"].format(file=Path(path).name)
-            if self._speak:
-                self._speak(self.message, "assertive")
-        self.choose_button.setFocus()
+            self._tell(self.words["file_unreadable"].format(file=Path(path).name))
+            self.message.setFocus()
 
     def use_default(self) -> None:
         self.edit.clear()
+        self._tell("")
         self.edit.setFocus()
 
     def text(self) -> str:

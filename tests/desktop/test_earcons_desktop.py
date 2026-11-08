@@ -2,6 +2,7 @@
 tab, a file that cannot be played refused or falling back to the default, said once, and the
 earcon volume reaching the player. No sound device is opened."""
 import wave
+from pathlib import Path
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -82,7 +83,29 @@ def test_a_file_that_cannot_be_played_is_refused_and_you_are_told(window, tmp_pa
     field._choose_dialog = lambda: str(tmp_path / "notes.wav")
     field.choose()
     assert field.text() == ""
-    assert window.announcer.texts[-1] == "notes.wav could not be read as a WAV sound file, so the sound is not changed."
+    assert field.message.text() == "notes.wav could not be read as a WAV sound file, so the sound is not changed."
+    dialog.cancel_button.click()
+
+
+@pytest.mark.parametrize("renamed", [False, True], ids=["a .py file", "a .py file renamed to .wav"])
+def test_the_message_stays_on_screen_and_takes_the_focus(window, tmp_path, qtbot, renamed):
+    """PO note on checklist 14.5: no message was heard. Spoken alone, NVDA read the focus coming
+    back from the file dialog over it. Now it stays next to the field and takes the focus."""
+    import shutil
+
+    source = Path(__file__).resolve().parents[2] / "desktop" / "sounds.py"
+    chosen = shutil.copy(source, tmp_path / "sounds.wav") if renamed else source
+    dialog = open_settings(window)
+    field = dialog.controls["earcon_tick"]
+    assert field.message.isHidden()
+    field._choose_dialog = lambda: str(chosen)
+    field.choose()
+    said = f"{Path(chosen).name} could not be read as a WAV sound file, so the sound is not changed."
+    assert field.text() == "" and field.message.text() == said and not field.message.isHidden()
+    assert field.message.accessibleName() == said
+    qtbot.waitUntil(lambda: QApplication.focusWidget() is field.message, timeout=2000)
+    field.use_default()                          # the message goes when the sound is changed again
+    assert field.message.isHidden()
     dialog.cancel_button.click()
 
 

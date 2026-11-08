@@ -73,7 +73,7 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 
 The browser tests stage the core into `web/py` themselves and need Pyodide in `web/vendor`. Each test starts Pyodide afresh, so they take about five minutes.
 
-Continuous integration (`.github/workflows/ci.yml`) runs the Python tests on Windows and macOS, and the browser tests in Chromium and Firefox, on every push.
+Continuous integration (`.github/workflows/ci.yml`) runs the Python tests on Windows and macOS, and the browser tests in Chromium and Firefox (two jobs side by side), on every push to main. A task branch pushed alone is not tested by itself: start a run by hand with `gh workflow run ci.yml --ref <branch>`.
 
 ## Rules that are never broken
 

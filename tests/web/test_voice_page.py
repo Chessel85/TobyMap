@@ -50,20 +50,27 @@ def on_station(page):
     return page.evaluate("window.tobymap.labels[window.tobymap.labels.length - 1]")
 
 
-def test_with_four_threads_a_label_is_placed_with_the_items_sound(page, site_url):
+def test_with_four_threads_a_label_is_placed_with_the_items_sound_and_kept_in_the_history(page, site_url):
+    """Also: the label is kept in the history and not spoken unless asked (one page load, not two)."""
     app = open_app(page, site_url, state=STATION_WEST)
     info = voice_ready(app)
     assert info["isolated"] and info["threads"] == min(4, app.evaluate("navigator.hardwareConcurrency"))
+    before = app.evaluate("window.tobymap.announcements.length")
     label = on_station(app)
     assert label["text"].startswith("Southampton Central, ")
     assert 80 < label["relative_deg"] < 100 and label["pitch"] == 1
     placed = app.evaluate("window.tobymap.placed.slice(-2)")
     assert [p["sound"] for p in placed] == ["item_direction", "voice"]
     assert placed[0]["pan"] == placed[1]["pan"], "the label comes from the item's place"
+    app.wait_for_timeout(300)
+    assert label["text"] not in app.evaluate("window.tobymap.announcements.map(a => a.text)")[before:]
     made = sorted([label["made_ms"]] + [on_station(app)["made_ms"] for _ in range(4)])
     print(f"\n{app.context.browser.browser_type.name}, {info['threads']} threads: voice ready in "
           f"{info['load_ms']} ms; each label made in a median of {made[2]} ms, longest {made[-1]} ms; "
           f"the first heard {label['ms']} ms after asking, after the item's sound")
+    app.keyboard.press("Control+Shift+Space")
+    app.wait_for_function("document.querySelector('#dialog[open]')")
+    assert label["text"] in app.evaluate("document.querySelector('#dialog').textContent")
 
 
 def test_with_one_thread_the_voice_still_works(page, site_url):
@@ -77,19 +84,28 @@ def test_with_one_thread_the_voice_still_works(page, site_url):
           f"longest {made[-1]} ms")
 
 
-def test_at_500_percent_the_core_stretches_the_label(page, site_url):
-    """Faster than Piper can speak, at the same pitch, by the core's time stretching (P2-T16g, SON-3)."""
+def other_label(page, site_url, state=STATION_WEST, values=None):
+    """The station's label in a second page with a browser storage of its own."""
+    other = page.context.browser.new_context()
+    try:
+        app = open_app(other.new_page(), site_url, state=state, values=values)
+        voice_ready(app)
+        return on_station(app)
+    finally:
+        other.close()
+
+
+def test_at_500_percent_the_core_stretches_the_label_and_behind_it_is_lower_at_the_same_speed(page, site_url):
+    """Faster than Piper can speak, at the same pitch, by the core's time stretching (P2-T16g, SON-3).
+    Behind you the label is lower at the same speed: the PO chose sample 9 on 8 November 2026.
+    The label at 100 percent, ahead, is compared with both."""
     app = open_app(page, site_url, state=STATION_WEST)
     voice_ready(app)
     normal = on_station(app)
-    assert normal["stretch"] == 1
-    other = page.context.browser.new_context()   # a browser storage of its own, with the speed at 500
-    try:
-        fast_app = open_app(other.new_page(), site_url, state=STATION_WEST, values={"voice_rate": 500})
-        voice_ready(fast_app)
-        fast = on_station(fast_app)
-    finally:
-        other.close()
+    assert normal["stretch"] == 1 and normal["pitch"] == 1
+    assert normal["seconds"] == normal["piper_seconds"]
+
+    fast = other_label(page, site_url, values={"voice_rate": 500})
     assert fast["stretch"] > 2.5
     # Piper at 100 percent against Piper at 200 then stretched: about five times as short in all.
     assert fast["seconds"] < normal["seconds"] / 4
@@ -97,37 +113,11 @@ def test_at_500_percent_the_core_stretches_the_label(page, site_url):
     print(f"\n{app.context.browser.browser_type.name}: {normal['seconds']:.2f} s at 100 percent, "
           f"{fast['seconds']:.2f} s at 500, made in {fast['made_ms']} ms")
 
-
-def test_behind_you_the_label_is_lower_at_the_same_speed(page, site_url):
-    """The PO chose sample 9 on 8 November 2026: lower behind, without slowing (P2-T16g)."""
-    app = open_app(page, site_url, state=STATION_WEST)
-    voice_ready(app)
-    ahead = on_station(app)
-    other = page.context.browser.new_context()   # facing west, so the station is behind
-    try:
-        behind_app = open_app(other.new_page(), site_url,
-                              state={**STATION_WEST, "orientation": "free", "heading": 270.0})
-        voice_ready(behind_app)
-        behind = on_station(behind_app)
-    finally:
-        other.close()
-    assert ahead["pitch"] == 1 and behind["pitch"] == pytest.approx(2 ** (-1.5 / 12), abs=0.001)
+    behind = other_label(page, site_url, state={**STATION_WEST, "orientation": "free", "heading": 270.0})  # facing west
+    assert behind["pitch"] == pytest.approx(2 ** (-1.5 / 12), abs=0.001)
     assert abs(behind["relative_deg"]) > 170
     # Compared with Piper's own sound for the same label, as Piper's timing varies a little.
     assert behind["seconds"] == pytest.approx(behind["piper_seconds"], rel=0.02)
-    assert ahead["seconds"] == ahead["piper_seconds"]
-
-
-def test_the_label_is_kept_in_the_history_and_not_spoken_unless_asked(page, site_url):
-    app = open_app(page, site_url, state=STATION_WEST)
-    voice_ready(app)
-    before = app.evaluate("window.tobymap.announcements.length")
-    label = on_station(app)
-    app.wait_for_timeout(300)
-    assert label["text"] not in app.evaluate("window.tobymap.announcements.map(a => a.text)")[before:]
-    app.keyboard.press("Control+Shift+Space")
-    app.wait_for_function("document.querySelector('#dialog[open]')")
-    assert label["text"] in app.evaluate("document.querySelector('#dialog').textContent")
 
 
 def test_the_helper_script_isolates_the_page_and_the_pack_still_downloads(page, plain_site_url):

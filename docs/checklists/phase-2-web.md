@@ -1,10 +1,10 @@
-# Phase 2 checklist: web version
+# Phase 2 checklist: web version, second pass
 
-This is for you to work through with NVDA in Firefox, then the main steps again in Chrome or Edge. The desktop version has its own checklist, docs/checklists/phase-2-desktop.md. The parts that need sight are in docs/checklists/phase-2-sighted.md.
+This is the full Phase 2 web checklist, for you to work through with NVDA in Firefox, then the main steps again in Chrome or Edge. Every step says what to do and what you should now hear. The desktop version has its own checklist, docs/checklists/phase-2-desktop.md. The parts that need sight are in docs/checklists/phase-2-sighted.md.
 
 For each step, write down its number, such as 4.3, and either "works" or what you heard instead. Put your notes in a text file.
 
-The web version uses the same world pack as the desktop, so the expected words are the same. Most sections below are the desktop checklist's sections done in the browser: do the steps there, with the differences listed here. The web version runs on this computer until you agree to publish (DP110).
+The web version uses the same world pack as the desktop, so the expected words are the same: "England, United Kingdom", not "Kent". It runs on this computer until you agree to publish (DP110).
 
 ## How to start the web version
 
@@ -13,56 +13,229 @@ The web version uses the same world pack as the desktop, so the expected words a
   `.venv\Scripts\python.exe tools\serve_web.py --pack E:\osmdata\tobymap\output\world\world.pack`
 
 * It opens the web version in your default browser, at http://127.0.0.1:8765/index.html. Leave the terminal open while you test. Ctrl+C in the terminal stops it.
-* To start at a place, add it to the address after a question mark, such as `http://127.0.0.1:8765/index.html?at=51.2,1.2`. Type it in the address bar (Alt+D or Ctrl+L) and press Enter.
-* The map is an application to NVDA, so NVDA should switch to focus mode by itself. If arrow keys move NVDA's browse cursor instead of the map, press NVDA+Space.
-* Set Distances to Metric and Directions to Compass with 8 points first, in Settings, Units.
+* To start at a place, put it in the address after a question mark, such as `http://127.0.0.1:8765/index.html?at=51.2,1.2`. Press Alt+D or Ctrl+L to reach the address bar, type the address and press Enter. Below, "Start with ?at=51.2,1.2" means this.
+* The map is an application to NVDA, so NVDA should switch to focus mode by itself. If the arrow keys move NVDA's browse cursor instead of the map, press NVDA+Space.
+* The menu bar is reached with Ctrl+Alt+M. Settings is Ctrl+Comma, with a tab for each group.
+* TobyMap keeps your last zoom and step size. Page Up and Page Down change the zoom, and Shift+Page Up and Shift+Page Down change the step.
+
+## Before you start
+
+* Set Distances to Metric and Directions to Compass with 8 points, in Settings, Units. The words below assume both.
+* Make sure the verbosity preset is Normal. Section 15 says how to check it.
+* Make sure the orientation is north-fixed. Pressing H says it.
 
 ## 1. First visit (DEL-1, PLT-2)
 
 * 1.1 Open the address in Firefox. On the first visit of this version, the page reloads itself once, quickly. That makes it cross-origin isolated, so the voice can use four threads.
 * 1.2 You hear "TobyMap", the place, then "Press F1 for keys".
-* 1.3 On the map, press Tab and Shift+Tab: focus moves between the map, the Information panel and Details as before. Coming back to the map, NVDA says the place.
+* 1.3 On the map, press Tab and Shift+Tab: focus moves between the map, the Information panel and Details. Coming back to the map, NVDA says the place.
+* 1.4 Press Ctrl+Alt+M, go to Help, then About TobyMap. The text has one sentence on each line. Up and Down arrow read it a line at a time: the version, 0.1.0; what TobyMap is; its licence; the Alba voice and its licence; and where the other licences are. Close it with its Close button.
 
-## 2. The same as the desktop
+## 2. Orientations and turning (NAV-3, NAV-11, NAV-12)
 
-Do these sections of the desktop checklist, in Firefox. The keys and the words are the same.
+Start with ?at=51.2,1.2, zoom and step 25 kilometres. You hear "England, United Kingdom".
 
-* 2.1 Section 2, orientations and turning.
-* 2.2 Section 3, typing a bearing.
-* 2.3 Section 4, over the poles. Use `?at=89.9,0` and `?at=-89.9,0` in the address instead of --at.
-* 2.4 Section 5, going to coordinates and back. Alt+Comma and Alt+Full stop work in Firefox; if your browser takes either key for itself, tell me.
-* 2.5 Section 6, Enter in the announcement history.
-* 2.6 Section 7, layers. The layer settings replace the list in the same dialog, and Cancel goes back to the list.
-* 2.7 Section 8, Crossed and passed.
-* 2.8 Section 10, the beacon.
-* 2.9 Section 11, the graticule and its crossing sounds.
-* 2.10 Section 12, holding an arrow key: the clicks are even in the browser too.
-* 2.11 Section 13, the verbosity presets. In the web version Settings has a Speech tab, between Movement and Layers.
+* 2.1 Press Shift+Right, then Ctrl+Right. In north-fixed, both do nothing: no words and no sound.
+* 2.2 Press O. You hear "Cardinal facing, north."
+* 2.3 Press Right. You hear "Facing east." Press Right again: "Facing south." Press Left twice: "Facing east.", then "Facing north."
+* 2.4 Press Shift+Right, then Ctrl+Right. In cardinal facing, both do nothing: no words and no sound.
+* 2.5 Press Left to face west, then Up. It steps forward, to the west, and ticks or says the place.
+* 2.6 Press O. You hear "Free facing, 270 degrees."
+* 2.7 Press Right: "Facing 275 degrees." Ctrl+Right: "Facing 276 degrees." Ctrl+Left: "Facing 275 degrees." Left: "Facing 270 degrees."
+* 2.8 Press Shift+Right: "Facing 0 degrees." Press Shift+Left: "Facing 270 degrees."
+* 2.9 Hold Right for two seconds. It clicks as it turns, and when you let go it says the heading once.
+* 2.10 Open Settings, Movement tab. There are three turning settings: "Free facing: degrees turned by Left and Right", 5; "Free facing: degrees turned by Shift with Left and Right", 90; and "Free facing: degrees turned by Ctrl with Left and Right", 1. Change the Shift one to 45 and press OK. Shift+Right now turns 45 degrees. Put it back to 90.
+* 2.11 Press O. You hear "North-fixed." Up steps north again, and Left and Right step west and east.
 
-## 3. Hear its direction in the browser (SON-3, DP143, DP150, DP151)
+## 3. Typing a bearing (NAV-12)
 
-Start with `?at=51.2,1.2`, zoom 100 kilometres. Use headphones if you can.
+Still at the same place, in north-fixed.
 
-* 3.1 Do steps 9.1 to 9.5 of the desktop checklist. The first label after the page opens can take a few seconds, while the voice loads; after that, a short name takes about a fifth of a second and a name with its distance about half a second.
-* 3.2 DP150 asks whether half a second is too slow. You parked it for this test: tell me how it feels.
-* 3.3 A browser cannot send text to Braille without speaking it. So in the web version a label reaches NVDA, and your Braille display, only with "Also speak spatial labels through the screen reader" on, in Settings, Sound. Switch it on, and press Space on an item: NVDA speaks the label as well. As you agreed in DP151, it stays off at first, and the release notes tell a Braille user to switch it on.
-* 3.4 Add `?threads=1` to the address and reload. The voice uses one thread: a label takes about a second. Remove it again.
+* 3.1 Press Ctrl+B. A box opens to type a bearing, with a line saying what you can type.
+* 3.2 Type 47 and press Enter. You hear "Free facing, 47 degrees.", and only that.
+* 3.3 Press H. You hear "Facing 47 degrees. Free facing. Stepping. Zoom 25 kilometres, step 25 kilometres."
+* 3.4 Press Ctrl+B, type north-east, and press Enter. You hear "Facing 45 degrees."
+* 3.5 Press Ctrl+B, type hello, and press Enter. The box stays open and says what it accepts. Press Cancel.
+* 3.6 Press O until you hear "North-fixed."
 
-## 4. Earcons and your own files in the browser (SON-8, DP123)
+## 4. Over the poles (NAV-1, NAV-3)
 
-* 4.1 Open Settings, Earcons. It is the same as on the desktop.
-* 4.2 On "Tick: your own sound file", press Choose file and choose a WAV file of your own. Press OK and step: your sound plays.
-* 4.3 Reload the page with F5. Your sound still plays: it is kept in the browser.
-* 4.4 Press Use the default, then OK. The default tick plays again.
-* 4.5 Choose a file that is not a WAV sound. You are told it could not be read, and nothing is kept.
+Start with ?at=89.9,0, step 25 kilometres. You hear "Arctic Ocean".
 
-## 5. The sound design in the browser
+* 4.1 Press O for cardinal facing, then Up. You hear "Crossed the North Pole. Now facing south." Up again: you carry on, away from the pole.
+* 4.2 Press H. It says you face south, in cardinal facing.
+* 4.3 Start again with ?at=89.9,0. Press O until you hear "Free facing, 0 degrees.", then Up. You hear "Crossed the North Pole. Now facing 180 degrees."
+* 4.4 Start with ?at=-89.9,0. You hear "Antarctica". Press O until you hear "Cardinal facing, north.", then Down, which steps back, to the south. You hear "Crossed the South Pole. Now facing south."
+* 4.5 Press O until you hear "North-fixed."
 
-Tell me whether the sound in space feels the same as on the desktop: direction, the lower pitch behind, loudness with distance, and HRTF if you try it.
+## 5. Going to coordinates (NAV-8)
 
-## 6. Chrome or Edge
+Start with ?at=51.2,1.2. You hear "England, United Kingdom".
 
-* 6.1 Open the same address in Chrome or Edge, and do sections 1 and 3, and steps 2.1 and 2.7.
+* 5.1 Press Ctrl+G. A box opens, titled "Go to coordinates", with the field "Enter latitude and longitude:" and no other text.
+* 5.2 Type 48.85, 2.35 and press Enter. You hear "Ile-de-France, France", and only that: not the place you left.
+* 5.3 Press Ctrl+G, type 91, 0 and press Enter. The box stays open and says those are not coordinates, with examples, and that latitude is up to 90 degrees and longitude up to 180. Press Cancel.
+* 5.4 Press Ctrl+G and type 48.85N 2.35E. You stay in Paris: "Ile-de-France, France".
+* 5.5 Degrees, minutes and seconds use the letters D, M and S, in either case. Press Ctrl+G and type 48d 51m N, 2d 21m E. You hear "Ile-de-France, France".
+* 5.6 One number sets the latitude and keeps your longitude. Start again with ?at=51.2,1.2. Press Ctrl+G and type 48.85. You hear "Normandy, France".
+* 5.7 A comma then a number sets the longitude and keeps your latitude. Press Ctrl+G and type , 2.35 (a comma, a space, then 2.35). You hear "Ile-de-France, France".
+* 5.8 A direction then degrees moves you by that much. Press Ctrl+G and type south 2 east 3. You hear "Bourgogne – Franche-Comté, France".
+* 5.9 Press Ctrl+G and type n 2. You are 2 degrees further north: "Grand Est, France". Letters work as well as words.
+* 5.10 Press Ctrl+G and type north 90. You stop at the North Pole and hear "Arctic Ocean". Press Alt+Comma to come back.
+
+## 6. Going back and forward through your places (NAV-10)
+
+Start with ?at=51.2,1.2, step 25 kilometres. You hear "England, United Kingdom".
+
+* 6.1 Press Ctrl+G and go to 48.85, 2.35. You hear "Ile-de-France, France".
+* 6.2 Press Right once. It ticks or says a place.
+* 6.3 Press Alt+Comma. You are back where you were before that step, in Paris, with the same zoom and step. The place is said.
+* 6.4 Press Alt+Comma again. You hear "England, United Kingdom": back to before the jump.
+* 6.5 Press Alt+Full stop twice: first Paris, then the place after the step. Press it once more: the blocked sound, as there is nowhere further forward.
+* 6.6 Hold Right for about three seconds and let go. Press Alt+Comma once. You are back where the hold started, in one press.
+* 6.7 Press Alt+Full stop: you go forward to where the hold ended. Now press O twice for free facing, and Right to turn: a turn adds no place. Press Alt+Comma: you go back to where the hold started, as in 6.6. Press O to return to north-fixed.
+* 6.8 Open Settings, Movement tab. "Clear the places on start" is off. Switch it on and press OK. Start again with ?at=51.2,1.2. Press Alt+Comma: the blocked sound, as there are no places yet. Switch the setting off again.
+* 6.9 With the setting off, take a few steps and jumps, then reload the page with F5. Alt+Comma goes back through the places from before the reload.
+* 6.10 If your browser takes Alt+Comma or Alt+Full stop for itself, tell me.
+
+## 7. Enter in the announcement history (ANN-4, DP141)
+
+Start with ?at=51.2,1.2.
+
+* 7.1 Press Down. You hear "North Atlantic Ocean".
+* 7.2 Press Ctrl+G and go to 48.85, 2.35. You hear "Ile-de-France, France".
+* 7.3 Press Ctrl+Shift+Space. The announcement history opens, newest first, with a line saying what Enter does.
+* 7.4 Move to "North Atlantic Ocean" and press Enter. The history closes and you hear "North Atlantic Ocean", and only that: you are back where it was said.
+* 7.5 Press Alt+Comma. You are back in Paris.
+* 7.6 Open the history again, move to an entry with no place, such as a message from Help, and press Enter. You hear "No place for this entry." and the list stays open. Close it with its Close button.
+
+## 8. Layers (SCP-6, SCP-7)
+
+Start with ?at=51.2,1.2.
+
+* 8.1 Press Ctrl+Shift+L. The layers list opens: the groups Boundaries, Water and Graticule, each with its layers and a check box for each. Graticule has "Lines of latitude and longitude" and "Special lines: equator, prime meridian, tropics, polar circles and date line", both off.
+* 8.2 Move to Regions and press Space to switch it off. Press Enter: it presses OK, and the list closes. You hear the place, and only once.
+* 8.3 Press Space on the map. You hear "United Kingdom": England is gone, because it is a region.
+* 8.4 Open the list again and switch Countries off too. Press OK. Space now says "Every layer here is switched off".
+* 8.5 Switch both back on. In the list, Space ticks a box and Enter presses OK, wherever you are in the list.
+* 8.6 Open the list, move to a layer and press "Settings for this layer". The list is replaced by that layer's closest zoom, farthest zoom and crossing sound. Enter there presses that OK and goes back to the list. Cancel goes back to the list too.
+
+## 9. The Information panel's groups (INF-10)
+
+Start with ?at=51.2,1.2, zoom 100 kilometres.
+
+* 9.1 On the map, press Shift+1. Focus goes to Within in the Information panel.
+* 9.2 Press Shift+2. Focus goes to Nearby.
+* 9.3 Press Shift+3. Focus goes to Crossed and passed.
+* 9.4 The same three keys work from inside the Information panel and from Details.
+* 9.5 Press F1 on the map. The list of keys has "Go to Within: Shift+1", "Go to Nearby: Shift+2" and "Go to Crossed and passed: Shift+3".
+* 9.6 Press F2 to go back to the map.
+
+## 10. Crossed and passed (ANN-2, DP148)
+
+Start with ?at=49.7,5.3. Set the zoom to 1,000 kilometres and the step to 100 kilometres. You hear "Wallonia, Belgium".
+
+* 10.1 Press Right. You hear "Rhineland-Palatinate, Germany", and then a soft earcon: something was added to Crossed and passed. Nothing about it is spoken.
+* 10.2 Press Shift+3. Focus goes to Crossed and passed. It lists "Luxembourg, passed over, 15 kilometres west" and "Moselle condominium, passed over, 15 kilometres west".
+* 10.3 Press Shift+2 for Nearby. On the first item, press Space. The distance the voice says is the same as the distance in the item's words.
+* 10.4 Press F2 to go back to the map. Hold Right for a few steps and let go. Shift+3 lists everything the whole held run went over, not only the last step.
+* 10.5 Press Ctrl+G and jump somewhere. Crossed and passed is empty: a jump has no path.
+* 10.6 In Settings, Earcons tab, switch "Something added: play it" off. Take a large step: the earcon is silent. Switch it back on.
+
+## 11. Hear its direction (SON-3, DP143, DP150, DP151)
+
+Start with ?at=51.2,1.2, zoom 100 kilometres. Use headphones if you can.
+
+* 11.1 Press Shift+2 for Nearby. The first items are "North Atlantic Ocean, 11 kilometres south" and "France, 45 kilometres south-east".
+* 11.2 On North Atlantic Ocean, press Space. The item's direction sound plays from behind you, lower in pitch, then the Alba voice says "North Atlantic Ocean, 11 kilometres" from the same place. The voice behind you is a little lower, but at its ordinary speed. The first label after the page opens can take a few seconds while the voice loads; after that, a short name takes about a fifth of a second and a name with its distance about half a second.
+* 11.3 On France, press Space. It comes from behind and to the right.
+* 11.4 Press F2, then O for cardinal facing, then Right twice to face south. Press Shift+2 and Space on North Atlantic Ocean. It is now ahead of you, at normal pitch. Press F2, and O until north-fixed.
+* 11.5 Press Shift+1 for Within. On England, press Space. Its sound plays from the centre of England, and the voice says "England" and the distance to that centre.
+* 11.6 On a group heading, such as Within, Space says "Hear its direction works on an item, not on a group."
+* 11.7 Each label is in the announcement history.
+* 11.8 A browser cannot send text to Braille without speaking it. So in the web version a label reaches NVDA, and your Braille display, only with "Also speak spatial labels through the screen reader" on, in Settings, Sound tab. It is off at first: Space on an item gives only the Alba voice. Switch it on, and press Space on an item: NVDA speaks the label as well, and it shows on your Braille display. Switch it off again.
+* 11.9 In Settings, Sound tab, set "Spatial voice: speed, in percent" to 500. Press Space on an item: the label is about five times as fast as at 100, at the same pitch. Try 200 and 300 too, then set it as you like it.
+* 11.10 Change "Spatial voice: volume, in percent" and try again: the voice is louder or quieter.
+* 11.11 DP150 asks whether half a second for a name with its distance is too slow. Tell me how it feels.
+* 11.12 Start with `http://127.0.0.1:8765/index.html?at=51.2,1.2&threads=1`. The voice uses one thread: a label takes about a second. Start again without &threads=1.
+
+## 12. The orientation beacon (SON-10, SON-2)
+
+Start with ?at=51.2,1.2. Headphones help.
+
+* 12.1 Press B. You hear "Beacon on." A soft, low whump repeats once a second, straight ahead: the North Pole is north.
+* 12.2 Press O for cardinal facing, then Right to face east. The beacon moves to your left. Right again, facing south: it is behind you, lower in pitch.
+* 12.3 The beat stays even, never missing or delaying a beat, while you press O to change orientation, turn, hold Right to turn for a few seconds, and step about. Each change is heard from the next beat.
+* 12.4 Press O until north-fixed. In Settings, Sound tab, change "Orientation beacon: seconds between each sound" to 2, and "Orientation beacon: volume, in percent" to 50. It slows and is quieter. Put them back to 1 and 100.
+* 12.5 Press B. You hear "Beacon off." and it stops.
+* 12.6 Start with ?at=89.5,0 and press B. You hear "Beacon on, but silent near the North Pole." Step south with a 25 kilometre step until you hear "Beacon back on."
+* 12.7 Press B to switch it off.
+
+## 13. The graticule and its crossing sounds (DAT-13, SCP-7)
+
+Start with ?at=0.5,-0.5, zoom 1,000 kilometres, step 100 kilometres. You hear "North Atlantic Ocean".
+
+* 13.1 Press Ctrl+Shift+L, go to the Graticule group, and switch on "Lines of latitude and longitude" and "Special lines". Press OK.
+* 13.2 Press Right. You cross the prime meridian: your meridianCrossed sound plays.
+* 13.3 Press Down. You hear "South Atlantic Ocean" and cross the equator: your equatorCrossed sound plays.
+* 13.4 Open Settings, Layers tab. The interval of the lines is 10 degrees. Change it to 1 degree, press OK, and step again: the line crossing sound plays at every degree crossed.
+* 13.5 Put the interval back to 10, and switch the two layers off again in the layers list.
+
+## 14. Holding an arrow key (ANN-3, DP140)
+
+Start with ?at=51.2,1.2, step 25 kilometres.
+
+* 14.1 Hold Right for three seconds. After half a second, the clicks come evenly, about 6 a second, however long the map takes to draw. Each click is clean.
+* 14.2 Let go. There is no extra click as you let go: the last click is the last step's. Only the last place is spoken.
+* 14.3 Do this several times, letting go at different moments. You never hear a double click at the end.
+* 14.4 Do the same with the beacon on, and with the graticule on. The clicks are still even, and the beacon keeps its beat.
+
+## 15. How much is said: the verbosity presets (ACC-5, DP144)
+
+Start with ?at=51.2,1.2, zoom and step 25 kilometres.
+
+* 15.1 Press A. You hear "Detailed. The whole place is said when an area changes, and the heading after each step in free facing." Press A again: "Terse. Only the smallest area that changed is said." Again: "Normal. Every area that changed is said, and the zoom, the step and the heading."
+* 15.2 Normal first. Start with ?at=49.9,2.3, step 100 kilometres. You hear "Hauts-de-France, France". Press Left. You hear "Normandy": only what changed.
+* 15.3 Press A once, for detailed. Start again with ?at=49.9,2.3 and press Left. You hear "Normandy, France": the whole place. Press O twice for free facing and press Up: the heading is said after the place, or alone if no area changed. Press O for north-fixed.
+* 15.4 Press A for terse. Start with ?at=51.2,1.2, step 25 kilometres, and do Down, Right, Right. At the third you hear only "Hauts-de-France", where normal says "Hauts-de-France, France". Page Up only ticks: the zoom is not said, but H still says it.
+* 15.5 Press A for normal. Open Settings: there is a Speech tab, between Movement and Layers. The preset is first, then its four switches. Change one: when you press OK, the preset is Custom. Choose Normal again.
+* 15.6 Press F3 to go to the Information panel, and press A. The verbosity does not change, and the step is not linked to the zoom: in the panel, a letter goes to the next item starting with it. If you hear anything about the zoom or the step, tell me exactly what.
+
+## 16. Link step to zoom (NAV-13)
+
+Start with ?at=51.2,1.2.
+
+* 16.1 On the map, press S. You hear "Step linked to zoom.", then the zoom and step.
+* 16.2 Press Page Up. The zoom and the step both change, and both are said.
+* 16.3 Press S again. You hear "Step no longer linked to zoom.", then the zoom and step. Page Up now changes only the zoom.
+* 16.4 Press F3 and press S in the Information panel. It goes to the next item starting with S, if there is one, and does not link the step.
+* 16.5 The Map menu, Ctrl+Alt+M, has "Link step to zoom", with S.
+
+## 17. Earcons and your own files (SON-6, SON-7, SON-8, DP123)
+
+* 17.1 Open Settings, Earcons tab. At the top is "Earcons: volume, in percent". Then, for each earcon, "play it" and "your own sound file".
+* 17.2 Set the earcon volume to 30 and step about: the tick is quieter. Put it back to 100.
+* 17.3 Switch "Tick: play it" off. A step that changes nothing is silent. Switch it back on.
+* 17.4 On "Tick: your own sound file", press Choose file and choose a WAV file of your own. Press OK and step: your sound plays.
+* 17.5 Reload the page with F5. Your sound still plays: it is kept in the browser.
+* 17.6 Open Settings, Earcons tab, press Use the default for the tick, and press OK. Step once: only the default tick plays, with nothing of your own sound before it.
+* 17.7 Choose a file that is not a WAV sound, such as a text file renamed to .wav. A message under the field says it could not be read as a WAV sound file, so the sound is not changed, and nothing is kept.
+* 17.8 Press Ctrl+M. Everything is silent: earcons, the beacon and the voice. Press Ctrl+M again and sound comes back.
+
+## 18. The sound design in the browser
+
+Tell me whether the sound in space feels the same as on the desktop: direction, the lower pitch behind, the voice behind you, loudness with distance, the beacon's sound, the clicks, and HRTF if you try it (Settings, Sound tab).
+
+## 19. Chrome or Edge
+
+Open the same address in Chrome or Edge. Set the units as in "Before you start", and do:
+
+* 19.1 Section 1, the first visit.
+* 19.2 Section 2, orientations and turning.
+* 19.3 Section 6, steps 6.1 to 6.6, going back and forward. Tell me if the browser takes Alt+Comma or Alt+Full stop for itself.
+* 19.4 Section 11, hear its direction.
+* 19.5 Section 12, steps 12.1 to 12.3, the beacon.
+* 19.6 Section 14, holding an arrow key.
 
 ## Finishing
 

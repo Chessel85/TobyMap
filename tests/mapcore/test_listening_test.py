@@ -111,11 +111,15 @@ def test_findings_say_when_there_are_too_few_results():
     assert "not enough results yet" in analyse.findings({})
 
 
-def test_the_label_block_renders_all_three_styles_with_the_piper_voice():
+def test_the_label_block_renders_all_three_styles_with_the_piper_voice(monkeypatch):
     from desktop.audio import voice
 
     if not voice.available():
         pytest.skip("the Piper voice is not in voices/piper")
+    # Piper says the same word at different lengths each time (sometimes twice as long), so the
+    # label is spoken once and all three styles are made from it, to compare like with like.
+    spoken = voice.speak("Berlin")
+    monkeypatch.setattr(voice, "speak", lambda text: spoken)
     lengths = {}
     for style in model.LABEL_STYLES:
         trial = model.Trial(5, 1, "labels", 180.0, 2, style=style)

@@ -4,7 +4,11 @@
 name: Tests
 
 on:
+  # Only main: a task branch is pushed with main at once, on the same commit, and a run for
+  # each tested that commit twice. A branch pushed alone is tested by starting the workflow
+  # by hand: gh workflow run ci.yml --ref <branch>.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -32,7 +36,12 @@ jobs:
         run: python -m mapdata --data "${{ runner.temp }}" build test
 
   web:
-    name: Browser tests in Chromium and Firefox
+    # One job for each browser, side by side: one after the other they took about 11 minutes.
+    name: Browser tests in ${{ matrix.browser }}
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -42,7 +51,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements*.txt
       - run: python -m pip install -r requirements-dev.txt
-      - run: python -m playwright install --with-deps chromium firefox
+      - run: python -m playwright install --with-deps ${{ matrix.browser }}
       - name: Cache Pyodide
         uses: actions/cache@v4
         with:
@@ -52,7 +61,7 @@ jobs:
         run: python tools/fetch_vendor.py --web --axe --piper
       - name: Browser tests
         # pytest-qt is not needed here, and Qt cannot load on the bare Linux runner.
-        run: python -m pytest tests/web -p no:pytest-qt --browser chromium --browser firefox
+        run: python -m pytest tests/web -p no:pytest-qt --browser ${{ matrix.browser }}
 
   installer:
     # The Windows installer and portable zip (AD-20), built on every push so a

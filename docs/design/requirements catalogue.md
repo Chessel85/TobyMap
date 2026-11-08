@@ -527,7 +527,7 @@ The high level requirements document stays the product owner's own statement of 
 * Priority: Should. Status: Proposed.
 * Acceptance criteria:
   * After a jump, "back" returns to the previous position.
-  * Every step, jump, Go to and click adds a place; going back or forward adds none (DP142).
+  * Every step, jump, Go to and click adds a place; holding an arrow key adds one, where the hold started; going back or forward adds none (DP142).
   * At least the last 1,000 positions are kept.
   * A setting, "Clear the places on start", off at first, starts each run with no places.
 

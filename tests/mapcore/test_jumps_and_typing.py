@@ -172,12 +172,14 @@ def test_a_step_after_going_back_clears_the_way_forward(session):
     assert not session.forward_places and session.press("Alt+.").earcons == ["blocked"]
 
 
-def test_each_held_step_adds_a_place(session):
-    session.press("Right")
+def test_a_held_key_adds_one_place_where_the_hold_started(session):
+    session.press("Right")                         # the press: one step, then the hold
     session.run("move.east", held=True, repeat=True)
     session.run("move.east", held=True, repeat=True)
     session.release()
-    assert len(session.back_places) == 3
+    assert len(session.back_places) == 1
+    session.press("Alt+,")
+    assert near(session, 51.2, 1.2)                # back to before the whole held run
 
 
 def test_a_blocked_step_or_a_turn_adds_no_place(session):

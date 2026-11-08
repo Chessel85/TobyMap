@@ -128,7 +128,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Orientation: which way you face, and so what "ahead" means for directions and sound. There are three: north-fixed, cardinal facing and free facing (NAV-12). F cycles them.
 * Facing orientations: cardinal facing and free facing together, the two in which you can turn.
 * Jump: going straight to a place without stepping, such as to typed coordinates, a click on the map, or an announcement history entry (NAV-8).
-* Position history: the places you were at before each step, jump, Go to and click, which Alt+Comma and Alt+Full stop go back and forward through (NAV-10, DP142). Going back or forward adds no place.
+* Position history: the places you were at before each step, jump, Go to and click (a held arrow key is one step, from where the hold started), which Alt+Comma and Alt+Full stop go back and forward through (NAV-10, DP142). Going back or forward adds no place.
 * Sound scene: the core's list of the sounds to play, each with its direction relative to ahead, its loudness and its pitch. The desktop and the web version each play it with their own sound player (AD-10).
 * Crossed and passed: the Information panel group that lists what the last move went over or near without stopping on it. It is never spoken by itself; a soft earcon says something was added (ANN-2).
 * Crossed: a line, such as a river, that a move's path went across.

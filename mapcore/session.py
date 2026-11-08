@@ -845,7 +845,8 @@ class MapSession:
             return self._turned(held, repeat, now)
         if not result.moved:
             return Response().earcon("blocked")  # nothing spoken (NAV-1)
-        self._remember_place(before)   # every step is a place to go back to, held ones too (DP142)
+        if not held:   # every step is a place to go back to; a held run is one, where it started (DP142)
+            self._remember_place(before)
         if held:
             # The Information panel and Details wait for the release (ANN-3).
             self.selected = None

@@ -450,6 +450,20 @@ def test_a_saved_link_comes_back(test_pack):
     assert b.world.link and b.settings["link"]
 
 
+def test_about_keeps_its_lines_so_each_is_read_on_its_own(session):
+    import mapcore
+
+    lines = session.run("help.about").dialog["text"].splitlines()
+    assert lines == [
+        f"TobyMap version {mapcore.version()}.",
+        "An accessible map for blind and partially sighted people.",
+        "TobyMap is free software under the GNU General Public License version 3.",
+        "The spatial voice is Alba, a Scottish English voice from Piper voices, made from recordings by the "
+        "University of Edinburgh, licensed CC-BY 4.0.",
+        "Every library and its licence is in THIRD_PARTY_NOTICES.txt, in the folder TobyMap is installed in.",
+    ]
+
+
 def test_about_data_gives_the_attribution(session):
     text = session.run("help.about_data").dialog["text"]
     assert "OpenStreetMap" in text and "ODbL" in text

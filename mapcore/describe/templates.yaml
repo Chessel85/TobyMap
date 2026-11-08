@@ -184,11 +184,13 @@ dialogs:
   keys_line: "{label}: {key}"
   keys_menu_only: "{label}: in the {menu} menu"
   about_title: About TobyMap
-  about_text: "TobyMap version {version}.
-An accessible map for blind and partially sighted people.
-TobyMap is free software under the GNU General Public License version 3.
-The spatial voice is Alba, a Scottish English voice from Piper voices, made from recordings by the University of Edinburgh, licensed CC-BY 4.0.
-Every library and its licence is in THIRD_PARTY_NOTICES.txt, in the folder TobyMap is installed in."
+  # One line each, so the screen reader reads them one at a time (PO note on checklist 1.3).
+  about_text: |-
+    TobyMap version {version}.
+    An accessible map for blind and partially sighted people.
+    TobyMap is free software under the GNU General Public License version 3.
+    The spatial voice is Alba, a Scottish English voice from Piper voices, made from recordings by the University of Edinburgh, licensed CC-BY 4.0.
+    Every library and its licence is in THIRD_PARTY_NOTICES.txt, in the folder TobyMap is installed in.
   data_title: About the data
   data_pack: "{name}, version {version}, built {built}."
   data_none: "No map pack is installed."

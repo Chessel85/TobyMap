@@ -32,6 +32,12 @@ def main(argv: list[str] | None = None) -> int:
         return self_test(args.out)
     window = MainWindow(start_at=args.at)
     window.session.startup_took((time.perf_counter() - started) * 1000)
+    # The waiting Windows messages are read just before the window is shown. A first start after
+    # an install can take more than 5 seconds without reading them, and Windows then calls the
+    # program "not responding". A window that first appears then is answered for by Windows as
+    # having no UI Automation, and NVDA hears none of TobyMap's announcements in that run
+    # (PO report, 8 Nov 2026; tests/desktop/test_app_start.py).
+    app.processEvents()
     window.show()
     return app.exec()
 

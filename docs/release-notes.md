@@ -15,7 +15,7 @@ This version adds turning and facing, going to places and back, layers, the soun
 * Shift and a number go to the Information panel's groups: Shift+1 Within, Shift+2 Nearby, Shift+3 Crossed and passed, with one more number for each group added later (INF-10, DP109).
 * Holding an arrow key gives even clicks, whatever the map is doing (DP140).
 * Sound in space: Space on an item of the Information panel plays its sound from its direction (for Within, from the centre of the area), then its name in the Alba voice from the same place. Sounds behind you are lower in pitch. Stereo, or HRTF for headphones (SON-1, SON-2, SON-3, DP143).
-* B switches on the orientation beacon, a soft tone from the North Pole. On the desktop it keeps an even beat, however busy the map is (SON-10).
+* B switches on the orientation beacon, a soft low whump from the North Pole. On the desktop it keeps an even beat, however busy the map is (SON-10).
 * On the desktop, the earcons play through the same sound player as everything else, as in the web version, so the tick no longer has a swish (SON-7).
 * The lines of latitude and longitude and the special lines are layers, off at first, with crossing sounds, including yours for the prime meridian and the equator (DAT-13).
 * Every earcon has its own switch and your own file, and there is an earcon volume. In the web version your own files are kept in the browser (SON-6, SON-7, SON-8, DP123).

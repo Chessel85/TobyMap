@@ -8,7 +8,8 @@ A little of the tone an octave up is added, so it is still heard on laptop speak
 play almost nothing below about 150 Hz. The files are made, not recorded, so they are under the
 same GPL-3.0 licence as the code. The folder is not in git.
 
-To try one, choose it as the beacon's own sound file in Settings, Sounds.
+To try one, choose it as the beacon's own sound file in Settings, Sounds. The PO chose sample 1,
+the soft whump, which tools/make_placeholder_sounds.py now makes as the default beacon.wav.
 """
 from __future__ import annotations
 
@@ -47,12 +48,17 @@ def normalised(x: np.ndarray) -> np.ndarray:
     return (x / np.abs(x).max() * PEAK).astype(np.float32)
 
 
+def soft_whump() -> np.ndarray:
+    """Sample 1, the PO's choice on 8 November 2026: the default beacon.wav (tools/make_placeholder_sounds.py)."""
+    return normalised(whump(150, 60, 0.3, 0.08))
+
+
 def samples() -> dict[str, np.ndarray]:
     lub = whump(130, 55, 0.2, 0.06)
     dub = whump(160, 70, 0.22, 0.06) * 0.7
     gap = np.zeros(int(RATE * 0.12))
     return {
-        "beacon-1-soft-whump.wav": normalised(whump(150, 60, 0.3, 0.08)),
+        "beacon-1-soft-whump.wav": soft_whump(),
         "beacon-2-deep-thud.wav": normalised(whump(110, 45, 0.4, 0.12, overtone=0.45, knock=0.4)),
         "beacon-3-heartbeat.wav": normalised(np.concatenate([lub, gap, dub])),
     }

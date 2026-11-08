@@ -4,7 +4,8 @@ r"""Make a short, distinct placeholder tone for every earcon (P1-T12, SON-6, SON
 
 Writes one WAV file for each earcon in mapcore/describe/earcons.yaml. A file
 that already exists is left alone, so your own sounds are never overwritten
-(DP111). Only the standard library is used.
+(DP111). Only the standard library is used, except for the beacon: the soft whump
+the PO chose from tools/make_beacon_samples.py (P2-T16h), made with NumPy.
 """
 from __future__ import annotations
 
@@ -34,10 +35,10 @@ TONES = {
     "item_direction": [(520, 0.07), (780, 0.1)],
     "meridian_crossed": [(700, 0.05), (1050, 0.05)],    # stand-ins only: the product owner's own files are kept in git
     "equator_crossed": [(1050, 0.05), (700, 0.05)],
-    "beacon": [(440, 0.2)],   # soft and low, as it repeats every second while on (P2-T9)
+    "beacon": [],   # made by make_beacon_samples.soft_whump instead (P2-T16h)
 }
 VOLUME = 0.35
-SOFTER = {"beacon": 0.2}   # earcons quieter than VOLUME
+SOFTER: dict[str, float] = {}   # earcons quieter than VOLUME
 
 
 def samples(tones, volume: float = VOLUME) -> list[int]:
@@ -59,6 +60,14 @@ def write(path: Path, tones, volume: float = VOLUME) -> None:
         w.writeframes(struct.pack(f"<{len(data)}h", *data))
 
 
+def write_beacon(path: Path) -> None:
+    """The beacon: the soft whump, a low tone falling in pitch as it dies away (P2-T16h, SON-10)."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import make_beacon_samples
+
+    make_beacon_samples.write(path, make_beacon_samples.soft_whump())
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(ROOT / "sounds"))
@@ -69,7 +78,10 @@ def main(argv=None) -> int:
         if target.exists():
             print(f"Kept {target.name}, which is already there.")
             continue
-        write(target, TONES[e["event"]], SOFTER.get(e["event"], VOLUME))
+        if e["event"] == "beacon":
+            write_beacon(target)
+        else:
+            write(target, TONES[e["event"]], SOFTER.get(e["event"], VOLUME))
         print(f"Wrote {target.name}.")
     return 0
 

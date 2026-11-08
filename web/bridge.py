@@ -176,6 +176,18 @@ def voice_problem(problem: str, width: int, height: int):
     return _js(_extras(_session.voice_problem(problem), {}, width, height))
 
 
+def stretch(samples, rate: int, factor: float, pitch: float):
+    """A spatial voice label made factor times as fast, and at pitch times the pitch without
+    slowing, by the core (P2-T16g, SON-3): float32 samples in, as bytes, and out, as bytes
+    with their type."""
+    import numpy as np
+
+    from mapcore.sound.stretch import shape_voice
+
+    mono = np.frombuffer(bytes(samples.to_py()), dtype=np.float32)
+    return _js({"type": "f32", "bytes": shape_voice(mono, int(rate), float(factor), float(pitch)).tobytes()})
+
+
 def earcon_failed(event: str, width: int, height: int):
     return _js(_extras(_session.earcon_failed(event), {}, width, height))
 

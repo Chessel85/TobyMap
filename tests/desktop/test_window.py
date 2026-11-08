@@ -717,6 +717,20 @@ def test_ok_in_the_layers_list_switches_the_layers_changed(window, qtbot):
     assert window.announcer.texts[-1] == "Kent, United Kingdom"
 
 
+def test_space_in_the_layers_list_ticks_and_enter_presses_ok(window, qtbot):
+    # PO feedback on web checklist 2.6: Space switches a layer, Enter always presses OK.
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    dialog.tree.setCurrentItem(layer_item(dialog, "regions"))
+    qtbot.keyClick(dialog.tree, Qt.Key.Key_Space)
+    assert layer_item(dialog, "regions").checkState(0) == Qt.CheckState.Unchecked
+    qtbot.keyClick(dialog.tree, Qt.Key.Key_Return)
+    QApplication.processEvents()
+    assert layer_item(dialog, "regions").checkState(0) == Qt.CheckState.Unchecked
+    assert not dialog.isVisible() and dialog.result() == 1
+    assert not window.session.layers.is_on("regions")
+
+
 def test_cancel_in_the_layers_list_changes_nothing(window, qtbot):
     window.dispatch("layers.open")
     dialog = click_dialog(window, LayersDialog)

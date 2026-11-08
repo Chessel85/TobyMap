@@ -10,7 +10,7 @@ import pytest
 from mapcore.geo import geodesy
 from mapcore.session import MapSession
 from mapcore.sound import CurveSettings, gain
-from mapcore.sound.scene import BEHIND_PITCH, place
+from mapcore.sound.scene import BEHIND_PITCH, VOICE_BEHIND_PITCH, place
 
 
 @pytest.fixture
@@ -80,6 +80,13 @@ def test_a_sound_behind_has_the_lower_pitch_and_slight_muffling_in_both_modes(se
 
 def test_three_semitones_lower():
     assert BEHIND_PITCH == pytest.approx(2 ** (-3 / 12), abs=0.005)
+
+
+def test_the_voice_behind_is_one_and_a_half_semitones_lower():
+    """The PO's choice on 8 November 2026 (P2-T16g); other sounds stay three semitones lower."""
+    assert VOICE_BEHIND_PITCH == pytest.approx(2 ** (-1.5 / 12), abs=0.001)
+    assert place("voice", 180.0, 10.0, 0.0, 100.0).pitch == VOICE_BEHIND_PITCH
+    assert place("ding", 180.0, 10.0, 0.0, 100.0).pitch == BEHIND_PITCH
 
 
 def test_the_curve_is_the_linear_one_by_default_from_full_to_the_minimum():

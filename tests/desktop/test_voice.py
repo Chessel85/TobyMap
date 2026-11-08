@@ -18,7 +18,7 @@ from desktop.audio.voice import RecordingVoice, SpatialVoice
 from desktop.sounds import RecordingSounds
 from desktop.window import MainWindow
 from mapcore.session import MapSession
-from mapcore.sound.scene import place
+from mapcore.sound.scene import VOICE_BEHIND_PITCH, place
 
 STATION = (50.9074977, -1.4142289)
 
@@ -39,7 +39,8 @@ class ToneSpeaker:
 
 def label(text, bearing, ahead=0.0):
     placed = place("voice", bearing, 1000.0, ahead, 10_000.0).to_dict()
-    return {"text": text, "placed": placed, "rate": 1.0, "after": False}
+    pitch, placed["pitch"] = placed["pitch"], 1.0   # as the core gives it: the voice's own pitch
+    return {"text": text, "placed": placed, "rate": 1.0, "pitch": pitch, "after": False}
 
 
 @pytest.fixture
@@ -69,15 +70,42 @@ def test_a_label_asked_for_at_90_degrees_is_placed_at_90_degrees(player):
     assert level(out[:, 1]) > 10 * level(out[:, 0]), "to the right"
 
 
-def test_a_label_behind_has_the_lower_pitch_so_it_is_longer(player):
+def test_a_label_with_a_stretch_is_shorter_at_the_same_pitch(player):
+    """Above what Piper can do, the core's time stretching makes up the speed (P2-T16g, SON-3)."""
+    v = voice_for(player, ToneSpeaker())
+    v.say(label("Normal", 0.0))
+    v.wait()
+    normal = voice_samples(player.mixer)[0][:, 0]
+    fast = label("Fast", 0.0)
+    fast["stretch"] = 2.5
+    v.say(fast)
+    v.wait()
+    stretched = voice_samples(player.mixer)[0][:, 0]
+    assert len(stretched) == pytest.approx(len(normal) / 2.5, rel=0.1)
+
+    def crossings_per_sample(x):
+        x = x[len(x) // 4: -len(x) // 4]
+        return np.count_nonzero(np.diff(np.signbit(x))) / len(x)
+
+    assert crossings_per_sample(stretched) == pytest.approx(crossings_per_sample(normal), rel=0.05)
+
+
+def test_a_label_behind_is_lower_at_the_same_speed(player):
+    """The PO chose sample 9 on 8 November 2026 (P2-T16g)."""
     v = voice_for(player, ToneSpeaker())
     v.say(label("Ahead", 0.0))
     v.wait()
-    ahead = len(voice_samples(player.mixer)[0])
+    ahead = voice_samples(player.mixer)[0][:, 0]
     v.say(label("Behind", 180.0))
     v.wait()
-    behind = len(voice_samples(player.mixer)[0])
-    assert behind == pytest.approx(ahead / 0.84, rel=0.01)
+    behind = voice_samples(player.mixer)[0][:, 0]
+    assert len(behind) == pytest.approx(len(ahead), rel=0.05)
+
+    def crossings_per_sample(x):
+        x = x[len(x) // 4: -len(x) // 4]
+        return np.count_nonzero(np.diff(np.signbit(x))) / len(x)
+
+    assert crossings_per_sample(behind) == pytest.approx(VOICE_BEHIND_PITCH * crossings_per_sample(ahead), rel=0.03)
 
 
 def test_a_second_label_stops_the_first(player):

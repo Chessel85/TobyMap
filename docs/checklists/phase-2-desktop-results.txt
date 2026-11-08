@@ -1,0 +1,59 @@
+1.1 pass
+1.2 pass
+1.3 pass but all the text is on one line. would be better split up so I can read parts of the information without having to start from the beginning every time.
+2.1 pass
+2.2 pass but shift + right/left should do nothing  since I may decide to change the large turn to 45 degrees rather than 90.
+2.3 passes, but change so it does nothing rather than play the block sound.
+2.4 to 2.9 pass.  And turning in clicks is good enough for now.
+
+set 3. passes.
+
+set 4 passes
+
+set 5 passes.
+Comments:
+Can't see how the user can type in degrees symbol so cannot use the degrees, minutes, second format for going to a coordinate.
+Want an option to clear the location history on start up.
+The location history should store loads of locations, say 1000, unless this is a problem.
+The go to dialogue is good and could be made more powerful.
+Typing just one number means setting the latitude whilst maintaining the current longitude.
+Typing comma and then a number means setting the longitude whilst keeping the current latitude.
+Typing a plus in front of a number means increase  by that ammount and a minus in front means subtract.  Herm, that doesn't work does it for entering southern hemisphere latitudes or western hemisphere longitudes.  I can't see an intuitive way around this.  Any suggestions?
+
+set 6 passes
+
+set 7 passes
+
+Set 8: passes. but why does only shift 5 go to the information panel? my key map CSV file says that shift 1, shift,2, shift 3 and shift 4 also go to sections within the information panel.
+
+9.1 to 9.4 pass.
+9.5 passes, but why can't hearing the sound and speech work for within?
+9.6 could not tell the difference in behaviour between the two settings.
+9.7 pass. but want to be able to increase speed to something like 500%.
+Comments:
+The spoken voice behind sounds weird in a slightly unpleasant way. is it just slowed down, or is it pitched down? I think we need to do some more work on this as I didn't think it sounded so odd in phase 0.
+
+Set 10: passes.
+Comments:
+Can the default beacon be lower pitched.  And more of a whump sound.  It also needs to be a heartbeat, never missing a beat.  Even when orientation is changing mode or the user rotating.
+Set 11. Graticules is not a layer that is available.
+
+Set 12. passes. 
+
+13.1 pass.
+13.2 pass
+13.3 pass
+13.4 pass
+13.5 Pass.
+13.6 This works okay. A is a good key.  But A in the information and details regions links zoom to scale.  A should always do verbosity.  Need another key for linking zoom to step size.  Try S.
+14.1 pass
+14.2 pass
+14.3 pass
+14.4 passes, except that when I am in settings, and I return a sound to the default for tick, when back on the map and I move once which causes a tick, the custom sound half plays, before the proper default sound plays.
+14.5 my false sound was not  loaded but I was not told that the file was invalid.
+14.6 pass
+
+15.
+There is something odd about the click sound.  Some of the time, about 50%, it isn't a clean click sound.  There is a small amount of white swish noise played with it.   It seems to happen randomly.
+I already commented on the lower pitched voice behind sounding weird, unnatural. 
+

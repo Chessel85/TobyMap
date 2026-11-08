@@ -29,6 +29,7 @@ from dataclasses import asdict, dataclass
 from mapcore.sound.curve import CurveSettings, gain, muffle_cutoff_hz
 
 BEHIND_PITCH = 0.84          # about three semitones lower (2 ** (-3 / 12) is 0.841)
+VOICE_BEHIND_PITCH = 0.917   # the spatial voice, 1.5 semitones lower (2 ** (-1.5 / 12)), the PO's choice (P2-T16g)
 BEHIND_MUFFLE = 0.7          # behind you, the cut-off is this much lower: slight muffling
 BEYOND_TONE = "beyond_view"  # the fixed tone's earcon, for "beyond the view: a fixed tone" (DP80)
 MODES = ("stereo", "hrtf")   # stereo with pitch, the default, and HRTF with pitch (DP100)
@@ -75,5 +76,5 @@ def place(sound: str, bearing_deg: float, distance_m: float, ahead_deg: float, r
     pan = math.sin(math.radians(rel))
     return Placed(sound=BEYOND_TONE if beyond and beyond_tone else sound, relative_deg=round(rel, 6),
                   pan=0.0 if abs(pan) < 1e-12 else round(pan, 6), gain=gain(fraction, curve),
-                  pitch=BEHIND_PITCH if behind else 1.0, cutoff_hz=cutoff, behind=behind, beyond=beyond,
+                  pitch=(VOICE_BEHIND_PITCH if sound == "voice" else BEHIND_PITCH) if behind else 1.0, cutoff_hz=cutoff, behind=behind, beyond=beyond,
                   distance_m=distance_m, mode=mode)

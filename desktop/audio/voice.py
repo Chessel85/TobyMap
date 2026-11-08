@@ -8,6 +8,8 @@ spatial player's mixer. So the voice never goes through the screen reader.
 * The voice is loaded on a thread of its own while TobyMap starts, about 8 seconds, and
   one silent label is made then, so the first real label is not slow.
 * Labels are made on that thread too, about 100 ms each, so the window never waits.
+* Above 100 percent speed, the core's time stretching makes up what Piper cannot, and makes
+  the voice behind you lower without slowing it (P2-T16g).
 * A newer label stops an older one, whether it is still being made or already playing (ANN-3).
 * A label that waits for the item's sound (Response.voice["after"]) starts when that sound ends.
 
@@ -26,6 +28,7 @@ import numpy as np
 
 from desktop.audio import spatial
 from desktop.audio.spatial import RATE, resample
+from mapcore.sound.stretch import shape_voice
 
 VOICE_FILE = "en_GB-alba-medium.onnx"
 VOICE_DIRS = (Path(__file__).resolve().parents[1] / "vendor" / "piper",
@@ -180,6 +183,9 @@ class SpatialVoice:
             return   # a newer label was asked for before this one was begun
         try:
             mono = self.speaker(voice["text"], voice.get("rate", 1.0))
+            # Faster than Piper can speak, and lower behind you without slowing: the core's
+            # time stretching (P2-T16g).
+            mono = shape_voice(mono, RATE, voice.get("stretch", 1.0), voice.get("pitch", 1.0))
         except Exception:
             return
         samples = spatial.placed(mono, voice["placed"]) if len(mono) else None

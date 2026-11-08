@@ -454,7 +454,7 @@ def test_the_orientation_and_turning_keys(app):
     app.keyboard.press("o")
     wait_said(app, 2)
     assert said(app)[-1] == "Cardinal facing, north."
-    app.keyboard.press("Shift+ArrowRight")
+    app.keyboard.press("ArrowRight")            # Shift turns do nothing in cardinal facing (P2-T16c)
     wait_said(app, 3)
     assert said(app)[-1] == "Facing east."
     app.keyboard.press("o")
@@ -494,6 +494,45 @@ def test_go_to_coordinates_and_back_through_the_places(app):
     app.keyboard.press("Alt+,")
     wait_said(app, 3)
     assert said(app)[-1] == "Kent, England, United Kingdom"
+
+
+LABEL_ON_FOCUS = """() => {
+  window.labelsOnFocus = [];
+  document.getElementById('map').addEventListener('focus',
+    (e) => window.labelsOnFocus.push(e.target.getAttribute('aria-label')));
+}"""
+
+
+def test_after_go_to_the_map_has_the_new_place_as_its_name_when_focus_returns(app):
+    # The screen reader reads the map's name as focus returns, so it must already be the new place.
+    app.evaluate(LABEL_ON_FOCUS)
+    app.keyboard.press("Control+g")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "48.8566, 2.3522")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    wait_said(app, 2)
+    assert "Kent" not in said(app)[-1]
+    assert app.evaluate("window.labelsOnFocus") == [said(app)[-1]]
+
+
+def test_after_enter_in_the_history_the_map_has_that_place_as_its_name_when_focus_returns(app):
+    app.keyboard.press("PageUp")
+    wait_said(app, 2)
+    app.keyboard.press("Control+g")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "10, 10")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    wait_said(app, 3)
+    app.evaluate(LABEL_ON_FOCUS)
+    app.keyboard.press("Control+Shift+Space")
+    app.wait_for_function("document.getElementById('dialog').open")
+    app.keyboard.press("ArrowDown")          # the zoom entry, said at Kent
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('dialog').open")
+    wait_said(app, 4)
+    assert app.evaluate("window.labelsOnFocus") == ["Kent, England, United Kingdom"]
 
 
 def test_enter_in_the_announcement_history_goes_back_there(app):
@@ -543,6 +582,26 @@ def test_the_layers_dialog_lists_layers_in_groups_and_ok_switches_one(app):
     wait_said(app, 2)
     assert said(app)[-1] == "Kent, United Kingdom"
     assert app.evaluate("document.activeElement.id") == "map"
+
+
+def test_space_in_the_layers_dialog_ticks_and_enter_presses_ok(app):
+    # PO feedback on web checklist 2.6: Space switches a layer, Enter always presses OK.
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    app.focus("[data-layer=regions]")
+    app.keyboard.press("Space")
+    assert not app.is_checked("[data-layer=regions]")
+    app.focus("[data-layer=counties]")
+    app.click("#layers-settings")
+    app.focus("#layersdialog select >> nth=0")
+    app.keyboard.press("Enter")                 # OK in the layer's settings: back to the list
+    app.wait_for_function("document.activeElement.dataset.layer === 'counties'")
+    assert app.evaluate("document.getElementById('layersdialog').open")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
+    app.keyboard.press("Space")
+    wait_said(app, 2)
+    assert said(app)[-1] == "Kent, United Kingdom"
 
 
 def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refused(app):

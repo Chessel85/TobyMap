@@ -1,0 +1,28 @@
+start with:
+.venv\Scripts\python.exe tools\serve_web.py --pack E:\osmdata\tobymap\output\world\world.pack
+for a specific location:
+http://127.0.0.1:8765/index.html?at=51.2,1.2. Type it in the address bar (Alt+D or Ctrl+L) and 
+
+
+
+Comment: When at location A, I use control G and jumpm to location B. Location B is announced followed immediately by announcement of location A again.  It should only say location B.
+The top entry in the information panel in nearby has its distance announced incorrectly.  The distance announced is from the second entry.
+
+2.1 pass
+2.2 pass
+2.3 pass
+2.4 works generally. but the list isn't holding every place I move to.
+2.5 works
+2.6 this version has oceans and graticules in. but when I switch countries and regions off, it doesn't say "There are no items at this location".
+Also, enter toggles a tick box rather than activating the ok key. feels like space should do the toggling and enter always activates ok.
+2.7 passes
+2.8 the beacon is great. it keeps beating regularly unlike the desktop version.
+2.9 not tested
+2.10  when releasing an arrow key after holding it down, there is a double click sound.  I think the key up or the movement stopping is causing the extra click.  this is undesirable.
+2.11 works
+
+set 5. the feel is the same as desktop.
+
+I didn't test every single test - getting tired. but let's sort out comments so far.
+Didn't test on Chrome and Edge.
+

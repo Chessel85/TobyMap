@@ -112,6 +112,9 @@ Older documents written before this glossary, such as architecture section 6 and
 
 * Phonemes: the separate sounds of speech, such as the five in Berlin: "b", "er", "l", "i" and "n". Piper is given phonemes, not letters. eSpeak NG works them out from the text.
 * Label: a short piece of speech from the spatial voice, such as "Berlin", placed in space.
+* Time stretching: making speech faster or slower without changing its pitch. TobyMap uses it to make the spatial voice faster than Piper can speak.
+* Slice: in time stretching, a short length of the speech, 25 ms, long enough to hold a few repeats of the voice's wave. Time stretching keeps only some slices and fades each into the next.
+* Gap: in time stretching, a quiet stretch between words, of 60 ms or more. Gaps are shortened before any slices are dropped.
 
 ## Using the application
 

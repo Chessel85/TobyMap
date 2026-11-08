@@ -77,6 +77,47 @@ def test_with_one_thread_the_voice_still_works(page, site_url):
           f"longest {made[-1]} ms")
 
 
+def test_at_500_percent_the_core_stretches_the_label(page, site_url):
+    """Faster than Piper can speak, at the same pitch, by the core's time stretching (P2-T16g, SON-3)."""
+    app = open_app(page, site_url, state=STATION_WEST)
+    voice_ready(app)
+    normal = on_station(app)
+    assert normal["stretch"] == 1
+    other = page.context.browser.new_context()   # a browser storage of its own, with the speed at 500
+    try:
+        fast_app = open_app(other.new_page(), site_url, state=STATION_WEST, values={"voice_rate": 500})
+        voice_ready(fast_app)
+        fast = on_station(fast_app)
+    finally:
+        other.close()
+    assert fast["stretch"] > 2.5
+    # Piper at 100 percent against Piper at 200 then stretched: about five times as short in all.
+    assert fast["seconds"] < normal["seconds"] / 4
+    assert fast["seconds"] < fast["piper_seconds"] / 2
+    print(f"\n{app.context.browser.browser_type.name}: {normal['seconds']:.2f} s at 100 percent, "
+          f"{fast['seconds']:.2f} s at 500, made in {fast['made_ms']} ms")
+
+
+def test_behind_you_the_label_is_lower_at_the_same_speed(page, site_url):
+    """The PO chose sample 9 on 8 November 2026: lower behind, without slowing (P2-T16g)."""
+    app = open_app(page, site_url, state=STATION_WEST)
+    voice_ready(app)
+    ahead = on_station(app)
+    other = page.context.browser.new_context()   # facing west, so the station is behind
+    try:
+        behind_app = open_app(other.new_page(), site_url,
+                              state={**STATION_WEST, "orientation": "free", "heading": 270.0})
+        voice_ready(behind_app)
+        behind = on_station(behind_app)
+    finally:
+        other.close()
+    assert ahead["pitch"] == 1 and behind["pitch"] == pytest.approx(2 ** (-1.5 / 12), abs=0.001)
+    assert abs(behind["relative_deg"]) > 170
+    # Compared with Piper's own sound for the same label, as Piper's timing varies a little.
+    assert behind["seconds"] == pytest.approx(behind["piper_seconds"], rel=0.02)
+    assert ahead["seconds"] == ahead["piper_seconds"]
+
+
 def test_the_label_is_kept_in_the_history_and_not_spoken_unless_asked(page, site_url):
     app = open_app(page, site_url, state=STATION_WEST)
     voice_ready(app)

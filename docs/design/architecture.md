@@ -1,6 +1,10 @@
 # Architecture and High Level Design
 
-Version 0.8, 6 November 2026. Updated for P2-T12 and P2-T13: themes, names on the map, heading-up and magnifiers.
+Version 0.9, 8 November 2026. Updated for P2-T16g: time stretching for the spatial voice.
+
+## Changes in version 0.9
+
+* Section 4.6: above 100 percent speed, the spatial voice is made faster by time stretching in the core (mapcore/sound/stretch.py), used by both shells, so it reaches 500 percent at the same pitch. The label behind you is lower at the same speed, by the same means.
 
 ## Changes in version 0.8
 
@@ -310,6 +314,8 @@ As built in P2-T7, 6 November 2026:
 * The core gives each label as Response.voice: its words, the sound scene's numbers for its place (the same as the item's sound, with the voice's own volume), its speed, and whether it waits for the item's sound to end. The core plays nothing (AD-10).
 * Desktop, desktop/audio/voice.py: Piper is a runtime dependency. The voice loads on a thread of its own while TobyMap starts; labels are made on that thread and mixed by the spatial player's mixer, starting on the mixer's own clock when the item's sound ends. A newer label stops an older one, whether still being made or already playing. Measured on the laptop: a median of 59 ms from asking to sound, longest 168 ms.
 * Web, web/voice_worker.js and web/js/voice.js: one label is made at a time; one asked for meanwhile waits, and only the newest waiting one is made. Measured in Chromium and Firefox with four threads: short names such as "Berlin" in 120 to 180 ms, as in the spike; a label with its distance, such as "Southampton Central, 2.1 kilometres", in about 500 to 600 ms, because it is longer. With one thread, about 1 second.
+* Speed, as built in P2-T16g, 8 November 2026: Piper alone shortens each sound only so far; asked for 500 percent it is only about 2.2 times as fast. So above 100 percent the core splits the speed (stretch.split_rate): Piper is asked for at most 200 percent, which is really about 1.6 times as fast, and Response.voice carries a stretch that makes up the rest. The shell hands Piper's sound to the core's speed_up: first the gaps between words are shortened, then WSOLA (waveform similarity overlap-add) keeps only some 25 ms slices, each nudged by up to 8 ms to line up with the one before, faded into each other. The pitch stays the same. On the desktop this runs on the voice's thread, in 8 to 20 ms. In the web version the page sends the sound to the core's worker (bridge.stretch) and back. Measured: "Southampton Central, 2.1 kilometres" takes 2.8 seconds at 100 percent and 0.58 at 500 on the desktop, and 3.3 and 0.65 in Chromium and Firefox. NumPy only, so it runs in Pyodide (AD-1).
+* The voice behind you, P2-T16g, your choice of sample 9: the label is lower at the same speed: 1.5 semitones lower, at your request (0.917 of the pitch, VOICE_BEHIND_PITCH), where every other sound behind you is 3 semitones lower (BEHIND_PITCH). The core takes the pitch out of the label's placing and gives it as Response.voice["pitch"]; stretch.shape_voice makes the speech shorter at the same pitch, then plays it slower, which lowers it and brings the length back, in one time stretching with the speed. The item's own sound behind you is still simply played slower.
 * Cross-origin isolation: tools/serve_web.py and the browser tests' server send the two headers themselves. On a site that cannot, such as GitHub Pages, coi-serviceworker.js (fetched by tools/fetch_vendor.py --web, not in git) adds them, reloading the page once on the first visit. A browser test serves the page without the headers and checks the page becomes isolated and still downloads and reads the pack. ?threads=1 in the address leaves the helper out and uses one thread.
 * The voice files come from Piper's voice collection, pinned by checksum: tools/fetch_vendor.py --voice for the desktop (desktop/vendor/piper, put in the installer) and --piper for the web version (web/vendor/piper/voice). Without them the voice is "missing": you are told once, and labels still go to Braille and the history.
 

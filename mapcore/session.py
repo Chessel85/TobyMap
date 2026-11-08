@@ -27,6 +27,7 @@ from mapcore.geo import geodesy, parse
 from mapcore.layers import LayerCatalogue
 from mapcore.layers.visible import VisibleRule
 from mapcore.world import WorldState
+from mapcore.sound.stretch import split_rate
 from mapcore.world.state import nearest_index
 
 DEFAULTS_FILE = Path(__file__).resolve().parent / "defaults.yaml"
@@ -69,8 +70,11 @@ class Response:
     # Sounds placed in space by the sound scene (P2-T6, AD-10): each is mapcore.sound.scene.Placed
     # as a dict, with "file", the earcon_file() to play. The shells' sound players carry them out.
     sounds: list[dict] = field(default_factory=list)
-    # A label in the spatial voice (P2-T7, SON-3, AD-10): {"text", "placed", "rate", "after"}.
-    # placed is the sound scene's Placed as a dict, for the voice; rate is the speed, 1 normal;
+    # A label in the spatial voice (P2-T7, SON-3, AD-10): {"text", "placed", "rate", "stretch", "after"}.
+    # placed is the sound scene's Placed as a dict, for the voice; rate is the speed Piper is
+    # asked for, 1 normal; stretch is how many times faster mapcore.sound.stretch.speed_up then
+    # makes it, at the same pitch, 1 for none; pitch is the voice's own, lower behind you, made
+    # without slowing it (P2-T16g). Both go to stretch.shape_voice; placed["pitch"] is then 1;
     # after says the label waits for the sounds of this response to finish. A newer label
     # stops an older one that is still playing (ANN-3).
     voice: dict | None = None
@@ -1113,7 +1117,11 @@ class MapSession:
         voice = place("voice", bearing, distance, describer.facing(w) or 0.0, w.zoom_m, self.curve(),
                       self.settings["sound_mode"]).to_dict()   # the label is never swapped for the fixed tone
         voice["gain"] *= self.settings["voice_volume"] / 100.0
-        r.voice = {"text": label, "placed": voice, "rate": self.settings["voice_rate"] / 100.0, "after": True}
+        piper, stretch = split_rate(self.settings["voice_rate"] / 100.0)
+        # Behind you the label is lower at the same speed, made so by shape_voice, not played
+        # slower as the item's sound is (P2-T16g, the PO's choice of sample 9).
+        pitch, voice["pitch"] = voice["pitch"], 1.0
+        r.voice = {"text": label, "placed": voice, "rate": piper, "stretch": stretch, "pitch": pitch, "after": True}
         if self.settings["voice_also_speak"]:   # the screen reader speaks it, and brailles it as it does all speech
             r.speak(label, POLITE)
         elif self.platform == "desktop":         # Braille without speech; a browser has no such route

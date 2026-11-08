@@ -137,7 +137,7 @@ function finish(result) {
 
 self.onmessage = async (event) => {
   const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs,
-          problem } = event.data;
+          problem, samples, rate, factor, pitch } = event.data;
   try {
     await ready;
     let out;
@@ -152,6 +152,11 @@ self.onmessage = async (event) => {
     else if (type === "key_text") out = { result: bridge.key_text(key), transfer: [] };
     else if (type === "earcon_failed") out = finish(bridge.earcon_failed(earcon, width, height));
     else if (type === "voice_problem") out = finish(bridge.voice_problem(problem, width, height));
+    else if (type === "stretch") {   // a spatial voice label, faster at the same pitch (P2-T16g)
+      const made = bridge.stretch(new Uint8Array(samples.buffer, samples.byteOffset, samples.byteLength), rate, factor, pitch);
+      const buffer = made.bytes.slice().buffer;
+      out = { result: new Float32Array(buffer), transfer: [buffer] };
+    }
     else if (type === "painted") { bridge.frame_painted(paintMs); out = { result: null, transfer: [] }; }
     else if (type === "shell_times") { bridge.shell_times(keyMs, handedMs); out = { result: null, transfer: [] }; }
     else if (type === "packcheck") out = { result: bridge.pack_selfcheck(), transfer: [] };

@@ -7,6 +7,8 @@
 // * One label is made at a time. A label asked for while another is being made waits, and
 //   only the newest waiting one is made; a newer label stops one already playing (ANN-3).
 // * A label that waits for the item's sound starts on the sound card's clock when it ends.
+// * Above what Piper can speak, the core's time stretching makes it faster at the same pitch,
+//   and behind you lower without slowing it, in the core's worker (P2-T16g, mapcore/sound/stretch.py).
 import * as sounds from "./sounds.js";
 
 let worker = null;
@@ -15,6 +17,7 @@ let making = null;       // the label being made: {gen, voice, after, asked}
 let waiting = null;      // the newest label asked for while one was being made
 let playing = null;      // the source now playing
 let gen = 0;
+let stretcher = null;    // (samples, rate, factor, pitch) => a promise of the samples reshaped by the core
 export const info = { threads: null, isolated: null, load_ms: null };
 // Each label made, for the browser tests: its words, its numbers and the time from asking to sound.
 export const labels = [];
@@ -38,6 +41,10 @@ export function start() {
   };
   worker.onerror = () => { if (state === "loading") state = "failed"; };
   worker.postMessage({ type: "load", threads });
+}
+
+export function setStretcher(fn) {
+  stretcher = fn;
 }
 
 export function getState() {
@@ -77,17 +84,25 @@ async function finished(m) {
     ask(next);
   }
   if (!job || m.type === "error" || job.gen !== gen) return;   // failed, or a newer label was asked for
+  let samples = m.samples;
+  const factor = job.voice.stretch || 1;
+  const pitch = job.voice.pitch || 1;
+  if ((factor > 1 || pitch < 1) && stretcher) {
+    try { samples = (await stretcher(samples, m.rate, factor, pitch)) || samples; } catch (e) { /* said as made */ }
+    if (job.gen !== gen) return;
+  }
   const made = performance.now() - job.asked;   // the label made, before any wait for the item's sound
   const ctx = sounds.audio();
   if (!ctx) return;
-  const buffer = ctx.createBuffer(1, m.samples.length, m.rate);
-  buffer.copyToChannel(m.samples, 0);
+  const buffer = ctx.createBuffer(1, samples.length, m.rate);
+  buffer.copyToChannel(samples, 0);
   const at = job.after ? await job.after : 0;
   if (job.gen !== gen) return;
   const source = sounds.connectPlaced(buffer, job.voice.placed);
   source.start(Math.max(ctx.currentTime, at));
   playing = source;
   source.onended = () => { if (playing === source) playing = null; };
-  labels.push({ text: job.voice.text, relative_deg: job.voice.placed.relative_deg, pitch: job.voice.placed.pitch,
-                ms: Math.round(performance.now() - job.asked), made_ms: Math.round(made), threads: info.threads });
+  labels.push({ text: job.voice.text, relative_deg: job.voice.placed.relative_deg, pitch,
+                ms: Math.round(performance.now() - job.asked), made_ms: Math.round(made), threads: info.threads,
+                stretch: factor, seconds: samples.length / m.rate, piper_seconds: m.samples.length / m.rate });
 }

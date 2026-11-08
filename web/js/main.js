@@ -425,7 +425,8 @@ function historyList(d) {
 }
 
 // Send a typed answer or a chosen entry to the core. If it is refused, show and say why and keep the
-// box open; otherwise close the box and carry out the answer.
+// box open; otherwise close the box and carry out the answer. The map's name is changed while the box
+// still has focus, so the screen reader reads the new place, not the old one, as focus returns.
 function submit(name, args, message, box) {
   const { width, height } = mapSize();
   return client.send({ type: "run", commands: [[name, args]], width, height }).then((r) => {
@@ -434,6 +435,7 @@ function submit(name, args, message, box) {
       speak(r.response.error, "assertive");
       return;
     }
+    if (r.map_label !== undefined) setMapLabel(r.map_label);
     box.close();
     handle(r);
   }).catch(showError);
@@ -445,7 +447,10 @@ function submit(name, args, message, box) {
 function openLayers(d) {
   const box = layersDialog;
   const layers = {};
-  for (const g of d.groups) for (const l of g.layers) layers[l.id] = { ...l };
+  // Pyodide turns None into undefined; null is "no limit" and "no sound" in the lists below.
+  for (const g of d.groups) for (const l of g.layers) {
+    layers[l.id] = { ...l, max_zoom_m: l.max_zoom_m ?? null, crossing_earcon: l.crossing_earcon ?? null };
+  }
   const start = JSON.parse(JSON.stringify(layers));
   let current = null;
 
@@ -558,6 +563,14 @@ function openLayers(d) {
   box.showModal();
   box.querySelector("input").focus();
 }
+
+// Space ticks a box, and Enter anywhere but on a button presses OK: the list's, or the layer
+// settings' (PO feedback on web checklist 2.6, as on the desktop).
+layersDialog.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.target.tagName === "BUTTON") return;
+  e.preventDefault();
+  ($("layer-settings-ok") || $("layers-ok")).click();
+});
 
 // A box to type in, with OK and Cancel: a bearing or coordinates (NAV-8, NAV-12, ACC-7).
 function openInput(d) {
@@ -919,6 +932,7 @@ async function boot() {
   mapEl.focus();
   window.tobymap.ready = true;
   voice.start();   // the spatial voice loads in its own worker while you start (P2-T7b)
+  voice.setStretcher((samples, rate, factor, pitch) => client.send({ type: "stretch", samples, rate, factor, pitch }));
 
   let resizeTimer = null;
   new ResizeObserver(() => {

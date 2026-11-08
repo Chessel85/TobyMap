@@ -10,7 +10,8 @@ import pytest
 
 from mapcore.geo import geodesy
 from mapcore.session import MapSession
-from mapcore.sound.scene import BEHIND_PITCH
+from mapcore.sound.scene import BEHIND_PITCH, VOICE_BEHIND_PITCH
+from mapcore.sound.stretch import piper_speed
 
 STATION = (50.9074977, -1.4142289)
 
@@ -60,7 +61,7 @@ def test_the_sound_and_the_label_come_from_the_same_place_to_the_east(session):
     assert sound["sound"] == "item_direction"   # the stations layer has no sound of its own
     assert 80 < sound["relative_deg"] < 100
     assert voice["relative_deg"] == sound["relative_deg"] and voice["pan"] == sound["pan"]
-    assert voice["gain"] == sound["gain"] and voice["pitch"] == 1.0
+    assert voice["gain"] == sound["gain"] and voice["pitch"] == 1.0 and r.voice["pitch"] == 1.0
     assert r.voice["after"], "the label waits for the item's sound"
 
 
@@ -69,8 +70,11 @@ def test_behind_you_the_label_has_the_lower_pitch(test_pack):
     s.world.set_orientation("free")
     s.world.face(90.0)
     r = hear_station(s)
-    assert r.voice["placed"]["behind"] and r.voice["placed"]["pitch"] == BEHIND_PITCH
+    # The item's sound is played slower, so lower; the label is made lower at the same speed by
+    # the core's time stretching, so the shells must not slow it too (P2-T16g, the PO's sample 9).
     assert r.sounds[0]["pitch"] == BEHIND_PITCH
+    assert r.voice["placed"]["behind"] and r.voice["placed"]["pitch"] == 1.0
+    assert r.voice["pitch"] == VOICE_BEHIND_PITCH   # 1.5 semitones lower, the PO's choice
     s.store.close()
 
 
@@ -110,6 +114,7 @@ def test_volume_and_speed_are_the_voices_own(session):
     quiet = hear_station(session).voice
     assert quiet["placed"]["gain"] == pytest.approx(loud["placed"]["gain"] / 2)
     assert quiet["rate"] == 1.5 and loud["rate"] == 1.0
+    assert loud["stretch"] == 1.0 and quiet["stretch"] > 1.0   # Piper alone is slower than asked (P2-T16g)
 
 
 def test_the_voice_goes_up_to_five_times_as_fast(session):
@@ -117,7 +122,10 @@ def test_the_voice_goes_up_to_five_times_as_fast(session):
     field = next(f for tab in session.settings_schema()["tabs"] for f in tab["fields"] if f["id"] == "voice_rate")
     assert (field["min"], field["max"]) == (50, 500)
     session.run("settings.set", field="voice_rate", value=500)
-    assert hear_station(session).voice["rate"] == 5.0
+    voice = hear_station(session).voice
+    # Piper as fast as it cleanly can, and time stretching the rest, at the same pitch (P2-T16g).
+    assert voice["rate"] == 2.0
+    assert piper_speed(voice["rate"]) * voice["stretch"] == pytest.approx(5.0)
 
 
 def test_muted_nothing_plays_but_the_label_is_kept_in_the_history(session):

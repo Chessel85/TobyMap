@@ -446,6 +446,7 @@ Speech says what something is. Sound says where it is, and what is changing as t
 ### 8.2 Spatial sound
 
 * By default, sounds are placed with stereo panning, and a sound behind you is about three semitones lower, so ahead and behind can be told apart, on headphones or speakers (SON-1, DP100).
+* A spoken label behind you is 1.5 semitones lower, at the same speed as ahead (P2-T16g).
 * The other sound mode is HRTF, for headphones, with the same lower pitch behind. Without the pitch, every HRTF you tried left sounds behind unclear. The mode is a setting, in the Sound tab.
 * Behind you, a sound is also slightly muffled, in both modes.
 * Which way is ahead follows the orientation (SON-2). North is ahead in north-fixed. The way the user faces is ahead in cardinal facing and free facing.

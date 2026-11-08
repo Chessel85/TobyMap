@@ -21,7 +21,7 @@ What was built in P1-T7 to P1-T15, where it is, and why. The design stays in doc
 
 * `window.py`: the four regions. One application-wide key filter sends every key to `session.press`, and handles auto-repeat and key release for the held key. The panel (`QTreeWidget`) is updated in place.
 * `dialogs.py`: text, list (history), key capture and settings dialogs; each has a Close, OK or Cancel button.
-* `sounds.py`: plays the earcons with `QSoundEffect`, loaded in advance; the user's own file if set, else the default; `RecordingSounds` for tests.
+* `sounds.py`: plays the earcons with `QSoundEffect`, loaded in advance; the user's own file if set, else the default; `RecordingSounds` for tests. Since P2-T16h, the earcons go through the spatial sound player's mixer instead (`desktop/audio/player.py`).
 * `storage.py`: settings in `%APPDATA%\TobyMap\settings.json`, packs in `%APPDATA%\TobyMap\packs` (or `TOBYMAP_PACKS`, or `--pack`).
 * `audio/spatial.py`: stereo with a lower pitch behind, and head-related sound (MIT KEMAR), moved from spike S1. `audio/voice.py`: Piper with the Alba voice for spoken labels.
 * `app.py`: `--pack`, and `--self-test --out FILE` for the installer's check.

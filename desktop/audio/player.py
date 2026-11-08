@@ -57,6 +57,42 @@ class Mixer:
         self.block_ms: list[float] = []
         self.frames = 0                  # frames mixed so far: the mixer's own clock
         self.last_end = 0                # the frame the last sound added ends at
+        # A sound repeated at a fixed number of frames, kept by the mixer itself, so nothing the
+        # window is doing can delay it: the beacon (P2-T16h, SON-10). [samples, interval, tag, last]
+        self._beat: list | None = None
+        self.beats: list[int] = []       # the frame each beat started at, the last few, for tests
+
+    def set_beat(self, samples: np.ndarray, interval_frames: int, tag: str = "beacon") -> None:
+        """Repeat samples every interval_frames, each replacing the last one still playing. A beat
+        already going keeps its time: the new sound and interval start from the next beat. A new
+        beat starts at the next block."""
+        with self._lock:
+            last = self._beat[3] if self._beat is not None else None
+            self._beat = [samples, max(1, int(interval_frames)), tag, last]
+
+    def stop_beat(self) -> None:
+        """No more beats; one still sounding is left to finish."""
+        with self._lock:
+            self._beat = None
+
+    @property
+    def beating(self) -> bool:
+        with self._lock:
+            return self._beat is not None
+
+    def _start_beats(self, frames: int) -> None:
+        """Puts every beat due in the coming block into the mix, at its exact frame. Under the lock."""
+        if self._beat is None:
+            return
+        samples, interval, tag, last = self._beat
+        start = self.frames if last is None else max(self.frames, last + interval)
+        while start < self.frames + frames:
+            self._playing = [p for p in self._playing if p[2] != tag]
+            self._playing.append([samples, self.frames - start, tag])
+            self._beat[3] = start
+            self.beats.append(start)
+            del self.beats[:-BLOCK_TIMES]
+            start += interval
 
     def add(self, samples: np.ndarray, tag: str | None = None, start_frame: int | None = None) -> int:
         """Play samples from the next block, or from start_frame if that is later. A sound with a
@@ -87,6 +123,7 @@ class Mixer:
         started = time.perf_counter()
         out = np.zeros((frames, 2), dtype=np.float32)
         with self._lock:
+            self._start_beats(frames)
             keep = []
             for item in self._playing:
                 samples, at, _tag = item
@@ -152,12 +189,45 @@ class SpatialPlayer:
             key = str(path)
             if key not in self._cache:
                 try:
-                    self._cache[key] = read_mono(path)
+                    mono = read_mono(path)
+                    self._cache[key] = mono if len(mono) else None   # an empty file cannot be played
                 except (OSError, ValueError, EOFError, wave.Error):
-                    custom_failed = custom_failed or name == info.get("custom")
-                    continue
+                    self._cache[key] = None   # not read again at every step
+            if self._cache[key] is None:
+                custom_failed = custom_failed or name == info.get("custom")
+                continue
             return self._cache[key], custom_failed
         return None, custom_failed
+
+    def preload(self, infos: list[dict]) -> None:
+        """Every earcon read before the first step, so none waits for the disk (NFR-1)."""
+        for info in infos:
+            self._mono(info)
+
+    def play_earcon(self, info: dict) -> tuple[bool, bool]:
+        """An earcon, not placed in space: the same sound in both ears at the earcon volume, as the
+        web version plays it (P2-T16h, SON-7). It goes through the same mixer as every other sound,
+        so it never waits for the window, and a new one never cuts or stirs up an older one.
+        info is the core's earcon_file(). Returns (played, own file failed) (SON-8)."""
+        mono, custom_failed = self._mono(info)
+        if mono is None or self.stream is None:
+            return False, custom_failed
+        both = mono * np.float32(info.get("gain", 1.0))
+        self.mixer.add(np.stack([both, both], axis=1))
+        return True, custom_failed
+
+    def beat(self, placed: dict, interval_s: float) -> tuple[bool, bool]:
+        """The beacon: placed repeated every interval_s, timed by the mixer on the sound card's own
+        clock (P2-T16h, SON-10). Called again with a new place or interval, the beat keeps its time
+        and the next one is heard the new way. Returns (played, own file failed)."""
+        samples, custom_failed = self.render(placed)
+        if samples is None or self.stream is None:
+            return False, custom_failed
+        self.mixer.set_beat(samples, round(interval_s * spatial.RATE))
+        return True, custom_failed
+
+    def stop_beat(self) -> None:
+        self.mixer.stop_beat()
 
     def render(self, placed: dict) -> tuple[np.ndarray | None, bool]:
         """The stereo samples for a placed sound, and whether the user's own file failed."""
@@ -189,6 +259,9 @@ class RecordingSpatial:
 
     def __init__(self):
         self.played: list[dict] = []
+        self.earcons: list[dict] = []
+        self.beat_now: tuple[dict, float] | None = None   # the beacon's placed sound and interval
+        self.beats_set: list[tuple[dict, float]] = []
         self.missing = False
         self.hrtf_missing = False
         self.last_end = 0
@@ -196,6 +269,21 @@ class RecordingSpatial:
     def play(self, placed: dict, tag: str | None = None) -> tuple[bool, bool]:
         self.played.append(placed)
         return True, False
+
+    def preload(self, infos: list[dict]) -> None:
+        pass
+
+    def play_earcon(self, info: dict) -> tuple[bool, bool]:
+        self.earcons.append(info)
+        return True, False
+
+    def beat(self, placed: dict, interval_s: float) -> tuple[bool, bool]:
+        self.beat_now = (placed, interval_s)
+        self.beats_set.append(self.beat_now)
+        return True, False
+
+    def stop_beat(self) -> None:
+        self.beat_now = None
 
     def close(self) -> None:
         pass

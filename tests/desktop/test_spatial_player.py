@@ -148,3 +148,95 @@ def test_the_window_plays_placed_sounds_and_says_once_if_there_is_no_device(qtbo
     w.handle(Response(sounds=[placed]))
     told = [t for t in w.announcer.texts if t.startswith("No sound device")]
     assert len(told) == 1
+
+
+# The beacon's beat and the earcons, in the mixer (P2-T16h) ------------------------------------
+
+def run_blocks(mixer, blocks, frames=256):
+    return np.concatenate([mixer.mix(frames) for _ in range(blocks)])
+
+
+def onsets(out, threshold=0.05):
+    """The frames where a sound starts after silence."""
+    loud = np.abs(out[:, 0]) > threshold
+    return [i for i in range(len(loud)) if loud[i] and (i == 0 or not loud[max(0, i - 50):i].any())]
+
+
+def test_the_beat_starts_at_the_next_block_and_keeps_exact_time():
+    m = Mixer()
+    m.mix(256)                                         # some time has passed
+    m.set_beat(np.ones((100, 2), np.float32) * 0.5, 1000)
+    out = run_blocks(m, 20)
+    assert m.beats == [256, 1256, 2256, 3256, 4256, 5256]
+    assert onsets(out) == [0, 1000, 2000, 3000, 4000, 5000]  # out starts at frame 256
+
+
+def test_a_new_place_keeps_the_beat_and_is_heard_at_the_next_one():
+    m = Mixer()
+    m.set_beat(np.ones((100, 2), np.float32) * 0.5, 1000)
+    run_blocks(m, 2)                                   # the first beat, at 0
+    m.set_beat(np.ones((100, 2), np.float32) * -0.5, 1000)
+    out = run_blocks(m, 6)                             # frames 512 to 2048
+    assert m.beats == [0, 1000, 2000]
+    assert out[1000 - 512, 0] == pytest.approx(-0.5)
+
+
+def test_a_slow_window_never_delays_a_beat():
+    """The beats are set by the frames mixed, not by any timer on the window's thread."""
+    m = Mixer()
+    m.set_beat(np.ones((10, 2), np.float32), 441)
+    run_blocks(m, 100, frames=441)
+    assert np.diff(m.beats).tolist() == [441] * 99
+
+
+def test_stopping_the_beat_lets_the_last_one_finish():
+    m = Mixer()
+    m.set_beat(np.ones((600, 2), np.float32) * 0.5, 2000)
+    m.mix(256)
+    m.stop_beat()
+    out = run_blocks(m, 10)
+    assert m.beats == [0] and np.abs(out[:600 - 256, 0]).min() > 0.4 and not np.abs(out[600:, 0]).any()
+
+
+def test_a_beat_replaces_the_last_still_sounding():
+    m = Mixer()
+    m.set_beat(np.ones((3000, 2), np.float32) * 0.5, 1000)
+    out = run_blocks(m, 12)
+    assert out[:, 0].max() == pytest.approx(0.5)       # never two at once
+
+
+def test_an_earcon_plays_in_both_ears_at_its_volume_through_the_mixer():
+    player = SpatialPlayer(folder=SOUNDS, open_stream=False)
+    player.stream = object()                           # as if a device were open; none is
+    played, failed = player.play_earcon({"event": "tick", "custom": None, "default": "click.wav", "gain": 0.5})
+    assert played and not failed
+    out = run_blocks(player.mixer, 40)
+    mono = read_mono(SOUNDS / "click.wav")
+    assert np.allclose(out[:, 0], out[:, 1])
+    assert np.allclose(out[:len(mono), 0], np.clip(mono * 0.5, -1, 1), atol=1e-6)
+
+
+def test_an_own_earcon_file_that_cannot_be_played_falls_back_and_says_so(tmp_path):
+    bad = tmp_path / "mine.wav"
+    bad.write_text("not a sound")
+    player = SpatialPlayer(folder=SOUNDS, open_stream=False)
+    player.stream = object()
+    info = {"event": "tick", "custom": str(bad), "default": "click.wav"}
+    assert player.play_earcon(info) == (True, True)
+    assert player.play_earcon(info) == (True, True)    # its failure is kept, not read again
+
+
+def test_ticks_close_together_each_play_whole():
+    """A tick started again before the last has ended: both play in full, added together (15, 14.4)."""
+    player = SpatialPlayer(folder=SOUNDS, open_stream=False)
+    player.stream = object()
+    info = {"event": "tick", "custom": None, "default": "click.wav"}
+    player.play_earcon(info)
+    player.mixer.mix(256)
+    player.play_earcon(info)
+    mono = read_mono(SOUNDS / "click.wav")
+    out = run_blocks(player.mixer, 40)
+    expected = np.zeros(len(out), np.float32)
+    expected[:len(mono) - 256] += mono[256:]
+    expected[:len(mono)] += mono
+    assert np.allclose(out[:, 0], np.clip(expected, -1, 1), atol=1e-6)

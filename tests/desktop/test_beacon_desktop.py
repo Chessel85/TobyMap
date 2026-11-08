@@ -1,6 +1,7 @@
-"""The orientation beacon on the desktop (P2-T9; SON-10, SON-2): B starts it at once, the window
-repeats it on its own timer from where the core last placed it, a turn moves it, and B or the
-pole stops it. No sound device is opened."""
+"""The orientation beacon on the desktop (P2-T9, P2-T16h; SON-10, SON-2): B hands the sound player
+a beat, which the mixer repeats on the sound card's own clock (tests/desktop/test_spatial_player.py
+checks the timing); a turn gives the beat its new place, and B or the pole stops it. No sound device
+is opened."""
 import pytest
 
 from desktop.announcer import RecordingAnnouncer
@@ -22,35 +23,39 @@ def window(qtbot, test_pack, tmp_path):
     w.close()
 
 
-def beacons(w):
-    return [p for p in w.spatial.played if p["sound"] == "beacon"]
+def beat(w):
+    return w.spatial.beat_now
 
 
-def test_b_starts_it_at_once_and_it_repeats(window, qtbot):
-    assert not beacons(window)
+def test_b_starts_the_beat_at_its_interval(window):
+    assert beat(window) is None
     window.dispatch("beacon.toggle")
-    assert len(beacons(window)) == 1 and window.announcer.spoken[-1][0] == "Beacon on."
-    qtbot.waitUntil(lambda: len(beacons(window)) >= 3, timeout=3000)
+    assert window.announcer.spoken[-1][0] == "Beacon on."
+    placed, interval = beat(window)
+    assert placed["sound"] == "beacon" and interval == 0.5
     assert window.actions_by_name["beacon.toggle"].isChecked()
 
 
-def test_a_turn_moves_it_and_b_stops_it(window, qtbot):
+def test_a_turn_moves_it_and_b_stops_it(window):
     window.dispatch("beacon.toggle")
     window.dispatch("orientation.cycle")
     window.dispatch("move.east")                     # facing east: the beacon is to the left
-    count = len(beacons(window))
-    qtbot.waitUntil(lambda: len(beacons(window)) > count, timeout=2000)
-    assert beacons(window)[-1]["relative_deg"] == 270 and beacons(window)[-1]["pan"] == -1
+    placed, _interval = beat(window)
+    assert placed["relative_deg"] == 270 and placed["pan"] == -1
     window.dispatch("beacon.toggle")
-    count = len(beacons(window))
-    qtbot.wait(1200)
-    assert len(beacons(window)) == count and not window.actions_by_name["beacon.toggle"].isChecked()
+    assert beat(window) is None and not window.actions_by_name["beacon.toggle"].isChecked()
 
 
-def test_silent_near_the_pole(window, qtbot):
+def test_silent_near_the_pole(window):
     window.dispatch("beacon.toggle")
     window.dispatch("goto.set", text="89.55, 0")
     assert any("Beacon off near the North Pole." in s[0] for s in window.announcer.spoken)
-    count = len(beacons(window))
-    qtbot.wait(1200)
-    assert len(beacons(window)) == count
+    assert beat(window) is None
+
+
+def test_it_never_plays_as_a_sound_of_its_own(window):
+    """The beat is the mixer's alone: nothing on the window's thread plays a beacon (P2-T16h)."""
+    window.dispatch("beacon.toggle")
+    window.dispatch("orientation.cycle")
+    window.dispatch("move.east")
+    assert not [p for p in window.spatial.played if p["sound"] == "beacon"]

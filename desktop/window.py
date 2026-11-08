@@ -23,7 +23,7 @@ import threading
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtGui import QAction, QGuiApplication
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, QMenu, QPlainTextEdit, QSplitter,
                                QTreeWidgetItem)
@@ -42,35 +42,26 @@ ITEM_ID = Qt.ItemDataRole.UserRole
 
 
 class _Beacon(QObject):
-    """The orientation beacon (P2-T9, SON-10): plays the core's beacon at once when it starts,
-    then every interval from where the core last placed it, so a turn or a step moves it at the
-    next sound without waiting for a new beat. A response's beacon of None changes nothing."""
+    """The orientation beacon (P2-T9, P2-T16h; SON-10): the core's beacon, handed to the sound
+    player, which plays it at once and then every interval on the sound card's own clock, so
+    drawing the map after a turn never delays a beat. Each response's beacon replaces the sound
+    from the next beat on, so a turn or a step moves it without a new beat. A response's beacon
+    of None changes nothing; a placed sound of None stops it."""
 
     def __init__(self, window: "MainWindow"):
         super().__init__(window)
         self._window = window
-        self._placed: dict | None = None
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._play)
 
     def update(self, beacon: dict | None) -> None:
         if beacon is None:
             return
-        self._placed = beacon["placed"]
-        if self._placed is None:
-            self._timer.stop()
+        if beacon["placed"] is None:
+            self.stop()
             return
-        self._timer.setInterval(round(beacon["interval_s"] * 1000))
-        if not self._timer.isActive():
-            self._play()
-            self._timer.start()
-
-    def _play(self) -> None:
-        if self._placed is not None:
-            self._window._play_placed(self._placed, tag="beacon")
+        self._window._beat(beacon["placed"], beacon["interval_s"])
 
     def stop(self) -> None:
-        self._timer.stop()
+        self._window.spatial.stop_beat()
 
 
 class _HoldClock(QObject):
@@ -205,7 +196,6 @@ class MainWindow(QMainWindow):
         self.words = self.session.words()
         self.setWindowTitle(self.words["window_title"])
         self.announcer = announcer or Announcer(self)
-        self.sounds = sounds if sounds is not None else SoundPlayer()
         # Sounds placed in space (P2-T6b). A window given stand-in sounds, as in the tests, never
         # opens the sound device (rule 5).
         if spatial is None:
@@ -213,6 +203,8 @@ class MainWindow(QMainWindow):
 
             spatial = SpatialPlayer() if sounds is None else RecordingSpatial()
         self.spatial = spatial
+        # The earcons go through the same mixer (P2-T16h).
+        self.sounds = sounds if sounds is not None else SoundPlayer(spatial)
         # The spatial voice (P2-T7a): loaded on a thread of its own while TobyMap starts.
         if voice is None:
             from desktop.audio.voice import RecordingVoice, SpatialVoice
@@ -517,9 +509,17 @@ class MainWindow(QMainWindow):
 
     def _play_placed(self, placed: dict, tag: str | None = None) -> None:
         """A sound placed in space by the core (P2-T6). A missing sound device, or HRTF data, is
-        told once, in the core's words, and the sound carries on as well as it can. A tag, such as
-        the beacon's, stops the last sound with the same tag, so they never pile up."""
+        told once, in the core's words, and the sound carries on as well as it can. A tag stops
+        the last sound with the same tag, so they never pile up."""
         _played, custom_failed = self.spatial.play(placed, tag=tag)
+        self._tell_placed_problems(placed, custom_failed)
+
+    def _beat(self, placed: dict, interval_s: float) -> None:
+        """The beacon's sound, repeated by the sound player (P2-T16h)."""
+        _played, custom_failed = self.spatial.beat(placed, interval_s)
+        self._tell_placed_problems(placed, custom_failed)
+
+    def _tell_placed_problems(self, placed: dict, custom_failed: bool) -> None:
         self._tell_own_file_failed(placed["file"], custom_failed)
         for problem, happened in (("no_device", self.spatial.missing), ("no_hrtf", self.spatial.hrtf_missing)):
             if happened and problem not in self._told:

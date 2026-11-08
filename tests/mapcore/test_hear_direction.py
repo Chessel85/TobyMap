@@ -112,6 +112,14 @@ def test_volume_and_speed_are_the_voices_own(session):
     assert quiet["rate"] == 1.5 and loud["rate"] == 1.0
 
 
+def test_the_voice_goes_up_to_five_times_as_fast(session):
+    """PO note on checklist 9.7: up to 500 percent."""
+    field = next(f for tab in session.settings_schema()["tabs"] for f in tab["fields"] if f["id"] == "voice_rate")
+    assert (field["min"], field["max"]) == (50, 500)
+    session.run("settings.set", field="voice_rate", value=500)
+    assert hear_station(session).voice["rate"] == 5.0
+
+
 def test_muted_nothing_plays_but_the_label_is_kept_in_the_history(session):
     session.run("sound.mute", on=True)
     r = hear_station(session)

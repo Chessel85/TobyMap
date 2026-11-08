@@ -194,7 +194,7 @@ tabs:
         kind: number
         default: 100
         min: 50
-        max: 200
+        max: 500   # PO note on checklist 9.7
       - id: voice_also_speak
         label: Also speak spatial labels through the screen reader
         kind: yes_no

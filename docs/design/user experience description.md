@@ -591,7 +591,7 @@ Keys changed since version 0.3 (agreed, DP79):
 * Ctrl+Up: start driving. Any movement key stops.
 * Ctrl+Page Up and Ctrl+Page Down: driving speed.
 * G: go to coordinates.
-* Backspace and Shift+Backspace: back and forward through position history.
+* Alt+Comma and Alt+Full stop: back and forward through position history: every step, jump, Go to and click (DP142).
 
 ### Where am I
 * Space: where am I.

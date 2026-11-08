@@ -33,7 +33,7 @@ DEFAULTS_FILE = Path(__file__).resolve().parent / "defaults.yaml"
 SPEECH, BRAILLE = "speech", "braille"
 ASSERTIVE, POLITE = "assertive", "polite"
 HISTORY_LIMIT = 200  # at least the last 50 (ANN-4)
-PLACE_LIMIT = 100    # places kept to go back to (NAV-10, DP142)
+PLACE_LIMIT = 1000   # places kept to go back to (NAV-10, DP142)
 # The commands whose announcements belong to a place, so Enter in the announcement
 # history can go back there (ANN-4, DP141). Help, settings and the like have none.
 PLACE_COMMANDS = {"start", "release", "move.north", "move.south", "move.east", "move.west", "zoom.in", "zoom.out",
@@ -131,9 +131,9 @@ class MapSession:
         self.last_spoken: str | None = None
         self.history: list[str] = []
         self.history_places: list[dict | None] = []   # where each entry was said, or None (DP141)
-        self.back_places: list[dict] = []     # the places before each jump, newest last (NAV-10, DP142)
+        self.back_places: list[dict] = []     # the places before each step or jump, newest last (NAV-10, DP142)
         self.forward_places: list[dict] = []  # the places went back from, newest last
-        if saved_state:
+        if saved_state and not self.settings["places_clear_on_start"]:
             jumps = saved_state.get("jumps") or {}
             self.back_places = [p for p in jumps.get("back", []) if self._valid_place(p)][-PLACE_LIMIT:]
             self.forward_places = [p for p in jumps.get("forward", []) if self._valid_place(p)][-PLACE_LIMIT:]
@@ -839,11 +839,13 @@ class MapSession:
         elif not held:
             self._repeat_due = now + self.settings["repeat_delay_ms"] / 1000.0
             self.holding = f"move.{direction}"
+        before = self._place_now()
         result = self.world.step(direction, turn_deg=self.settings["turn_deg"])
         if result.turned:
             return self._turned(held, repeat, now)
         if not result.moved:
             return Response().earcon("blocked")  # nothing spoken (NAV-1)
+        self._remember_place(before)   # every step is a place to go back to, held ones too (DP142)
         if held:
             # The Information panel and Details wait for the release (ANN-3).
             self.selected = None
@@ -956,15 +958,16 @@ class MapSession:
         w = self.world
         return {"lat": w.lat, "lon": w.lon, "zoom_m": w.zoom_m, "step_m": w.step_m}
 
-    def _remember_jump(self) -> None:
-        """Before a jump the place, zoom and step are kept, and any way forward is forgotten."""
-        self.back_places.append(self._place_now())
+    def _remember_place(self, place: dict | None = None) -> None:
+        """Before a step or a jump the place, zoom and step are kept, and any way forward is
+        forgotten (DP142). Back and forward never add one, so the whole list can be gone through."""
+        self.back_places.append(place or self._place_now())
         del self.back_places[:-PLACE_LIMIT]
         self.forward_places.clear()
 
     def _jump(self, lat: float, lon: float, zoom_m: float | None = None, step_m: float | None = None) -> Response:
         """Move without a step. The zoom stays unless a place with its own is given."""
-        self._remember_jump()
+        self._remember_place()
         self._go_to(lat, lon, zoom_m, step_m)
         self._crossed_clear()
         return Response(redraw=True, panel_stale=True, details_stale=True, settings_changed=True)
@@ -1377,7 +1380,7 @@ class MapSession:
         point = globe.from_screen(self._view_scale(width, height), width, height, x, y)
         if point is None:
             return Response().speak(say("off_globe"), ASSERTIVE)
-        self._remember_jump()
+        self._remember_place()
         self.world.lat = max(-90.0, min(90.0, round(point[0], 6)))
         self.world.lon = round(geodesy.wrap_lon(point[1]), 6)
         self._crossed_clear()

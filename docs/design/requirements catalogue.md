@@ -527,7 +527,9 @@ The high level requirements document stays the product owner's own statement of 
 * Priority: Should. Status: Proposed.
 * Acceptance criteria:
   * After a jump, "back" returns to the previous position.
-  * At least the last 100 positions are kept.
+  * Every step, jump, Go to and click adds a place; going back or forward adds none (DP142).
+  * At least the last 1,000 positions are kept.
+  * A setting, "Clear the places on start", off at first, starts each run with no places.
 
 ### NAV-11 One location, many modes
 * Outcome: All movement modes and orientations share one location, so switching never moves the user.

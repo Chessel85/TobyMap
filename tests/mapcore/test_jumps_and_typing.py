@@ -139,9 +139,57 @@ def test_jump_step_three_times_back_returns_with_the_zoom(session):
     session.press("Page Up")   # zoom out, so the jump's place has a different zoom from the start
     for _ in range(3):
         session.press("Right")
+    for _ in range(3):         # every step is a place: back through each of them (DP142)
+        session.press("Alt+,")
+    assert near(session, 52.1, -1.3)
     back = session.press("Alt+,")
     assert near(session, 51.2, 1.2) and session.world.zoom_m == 25000
     assert spoken(back) == ["Kent, England, United Kingdom"]
+
+
+def test_every_step_adds_a_place_and_back_and_forward_add_none(session):
+    places = []
+    for key in ("Right", "Right", "Down"):
+        places.append((session.world.lat, session.world.lon))
+        session.press(key)
+    end = (session.world.lat, session.world.lon)
+    assert len(session.back_places) == 3
+    for lat, lon in reversed(places):
+        session.press("Alt+,")
+        assert near(session, lat, lon)
+    assert session.press("Alt+,").earcons == ["blocked"]
+    for _ in range(3):
+        session.press("Alt+.")
+    assert near(session, *end)
+    assert len(session.back_places) == 3 and not session.forward_places
+
+
+def test_a_step_after_going_back_clears_the_way_forward(session):
+    session.press("Right")
+    session.press("Right")
+    session.press("Alt+,")
+    session.press("Up")
+    assert not session.forward_places and session.press("Alt+.").earcons == ["blocked"]
+
+
+def test_each_held_step_adds_a_place(session):
+    session.press("Right")
+    session.run("move.east", held=True, repeat=True)
+    session.run("move.east", held=True, repeat=True)
+    session.release()
+    assert len(session.back_places) == 3
+
+
+def test_a_blocked_step_or_a_turn_adds_no_place(session):
+    session.press("O")             # cardinal facing: Left and Right turn
+    session.press("Right")
+    session.press("O")
+    session.press("O")             # north-fixed again
+    assert not session.back_places
+    session.run("goto.set", text="90, 0")
+    session.back_places.clear()
+    session.press("Up")            # at the North Pole in north-fixed, north is blocked
+    assert not session.back_places
 
 
 def test_back_then_forward_and_a_new_jump_clears_forward(session):
@@ -161,11 +209,13 @@ def test_nothing_to_go_back_to_plays_the_blocked_sound(session):
     assert session.press("Alt+.").earcons == ["blocked"]
 
 
-def test_the_last_100_places_are_kept(session):
-    for i in range(101):
+def test_the_last_1000_places_are_kept(session):
+    for i in range(1001):
         session.run("goto.set", text=f"{i % 80}, {i % 170}")
-    assert len(session.back_places) == 100
+    assert len(session.back_places) == 1000
     assert session.back_places[0]["lat"] != 51.2   # the first place, the start, has gone
+    again = MapSession(packs=[session.store.packs[0]], saved_state=session.save()["state"])
+    assert len(again.back_places) == 1000          # all of them are saved and come back
 
 
 def test_the_history_is_saved_with_the_state(test_pack, session):
@@ -175,6 +225,25 @@ def test_the_history_is_saved_with_the_state(test_pack, session):
     again.press("Alt+,")
     assert near(again, 51.2, 1.2)
     again.store.close()
+
+
+def test_the_places_can_be_cleared_on_start(test_pack, session):
+    session.run("goto.set", text="10, 10")
+    session.press("Alt+,")
+    saved = session.save()
+    assert saved["state"]["jumps"]["forward"]
+    settings = dict(saved["settings"], values=dict(saved["settings"]["values"], places_clear_on_start=True))
+    again = MapSession(packs=[test_pack], settings=settings, saved_state=saved["state"])
+    assert not again.back_places and not again.forward_places
+    assert again.press("Alt+,").earcons == ["blocked"]
+    again.store.close()
+
+
+def test_clearing_the_places_on_start_is_off_at_first(test_pack, session):
+    assert session.settings["places_clear_on_start"] is False
+    field = next(f for tab in session.settings_schema()["tabs"] for f in tab["fields"]
+                 if f["id"] == "places_clear_on_start")
+    assert field["label"] == "Clear the places on start" and field["kind"] == "yes_no"
 
 
 def test_a_click_counts_as_a_jump(session):

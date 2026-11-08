@@ -102,7 +102,7 @@ def test_without_the_heading_switch_a_turn_only_ticks(session):
     r = session.press("Right")
     assert spoken(r) == [] and r.earcons == ["tick"]
     session.world.orientation = "cardinal"
-    r = session.press("Shift+Right")
+    r = session.press("Right")
     assert spoken(r) == [] and r.earcons == ["tick"]
 
 

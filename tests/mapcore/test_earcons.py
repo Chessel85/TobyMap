@@ -74,7 +74,8 @@ def test_the_old_crossed_and_passed_switch_is_kept_under_its_new_name():
 
 
 def blocked(s):
-    return s.press("Shift+Left")   # turning in north-fixed is blocked (NAV-12)
+    s.back_places.clear()
+    return s.press("Alt+,")        # nowhere to go back to is blocked (NAV-10)
 
 
 def test_the_tick_and_blocked_play_and_each_can_be_switched_off(session):

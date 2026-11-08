@@ -892,13 +892,14 @@ class MapSession:
             r.speak(say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE)
         return r
 
-    def _turn(self, degrees_setting: str | None = None, sign: int = 1, **_a) -> Response:
-        """Shift and Ctrl with Left and Right: turn 90 degrees, or by the fine amount
-        in free facing. In north-fixed, and the fine turn in cardinal facing, the
-        blocked sound plays and nothing is said (NAV-12)."""
-        if degrees_setting is not None and self.world.orientation != "free":
-            return Response().earcon("blocked")
-        degrees = 90.0 if degrees_setting is None else self.settings[degrees_setting]
+    def _turn(self, degrees_setting: str = "large_turn_deg", sign: int = 1, **_a) -> Response:
+        """Shift and Ctrl with Left and Right, in free facing: turn by the large or the
+        fine amount (NAV-12). In north-fixed and cardinal facing they do nothing, with
+        no sound, as Left and Right already turn 90 degrees in cardinal facing (PO notes
+        on checklist 2.2 and 2.3)."""
+        if self.world.orientation != "free":
+            return Response()
+        degrees = self.settings[degrees_setting]
         result = self.world.turn(sign * degrees)
         if not result.turned:
             return Response().earcon("blocked")

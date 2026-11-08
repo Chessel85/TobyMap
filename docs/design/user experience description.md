@@ -250,8 +250,9 @@ The orientation decides how directions are described and which way is "ahead" in
 
 The user can turn in every movement mode, because in network mode the Left and Right arrows are busy choosing links (NAV-12, DP69).
 
-* Shift+Left and Shift+Right turn 90 degrees, in cardinal facing and free facing.
-* Ctrl+Left and Ctrl+Right turn by the fine amount (default 15 degrees), in free facing.
+* Shift+Left and Shift+Right turn by the large amount (default 90 degrees, a setting), in free facing.
+* Ctrl+Left and Ctrl+Right turn by the fine amount (default 1 degree), in free facing.
+* In north-fixed, and in cardinal facing in stepping mode, Shift and Ctrl with Left and Right do nothing and make no sound. In cardinal facing, plain Left and Right turn 90 degrees.
 * A types an exact bearing. In north-fixed or cardinal facing, this also switches to free facing, and says so.
 * In stepping mode only, plain Left and Right also turn, because there is nothing else for them to do in the facing orientations.
 

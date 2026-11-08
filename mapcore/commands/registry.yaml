@@ -39,8 +39,8 @@ commands:
   - {name: step.link, label: Link step to zoom, key: "", region: global, menu: Map, toggle: true}
   # Orientation and turning (NAV-3, NAV-11, NAV-12). Left and Right also turn, in the facing orientations.
   - {name: orientation.cycle, label: "Change orientation: north-fixed, cardinal facing, free facing", key: O, region: map, menu: Map}
-  - {name: turn.left, label: Turn 90 degrees left, key: Shift+Left, region: map, menu: Map}
-  - {name: turn.right, label: Turn 90 degrees right, key: Shift+Right, region: map, menu: Map}
+  - {name: turn.left, label: Large turn left in free facing, key: Shift+Left, region: map, menu: Map}
+  - {name: turn.right, label: Large turn right in free facing, key: Shift+Right, region: map, menu: Map}
   - {name: turn.fine_left, label: Fine turn left in free facing, key: Ctrl+Left, region: map, menu: Map}
   - {name: turn.fine_right, label: Fine turn right in free facing, key: Ctrl+Right, region: map, menu: Map}
   - {name: bearing.type, label: Type a bearing, key: Ctrl+B, region: map, menu: Map}

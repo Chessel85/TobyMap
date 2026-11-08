@@ -92,15 +92,17 @@ def test_switching_an_earcon_off_in_the_dialog_silences_it(window):
     dialog.ok_button.click()
     QApplication.processEvents()
     window.sounds.played.clear()
-    window.dispatch("turn.left")   # blocked in north-fixed
+    window.session.back_places.clear()
+    window.dispatch("history.back")   # nowhere to go back to: blocked
     assert window.sounds.played == []
 
 
 def test_an_own_file_that_fails_falls_back_and_is_said_once(window):
     window.session.run("settings.set", field="earcon_blocked", value="C:/gone/bump.wav")
     window.sounds.failed.append("C:/gone/bump.wav")
+    window.session.back_places.clear()
     for _ in range(3):
-        window.dispatch("turn.left")
+        window.dispatch("history.back")
     told = [t for t in window.announcer.texts if "could not be played" in t]
     assert told == ["Your own sound file for Blocked could not be played, so the default sound is used."]
     assert window.sounds.played.count("blocked") == 3
@@ -108,5 +110,6 @@ def test_an_own_file_that_fails_falls_back_and_is_said_once(window):
 
 def test_the_earcon_volume_reaches_the_player(window):
     window.session.run("settings.set", field="earcon_volume", value=30)
-    window.dispatch("turn.left")
+    window.session.back_places.clear()
+    window.dispatch("history.back")
     assert window.sounds.gains[-1] == pytest.approx(0.3)

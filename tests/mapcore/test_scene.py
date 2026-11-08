@@ -185,7 +185,7 @@ def test_the_heading_arrow_turns_with_the_way_you_face(test_pack):
     s = make(test_pack, lat=51.2, lon=1.2, zoom_m=250_000, step_m=25_000)
     assert s.scene(800, 600)["heading"]["degrees"] == 0
     s.run("orientation.cycle")
-    s.run("turn.right")
+    s.run("move.east")
     assert s.scene(800, 600)["heading"]["degrees"] == 90
     s.run("bearing.set", text="47")
     f = s.scene(800, 600)

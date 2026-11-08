@@ -191,12 +191,13 @@ def test_holding_a_turn_ticks_and_says_the_heading_on_release(session):
     assert spoken(session.release()) == ["Facing 20 degrees."]
 
 
-def test_the_fine_turn_and_the_90_degree_turn(session):
-    assert session._turn(sign=1).earcons == ["blocked"]          # north-fixed cannot turn
+def test_the_fine_turn_and_the_large_turn(session):
+    assert session._turn(sign=1).earcons == []                   # north-fixed: nothing at all
     session.world.set_orientation("cardinal")
-    assert session._turn("fine_turn_deg", 1).earcons == ["blocked"]   # cardinal has no fine turn
-    assert spoken(session._turn(sign=1)) == ["Facing east."]
+    assert session._turn("fine_turn_deg", 1).earcons == []       # cardinal facing: nothing either
+    assert not session._turn(sign=1).announcements and session.world.heading == 0.0
     session.world.set_orientation("free")
+    assert spoken(session._turn(sign=1)) == ["Facing 90 degrees."]
     assert spoken(session._turn("fine_turn_deg", -1)) == ["Facing 89 degrees."]
 
 

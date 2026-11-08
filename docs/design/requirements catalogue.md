@@ -446,7 +446,7 @@ The high level requirements document stays the product owner's own statement of 
 * Acceptance criteria:
   * Cardinal facing: in stepping mode, Left and Right turn by 90°, so the user always faces north, east, south or west.
   * Cardinal facing (DP69): moving east or west follows the line of latitude, as in north-fixed. Moving north or south follows the meridian and carries on over the pole, after which the user faces the opposite way.
-  * Free facing: in stepping mode, Left and Right turn by a fine amount that can be set (default 5°, DP147), and Ctrl with Left and Right by a finer amount that can be set (default 1°). Shift with Left and Right still turn 90°, as in NAV-12. Held, the keys repeat, so 5° a step gives about 30° a second.
+  * Free facing: in stepping mode, Left and Right turn by a fine amount that can be set (default 5°, DP147), and Ctrl with Left and Right by a finer amount that can be set (default 1°). Shift with Left and Right turn by a large amount that can be set (default 90°), as in NAV-12. Held, the keys repeat, so 5° a step gives about 30° a second.
   * Free facing: moving forward follows the shortest path over the globe (a great circle). Afterwards, the heading is the direction of travel on arrival. From 80° N 0° E, facing 0°, moving forward 2000 km arrives at about 82° N 180° E, and the heading becomes 180°. This is checked to within 0.01°.
   * The new heading is announced after crossing a pole.
 
@@ -550,10 +550,11 @@ The high level requirements document stays the product owner's own statement of 
   * Free facing (free roaming): the user can face any bearing. Directions are given relative to the way they face.
 * The movement modes that combine with them are stepping, hierarchy and network.
 * Turning (DP69):
-  * Shift+Left and Shift+Right turn 90° in cardinal facing and free facing, in every movement mode.
+  * Shift+Left and Shift+Right turn by the large amount in free facing (default 90°, a setting), in every movement mode.
   * Ctrl+Left and Ctrl+Right turn by the fine amount in free facing, in every movement mode.
+  * In stepping mode, in cardinal facing, Shift and Ctrl with Left and Right do nothing and make no sound, because Left and Right already turn 90° (PO notes on the Phase 2 checklist, 2.2 and 2.3). In network mode, where Left and Right choose links, Shift with Left and Right will turn 90° in cardinal facing.
   * A command lets the user type an exact bearing, which switches to free facing if needed.
-  * In north-fixed, turning plays the blocked sound.
+  * In north-fixed, Shift and Ctrl with Left and Right do nothing and make no sound.
 * Acceptance criteria:
   * A single key cycles north-fixed, cardinal facing, free facing, then back to north-fixed. Each change is announced, for example "Free facing, 47 degrees".
   * A feature at a bearing of 90° from the location is described as "east" in north-fixed. With the user facing 90° in either facing orientation, it is described as "ahead" (or "12 o'clock" in clock face format).

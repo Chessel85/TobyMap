@@ -614,12 +614,14 @@ def press(qtbot, widget, key, mods=Qt.KeyboardModifier.NoModifier):
 def test_the_orientation_and_turning_keys(window, qtbot):
     press(qtbot, window.map, Qt.Key.Key_O)
     assert window.announcer.texts[-1] == "Cardinal facing, north."
-    press(qtbot, window.map, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    press(qtbot, window.map, Qt.Key.Key_Right)
     assert window.announcer.texts[-1] == "Facing east."
     assert window.session.world.heading == 90.0
     press(qtbot, window.map, Qt.Key.Key_O)
     press(qtbot, window.map, Qt.Key.Key_Left, Qt.KeyboardModifier.ControlModifier)
     assert window.announcer.texts[-1] == "Facing 89 degrees."
+    press(qtbot, window.map, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    assert window.announcer.texts[-1] == "Facing 179 degrees."
 
 
 def test_the_bearing_box_takes_a_bearing_and_refuses_what_it_cannot_read(window, qtbot):

@@ -71,7 +71,7 @@ def test_a_bad_bearing_is_refused(text):
 
 def test_the_orientation_key_cycles_and_says_where_you_face(session):
     assert spoken(session.press("O")) == ["Cardinal facing, north."]
-    session.press("Shift+Right")
+    session.press("Right")
     assert spoken(session.press("O")) == ["Free facing, 90 degrees."]
     assert session.world.orientation == "free" and session.world.heading == 90.0
     assert spoken(session.press("O")) == ["North-fixed."]
@@ -96,20 +96,34 @@ def test_a_typed_bearing_switches_to_free_facing_and_says_so(session):
 
 
 def test_the_turning_keys(session):
-    session.press("O")   # cardinal
-    assert spoken(session.press("Shift+Right")) == ["Facing east."]
-    assert spoken(session.press("Shift+Left")) == ["Facing north."]
-    assert session.press("Ctrl+Right").earcons == ["blocked"]   # the fine turn is for free facing only
+    session.press("O")
     session.press("O")   # free
     assert spoken(session.press("Ctrl+Right")) == ["Facing 1 degrees."]
     assert spoken(session.press("Shift+Right")) == ["Facing 91 degrees."]
     assert spoken(session.press("Ctrl+Left")) == ["Facing 90 degrees."]
+    assert spoken(session.press("Shift+Left")) == ["Facing 0 degrees."]
 
 
-def test_turning_in_north_fixed_is_blocked_and_silent(session):
+def test_the_large_turn_is_a_setting_starting_at_90(session):
+    field = next(f for tab in session.settings_schema()["tabs"] for f in tab["fields"] if f["id"] == "large_turn_deg")
+    assert field["label"] == "Free facing: degrees turned by Shift with Left and Right" and field["default"] == 90
+    session.run("settings.set", field="large_turn_deg", value=45)
+    session.press("O")
+    session.press("O")   # free
+    assert spoken(session.press("Shift+Right")) == ["Facing 45 degrees."]
+    assert spoken(session.press("Shift+Left")) == ["Facing 0 degrees."]
+
+
+@pytest.mark.parametrize("presses", [0, 1], ids=["north-fixed", "cardinal facing"])
+def test_shift_and_ctrl_turns_do_nothing_outside_free_facing(session, presses):
+    """PO notes on checklist 2.2 and 2.3: no turn, no sound and nothing said."""
+    for _ in range(presses):
+        session.press("O")
+    heading = session.world.heading
     for key in ("Shift+Left", "Shift+Right", "Ctrl+Left", "Ctrl+Right"):
         r = session.press(key)
-        assert r.earcons == ["blocked"] and not r.announcements
+        assert r.earcons == [] and not r.announcements and not r.redraw
+    assert session.world.heading == heading
 
 
 def test_a_held_turn_counts_for_the_web_clicks(session):

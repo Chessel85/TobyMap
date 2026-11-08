@@ -37,7 +37,7 @@ def test_b_starts_it_at_once_and_it_repeats(window, qtbot):
 def test_a_turn_moves_it_and_b_stops_it(window, qtbot):
     window.dispatch("beacon.toggle")
     window.dispatch("orientation.cycle")
-    window.dispatch("turn.right")                    # facing east: the beacon is to the left
+    window.dispatch("move.east")                     # facing east: the beacon is to the left
     count = len(beacons(window))
     qtbot.waitUntil(lambda: len(beacons(window)) > count, timeout=2000)
     assert beacons(window)[-1]["relative_deg"] == 270 and beacons(window)[-1]["pan"] == -1

@@ -65,7 +65,7 @@ def test_facing_east_it_is_to_the_left_and_facing_south_behind(session):
 def test_every_response_carries_where_the_beacon_is_now(session):
     session.run("beacon.toggle")
     session.run("orientation.cycle")             # cardinal facing, north
-    r = session.run("turn.right")                 # now facing east
+    r = session.run("move.east")                  # now facing east
     assert r.beacon["placed"]["relative_deg"] == 270
 
 
@@ -162,5 +162,5 @@ def test_the_beacon_volume_and_the_switch_are_in_the_sound_tab():
 def test_joined_commands_keep_the_last_beacon(session):
     session.run("beacon.toggle")
     session.run("orientation.cycle")
-    r = session.run_many([("turn.right", {}), ("turn.right", {})])   # facing south
+    r = session.run_many([("move.east", {}), ("move.east", {})])   # facing south
     assert r.beacon["placed"]["behind"]

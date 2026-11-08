@@ -36,7 +36,9 @@ commands:
   - {name: zoom.in, label: Zoom in, key: Page Down, region: map, menu: Map}
   - {name: step.larger, label: Larger step, key: Shift+Page Up, region: map, menu: Map}
   - {name: step.smaller, label: Smaller step, key: Shift+Page Down, region: map, menu: Map}
-  - {name: step.link, label: Link step to zoom, key: "", region: global, menu: Map, toggle: true}
+  # S, from the PO's note on checklist 13.6. On the map only, so letters in the Information panel
+  # still go to the item starting with that letter.
+  - {name: step.link, label: Link step to zoom, key: S, region: map, menu: Map, toggle: true}
   # Orientation and turning (NAV-3, NAV-11, NAV-12). Left and Right also turn, in the facing orientations.
   - {name: orientation.cycle, label: "Change orientation: north-fixed, cardinal facing, free facing", key: O, region: map, menu: Map}
   - {name: turn.left, label: Large turn left in free facing, key: Shift+Left, region: map, menu: Map}

@@ -265,7 +265,8 @@ def test_f1_lists_the_commands_for_the_focused_region_with_keys(session):
     assert "Step north or forward: Up" in on_map and "Heading: H" in on_map
     in_panel = session.press("F1", "panel").dialog["text"]
     assert "Step north or forward" not in in_panel and "Go to Details: F4" in in_panel
-    assert "Link step to zoom: in the Map menu" in on_map
+    assert "Link step to zoom: S" in on_map and "Link step to zoom" not in in_panel
+    assert "Send a Braille-only message: in the Speech menu" in on_map
 
 
 def test_remapping_to_a_key_in_use_names_the_other_command(session):
@@ -392,6 +393,18 @@ def test_only_the_size_that_changed_is_said(session):
     session.run("step.link", on=True)
     said = spoken(session.press("Page Up"))[0]
     assert said.startswith("Zoom 25 kilometres, step ")
+
+
+def test_s_links_the_step_to_the_zoom_on_the_map_only(session):
+    """PO note on checklist 13.6: S for Link step to zoom. On the map only, so letters in the
+    Information panel and Details still go to the item starting with that letter."""
+    r = session.press("S")
+    assert session.world.link and spoken(r)[0].startswith("Step linked to zoom.")
+    session.press("S")
+    assert not session.world.link
+    for region in ("panel", "details"):
+        assert session.press("S", region) is None and session.press("A", region) is None
+    assert not session.world.link
 
 
 def test_at_the_end_of_the_list_only_that_size_is_said(session):

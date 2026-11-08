@@ -154,7 +154,7 @@ def test_menus_come_from_the_registry(window):
     bar = window.menuBar()
     assert [a.text() for a in bar.actions()] == ["&Map", "&Speech", "Se&ttings", "&Help"]
     texts = [a.text() for a in bar.actions()[0].menu().actions()]
-    assert "Step north or forward\tUp" in texts and "Exit" in texts and "Link step to zoom" in texts
+    assert "Step north or forward\tUp" in texts and "Exit" in texts and "Link step to zoom	S" in texts
     assert window.actions_by_name["step.link"].isCheckable()
 
 

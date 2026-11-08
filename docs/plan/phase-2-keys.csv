@@ -7,7 +7,7 @@ Zoom out,the map,1,Page Up,Page Up,Page Up,
 Zoom in,the map,1,Page Down,Page Down,Page Down,
 Larger step,the map,1,Shift+Page Up,Shift+Page Up,Shift+Page Up,
 Smaller step,the map,1,Shift+Page Down,Shift+Page Down,Shift+Page Down,
-Link step to zoom,anywhere,1,,,None,On or off.
+Link step to zoom,the map,1,,,S,"On or off. S from your note on checklist 13.6; on the map only, so letters in the Information panel still go to items."
 Where am I,the map,1,Space,Space,Space,
 Coordinates,the map,1,C,C,C,
 Heading,the map,1,H,H,H,

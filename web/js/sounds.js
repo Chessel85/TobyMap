@@ -91,21 +91,45 @@ export const clicks = [];
 
 // at, if given, is when to play on the page's clock. The sound card's own clock
 // then starts it at exactly that moment, however busy the page is (DP140).
-export async function play(info, at) {
+// Gives a handle for cancel(), so a click set early can be taken back; its done is
+// settled once the sound is set going.
+export function play(info, at) {
   played.push(info.event);
-  if (at !== undefined) clicks.push({ due: at, at: Math.max(at, performance.now()) });
-  try {
-    const buffer = await bufferFor(info, true);
-    const ctx = audio();
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    const gain = ctx.createGain();
-    gain.gain.value = info.gain === undefined ? 1 : info.gain;
-    source.connect(gain).connect(ctx.destination);
-    source.start(at === undefined ? 0 : audioTime(ctx, at));
-  } catch (e) {
-    // No sound file or no audio: nothing to do, the earcon is only a help.
+  const click = at === undefined ? null : { due: at, at: Math.max(at, performance.now()), cancelled: false };
+  if (click) clicks.push(click);
+  const handle = { click, source: null, startAt: 0, done: null };
+  handle.done = (async () => {
+    try {
+      const buffer = await bufferFor(info, true);
+      if (click && click.cancelled) return;   // let go while the sound was still loading
+      const ctx = audio();
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = info.gain === undefined ? 1 : info.gain;
+      source.connect(gain).connect(ctx.destination);
+      handle.startAt = at === undefined ? 0 : audioTime(ctx, at);
+      handle.source = source;
+      source.start(handle.startAt);
+    } catch (e) {
+      // No sound file or no audio: nothing to do, the earcon is only a help.
+    }
+  })();
+  return handle;
+}
+
+// Takes back a click set to sound later, if the sound card has not started on it, and
+// says whether it did (Phase 2 web checklist 2.10). The sound card works some way ahead
+// of what is heard, about 35 ms in Firefox and 55 in Chromium; a click it has started on
+// is heard anyway, so it is left to finish, never cut off.
+export function cancel(handle) {
+  if (!handle || !handle.click) return true;
+  if (handle.source) {
+    if (audio().currentTime >= handle.startAt) return false;   // the sound card has it
+    try { handle.source.stop(); } catch (e) { /* already ended */ }
   }
+  handle.click.cancelled = true;
+  return true;
 }
 
 // A time on the page's clock as a time on the sound card's clock.

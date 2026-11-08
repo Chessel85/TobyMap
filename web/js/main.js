@@ -169,11 +169,12 @@ function release() {
   return client.send({ type: "release", width, height }).then((r) => handle(r)).catch(showError);
 }
 
-// Holding a movement key (DP129, DP140). The page keeps the beat itself: at
-// each step's due time, from the core's timing, it plays the click on the sound
-// card's clock and sends the step to the worker. The click never waits for the
-// worker, which may be busy drawing the map. The core says how many of the next
-// steps will move, so a step that would be blocked, at a pole, has no click.
+// Holding a movement key (DP129, DP140). The page keeps the beat itself: a little
+// before each step's due time, from the core's timing, it sets the click on the
+// sound card's clock; at the due time it sends the step to the worker. The click
+// never waits for the worker, which may be busy drawing the map. Letting go before
+// the due time takes back both. The core says how many of the next steps will
+// move, so a step that would be blocked, at a pole, has no click.
 const HOLD_LEAD_MS = 50;   // wake this early, so a busy page still has the click ready on time
 let hold = null;
 
@@ -181,12 +182,23 @@ function startHold(name, pressedAt, info) {
   stopHold();
   if (!info || heldKey !== name) return;
   hold = { name, pressedAt, info, k: 0, sent: 0, left: info.unlimited ? Infinity : info.left,
-           seen: performance.now(), timer: null };
+           seen: performance.now(), timer: null, pending: new Set() };
   armHold();
 }
 
+// A click set early whose step is not yet due is taken back with its step, so
+// letting go leaves no last click sounding after the key is up (2.10). A click the
+// sound card has already started on will be heard, so its step is made at once:
+// a click is never heard without its step.
 function stopHold() {
-  if (hold) clearTimeout(hold.timer);
+  const h = hold;
+  if (h) {
+    clearTimeout(h.timer);
+    for (const p of h.pending) {   // more than one at 30 steps a second, closer than the lead
+      clearTimeout(p.timer);
+      if (!sounds.cancel(p.click)) sendHeldStep(h, p.sent);
+    }
+  }
   hold = null;
 }
 
@@ -202,17 +214,27 @@ function holdStep() {
   const h = hold;
   if (!h) return;
   if (performance.now() - h.seen > h.info.silence_ms) { release(); return; }   // the key was let go unseen
-  if (h.info.tick && h.left > 0) sounds.play(h.info.earcon, holdDue(h, h.k));
+  const due = holdDue(h, h.k);
+  // The click is set now, on the sound card's clock; the step waits for its due time,
+  // so a key let go in between takes back both (stopHold).
+  const click = h.info.tick && h.left > 0 ? sounds.play(h.info.earcon, due) : null;
   h.left -= 1;
   h.k += 1;
-  const sent = ++h.sent;
+  const sent = ++h.sent;   // counted now, with h.left, so the core's count below stays right
+  const p = { click, sent, timer: null };
+  p.timer = setTimeout(() => { h.pending.delete(p); sendHeldStep(h, sent); }, Math.max(0, due - performance.now()));
+  h.pending.add(p);
+  armHold();
+}
+
+function sendHeldStep(h, sent) {
+  if (hold !== h) return;
   const { width, height } = mapSize();
   client.send({ type: "run", commands: [[h.name, { held: true, repeat: true }]], width, height }).then((r) => {
     handle(r, undefined, true);
     // The core's count is from after this step; steps sent since are taken off.
     if (r && r.hold && hold === h) h.left = (r.hold.unlimited ? Infinity : r.hold.left) - (h.sent - sent);
   }).catch(showError);
-  armHold();
 }
 
 function showError(error) {

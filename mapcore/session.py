@@ -316,19 +316,27 @@ class MapSession:
 
     def release(self) -> Response:
         """The held movement key was let go: describe the place it ended at,
-        and only that (ANN-3), and draw it."""
+        and only that (ANN-3), and draw it. Each held step has clicked already, so the
+        release plays no tick of its own where nothing changed: it was heard as a second
+        click when the key was let go (Phase 2 web checklist 2.10)."""
         self.holding = None
         if self.held_turns and not self.held_moves:
             self.held_turns = 0
-            return self._record("release", self._heading_said(Response(redraw=True, panel_stale=True)))
+            r = self._heading_said(Response(redraw=True, panel_stale=True))
+            return self._record("release", self._no_tick(r))
         self.held_turns = 0
         if not self.held_moves:
             return Response()
         self.held_moves = 0
         self._drawn_at = self.clock()
-        r = self._step_heading(self._arrived(Response(redraw=True)))
+        r = self._no_tick(self._step_heading(self._arrived(Response(redraw=True))))
         path, self._held_path = self._held_path, []
         return self._record("release", self._crossed_after(r, path))
+
+    @staticmethod
+    def _no_tick(r: Response) -> Response:
+        r.earcons = [e for e in r.earcons if e != "tick"]
+        return r
 
     # Holding a movement key (DP129, DP140) --------------------------------
 

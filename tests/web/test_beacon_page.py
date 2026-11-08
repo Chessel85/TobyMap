@@ -24,8 +24,8 @@ def test_b_starts_it_it_repeats_and_a_turn_moves_it(page, site_url):
     first = beacons(app)[0]
     assert first["pan"] == 0 and first["pitch"] == 1          # north-fixed: straight ahead
     app.keyboard.press("o")                                   # cardinal facing, north
-    app.keyboard.press("Shift+ArrowRight")                    # facing east: the beacon to the left
-    app.keyboard.press("Shift+ArrowRight")                    # facing south: behind, lower
+    app.keyboard.press("ArrowRight")                          # facing east: the beacon to the left
+    app.keyboard.press("ArrowRight")                          # facing south: behind, lower
     app.wait_for_function("(() => { const b = window.tobymap.placed.filter((p) => p.sound === 'beacon');"
                           " return b[b.length - 1].pitch < 1; })()", timeout=5000)
     assert beacons(app)[-1]["pitch"] == pytest.approx(0.84, abs=0.001)

@@ -151,6 +151,44 @@ def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(page, site_url):
     assert held_paints <= 3 * 4 + 1, held_paints       # at most 4 a second, and the press's own
 
 
+def test_letting_go_of_a_held_key_makes_no_second_click(page, site_url):
+    """Phase 2 web checklist 2.10. Each click is set on the sound card 50 ms early. A key
+    let go before then takes back the click and its step, unless the sound card has
+    already started on the click, which works some way ahead of what is heard; then the
+    step is made too, so every click heard has its step. The release adds no tick."""
+    app = open_app(page, site_url, values={"coordinate_places": "fixed"})   # to count the steps
+    app.evaluate("""() => document.addEventListener('keyup', () => {
+        window.releasedAt = performance.now();
+        window.playedAtRelease = window.tobymap.earcons.length;
+    }, { capture: true, once: true })""")
+    # Let go just after the third click is set, about 50 ms before it is due.
+    app.evaluate("""() => { const c = window.tobymap.clicks, push = c.push.bind(c);
+        c.push = (x) => { const n = push(x);
+            if (n === 3) setTimeout(() => document.dispatchEvent(
+                new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })), 0);
+            return n; }; }""")
+    app.keyboard.down("ArrowDown")                     # the press steps and is spoken at once
+    wait_said(app, 2)
+    app.wait_for_function("window.releasedAt !== undefined", timeout=10_000)
+    app.keyboard.up("ArrowDown")                       # the real key, already let go as far as the page knows
+    app.wait_for_timeout(600)                          # the release, and the time the click was due
+    after = app.evaluate("window.tobymap.earcons.slice(window.playedAtRelease)")
+    assert "tick" not in after, after
+    assert len(said(app)) == 2                         # still at sea: nothing changed, so nothing said
+    released = app.evaluate("window.releasedAt")
+    ahead_ms = app.evaluate("""async () => {
+        const s = await import(new URL('./js/sounds.js', location.href).href);
+        const c = s.audio(), t = c.getOutputTimestamp();
+        return (c.currentTime - t.contextTime) * 1000; }""")
+    heard = [c for c in app.evaluate("window.tobymap.clicks") if not c["cancelled"]]
+    assert all(c["due"] <= released + ahead_ms + 5 for c in heard), (released, ahead_ms, heard[-2:])
+    app.keyboard.press("c")
+    wait_said(app, 3)
+    lat = float(said(app)[-1].split(" degrees north")[0])
+    steps = round((51.2 - lat) / 0.22482)              # 25 km south each
+    assert steps == 1 + len(heard), (lat, len(heard))  # the press, then one step for each click heard
+
+
 def test_ten_rapid_taps_make_every_step_but_speech_keeps_up(page, site_url):
     app = open_app(page, site_url, values={"coordinate_places": "fixed"})   # every place, to see each step
     for _ in range(10):

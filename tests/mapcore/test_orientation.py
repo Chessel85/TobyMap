@@ -191,6 +191,15 @@ def test_holding_a_turn_ticks_and_says_the_heading_on_release(session):
     assert spoken(session.release()) == ["Facing 20 degrees."]
 
 
+def test_releasing_a_held_turn_with_the_heading_switched_off_plays_no_tick_of_its_own(session):
+    session.world.set_orientation("free")
+    session.run("settings.set", field="say_heading", value=False)
+    session.run("move.east")
+    assert session.run("move.east", held=True, repeat=True).earcons == ["tick"]
+    done = session.release()
+    assert "tick" not in done.earcons and spoken(done) == []
+
+
 def test_the_fine_turn_and_the_large_turn(session):
     assert session._turn(sign=1).earcons == []                   # north-fixed: nothing at all
     session.world.set_orientation("cardinal")

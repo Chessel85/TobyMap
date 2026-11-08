@@ -37,10 +37,11 @@ def ok(app):
 
 
 def blocked(app):
-    """Turning in north-fixed is blocked (NAV-12): the blocked earcon, nothing said."""
+    """Going back with no place to go back to (NAV-10): the blocked earcon, nothing said.
+    (A Shift turn in north-fixed facing used to give it; since P2-T16c it does nothing.)"""
     app.focus("#map")
     count = app.evaluate("window.tobymap.earcons.length")
-    app.keyboard.press("Shift+ArrowLeft")
+    app.keyboard.press("Alt+Comma")
     app.wait_for_timeout(400)
     return app.evaluate(f"window.tobymap.earcons.slice({count})")
 
@@ -128,7 +129,7 @@ def test_the_earcon_volume_reaches_the_sound(page, site_url):
         const made = [];
         const real = ctx.createGain.bind(ctx);
         ctx.createGain = () => { const g = real(); made.push(g); return g; };
-        await sounds.play({event: 'tick', custom: null, default: 'click.wav', gain: 0.25});
+        await sounds.play({event: 'tick', custom: null, default: 'click.wav', gain: 0.25}).done;
         ctx.createGain = real;
         return made.map(g => g.gain.value);
     }""")

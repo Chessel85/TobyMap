@@ -203,9 +203,13 @@ def test_drawings_go_into_the_trace_in_their_parts(session):
     assert "painting 12.5 ms" in diagnostics.report(session)
 
 
-def test_release_after_a_hold_that_changed_nothing_is_a_tick(session):
-    session.run("move.north", held=True)
-    assert session.release().earcons == ["tick"]
+def test_release_after_a_hold_that_changed_nothing_plays_no_tick_of_its_own(session):
+    """Each held step has clicked already, so a tick on the release was a second click
+    when the key was let go (Phase 2 web checklist 2.10)."""
+    r = session.run("move.north", held=True, repeat=True)
+    assert r.earcons == ["tick"]
+    done = session.release()
+    assert "tick" not in done.earcons and not done.announcements and done.redraw
 
 
 def test_holding_across_a_border_speaks_the_place_it_ends_in_against_where_it_began(test_pack):

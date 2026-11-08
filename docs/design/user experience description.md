@@ -124,6 +124,8 @@ After each move, the user hears only what has changed (ANN-1). The rule is:
 2. Then any larger areas that changed, from smallest to largest.
 3. If nothing changed, only a soft tick plays (DP43).
 
+Holding an arrow key, each step clicks, and the place is said when you let go. Letting go adds no tick: if nothing changed, you hear nothing more. In the web version, a step not yet due when you let go is not made, and its click is taken back.
+
 This uses every active layer, whatever the zoom and whatever the step size (ANN-7, DP66). If you are in a field, you hear "Field", even when zoomed out to a whole continent and taking 25 km steps.
 
 Anything the move jumped over or passed close to is not spoken. It goes into the crossed and passed list (section 3.2), and an earcon says that something was added.

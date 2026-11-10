@@ -1014,12 +1014,13 @@ class MapSession:
 
     def _bearing_set(self, text: str = "", **_a) -> Response:
         """A typed bearing: face it. In north-fixed or cardinal facing this switches to free
-        facing, and says so (NAV-12). A bearing that can't be read is refused with the words
-        that list what is accepted, and the box stays open."""
+        facing, and says so (NAV-12). A bearing that can't be read is refused with words that
+        name it and list what is accepted, which the shell shows in a message box; the box to
+        type in stays open (P2-T17o)."""
         try:
             bearing = parse.parse_bearing(text)
         except ValueError:
-            return Response(error=say("typing.bearing_error"))
+            return Response(error=self._refused("bearing", text))
         was_free = self.world.orientation == "free"
         self.world.face(bearing)
         # No jump, so the focus stays on the same item; its words change with the facing.
@@ -1029,6 +1030,13 @@ class MapSession:
             return self._orientation_said(r)
         self._panel_cache = None
         return r.speak(say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE)
+
+    @staticmethod
+    def _refused(box: str, text: str) -> str:
+        """The words for a typed answer that can't be read, naming what was typed, such as "hello
+        is not a valid bearing." (P2-T17o, the PO's notes on desktop checklist 3.5 and 5.3)."""
+        entry = " ".join(text.split())
+        return say(f"typing.{box}_error", entry=entry) if entry else say(f"typing.{box}_empty")
 
     def _goto_coordinates(self, **_a) -> Response:
         self._answer_to = self._pressed_in
@@ -1043,7 +1051,7 @@ class MapSession:
         try:
             kind, a, b = parse.parse_goto(text)
         except ValueError:
-            return Response(error=say("typing.goto_error"))
+            return Response(error=self._refused("goto", text))
         w = self.world
         if kind == "by":
             lat, lon = w.lat + a, w.lon + b

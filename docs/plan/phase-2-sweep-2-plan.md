@@ -196,6 +196,17 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 * Sonnet. The bearing box's label is only "Enter a bearing in degrees, or a compass direction:".
 * A wrong entry opens a message box with an OK button, such as: "hello is not a valid bearing. Enter a value in degrees in the range 0 to 360. Or enter a compass direction such as north or SW." Go to does the same, with its own words. After OK, you are back in the box with your text.
 * The words go in the core's templates, so both shells say the same.
+* Done, 10 November 2026, on branch P2-T17o.
+* The bearing box's label is now "Enter a bearing in degrees, or a compass direction:", with no help line. Go to's label is unchanged, "Enter latitude and longitude:".
+* A wrong entry opens a message box with one OK button, titled as the box it came from: "Type a bearing" or "Go to coordinates". The words are not changed in the box any more.
+* Bearing: "hello is not a valid bearing. Enter a value in degrees in the range 0 to 360. Or enter a compass direction such as north or SW."
+* Go to: "hello is not a valid entry. Enter latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. Or enter one of them alone to keep the other. Or enter a direction and degrees to move, such as north 5."
+* If nothing was typed, the first sentence is "No bearing was entered." or "Nothing was entered." instead.
+* After OK, or Enter, the focus is back in the field with your text, all of it chosen, so typing replaces it. Press End to correct it instead.
+* The words are not spoken as well, because NVDA reads the message box as it opens. On the desktop it is a Windows message box, with the warning sound Windows gives it, if any. In the web version it is marked as an alert dialog, which NVDA reads the same way.
+* The user experience description is now version 0.16 (section 2), and "message box" is in the glossary.
+* To check with NVDA, as only you can: desktop and web 3.5 and 5.3. Type hello and press Enter: you hear the message box's title and words, and the OK button. Press Enter: you are back in the box, on hello. In the web version, if NVDA reads the words twice, or not at all, say so.
+* Tests: 1 new core test and the two core tests for the boxes' words changed; 2 new desktop tests and 2 new browser tests, one each for the bearing and Go to. Three older desktop and browser tests were changed from words in the box to the message box. All Python tests pass, and the browser tests for the two boxes pass in Chromium and Firefox.
 
 ### P2-T17p The Earcons tab, made simpler (desktop 10.6, 17; SON-6, SON-7, SON-8)
 

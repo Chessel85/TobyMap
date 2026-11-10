@@ -1,12 +1,19 @@
 # User Experience Description
 
-Version 0.15, 10 November 2026. Section 12 now has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
+Version 0.16, 10 November 2026. Section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.16
+
+Made in P2-T17o, from the PO's notes on desktop checklist 3.5 and 5.3.
+
+* Section 2: the bearing box's label is only "Enter a bearing in degrees, or a compass direction:", with no help line.
+* Section 2: a wrong entry in Type a bearing or Go to opens a message box with an OK button, which names the entry and says what is accepted. After OK, you are back in the box with your text. Before, the words appeared in the box itself.
 
 ## Changes in version 0.15
 
@@ -132,6 +139,8 @@ The window has four regions. Tab and Shift+Tab move between the first three, wra
 4. Menu bar. Contains every command, so nothing depends on remembering keys.
 
 When a dialog closes, the focus comes back to the map, and the screen reader says the map's name as it arrives. That name is what the dialog's answer said, such as "Ile-de-France, France" after Go to, or "Facing 90 degrees." after a bearing. If the answer said nothing, as after Cancel or the layers list, the name is the place as it is now, after the dialog's changes. Either way it is said once, and it still goes into the announcement history (P2-T17c). Leaving the map names it after the place again.
+
+In the boxes where you type, Type a bearing (Ctrl+B) and Go to coordinates (Ctrl+G), the label is the only text: "Enter a bearing in degrees, or a compass direction:" and "Enter latitude and longitude:". If what you typed can't be read, a message box opens over the box, with one OK button. It names what you typed and says what you can type, such as "hello is not a valid bearing. Enter a value in degrees in the range 0 to 360. Or enter a compass direction such as north or SW." After OK, you are back in the box with your text, all of it chosen, so typing replaces it and End lets you correct it (P2-T17o).
 
 At the start, the same is true. The screen reader says the window's title, TobyMap, as the window appears, then the map's name as the focus arrives on it. That name is the place, then "Press F1 for keys", such as "Kent, England, United Kingdom. Press F1 for keys." It is not spoken as well, as speaking it was cut off by that reading. It goes into the announcement history as "TobyMap. Kent, England, United Kingdom. Press F1 for keys." (P2-T17d). Leaving the map names it after the place.
 

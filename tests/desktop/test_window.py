@@ -697,8 +697,9 @@ def test_the_bearing_box_takes_a_bearing_and_refuses_what_it_cannot_read(window,
     assert box.windowTitle() == "Type a bearing" and box.ok_button.text() == "OK" and box.cancel_button.text() == "Cancel"
     box.field.setText("sideways")
     box.ok_button.click()
-    assert box.isVisible() and box.message.text().startswith("That is not a bearing")
-    assert window.announcer.texts[-1].startswith("That is not a bearing")
+    assert box.isVisible() and box.error_box.text().startswith("sideways is not a valid bearing.")
+    box.error_box.buttons()[0].click()
+    QApplication.processEvents()
     box.field.setText("NE")
     box.ok_button.click()
     QApplication.processEvents()
@@ -882,7 +883,7 @@ def test_enter_on_cancel_cancels_the_bearing_and_go_to_boxes(window, qtbot, key)
     box.field.setText("hello")
     enter(qtbot, box.cancel_button)
     assert not box.isVisible() and box.result() == 0 and box.response is None
-    assert box.message.text() == ""        # OK was not pressed: nothing was read
+    assert box.error_box is None           # OK was not pressed: nothing was read
     assert window.session.world.lat == 51.2
 
 
@@ -891,10 +892,37 @@ def test_enter_on_ok_and_in_the_field_still_presses_ok(window, qtbot):
     box = click_dialog(window, InputDialog)
     box.field.setText("hello")
     enter(qtbot, box.ok_button)
-    assert box.isVisible() and box.message.text().startswith("That is not a bearing")
+    assert box.isVisible() and box.error_box.text().startswith("hello is not a valid bearing.")
+    enter(qtbot, box.error_box.buttons()[0])
     box.field.setText("NE")
     enter(qtbot, box.field)
     assert not box.isVisible() and window.session.world.heading == 45.0
+
+
+@pytest.mark.parametrize("key, title, words", [
+    (Qt.Key.Key_B, "Type a bearing", "hello is not a valid bearing. Enter a value in degrees in the range 0 to 360."),
+    (Qt.Key.Key_G, "Go to coordinates", "hello is not a valid entry. Enter latitude and then longitude"),
+], ids=["bearing", "go to"])
+def test_a_wrong_entry_opens_a_message_box_and_ok_comes_back_to_the_text(window, qtbot, key, title, words):
+    # P2-T17o, the PO's notes on desktop checklist 3.5 and 5.3: a message box with an OK button, not
+    # words changed in the box; after OK you are back in the box with your text.
+    press(qtbot, window.map, key, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    if key == Qt.Key.Key_B:
+        assert box.field.accessibleName() == "Enter a bearing in degrees, or a compass direction:"
+        assert box.field.accessibleDescription() == "" and box.help.parent() is None   # no help line
+    before = len(window.announcer.texts)
+    box.field.setText("hello")
+    enter(qtbot, box.field)
+    message = box.error_box
+    assert message is not None and message.isVisible() and message.isModal()
+    assert message.windowTitle() == title and message.text().startswith(words)
+    assert [b.text() for b in message.buttons()] == ["OK"]
+    assert window.announcer.texts[before:] == []   # the screen reader reads the message box itself
+    enter(qtbot, message.buttons()[0])
+    assert not message.isVisible() and box.error_box is None and box.isVisible()
+    assert box.field.text() == "hello" and box.field.selectedText() == "hello"
+    assert box.focusWidget() is box.field   # offscreen, no window is given the keyboard back
 
 
 def test_enter_on_cancel_in_the_layers_list_changes_nothing(window, qtbot):

@@ -15,7 +15,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -278,7 +278,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -344,7 +344,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [settingsDialog, inputDialog, layersDialog, dialog].find((d) => d.open);
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -647,16 +647,45 @@ function openInput(d) {
   help.textContent = d.help;
   // Go to has no help: its label is enough (the PO, 8 November 2026).
   if (d.help) field.setAttribute("aria-describedby", "input-help");
-  const message = document.createElement("p");
-  message.id = "input-message";
-  const go = () => submit(d.submit, { text: field.value }, message, box).then(() => { if (box.open) field.select(); });
+  // What can't be read opens a message box with the core's words and an OK button; after OK you are
+  // back in the field with your text chosen, so typing replaces it (P2-T17o, as on the desktop). The
+  // screen reader reads the message box as the focus enters it, so the words are not spoken as well.
+  let sending = false;
+  const go = () => {
+    if (sending || messageBox.open) return;   // Enter can arrive twice: one answer at a time
+    sending = true;
+    const { width, height } = mapSize();
+    client.send({ type: "run", commands: [[d.submit, { text: field.value }]], width, height }).then((r) => {
+      sending = false;
+      if (r.response.error) return showMessage(d.title, r.response.error, d.ok, () => { field.focus(); field.select(); });
+      closeWithAnswer(box, [r]);
+    }).catch((error) => { sending = false; showError(error); });
+  };
   const ok = button(d.ok, go, "input-ok");
   const cancel = button(d.cancel, () => box.close(), "input-cancel");
-  box.append(title, label, field, ...(d.help ? [help] : []), message, ok, cancel);
+  box.append(title, label, field, ...(d.help ? [help] : []), ok, cancel);
   field.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
   box.showModal();
   field.focus();
 }
+
+// A message box over another box: a title, the words, and one OK button, which has the focus. OK,
+// Enter on it, Space or Escape closes it, and then `after` puts the focus back (P2-T17o).
+let messageAfter = null;
+function showMessage(title, text, okWord, after) {
+  $("messagebox-title").textContent = title;
+  $("messagebox-text").textContent = text;
+  messageBox.querySelectorAll("button").forEach((b) => b.remove());
+  messageBox.append(button(okWord, () => messageBox.close(), "messagebox-ok"));
+  messageAfter = after;
+  messageBox.showModal();
+  $("messagebox-ok").focus();
+}
+messageBox.addEventListener("close", () => {
+  const after = messageAfter;
+  messageAfter = null;
+  if (after) after();
+});
 
 dialogClose.addEventListener("click", () => dialog.close());
 function returnTarget() {

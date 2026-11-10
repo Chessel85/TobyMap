@@ -176,13 +176,18 @@ diagnostics:
 # The two boxes where you type: a bearing (NAV-12) and coordinates (NAV-8).
 typing:
   bearing_title: "Type a bearing"
-  bearing_label: "Bearing"
-  bearing_help: "Type degrees from 0 to 360, such as 47, or a compass point, such as NE or south-west."
-  bearing_error: "That is not a bearing. Type degrees from 0 to 360, such as 47, or a compass point, such as NE or south-west."
+  # The label alone, with no help line (the PO's note on desktop checklist 3.5).
+  bearing_label: "Enter a bearing in degrees, or a compass direction:"
+  bearing_help: ""
+  # A wrong entry opens a message box with these words and an OK button; after OK you are back in
+  # the box with your text (P2-T17o, desktop checklist 3.5 and 5.3). {entry} is what was typed.
+  bearing_error: "{entry} is not a valid bearing. Enter a value in degrees in the range 0 to 360. Or enter a compass direction such as north or SW."
+  bearing_empty: "No bearing was entered. Enter a value in degrees in the range 0 to 360. Or enter a compass direction such as north or SW."
   goto_title: "Go to coordinates"
   goto_label: "Enter latitude and longitude:"
   goto_help: ""
-  goto_error: "Those are not coordinates. Type latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W, or a direction and degrees to move, such as north 5. Latitude is up to 90 degrees and longitude up to 180."
+  goto_error: "{entry} is not a valid entry. Enter latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. Or enter one of them alone to keep the other. Or enter a direction and degrees to move, such as north 5."
+  goto_empty: "Nothing was entered. Enter latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. Or enter one of them alone to keep the other. Or enter a direction and degrees to move, such as north 5."
 
 dialogs:
   keys_title: Keys

@@ -111,10 +111,21 @@ def test_the_bearing_box_asks_and_refuses_with_the_accepted_words(session):
     r = session.press("Ctrl+B")
     d = r.dialog
     assert d["kind"] == "input" and d["title"] == "Type a bearing" and d["submit"] == "bearing.set"
-    assert d["ok"] == "OK" and d["cancel"] == "Cancel" and "compass point" in d["help"]
-    bad = session.run("bearing.set", text="up")
-    assert bad.error.startswith("That is not a bearing") and not bad.announcements
-    assert session.world.orientation == "north-fixed"
+    assert d["ok"] == "OK" and d["cancel"] == "Cancel"
+    # The label alone, with no help line (P2-T17o, the PO's note on desktop checklist 3.5).
+    assert d["label"] == "Enter a bearing in degrees, or a compass direction:" and d["help"] == ""
+    bad = session.run("bearing.set", text="hello")
+    assert bad.error == ("hello is not a valid bearing. Enter a value in degrees in the range 0 to 360. "
+                         "Or enter a compass direction such as north or SW.")
+    assert not bad.announcements and session.world.orientation == "north-fixed"
+
+
+def test_a_refused_entry_is_named_once_trimmed_and_nothing_typed_says_so(session):
+    assert session.run("bearing.set", text="  up   high ").error.startswith("up high is not a valid bearing.")
+    assert session.run("bearing.set", text="400").error.startswith("400 is not a valid bearing.")
+    assert session.run("bearing.set", text="  ").error.startswith("No bearing was entered. Enter a value in degrees")
+    assert session.run("goto.set", text="").error.startswith("Nothing was entered. Enter latitude and then longitude")
+    assert session.run("goto.set", text="{x}").error.startswith("{x} is not a valid entry.")   # braces are only text
 
 
 def test_a_typed_bearing_switches_to_free_facing_and_says_so(session):
@@ -169,7 +180,11 @@ def test_the_go_to_box_asks_and_refuses_what_it_cannot_read(session):
     assert d["kind"] == "input" and d["submit"] == "goto.set"
     assert d["label"] == "Enter latitude and longitude:" and d["help"] == ""   # the PO: no long help
     bad = session.run("goto.set", text="91, 0")
-    assert bad.error.startswith("Those are not coordinates") and near(session, 51.2, 1.2)
+    assert bad.error == ("91, 0 is not a valid entry. Enter latitude and then longitude, such as 51.5, -0.12 "
+                         "or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. "
+                         "Or enter one of them alone to keep the other. "
+                         "Or enter a direction and degrees to move, such as north 5.")
+    assert not bad.announcements and near(session, 51.2, 1.2)
 
 
 def test_go_to_with_one_number_keeps_the_other_and_a_direction_moves_by_it(session):

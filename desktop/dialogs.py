@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
-                               QDoubleSpinBox, QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
+                               QDoubleSpinBox, QLineEdit, QListWidget, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
@@ -148,12 +148,16 @@ class HistoryDialog(ListDialog):
 
 class InputDialog(QDialog):
     """A box to type in, with OK and Cancel (ACC-7): a bearing or coordinates. The core reads what
-    was typed; if it can't, the words it gives are shown and spoken and the box stays open."""
+    was typed; if it can't, its words open in a message box with an OK button, and after OK you are
+    back in the box with your text (P2-T17o, the PO's notes on desktop checklist 3.5 and 5.3). The
+    screen reader reads the message box as it opens, so the words are not spoken as well."""
 
-    def __init__(self, parent, dialog: dict, submit, speak=None):
+    def __init__(self, parent, dialog: dict, submit):
         super().__init__(parent)
-        self._submit, self._speak = submit, speak
+        self._submit = submit
+        self._ok_word = dialog["ok"]
         self.response = None
+        self.error_box: QMessageBox | None = None
         self.setWindowTitle(dialog["title"])
         layout = QVBoxLayout(self)
         label = QLabel(dialog["label"])
@@ -164,31 +168,43 @@ class InputDialog(QDialog):
         layout.addWidget(self.field)
         self.help = QLabel(dialog["help"])
         self.help.setWordWrap(True)
-        if dialog["help"]:   # Go to has none: its label is enough (the PO, 8 November 2026)
+        if dialog["help"]:   # neither box has one now: their labels are enough (the PO, P2-T17o)
             self.field.setAccessibleDescription(dialog["help"])
             layout.addWidget(self.help)
-        self.message = QLabel("")
-        self.message.setWordWrap(True)
-        layout.addWidget(self.message)
         self.ok_button, self.cancel_button = button_row(layout, [dialog["ok"], dialog["cancel"]])
         self.ok_button.clicked.connect(self.apply)
         self.cancel_button.clicked.connect(self.reject)
         self.field.returnPressed.connect(self.apply)
-        self.resize(520, 200)
+        self.resize(520, 140)
         self.field.setFocus()
 
     def apply(self):
+        if self.error_box is not None:   # Enter can reach the box twice: one message box at a time
+            return
         response = self._submit(self.field.text())
         if response.error:
-            self.message.setText(response.error)
-            self.message.setAccessibleDescription(response.error)
-            if self._speak is not None:
-                self._speak(response.error)
-            self.field.setFocus()
-            self.field.selectAll()
+            self._show_error(response.error)
         else:
             self.response = response
             self.accept()
+
+    def _show_error(self, text: str) -> None:
+        """The core's words in a message box, titled as this box, with one OK button. It is opened,
+        not run, so nothing waits on it; OK, Enter or Space close it, and the focus comes back to
+        the field with the text chosen, so typing replaces it."""
+        box = QMessageBox(QMessageBox.Icon.Warning, self.windowTitle(), text, QMessageBox.StandardButton.NoButton, self)
+        ok = box.addButton(self._ok_word, QMessageBox.ButtonRole.AcceptRole)
+        box.setDefaultButton(ok)
+        box.setEscapeButton(ok)
+        box.finished.connect(self._error_closed)
+        self.error_box = box
+        box.open()
+
+    def _error_closed(self, _result) -> None:
+        self.error_box.deleteLater()
+        self.error_box = None
+        self.field.setFocus()
+        self.field.selectAll()
 
 
 class SoundsDialog(ListDialog):

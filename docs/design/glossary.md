@@ -132,6 +132,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Distance curve: how loud and how muffled a sound is for its distance within the hearing range.
 * Orientation: which way you face, and so what "ahead" means for directions and sound. There are three: north-fixed, cardinal facing and free facing (NAV-12). F cycles them.
 * Facing orientations: cardinal facing and free facing together, the two in which you can turn.
+* Message box: a small box that opens over another to tell you something, with one OK button, such as when what you typed in Type a bearing or Go to can't be read. After OK, you are back where you were.
 * Jump: going straight to a place without stepping, such as to typed coordinates, a click on the map, an announcement history entry, or Enter on an Information panel item (NAV-8, INF-10).
 * Position history: the places you were at before each step, jump, Go to and click (a held arrow key is one step, from where the hold started), which Alt+Comma and Alt+Full stop go back and forward through (NAV-10, DP142). Going back or forward adds no place.
 * Sound scene: the core's list of the sounds to play, each with its direction relative to ahead, its loudness and its pitch. The desktop and the web version each play it with their own sound player (AD-10).

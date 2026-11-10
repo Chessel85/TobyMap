@@ -1,6 +1,23 @@
 # Implementation Plan
 
-Version 0.5, 5 November 2026.
+Version 0.6, 10 November 2026.
+
+## Changes in version 0.6
+
+These changes come from your acceptance of Phase 2 on 10 November, your answers to DP165 to DP174, and the detailed Phase 3 plan (docs/plan/phase-3-plan.md, version 0.2).
+
+* Phase 3 starts with a set of start tasks: P3-T0a (versions), P3-T0b (the questions left from Phase 2), P3-T0c (the key list), P3-T0d (samples for the test pack), P3-T0e (this plan) and P3-T0f (four more step sizes, 2.5, 10, 50 and 500 km, DP166).
+* Work carried from Phase 2 into Phase 3: P2-T17n (the spatial voice stops at a key press), P2-T17q (always say the place, DP162), P2-T17u (the listening test, DP164) and P2-T17v (the map for sighted users).
+* P3-T17, new, from DP165: tiers, and constituent countries. England, Scotland, Wales and Northern Ireland are a tier between country and county. The Regions layer is renamed "Regions and constituent countries", and the map display setting gets "Draw the borders of regions".
+* P3-T18, new, from DP165: controls for sighted users. A status line, and move and zoom buttons, in neither the Tab order nor a live region.
+* P3-T1: counties go into the Western Europe trial, and the size report (P3-T1a) decides with you whether they go into the world build (DP167). Named seas (DP168), the thresholds for unnamed islands and lakes (DP169), and the seven continents with Cyprus in Europe (DP174) are as decided. P3-T1 gains a size trial, a faster writing stage and the world build as work items.
+* P3-T4 and P3-T6: no menu of actions on an item. Enter goes there and Space hears its direction. Ctrl+Enter is kept for bookmarking in Phase 4, so the bookmark action waits (DP170).
+* P3-T12: the packs hold English and the local name only (DP172).
+* P3-T13: the pack manager's test release is a GitHub pre-release (DP171).
+* National parks move to Phase 4, for the real packs. In Phase 3 the New Forest National Park is only a test sample, for INF-5 and the ambiguous up of NAV-4.
+* Every task is split into work items, each labelled Opus or Sonnet in phase-3-plan.md.
+* Work is on the main branch with no task branches (PO, 10 November 2026). Section 1.2 already says so.
+
 
 ## Changes in version 0.5
 
@@ -42,7 +59,7 @@ These changes come from your acceptance of Phase 0 on 3 November. Each is record
 * Web tests and your web checks use Firefox as well as Chrome.
 * Antimeridian tests are added to Phase 1, country units and islands to Phases 3 and 4, and neighbour colours to Phase 2.
 
-This plan is written to be followed by Claude Code, phase by phase, with the product owner (PO) testing at the end of each phase. It builds on "architecture.md" (decisions AD-1 to AD-20), "requirements catalogue.md" version 0.7 and "user experience description.md" version 0.6. The list of things the project produces is in "artefacts.md".
+This plan is written to be followed by Claude Code, phase by phase, with the product owner (PO) testing at the end of each phase. It builds on "architecture.md" (decisions AD-1 to AD-20), "requirements catalogue.md" version 0.7 and "user experience description.md" version 0.6 (Phase 3 uses the later versions named in phase-3-plan.md). The list of things the project produces is in "artefacts.md".
 
 ## How to read this plan
 
@@ -107,7 +124,7 @@ There are no deadlines (DP37). A phase ends when its gate is passed, not on a da
 * Phase 0: Foundations and spikes. Set up the repository and the installer, and answer the six technical questions, above all how to build countries, coastlines and islands.
 * Phase 1: Walking skeleton. Step around a simple world in both desktop and web, hear where you are, see the globe, and run the listening test.
 * Phase 2: Orientation, layers and sound. The three orientations, turning, layers, earcons, spatial sound, the beacon, and the crossed and passed list.
-* Phase 3: Information, hierarchy and search, with the complete worldwide base pack.
+* Phase 3: Information, hierarchy and search, with the complete worldwide base pack, tiers and controls for sighted users.
 * Phase 4: Street detail. The Great Britain pack, combining packs, the full pack manager, and pins, bookmarks and collections.
 * Phase 5: Network mode and driving.
 * Phase 6: Touch, grids and finishing touches.
@@ -257,10 +274,13 @@ The whole world can be explored and questioned at country scale, using the compl
 LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, ANN-6, ACC-9, DAT-1, DAT-4, DAT-5, DAT-7, DAT-8, DAT-12, PCK-1 (base pack), PCK-2 (first version), PCK-4, DMT-3, DMT-5.
 
 ### Tasks
-* P3-T1 Complete base pack: the country units list (French Guiana and the others, DP86), named islands, continents built from countries and split along configured lines (including distant parts, DP88), GMBA mountain ranges, Natural Earth physical regions, major rivers, lakes over 10 square kilometres, major roads and railways, populated places, peaks, bays and straits, and the water hierarchy (DAT-1, DAT-4, DAT-5, DAT-12). Size checked against the 250 MB soft limit.
+* P3-T0 Start of the phase: P3-T0a versions, P3-T0b the questions left from Phase 2, P3-T0c the key list, P3-T0d samples for the test pack, P3-T0e this plan at version 0.6, P3-T0f four more step sizes (DP166).
+* Carried from Phase 2: P2-T17n, P2-T17q, P2-T17u and P2-T17v.
+* P3-T1 Complete base pack: the country units list (French Guiana and the others, DP86), named islands, continents built from countries and split along configured lines (including distant parts, DP88), GMBA mountain ranges, Natural Earth physical regions, major rivers, lakes over 10 square kilometres, major roads and railways, populated places, peaks, bays and straits, and the water hierarchy (DAT-1, DAT-4, DAT-5, DAT-12). Size checked against the 250 MB soft limit, first by a size trial on Western Europe with counties (P3-T1a, DP167), which decides with the PO what goes into the world build. National parks are not in the base pack: they come with the real packs in Phase 4.
+* P3-T17 Tiers, and constituent countries: each area gets a tier, England, Scotland, Wales and Northern Ireland become constituent countries, and the Regions layer is renamed "Regions and constituent countries" (NAV-4, LOC-2, LOC-3, VIS-1, DP165).
 * P3-T2 Wikidata facts with source and date, and Wikipedia links (DAT-7). Disputed areas from Natural Earth (ANN-6, DAT-8).
 * P3-T3 Relations in the pipeline: containment, parents of parents, identical boundaries, neighbours with shared lengths, overlaps, and crossings in order.
-* P3-T4 Information panel: the groups registered in one table, filled when opened, sortable with Ctrl+S, typing to jump, and the item actions (INF-10). Within, Contains, Bordering, Overlapping, Crossing, Nearby, Crossed and passed, and Search.
+* P3-T4 Information panel: the groups registered in one table, filled when opened, sortable with Ctrl+S, typing to jump, and the keys on an item: Enter goes there and Space hears its direction (INF-10, DP170). Within, Contains, Bordering, Overlapping, Crossing, Nearby, Crossed and passed, and Search.
 * P3-T5 Details panel and the D key, with the Wikipedia command (INF-1).
 * P3-T6 Hierarchy mode: up with the ambiguous menu and beep, down by type with counts, neighbours clockwise, zoom to fit, and Backspace restoring the zoom (NAV-4, DP77).
 * P3-T7 Measuring: distance and bearing to any item, to the nearest point or the centre, and to a feature found by search (INF-3, INF-8).
@@ -268,9 +288,10 @@ LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, AN
 * P3-T9 World tree (T) and browse by category (SRB-3, SRB-4).
 * P3-T10 Query builder (Q) (INF-9).
 * P3-T11 Look around and "hear its direction" (SON-4).
-* P3-T12 Name languages: preferred language, fall-back to the local name, and language marking (ACC-9).
-* P3-T13 Pack manager first version: the catalogue, install, remove, checksum checks, and the first-run offer of the base pack. Packs downloaded from GitHub Releases, or the fall-back chosen in DP83 for the web.
+* P3-T12 Name languages (English and the local name only, DP172): preferred language, fall-back to the local name, and language marking (ACC-9).
+* P3-T13 Pack manager first version, tested through a GitHub pre-release (DP171): the catalogue, install, remove, checksum checks, and the first-run offer of the base pack. Packs downloaded from GitHub Releases, or the fall-back chosen in DP83 for the web.
 * P3-T14 Pipeline quality reports and the publish command (DMT-3, DMT-5).
+* P3-T18 Controls for sighted users: a status line and move and zoom buttons, off by a setting, not in the Tab order (VIS-1, SCP-2, ACC-2, DP165).
 * P3-T15 Help: the user guide, the key reference, the glossary and the data sources page (DAT-9).
 * P3-T16 Lists of disputed and unclaimed areas: the user can list or search for all disputed areas, and all unclaimed areas (DP119, DP120). Disputed areas include land OSM holds twice (such as Sevastopol), land in two countries (the 15 places in DP119, once Phase 3 can give both parties equal credit), and the West Bank and the Ilemi Triangle, which the base pack lite already marks disputed. Unclaimed areas include Bir Tawil, the small islands in no country, and any other land in no country. Done with search (P3-T8) and browse by category (P3-T9).
 
@@ -293,7 +314,7 @@ Street-level exploration of Great Britain, with packs combining seamlessly, a co
 DAT-2, DAT-3 (detailed coastlines), PLT-4, PCK-1 (regional packs), PCK-2 (complete), DMT-4, DMT-7 (complete), NFR-3, NFR-4, USR-1 to USR-5.
 
 ### Tasks
-* P4-T1 Full OpenStreetMap pipeline for a region, built on the spike S2 method: all administrative levels cut to the land polygons, slivers given to neighbours, named islands (and unnamed islands if DP87 says so), shared-edge simplification across levels, roads and paths, land use, parks and public spaces, school grounds, points of interest with friendly categories, river assembly, and matching to base identifiers.
+* P4-T1 Full OpenStreetMap pipeline for a region, built on the spike S2 method: all administrative levels cut to the land polygons, slivers given to neighbours, named islands (and unnamed islands if DP87 says so), shared-edge simplification across levels, roads and paths, land use, national parks (moved from Phase 3), parks and public spaces, school grounds, points of interest with friendly categories, river assembly, and matching to base identifiers.
 * P4-T2 Great Britain pack built from drive E:, aiming for 1 GB or less, split if it is larger.
 * P4-T3 Combining packs: tile coverage and the most detailed pack wins, merging records and relations by identifier, and the no-missing-detail rule (PLT-4).
 * P4-T4 Correction rules in the pipeline, listed in the quality report (DMT-4).

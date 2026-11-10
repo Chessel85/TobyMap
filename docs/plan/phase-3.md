@@ -19,7 +19,7 @@ Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP
   * In the test pack now: Hampshire and Wiltshire whole, with England and the counties round them; Switzerland, Liechtenstein and the four larger neighbours; and the Rhine from Basel to Schaffhausen.
   * Waiting for the layers of the work items that use them: the New Forest National Park (95% in Hampshire, 5% in Wiltshire), the Bay of Biscay (an area in OpenStreetMap), and places with shared names: two Parises, two Portlands, two Newports, and São Paulo the city and the state.
   * tests/mapcore/test_samples_phase3.py checks where you are in each new sample, that France stays one area from the Channel to the Alps, and that a step north at Rheinfelden crosses the Rhine from Switzerland into Germany.
-* [ ] P3-T0e The implementation plan, version 0.6.
+* [x] P3-T0e The implementation plan, version 0.6. Done on 10 November 2026: the changes are listed at the top of "implementation plan.md", and section 6 now has the start tasks, the carried work, P3-T17 and P3-T18, and national parks moved to Phase 4.
 * [ ] P3-T0f Four more step sizes, 2.5, 10, 50 and 500 km (DP166).
 
 ## Carried from Phase 2

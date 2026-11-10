@@ -218,13 +218,66 @@ def test_nearby_leaves_out_a_layer_whose_zoom_range_is_passed(session):
     assert any(label.startswith("France") for label in _nearby(session))
 
 
-def test_the_map_draws_only_layers_in_their_zoom_range_but_where_am_i_is_not_limited(session):
+def test_the_map_draws_only_layers_in_their_zoom_range(session):
     ids = regions(session)
     session.world.zoom_index = session.world.zoom_list.index(250000)
     assert ids & set(session.scene(800, 600)["shape_area"])
     session.run("layers.set", layer="regions", field="max_zoom_m", value=100000)
     assert not ids & set(session.scene(800, 600)["shape_area"])
-    assert spoken(session.press("Space")) == ["Kent, England, United Kingdom"]   # ANN-7
+
+
+# What is said follows the zoom range, as what is drawn does (P2-T17i, DP160; ANN-7, NAV-13)
+
+def _zoom(session, zoom_m):
+    session.world.zoom_index = session.world.zoom_list.index(zoom_m)
+
+
+def test_where_am_i_leaves_out_a_layer_outside_its_zoom_range(session):
+    # Counties go to 100 kilometres in the layer file; Regions are given 50 here.
+    session.run("layers.set", layer="regions", field="max_zoom_m", value=50000)
+    _zoom(session, 100000)
+    assert spoken(session.press("Space")) == ["Kent, United Kingdom"]
+    within = [i["label"] for g in session.panel() if g["id"] == "within" for i in g["items"]]
+    assert within == ["Kent", "United Kingdom"]
+    _zoom(session, 50000)
+    assert spoken(session.press("Space")) == ["Kent, England, United Kingdom"]
+    _zoom(session, 250000)
+    assert spoken(session.press("Space")) == ["United Kingdom"]   # Counties too are out of their range
+
+
+def test_with_every_layer_here_outside_its_zoom_range_there_is_no_data_at_this_zoom(session):
+    for layer in session.layers.layers():
+        session.run("layers.set", layer=layer.id, field="max_zoom_m", value=100000)
+    _zoom(session, 250000)
+    assert spoken(session.press("Space")) == ["No data at this zoom level"]
+    assert session.map_label().startswith("No data at this zoom level")
+
+
+def test_a_layer_that_is_off_is_still_said_to_be_off_not_out_of_zoom(test_pack):
+    s = MapSession(packs=[test_pack], saved_state=dict(KENT, lat=ATLANTIC[0], lon=ATLANTIC[1], zoom_m=250000))
+    s.start()
+    s.run("layers.set", layer="oceans", field="on", value=False)
+    assert spoken(s.press("Space")) == ["Every layer here is switched off"]
+    s.store.close()
+
+
+def test_zooming_out_of_a_layers_range_changes_the_place_the_map_is_named_after(session):
+    session.run("layers.set", layer="regions", field="max_zoom_m", value=50000)
+    _zoom(session, 50000)
+    session.press("Space")
+    assert "England" in session.map_label()
+    session.run("zoom.out")
+    assert session.world.zoom_m > 50000 and "England" not in session.map_label()
+    session.run("zoom.in")
+    assert "England" in session.map_label()
+
+
+def test_a_step_leaves_out_a_layer_outside_its_zoom_range(session):
+    session.run("layers.set", layer="regions", field="max_zoom_m", value=50000)
+    _zoom(session, 100000)
+    session.press("Space")
+    session.world.lat, session.world.lon = CALAIS
+    assert spoken(session._arrived(session._moved())) == ["Pas-de-Calais, France"]
 
 
 def test_the_map_leaves_out_an_area_too_small_to_see_at_this_zoom(session):
@@ -252,6 +305,8 @@ def test_the_layers_command_has_its_key_and_gives_the_dialog_its_words_and_choic
     assert d["title"] == "Layers" and [g["name"] for g in d["groups"]] == ["Boundaries", "Water", "Transport"]
     assert d["every_zoom"] == "No limit" and {"value": 1000.0, "label": "1 kilometre"} in d["zooms"]
     assert "line_crossing" in {e["event"] for e in d["earcons"]}
+    assert d["words"]["min_zoom"] == "Minimum zoom" and d["words"]["max_zoom"] == "Maximum zoom"
+    assert d["words"]["crossing"] == "Sound when a line or border of this layer is crossed"
     assert d["words"]["settings_button"] and d["words"]["ok"] == "OK" and d["words"]["cancel"] == "Cancel"
     assert "Countries, on" in d["text"].split("\n")
 
@@ -268,7 +323,7 @@ def test_a_range_check_says_what_is_wrong(session):
     assert not session.run("layers.check", low=0, high=None).error
     assert not session.run("layers.check", low=1000, high=5000).error
     assert session.run("layers.check", low=5000, high=1000).error == \
-        "The closest zoom must not be farther than the farthest zoom."
+        "The minimum zoom must not be larger than the maximum zoom."
 
 
 def test_several_changes_to_a_layer_are_judged_together(session):

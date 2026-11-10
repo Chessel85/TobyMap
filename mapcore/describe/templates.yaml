@@ -299,6 +299,8 @@ place:
   list_separator: ", "
   none: "No area here"
   layers_off: "Every layer here is switched off"
+  # Every layer here is on, but none is in its zoom range (DP160).
+  out_of_zoom: "No data at this zoom level"
   sea: "Sea"
 
 # The words after a move that crosses a pole (NAV-1 says the block is silent,
@@ -342,12 +344,14 @@ layers:
   list: "Layers"
   settings_button: "Settings for this layer"
   settings_title: "Settings for {layer}"
-  closest: "Closest zoom"
-  farthest: "Farthest zoom"
+  # Zoom is a distance, so the minimum zoom is the closest (glossary; P2-T17i).
+  min_zoom: "Minimum zoom"
+  max_zoom: "Maximum zoom"
   every_zoom: "No limit"
-  crossing: "Sound when a line of this layer is crossed"
+  # For an area layer, such as Countries, its border (P2-T17i).
+  crossing: "Sound when a line or border of this layer is crossed"
   no_sound: "No sound"
-  range_error: "The closest zoom must not be farther than the farthest zoom."
+  range_error: "The minimum zoom must not be larger than the maximum zoom."
   choose_layer: "Choose a layer first. The settings are for one layer."
   item_off: "{layer}, off"
   item_on: "{layer}, on"

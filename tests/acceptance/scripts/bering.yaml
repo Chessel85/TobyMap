@@ -1,7 +1,7 @@
 title: Across the 180 degree line in the Bering Strait, in Chukotka
 requirements: [NAV-1, ANN-1, LOC-2]
 pack: test
-start: {lat: 66.0, lon: -170.0, zoom_m: 250000, step_m: 250000}
+start: {lat: 66.0, lon: -170.0, zoom_m: 100000, step_m: 250000}   # counties are said to 100 km (DP160)
 steps:
   - {press: Left, say: ["Providensky urban district, Chukotka Autonomous Okrug, Russia"]}
   - {press: Left, say: ["Anadyrsky District"], lon: 178.9879}

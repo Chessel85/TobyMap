@@ -269,9 +269,9 @@ class KeyCaptureDialog(QDialog):
 
 
 class LayerSettingsDialog(QDialog):
-    """The settings of one layer: the closest and farthest zoom it is visible at, and the sound when
-    a line of it is crossed (SCP-7). OK checks the range with the core and stays open, saying why, if
-    the closest zoom is farther than the farthest. Every word and choice comes from the core."""
+    """The settings of one layer: the minimum and maximum zoom it is visible at, and the sound when
+    a line or border of it is crossed (SCP-7). OK checks the range with the core and stays open, saying
+    why, if the minimum zoom is larger than the maximum. Every word and choice comes from the core."""
 
     def __init__(self, parent, layer: dict, dialog: dict, check, speak=None):
         super().__init__(parent)
@@ -280,15 +280,15 @@ class LayerSettingsDialog(QDialog):
         self.setWindowTitle(words["settings_title"].format(layer=layer["name"]))
         layout = QVBoxLayout(self)
         form = QFormLayout()
-        self.closest = self._zoom_box(dialog, words["closest"], layer["min_zoom_m"] or 0.0, 0.0)
-        self.farthest = self._zoom_box(dialog, words["farthest"], layer["max_zoom_m"], None)
+        self.min_zoom = self._zoom_box(dialog, words["min_zoom"], layer["min_zoom_m"] or 0.0, 0.0)
+        self.max_zoom = self._zoom_box(dialog, words["max_zoom"], layer["max_zoom_m"], None)
         self.crossing = QComboBox()
         self.crossing.setAccessibleName(words["crossing"])
         self.crossing.addItem(words["no_sound"], None)
         for e in dialog["earcons"]:
             self.crossing.addItem(e["label"], e["event"])
         self.crossing.setCurrentIndex(max(0, self.crossing.findData(layer["crossing_earcon"])))
-        for label, box in ((words["closest"], self.closest), (words["farthest"], self.farthest),
+        for label, box in ((words["min_zoom"], self.min_zoom), (words["max_zoom"], self.max_zoom),
                            (words["crossing"], self.crossing)):
             form.addRow(label, box)
         layout.addLayout(form)
@@ -298,7 +298,7 @@ class LayerSettingsDialog(QDialog):
         self.ok_button, self.cancel_button = button_row(layout, [words["ok"], words["cancel"]])
         self.ok_button.clicked.connect(self._ok)
         self.cancel_button.clicked.connect(self.reject)
-        self.closest.setFocus()
+        self.min_zoom.setFocus()
 
     @staticmethod
     def _zoom_box(dialog: dict, name: str, current, none_value) -> QComboBox:
@@ -313,7 +313,7 @@ class LayerSettingsDialog(QDialog):
         return box
 
     def values(self) -> dict:
-        return {"min_zoom_m": self.closest.currentData() or 0.0, "max_zoom_m": self.farthest.currentData(),
+        return {"min_zoom_m": self.min_zoom.currentData() or 0.0, "max_zoom_m": self.max_zoom.currentData(),
                 "crossing_earcon": self.crossing.currentData()}
 
     def _ok(self):
@@ -324,7 +324,7 @@ class LayerSettingsDialog(QDialog):
             self.message.setAccessibleDescription(response.error)
             if self._speak is not None:
                 self._speak(response.error)
-            self.closest.setFocus()
+            self.min_zoom.setFocus()
             return
         self.accept()
 

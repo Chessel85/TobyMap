@@ -126,6 +126,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Drawing: making one picture of the map. It has three parts: choosing the shapes in view and cutting them to it, projecting them onto the globe in screen pixels, and painting them. The first two are done by the core, the painting by the desktop or the web page.
 * Key describer: a mode, switched on and off with Shift+F1, in which each key you press is described and nothing is carried out.
 * Announcement history: the list of what the application has said, newest first, kept to at least 50 entries (ANN-4).
+* Minimum zoom and maximum zoom: the two ends of a layer's zoom range, set in its settings in the layers list (SCP-7). Zoom is a distance, so the minimum zoom is the closest, the most zoomed in, and the maximum zoom is the farthest. Outside its zoom range, a layer is not drawn and not said, as if it were off (DP160).
+* Crossing sound: the earcon a layer plays when a step crosses one of its lines, such as a line of latitude, or the border of one of its areas, such as a country's border (SCP-7).
 * Hearing range: the distance at which a sound reaches the edge of the view. It is the zoom distance, and the distance curve is measured against it (SON-9).
 * Distance curve: how loud and how muffled a sound is for its distance within the hearing range.
 * Orientation: which way you face, and so what "ahead" means for directions and sound. There are three: north-fixed, cardinal facing and free facing (NAV-12). F cycles them.

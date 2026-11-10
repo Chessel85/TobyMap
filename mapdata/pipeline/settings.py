@@ -174,7 +174,7 @@ def _check_shown(item: dict, path: Path) -> tuple:
         if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0):
             raise BuildStopped(f"{name} has {field}: {value}; use a number, 0 or more.")
     if item.get("max_zoom_m") is not None and (item.get("min_zoom_m") or 0) > item["max_zoom_m"]:
-        raise BuildStopped(f"{name} has min_zoom_m larger than max_zoom_m. The closest zoom comes first.")
+        raise BuildStopped(f"{name} has min_zoom_m larger than max_zoom_m. The minimum zoom, the closest, comes first.")
     from mapcore.describe import earcon_list
 
     events = [e["event"] for e in earcon_list()]

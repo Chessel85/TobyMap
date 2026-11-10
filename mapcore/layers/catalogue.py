@@ -26,8 +26,8 @@ DEFAULTS = {
     "group": "",
     "geometry": "area",
     "switched_on": True,       # "on" in YAML 1.1 would be read as true, so the definition says switched_on
-    "min_zoom_m": 0.0,         # the closest zoom at which the layer is visible
-    "max_zoom_m": None,        # the farthest; None for no limit
+    "min_zoom_m": 0.0,         # the minimum zoom, the closest at which the layer is visible
+    "max_zoom_m": None,        # the maximum zoom, the farthest; None for no limit
     "min_size": DEFAULT_MIN_SIZE,
     "crossing_earcon": None,   # an earcon event, played when a line of the layer is crossed
     "crossing_earcons": None,  # {line type: earcon event}: a line of that type plays its own instead
@@ -177,8 +177,8 @@ class LayerCatalogue:
     def change_many(self, layer_id: str, values: dict) -> Layer:
         """Change several things about a layer at once, all or none. A change back to the
         pack's own value is forgotten, so a later pack with a new default is followed.
-        ValueError for an unknown layer or a value that cannot be used, or a closest zoom
-        farther than the farthest, judged on the layer as it will be, not step by step."""
+        ValueError for an unknown layer or a value that cannot be used, or a minimum zoom
+        larger than the maximum, judged on the layer as it will be, not step by step."""
         base = self._defined.get(layer_id)
         if base is None:
             raise ValueError(f"there is no layer {layer_id!r}")
@@ -187,7 +187,7 @@ class LayerCatalogue:
         low = values.get("min_zoom_m", current.min_zoom_m)
         high = values.get("max_zoom_m", current.max_zoom_m)
         if high is not None and low > high:
-            raise ValueError("the closest zoom must not be farther than the farthest zoom")
+            raise ValueError("the minimum zoom must not be larger than the maximum zoom")
         changes = self._changes()
         mine = dict(changes.get(layer_id) or {})
         for field, value in values.items():

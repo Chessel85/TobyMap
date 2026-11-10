@@ -58,7 +58,7 @@ They start from the Shortbread schema (data sources, version 0.7), which says th
 * regions: visible to a zoom of 1,000 km (max_zoom_m 1000000). Shortbread draws boundaries at administrative level 4 from web zoom 7, a view radius of about 600 km. Farther out, the regions of large countries are too many to be useful in a list.
 * counties: visible to a zoom of 100 km (max_zoom_m 100000). Shortbread draws level 6 boundaries from web zoom 10, a view radius of about 80 km.
 * graticule and special lines: no limit. The graticule thins itself by its interval setting (DAT-13), and the special lines are few. They are off at first.
-* No layer has a closest zoom yet: the closest zoom in the list is 100 m, and every layer is useful there.
+* No layer has a minimum zoom yet: the closest zoom in the list is 100 m, and every layer is useful there.
 
 Where TobyMap differs from Shortbread: it keeps countries at every zoom, because someone listening wants to hear the country however far out they are. Shortbread has no sounds, so there is no other difference yet. Changing a range makes the build write the pack again, which takes about 26 minutes for the world pack.
 

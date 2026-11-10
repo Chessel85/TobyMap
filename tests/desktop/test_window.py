@@ -812,12 +812,12 @@ def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_al
     layer = dialog.layers["counties"]
     box = LayerSettingsDialog(dialog, layer, dialog.dialog, dialog._check, speak=window.announcer.speak)
     qtbot.addWidget(box)
-    assert box.farthest.currentText() == "100 kilometres"
-    box.closest.setCurrentIndex(box.closest.findData(250000))
-    box.ok_button.click()      # the closest zoom is farther than the farthest
-    assert "must not be farther" in box.message.text() and window.announcer.texts[-1] == box.message.text()
+    assert box.max_zoom.currentText() == "100 kilometres"
+    box.min_zoom.setCurrentIndex(box.min_zoom.findData(250000))
+    box.ok_button.click()      # the minimum zoom is larger than the maximum
+    assert "must not be larger" in box.message.text() and window.announcer.texts[-1] == box.message.text()
     assert box.result() == 0
-    box.farthest.setCurrentIndex(box.farthest.findData(None))
+    box.max_zoom.setCurrentIndex(box.max_zoom.findData(None))
     box.crossing.setCurrentIndex(box.crossing.findData("line_crossing"))
     box.ok_button.click()
     assert box.values() == {"min_zoom_m": 250000, "max_zoom_m": None, "crossing_earcon": "line_crossing"}
@@ -913,13 +913,13 @@ def test_enter_on_cancel_in_a_layers_settings_goes_back_unchanged(window, qtbot)
     box = LayerSettingsDialog(dialog, dialog.layers["counties"], dialog.dialog, dialog._check)
     qtbot.addWidget(box)
     box.show()
-    box.closest.setCurrentIndex(box.closest.findData(250000))
+    box.min_zoom.setCurrentIndex(box.min_zoom.findData(250000))
     enter(qtbot, box.cancel_button)
     assert not box.isVisible() and box.result() == 0
     box = LayerSettingsDialog(dialog, dialog.layers["counties"], dialog.dialog, dialog._check)
     qtbot.addWidget(box)
     box.show()
-    enter(qtbot, box.closest)               # Enter in a field presses OK
+    enter(qtbot, box.min_zoom)               # Enter in a field presses OK
     assert not box.isVisible() and box.result() == 1
 
 

@@ -124,6 +124,79 @@ def test_with_no_sound_device_the_player_is_silent_and_says_so(monkeypatch):
     assert player.play(p) == (False, False)
 
 
+class FakeSoundDevice:
+    """Stands in for sounddevice, so no sound device is opened (rule 5). `refuse` lists the
+    host API names whose streams fail to open."""
+
+    def __init__(self, apis, refuse=()):
+        self._apis = apis
+        self.refuse = set(refuse)
+        self.opened: list[dict] = []
+
+        fake = self
+
+        class WasapiSettings:
+            def __init__(self, auto_convert=False, exclusive=False):
+                self.auto_convert, self.exclusive = auto_convert, exclusive
+
+        class OutputStream:
+            def __init__(self, device=None, extra_settings=None, **kw):
+                api = "default" if device is None else fake._apis[0]["name"]
+                if api in fake.refuse:
+                    raise RuntimeError("Invalid sample rate")
+                fake.opened.append({"api": api, "device": device, "extra": extra_settings, **kw})
+                self.latency = 0.0235 if api != "default" else 0.1045
+
+            def start(self):
+                pass
+
+        self.WasapiSettings, self.OutputStream = WasapiSettings, OutputStream
+
+    def query_hostapis(self, index=None):
+        return self._apis if index is None else self._apis[index]
+
+
+WASAPI = [{"name": "Windows WASAPI", "default_output_device": 20}]
+
+
+def test_the_player_uses_wasapi_shared_with_rate_conversion_when_there_is_one(monkeypatch):
+    """MME, the route Windows picks by default, holds sound back about 105 ms; WASAPI about 24 ms
+    (P2-T17e, NFR-1). Shared, so NVDA and other programs still play; Windows converts the rate."""
+    fake = FakeSoundDevice(WASAPI)
+    monkeypatch.setitem(sys.modules, "sounddevice", fake)
+    player = SpatialPlayer(folder=SOUNDS)
+    assert not player.missing
+    [opened] = fake.opened
+    assert opened["device"] == 20 and opened["latency"] == "low"
+    assert opened["extra"].auto_convert and not opened["extra"].exclusive
+    assert player.route == "Windows WASAPI" and round(player.latency_ms) == 24
+
+
+def test_if_wasapi_will_not_open_the_player_uses_the_default_route(monkeypatch):
+    fake = FakeSoundDevice(WASAPI, refuse={"Windows WASAPI"})
+    monkeypatch.setitem(sys.modules, "sounddevice", fake)
+    player = SpatialPlayer(folder=SOUNDS)
+    assert not player.missing
+    [opened] = fake.opened
+    assert opened["device"] is None and opened["extra"] is None
+    assert player.route == "default"
+
+
+def test_with_no_wasapi_the_player_uses_the_default_route(monkeypatch):
+    """As on a Mac, where there is no WASAPI."""
+    fake = FakeSoundDevice([{"name": "Core Audio", "default_output_device": 1}])
+    monkeypatch.setitem(sys.modules, "sounddevice", fake)
+    player = SpatialPlayer(folder=SOUNDS)
+    assert [o["device"] for o in fake.opened] == [None] and player.route == "default"
+
+
+def test_if_no_route_will_open_the_player_is_silent(monkeypatch):
+    fake = FakeSoundDevice(WASAPI, refuse={"Windows WASAPI", "default"})
+    monkeypatch.setitem(sys.modules, "sounddevice", fake)
+    player = SpatialPlayer(folder=SOUNDS)
+    assert player.missing and player.stream is None
+
+
 def test_a_wav_file_is_read_as_mono_at_the_players_rate():
     mono = read_mono(SOUNDS / "bump.wav")
     assert mono.ndim == 1 and np.abs(mono).max() <= 1.0

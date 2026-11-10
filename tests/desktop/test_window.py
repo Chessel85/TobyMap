@@ -158,17 +158,19 @@ def test_an_area_in_two_groups_is_selected_and_heard_in_the_group_focused(qtbot,
     assert w.tree.currentItem() is crossed
 
 
-def test_space_on_a_group_heading_says_it_works_on_an_item(window, qtbot):
+def test_space_on_a_group_heading_says_and_does_nothing(window, qtbot):
     """P2-T17f, desktop checklist 11.6: Space on a group heading, after an item, said that
-    item again instead of where Hear its direction works."""
+    item again. Now it says and plays nothing (P2-T18a, the PO, 10 November 2026)."""
     window.focus_region("panel")
     within = window._group_item("within")
     window.tree.setCurrentItem(within.child(0))
     qtbot.keyClick(window.tree, Qt.Key.Key_Space)
+    said = list(window.announcer.texts)
+    last = window.session.last_spoken
     window.tree.setCurrentItem(within)
     qtbot.keyClick(window.tree, Qt.Key.Key_Space)
-    assert window.announcer.texts[-1] == "Hear its direction works on an item, not on a group."
-    assert window.session.last_spoken == "Hear its direction works on an item, not on a group."
+    assert window.announcer.texts == said
+    assert window.session.last_spoken == last
 
 
 def test_the_panel_keeps_its_items_when_refreshed(window):
@@ -863,7 +865,7 @@ def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_al
     assert box.max_zoom.currentText() == "100 kilometres"
     box.min_zoom.setCurrentIndex(box.min_zoom.findData(250000))
     box.ok_button.click()      # the minimum zoom is larger than the maximum
-    assert "must not be larger" in box.message.text() and window.announcer.texts[-1] == box.message.text()
+    assert "must not be a larger distance" in box.message.text() and window.announcer.texts[-1] == box.message.text()
     assert box.result() == 0
     box.max_zoom.setCurrentIndex(box.max_zoom.findData(None))
     box.crossing.setCurrentIndex(box.crossing.findData("line_crossing"))
@@ -1139,11 +1141,12 @@ def test_enter_on_a_within_item_goes_to_its_centre_and_stays_in_the_panel(window
     assert window.tree.currentItem() is window.tree.topLevelItem(0).child(0)
 
 
-def test_enter_on_a_group_heading_says_it_works_on_an_item(window, qtbot):
+def test_enter_on_a_group_heading_says_and_does_nothing(window, qtbot):
     window.focus_region("panel")
     window.tree.setCurrentItem(window.tree.topLevelItem(1))
+    said = list(window.announcer.texts)
     press(qtbot, window.tree, Qt.Key.Key_Return)
-    assert window.announcer.texts[-1] == "Go there works on an item, not on a group."
+    assert window.announcer.texts == said   # P2-T18a
     assert window.session.world.lat == 51.2
 
 
@@ -1219,3 +1222,39 @@ def test_home_and_end_in_every_number_box_set_the_largest_and_smallest(window, q
         qtbot.keyClick(box, Qt.Key.Key_End)
         assert box.value() == f["min"], f["id"]
     dialog.cancel_button.click()
+
+
+# Reset all settings (P2-T18h) ---------------------------------------------------------------
+
+def reset_box(window):
+    from desktop.dialogs import ConfirmBox
+
+    window.actions_by_name["settings.reset"].trigger()
+    QApplication.processEvents()
+    (box,) = [d for d in window.findChildren(ConfirmBox) if d.isVisible()]
+    return box
+
+
+def test_reset_all_settings_asks_with_cancel_first_and_cancel_changes_nothing(window, qtbot):
+    window.session.settings.set("units", "imperial")
+    box = reset_box(window)
+    assert box.windowTitle() == "Reset all settings"
+    assert box.ok_button.text() == "Reset" and box.cancel_button.text() == "Cancel"
+    assert box.defaultButton() is box.cancel_button
+    box.cancel_button.click()
+    QApplication.processEvents()
+    assert window.session.settings["units"] == "imperial"
+
+
+def test_reset_all_settings_saves_a_new_installations_settings(window, qtbot, tmp_path):
+    window.session.settings.set("units", "imperial")
+    window.session.settings.keys["move.north"] = "K"
+    window.save()
+    box = reset_box(window)
+    box.ok_button.click()
+    QApplication.processEvents()
+    saved = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
+    assert saved["settings"]["values"]["units"] == "metric" and saved["settings"]["keys"] == {}
+    assert region(window) == "map"
+    # Said once, as the map's name when the focus comes back, as after Go to (P2-T17c).
+    assert window.map.accessibleName().startswith("All settings are reset, as on a new installation. ")

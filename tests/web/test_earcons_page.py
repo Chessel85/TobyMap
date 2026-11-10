@@ -71,7 +71,7 @@ def test_the_earcons_tab_is_one_list_with_a_check_box_for_each(page, site_url):
     fields = app.evaluate("""[...document.querySelectorAll('#settings-page-earcons [data-field]')]
         .map(el => el.dataset.field)""")
     assert fields == ["earcon_volume_tick", "earcon_tick"]
-    assert app.get_attribute("#settings-choose-tick", "aria-label") == "Choose file for Tick"
+    assert app.get_attribute("#settings-choose-tick", "aria-label") == "Browse"
     assert app.get_attribute("#settings-default-tick", "aria-label") == "Use the default for Tick"
     assert app.get_attribute("#settings input[data-field=earcon_tick]", "placeholder") == "The default sound"
     assert app.evaluate("document.querySelector('#settings [data-field=earcon_volume]')") is None
@@ -82,7 +82,7 @@ def test_the_earcons_tab_is_one_list_with_a_check_box_for_each(page, site_url):
         .map(el => el.dataset.field)""")
     assert fields == ["earcon_volume_blocked", "earcon_blocked"]
     assert app.evaluate("document.querySelector('[data-field=earcon_volume_blocked]').parentElement.textContent.trim()")         == "Blocked: volume, in percent"
-    assert app.get_attribute("#settings-choose-blocked", "aria-label") == "Choose file for Blocked"
+    assert app.get_attribute("#settings-choose-blocked", "aria-label") == "Browse"
     app.click("#settings-cancel")
 
 
@@ -120,7 +120,7 @@ def test_the_beacons_own_file_is_in_the_sound_tab(page, site_url):
     app.keyboard.press("Control+,")
     app.wait_for_function("document.getElementById('settings').open")
     assert app.evaluate("!!document.querySelector('#settings-page-sound #settings-choose-beacon')")
-    assert app.get_attribute("#settings-choose-beacon", "aria-label") == "Choose file for Orientation beacon"
+    assert app.get_attribute("#settings-choose-beacon", "aria-label") == "Browse"
     app.click("#settings-cancel")
 
 

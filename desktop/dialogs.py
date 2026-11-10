@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, 
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
+from desktop.panel_tree import PanelTree
 from mapcore.commands.registry import key_text
 
 
@@ -210,6 +211,25 @@ class InputDialog(QDialog):
         self.field.selectAll()
 
 
+class ConfirmBox(QMessageBox):
+    """A question in a message box, such as Reset all settings (P2-T18h): the core's title and
+    words, its button to go ahead and Cancel. Cancel has the focus first and is the default, so
+    Enter straight away changes nothing; Enter on the other button presses it (P2-T17b).
+    `confirmed` says which was pressed, once the box has closed."""
+
+    def __init__(self, parent, dialog: dict):
+        super().__init__(QMessageBox.Icon.Warning, dialog["title"], dialog["text"], QMessageBox.StandardButton.NoButton,
+                         parent)
+        self.ok_button = self.addButton(dialog["ok"], QMessageBox.ButtonRole.AcceptRole)
+        self.cancel_button = self.addButton(dialog["cancel"], QMessageBox.ButtonRole.RejectRole)
+        self.setDefaultButton(self.cancel_button)
+        self.setEscapeButton(self.cancel_button)
+
+    @property
+    def confirmed(self) -> bool:
+        return self.clickedButton() is self.ok_button
+
+
 class SoundsDialog(ListDialog):
     """Help, The sounds: each sound with its file and meaning. Enter, Space or
     Play plays the selected one (DP134, PO feedback on checklist 12); Close leaves."""
@@ -383,7 +403,8 @@ class LayersDialog(QDialog):
         self.layers = {l["id"]: dict(l) for g in dialog["groups"] for l in g["layers"]}
         self._start = {k: dict(v) for k, v in self.layers.items()}
         layout = QVBoxLayout(self)
-        self.tree = QTreeWidget()
+        # The Information panel's tree, whose accessibility stays right as groups close (P2-T18b, DP135).
+        self.tree = PanelTree()
         self.tree.setHeaderHidden(True)
         self.tree.setAccessibleName(dialog["title"])
         self.items: dict[str, QTreeWidgetItem] = {}

@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import HistoryDialog, InputDialog, LayersDialog, ListDialog, SettingsDialog, SoundsDialog, TextDialog
+from desktop.dialogs import ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, SettingsDialog, SoundsDialog, TextDialog
 from desktop.keys import key_name
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
@@ -611,6 +611,10 @@ class MainWindow(QMainWindow):
         elif kind == "input":
             box = InputDialog(self, dialog, submit=lambda text: self.session.run(dialog["submit"], text=text))
             box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
+        elif kind == "confirm":   # a question, such as Reset all settings (P2-T18h)
+            box = ConfirmBox(self, dialog)
+            box.finished.connect(lambda _r, b=box: b.confirmed and self._carry_out_answer(
+                [self.session.run(dialog["submit"])]))
         else:
             box = TextDialog(self, dialog["title"], dialog["text"], self.words["close"])
         self._dialogs.append(box)

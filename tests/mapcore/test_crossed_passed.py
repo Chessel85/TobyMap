@@ -228,3 +228,35 @@ def test_details_of_a_listed_river_or_station_give_its_type_and_no_area(session)
     lines = session.details().splitlines()
     assert lines[:2] == ["Southampton Central", "Type: railway station"]
     assert not any(l.startswith("Area:") for l in lines)
+
+
+def nearby_labels(s):
+    return [i["label"] for i in next(g for g in s.panel() if g["id"] == "nearby")["items"]]
+
+
+def test_standing_on_a_point_it_is_here_with_no_distance_or_direction(session):
+    """P2-T18e: "0 metres north" made no sense; under a metre away an item is "here"."""
+    place(session, *STATION, 1000)
+    session.areas = session._here()
+    assert "Southampton Central, here" in [l.split(" (")[0] for l in nearby_labels(session)], nearby_labels(session)
+
+
+def test_a_line_you_are_on_is_not_nearby(session):
+    """P2-T18e, the PO at 45 N, 100 W: the graticule's 100 degrees west was listed as "100
+    degrees west, 0 metres north". A line you are on is not nearby, as an area you are in is not."""
+    line = max(sample("osm:r7703089")["geometry"]["coordinates"], key=len)
+    lon, lat = line[len(line) // 2]
+    place(session, lat, lon, 1000)
+    session.areas = session._here()
+    assert not [l for l in nearby_labels(session) if l.startswith("River Itchen")], nearby_labels(session)
+    place(session, lat, lon + 200 / m_per_deg_lon(lat), 1000)   # 200 metres off it, it is nearby again
+    session.areas = session._here()
+    assert [l for l in nearby_labels(session) if l.startswith("River Itchen, ")], nearby_labels(session)
+
+
+def test_a_step_that_ends_on_a_point_lists_it_here(session):
+    lat, lon = STATION
+    place(session, lat, lon - 1000 / m_per_deg_lon(lat), 1000)
+    step_east_and_search(session)
+    session.world.lat, session.world.lon = lat, lon   # exactly on it, as the step's own rounding may not be
+    assert "Southampton Central, passed, here" in labels(session), labels(session)

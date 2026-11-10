@@ -150,7 +150,7 @@ Start with `--at 51.2,1.2`, zoom 100 kilometres. Use headphones if you can.
 * 11.3 On France, press Space. It comes from behind and to the right.
 * 11.4 Press F2, then O for cardinal facing, then Right twice to face south. Press Shift+2 and Space on North Atlantic Ocean. It is now ahead of you, at normal pitch, but its words still give a compass direction, such as south: directions in words are from north at first (P2-T17s, DP159). In Settings, Units, tick "In cardinal and free facing, give directions from the way you face" and press OK. Space on North Atlantic Ocean again: its words now give the direction from the way you face, such as "at your north", that is, ahead. Untick the setting again. Press F2, and O until north-fixed.
 * 11.5 Press Shift+1 for Within. On England, press Space. Its sound plays from the centre of England, and the voice says "England" and the distance to that centre.
-* 11.6 On a group heading, such as Within, Space says "Hear its direction works on an item, not on a group."
+* 11.6 On a group heading, such as Within, Space and Enter say and do nothing (P2-T18a).
 * 11.7 Each label is in NVDA's Braille viewer without being spoken, and Shift+Space repeats it.
 * 11.8 In Settings, Sound, switch on "Also speak spatial labels through the screen reader". Press Space on an item: NVDA now speaks the label as well as the Alba voice. Switch it off again: NVDA is silent and only the Alba voice speaks.
 * 11.9 In Settings, Sound, set "Spatial voice: speed, in percent" to 500. Press Space on an item: the label is about five times as fast as at 100, at the same pitch. Try 200 and 300 too, then set it as you like it.
@@ -210,13 +210,13 @@ Start with `--at 51.2,1.2`.
 ## 17. Earcons (SON-6, SON-7, SON-8, DP123, DP163)
 
 * 17.1 Open Settings, Earcons. Tab from the tabs goes to the list, "Earcons". Each earcon in it is a check box, all checked: Tick, Blocked, Something added and so on. The orientation beacon is not in it. There is no volume for all the earcons.
-* 17.2 Tab on from the list: "Tick: volume, in percent", 100, then "Tick: your own sound file", empty, then Choose file and Use the default, each for the tick. Shift+Tab back to the list, Down to Blocked, and Tab again: each control now says Blocked.
+* 17.2 Tab on from the list: "Tick: volume, in percent", 100, then "Tick: your own sound file", empty, then Browse, then Use the default for the tick. Shift+Tab back to the list, Down to Blocked, and Tab again: each control but Browse now says Blocked.
 * 17.3 On Tick in the list, set "Tick: volume, in percent" to 30. Press OK and step about: the tick is quieter, and the blocked sound is not. Put it back to 100.
 * 17.4 On Tick in the list, press Space: it is not checked. Press Enter for OK. A step that changes nothing is silent. Check it again.
-* 17.5 On "Tick: your own sound file", press Choose file, and choose a WAV file of your own. Press OK and step: your sound plays, the same in both ears.
+* 17.5 On "Tick: your own sound file", press Browse, and choose a WAV file of your own. Press OK and step: your sound plays, the same in both ears.
 * 17.6 Open Settings, Earcons again, and press Use the default for the tick, and press OK. Step once: only the default tick plays, with nothing of your own sound before it.
 * 17.7 Choose a file that is not a WAV sound, such as a text file renamed to .wav. When the file dialog closes, NVDA reads a message under the field: the file "could not be read as a WAV sound file, so the sound is not changed." The message goes when you choose another earcon in the list.
-* 17.8 In Settings, Sound, after "Orientation beacon: seconds between each sound", is "Orientation beacon: your own sound file", with its own Choose file and Use the default.
+* 17.8 In Settings, Sound, after "Orientation beacon: seconds between each sound", is "Orientation beacon: your own sound file", with its own Browse and Use the default.
 * 17.9 Press Ctrl+M. Everything is silent: earcons, the beacon and the voice. Press Ctrl+M again and sound comes back.
 
 ## 18. The sound design as a whole

@@ -92,11 +92,11 @@ def test_enter_on_a_point_goes_to_the_point(test_pack):
     s.store.close()
 
 
-def test_enter_on_a_group_heading_says_it_works_on_an_item(session):
+def test_enter_on_a_group_heading_says_and_does_nothing(session):
     session.run("panel.select", item=None, group="nearby")
     before = (session.world.lat, session.world.lon)
     r = session.press("Enter", "panel")
-    assert spoken(r) == ["Go there works on an item, not on a group."]
+    assert spoken(r) == [] and r.focus is None   # P2-T18a
     assert (session.world.lat, session.world.lon) == before
 
 

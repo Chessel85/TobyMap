@@ -45,6 +45,11 @@ export async function remove(event) {
   await done((await store("readwrite")).delete(event));
 }
 
+// Every kept file, for Reset all settings (P2-T18h).
+export async function clear() {
+  await done((await store("readwrite")).clear());
+}
+
 // Whether bytes are a WAV file: "RIFF", a length, then "WAVE".
 export function isWav(bytes) {
   const b = new Uint8Array(bytes, 0, Math.min(12, bytes.byteLength));

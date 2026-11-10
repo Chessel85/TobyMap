@@ -620,7 +620,7 @@ def test_the_layers_dialog_lists_layers_in_groups_and_ok_switches_one(app):
     app.keyboard.press("Control+Shift+L")
     app.wait_for_function("document.getElementById('layersdialog').open")
     assert app.eval_on_selector("#layersdialog h2", "e => e.textContent") == "Layers"
-    assert app.eval_on_selector_all("#layersdialog legend", "els => els.map(e => e.textContent)")[:2] == \
+    assert app.eval_on_selector_all("#layers-tree > [role=treeitem]", "els => els.map(e => e.getAttribute('aria-label'))")[:2] == \
         ["Boundaries", "Water"]
     assert app.evaluate("document.activeElement.dataset.layer") == "countries"
     app.uncheck("[data-layer=regions]")
@@ -660,7 +660,7 @@ def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refuse
     app.click("#layers-settings")
     app.select_option("#layersdialog select >> nth=0", label="250 kilometres")
     app.click("#layer-settings-ok")
-    app.wait_for_function("document.querySelector('#layer-settings-message').textContent.startsWith('The minimum zoom')")
+    app.wait_for_function("document.querySelector('#layer-settings-message').textContent.startsWith('The maximum zoom must not be a larger distance')")
     app.click("#layer-settings-cancel")
     app.click("#layers-cancel")
     app.wait_for_function("!document.getElementById('layersdialog').open")
@@ -952,14 +952,17 @@ def test_enter_on_a_within_item_goes_to_its_centre_and_stays_in_the_panel(app):
     assert app.evaluate("document.activeElement.parentElement.closest('[role=treeitem]').dataset.id") == "group:within"
 
 
-def test_enter_on_a_group_heading_says_it_works_on_an_item(app):
+def test_enter_and_space_on_a_group_heading_say_and_do_nothing(app):
     app.keyboard.press("F3")
     app.wait_for_function("document.activeElement.getAttribute('role') === 'treeitem'")
     app.keyboard.press("ArrowLeft")
     app.wait_for_function("document.activeElement.getAttribute('aria-level') === '1'")
+    before = len(said(app))
     app.keyboard.press("Enter")
-    wait_said(app, 1)
-    assert said(app)[-1] == "Go there works on an item, not on a group."
+    app.keyboard.press("Space")
+    app.keyboard.press("Shift+Space")   # a command after them, so their answers are in
+    wait_said(app, before + 1)
+    assert len(said(app)) == before + 1   # only the repeat (P2-T18a)
     assert app.evaluate("document.activeElement.getAttribute('aria-expanded')") == "true"   # Enter no longer closes it
 
 
@@ -1008,3 +1011,80 @@ def test_home_and_end_in_every_number_box_set_the_largest_and_smallest(app):
         assert app.input_value(box) == app.get_attribute(box, "min"), field
     app.click("#settings-cancel")
     app.wait_for_function("!document.getElementById('settings').open")
+
+
+# The layers list as a tree (P2-T18b, web checklist 8.6) -------------------------------------
+
+def test_the_layers_list_groups_close_and_open_with_left_and_right(app):
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    assert app.evaluate("document.activeElement.dataset.layer") == "countries"
+    assert app.get_attribute("[data-layer=countries]", "aria-checked") == "true"
+    app.keyboard.press("ArrowLeft")                    # up to Boundaries
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Boundaries"
+    app.keyboard.press("ArrowLeft")                    # closes it
+    assert app.evaluate("document.activeElement.getAttribute('aria-expanded')") == "false"
+    app.keyboard.press("ArrowDown")                    # straight to Water, past the closed layers
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Water"
+    app.keyboard.press("ArrowUp")
+    app.keyboard.press("ArrowRight")                   # opens Boundaries again
+    app.keyboard.press("ArrowDown")
+    assert app.evaluate("document.activeElement.dataset.layer") == "countries"
+    app.keyboard.press("ArrowDown")
+    app.keyboard.press("Space")                        # Space ticks: Regions off
+    assert app.get_attribute("[data-layer=regions]", "aria-checked") == "false"
+    app.keyboard.press("Tab")                          # out of the tree to the Settings button, and back
+    assert app.evaluate("document.activeElement.id") == "layers-settings"
+    app.keyboard.press("Shift+Tab")
+    assert app.evaluate("document.activeElement.dataset.layer") == "regions"
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
+    app.keyboard.press("Space")
+    wait_said(app, 1)
+    assert said(app)[-1] == "Kent, United Kingdom"
+
+
+def test_information_panel_items_are_on_one_line(app):
+    """P2-T18d: say current line read only the first line of an item that wrapped, so a long
+    Within or Crossed and passed item lost its direction."""
+    assert app.evaluate("""[...document.querySelectorAll('#tree [role=treeitem]')]
+        .every(e => getComputedStyle(e).whiteSpace === 'nowrap')""")
+
+
+# Reset all settings (P2-T18h) ------------------------------------------------------------------
+
+def open_reset(app):
+    go_to_menu_bar(app)
+    app.keyboard.press("Enter")
+    app.locator(".menu:not([hidden]) [role=menuitem]", has_text="Reset all settings").click()
+    app.wait_for_function("document.getElementById('messagebox').open")
+
+
+def test_reset_all_settings_asks_and_cancel_changes_nothing(app):
+    app.keyboard.press("Shift+A")   # a setting changed: the verbosity preset
+    wait_said(app, 1)
+    open_reset(app)
+    assert app.text_content("#messagebox-title") == "Reset all settings"
+    assert app.evaluate("document.activeElement.id") == "messagebox-cancel"
+    assert app.text_content("#messagebox-ok") == "Reset"
+    app.keyboard.press("Enter")                         # Cancel has the focus
+    app.wait_for_function("!document.getElementById('messagebox').open")
+    app.wait_for_function("document.activeElement.id === 'map'")
+    app.keyboard.press("A")                             # still Terse, so A goes to Normal
+    wait_said(app, 2)
+    assert said(app)[-1].startswith("Normal.")
+    assert not any(t.startswith("All settings are reset") for t in said(app))
+
+
+def test_reset_all_settings_puts_back_a_new_installations_settings(app):
+    app.keyboard.press("Shift+A")
+    wait_said(app, 1)
+    open_reset(app)
+    app.focus("#messagebox-ok")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('messagebox').open")
+    app.wait_for_function("document.activeElement.id === 'map'")
+    assert app.get_attribute("#map", "aria-label").startswith("All settings are reset, as on a new installation. ")
+    app.keyboard.press("A")                             # from Normal, the first preset, A goes to Detailed
+    wait_said(app, 2)
+    assert said(app)[-1].startswith("Detailed.")

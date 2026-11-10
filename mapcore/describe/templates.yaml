@@ -44,9 +44,9 @@ ui:
   export: Export settings
   import: Import settings
   # Your own sound file for an earcon, in the Earcons tab of Settings (P2-T8, SON-8)
-  choose_file: Choose file
+  choose_file: Browse
   use_default: Use the default
-  choose_file_for: "Choose file for {name}"
+  choose_file_for: "Browse"   # the label alone, as the PO asked (P2-T18f)
   use_default_for: "Use the default for {name}"
   default_sound: The default sound
   sound_files: "Sound files (*.wav)"
@@ -83,9 +83,9 @@ details:
 beacon:
   "on": "Beacon on."
   "off": "Beacon off."
-  on_near_pole: "Beacon on, but silent near the North Pole."
+  on_near_pole: "Beacon on, but silent near {target}."
   on_muted: "Beacon on, but all sound is muted."
-  near_pole: "Beacon off near the North Pole."
+  near_pole: "Beacon off near {target}."
   back: "Beacon back on."
 # Themes, the map display setting and isolate (P2-T12; VIS-2, DP108).
 display:
@@ -110,11 +110,6 @@ sound:
 # Hear its direction (DP143, SON-3): the label said in the spatial voice, from the item's place.
 hear:
   label: "{name}, {distance}"
-  choose: "Hear its direction works on an item, not on a group."
-
-# Enter on an Information panel item goes there (P2-T17k, INF-10, DP155).
-go:
-  choose: "Go there works on an item, not on a group."
 
 # The spatial voice (P2-T7, SON-3). Each is said once, by the screen reader.
 voice:
@@ -340,17 +335,26 @@ layers:
   list: "Layers"
   settings_button: "Settings for this layer"
   settings_title: "Settings for {layer}"
-  # Zoom is a distance, so the minimum zoom is the closest (glossary; P2-T17i).
-  min_zoom: "Minimum zoom"
-  max_zoom: "Maximum zoom"
+  # The closest zoom a layer is shown at, the smaller distance, is its maximum zoom, and the
+  # farthest its minimum zoom: zoomed in most is the most zoom (glossary; P2-T18c, the PO's
+  # choice). The keys stay min_zoom and max_zoom, the smaller and larger distance, as stored.
+  min_zoom: "Maximum zoom"
+  max_zoom: "Minimum zoom"
   every_zoom: "No limit"
   # For an area layer, such as Countries, its border (P2-T17i).
   crossing: "Sound when a line or border of this layer is crossed"
   no_sound: "No sound"
-  range_error: "The minimum zoom must not be larger than the maximum zoom."
+  range_error: "The maximum zoom must not be a larger distance than the minimum zoom."
   choose_layer: "Choose a layer first. The settings are for one layer."
   item_off: "{layer}, off"
   item_on: "{layer}, on"
+
+# Reset all settings, in the Map menu (P2-T18h): as on a new installation on a new computer.
+reset:
+  title: Reset all settings
+  question: "Reset all settings to how they are when TobyMap is first installed? This includes your keys, your layer choices and your own sound files. Your place and your location history are cleared too. This cannot be undone. To keep your settings, choose Cancel, then Export settings in Settings."
+  ok: Reset
+  done: "All settings are reset, as on a new installation. {place}."
 
 history:
   # The location history: the places you stopped at, which Alt+comma and Alt+full stop go
@@ -363,11 +367,14 @@ history:
 
 nearby:
   item: "{name}, {distance} {direction}"
+  # Under a metre away there is no direction to give, so the place is "here" (P2-T18e).
+  here: "{name}, here"
   none: "Nothing nearby."
 
 # A Within item: you are inside it, so the distance and direction are to its centre (P2-T17k, DP155).
 within:
   item: "{name}, centre {distance} {direction}"
+  here: "{name}, centre here"
 
 # Crossed and passed (ANN-2): what the last move went over or near. The distance and
 # direction are from where you are now; closest is how near the path came.
@@ -375,6 +382,10 @@ crossed:
   crossed: "{name}, crossed, {distance} {direction}"
   passed_over: "{name}, passed over, {distance} {direction}"
   passed: "{name}, passed, closest {closest}, {distance} {direction}"
+  # The move ended on it, under a metre away (P2-T18e).
+  crossed_here: "{name}, crossed, here"
+  passed_over_here: "{name}, passed over, here"
+  passed_here: "{name}, passed, here"
   none: "Nothing crossed or passed on the last move."
 
 # Which unit system, bearing style and coordinate format is chosen (ANN-5, LOC-1).

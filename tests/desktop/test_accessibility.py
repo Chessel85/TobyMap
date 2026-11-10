@@ -11,6 +11,7 @@ contacted.
 """
 import pytest
 from PySide6.QtGui import QAccessible
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from desktop.announcer import RecordingAnnouncer
@@ -104,3 +105,60 @@ def test_tree_items_are_right_after_a_group_is_closed(window):
 def test_alt_letters_open_the_menus(window):
     texts = [a.text() for a in window.menuBar().actions()]
     assert texts == ["&Map", "&Speech", "Se&ttings", "&Help"]
+
+
+def open_layers(window):
+    from desktop.dialogs import LayersDialog
+
+    window.dispatch("layers.open")
+    QApplication.processEvents()
+    (dialog,) = [d for d in window.findChildren(LayersDialog) if d.isVisible()]
+    return dialog
+
+
+def test_the_layers_list_is_nested_and_its_layers_are_check_boxes(window):
+    """P2-T18b: the layers list is the Information panel's kind of tree, so each layer is its
+    group's child, and says whether it is ticked."""
+    dialog = open_layers(window)
+    tree = QAccessible.queryAccessibleInterface(dialog.tree)
+    boundaries = tree.child(0)
+    assert boundaries.text(QAccessible.Text.Name) == "Boundaries"
+    countries = boundaries.child(0)
+    assert countries.text(QAccessible.Text.Name) == "Countries"
+    assert countries.state().checkable and countries.state().checked
+    assert not boundaries.state().checkable
+    dialog.items["countries"].setCheckState(0, Qt.CheckState.Unchecked)
+    assert not countries.state().checked
+    dialog.reject()
+
+
+def test_the_layers_list_reads_the_right_layer_after_a_group_is_closed(window, qtbot):
+    """P2-T18b, desktop checklist 8.1: with Boundaries closed, Qt's own tree gave a blank line,
+    and with Water closed too, silence, as it numbered the rows as if every group were open."""
+    dialog = open_layers(window)
+    tree = dialog.tree
+    tree.setFocus()
+    boundaries, water = tree.topLevelItem(0), tree.topLevelItem(1)
+    tree.setCurrentItem(boundaries)
+    boundaries.setExpanded(False)
+    QApplication.processEvents()
+    assert QAccessible.queryAccessibleInterface(tree).child(0).childCount() == 0
+    qtbot.keyClick(tree, Qt.Key.Key_Down)
+    QApplication.processEvents()
+    assert focus_name(tree) == "Water"
+    water.setExpanded(False)
+    qtbot.keyClick(tree, Qt.Key.Key_Down)
+    QApplication.processEvents()
+    assert focus_name(tree) == tree.topLevelItem(2).text(0)
+    qtbot.keyClick(tree, Qt.Key.Key_Up)
+    qtbot.keyClick(tree, Qt.Key.Key_Right)
+    qtbot.keyClick(tree, Qt.Key.Key_Down)
+    QApplication.processEvents()
+    assert focus_name(tree) == water.child(0).text(0)
+    dialog.reject()
+
+
+def test_information_panel_items_are_not_check_boxes(window):
+    within = QAccessible.queryAccessibleInterface(window.tree).child(0)
+    window.tree.topLevelItem(0).setExpanded(True)
+    assert not within.state().checkable and not within.child(0).state().checkable

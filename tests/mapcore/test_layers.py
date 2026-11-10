@@ -305,7 +305,8 @@ def test_the_layers_command_has_its_key_and_gives_the_dialog_its_words_and_choic
     assert d["title"] == "Layers" and [g["name"] for g in d["groups"]] == ["Boundaries", "Water", "Transport"]
     assert d["every_zoom"] == "No limit" and {"value": 1000.0, "label": "1 kilometre"} in d["zooms"]
     assert "line_crossing" in {e["event"] for e in d["earcons"]}
-    assert d["words"]["min_zoom"] == "Minimum zoom" and d["words"]["max_zoom"] == "Maximum zoom"
+    # The closest zoom, the smaller distance, is the maximum zoom (P2-T18c, the PO swapped them).
+    assert d["words"]["min_zoom"] == "Maximum zoom" and d["words"]["max_zoom"] == "Minimum zoom"
     assert d["words"]["crossing"] == "Sound when a line or border of this layer is crossed"
     assert d["words"]["settings_button"] and d["words"]["ok"] == "OK" and d["words"]["cancel"] == "Cancel"
     assert "Countries, on" in d["text"].split("\n")
@@ -323,7 +324,7 @@ def test_a_range_check_says_what_is_wrong(session):
     assert not session.run("layers.check", low=0, high=None).error
     assert not session.run("layers.check", low=1000, high=5000).error
     assert session.run("layers.check", low=5000, high=1000).error == \
-        "The minimum zoom must not be larger than the maximum zoom."
+        "The maximum zoom must not be a larger distance than the minimum zoom."
 
 
 def test_several_changes_to_a_layer_are_judged_together(session):

@@ -1,6 +1,14 @@
 # Requirements Catalogue
 
-Version 0.14, 10 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.15, 10 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.15
+
+These changes come from your notes on the Phase 2 sweep, 10 November 2026 (tasks P2-T18c, P2-T18g, P2-T18h).
+
+* SCP-7: the names of the two ends of a zoom range are swapped. The maximum zoom is now the closest, the smaller distance, and the minimum zoom the farthest.
+* SON-10: the beacon can come from the North Pole, the South Pole, or the equator at 0, 90 east, 180 or 90 west. Near the place chosen it fades out, and you are told.
+* PLT-5: Reset all settings, in the Map menu, puts everything back as on a new installation, after asking.
 
 ## Changes in version 0.14
 
@@ -241,7 +249,7 @@ The high level requirements document stays the product owner's own statement of 
   * its name, as heard in the layers list, and the group it belongs to, such as Transport or Boundaries
   * which features it contains, chosen by the pipeline
   * how it is drawn on the visual map in each theme
-  * its zoom range, from its minimum zoom to its maximum zoom: the zooms at which it is visible and said (NAV-13, DP160). Zoom is a distance, so the minimum zoom is the closest. For example, motorways are visible at every zoom, and bus stops only when zoomed in to 1 km or closer.
+  * its zoom range, from its maximum zoom to its minimum zoom: the zooms at which it is visible and said (NAV-13, DP160). The maximum zoom is the closest, the smaller distance (P2-T18c). For example, motorways are visible at every zoom, and bus stops only when zoomed in to 1 km or closer.
   * for an area layer, its minimum size: how large an area must be, compared with the view, to count as visible (NAV-13, DP80)
   * its sounds: the crossing earcon, played when a step crosses one of its lines, or the border of one of its areas; the sound used for its features in look around and "hear its direction"; and the ding when one is passed while driving
   * whether it is a network type in network mode (NAV-5), and whether its points can be stop points (NAV-6)
@@ -704,7 +712,7 @@ The high level requirements document stays the product owner's own statement of 
 * Source: UXReview, DP66, DP70, DP160
 * Priority: Must. Status: Agreed (DP78, DP80, DP160).
 * Acceptance criteria:
-  * The location announcement (ANN-1), "where am I" and the Within group use every layer that is switched on and inside its zoom range (DP160). The step never changes them, and nor does the size rule. With Regions given a maximum zoom of 100 km, at a 250 km zoom you hear "Kent, United Kingdom", not "Kent, England, United Kingdom".
+  * The location announcement (ANN-1), "where am I" and the Within group use every layer that is switched on and inside its zoom range (DP160). The step never changes them, and nor does the size rule. With Regions given a minimum zoom of 100 km, at a 250 km zoom you hear "Kent, United Kingdom", not "Kent, England, United Kingdom".
   * If there are areas here, but every one is in a layer outside its zoom range, "No data at this zoom level" is said. If every one is in a layer that is switched off, "Every layer here is switched off" is said, as before (LOC-6).
   * Contains, Nearby, look around, and Crossed and passed include only features whose layer is visible at the current zoom (NAV-13). For example, with default layer settings, motorways appear at every zoom, and bus stops only at 1 km zoom or closer.
   * Within, Bordering, Overlapping, Crossing and Search are about the current feature's own relationships, or about what the user asked for, so they use every active layer, whatever the zoom (DP80).
@@ -973,7 +981,8 @@ The high level requirements document stays the product owner's own statement of 
 * Acceptance criteria:
   * One key switches the beacon on and off.
   * Facing east, the beacon is heard to the left. Facing south, it is heard behind.
-  * Within 100 km of the North Pole the beacon fades out, and the user is told why.
+  * Within 100 km of the place it comes from the beacon fades out, and the user is told why.
+  * Until pins come, it can come from the North Pole, the South Pole, or the equator at 0 degrees east, 90 degrees east, 180 degrees or 90 degrees west (P2-T18g).
   * The beacon can point at any pin instead, such as "home". The North Pole is the default. The target is chosen in settings or from a pin's actions.
   * Proposed: when the beacon points at a pin, it fades out within one step of the pin and says "Arrived at home".
 

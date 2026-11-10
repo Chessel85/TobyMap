@@ -108,6 +108,7 @@ function handle(result, keyAt, held = false, named = false) {
     }
   }
   beaconUpdate(r.beacon);
+  if (r.action === "reset") ownSounds.clear().catch(() => {});   // your own sound files go too (P2-T18h)
   if (spoke && keyAt !== undefined) {
     const now = performance.now();
     window.tobymap.timings.push(now - keyAt);
@@ -339,7 +340,7 @@ window.addEventListener("blur", () => { if (heldKey) release(); });
 // What Tab reaches in a dialog: not a hidden page of the settings, and only the
 // chosen tab of the tab list.
 function tabbable(container) {
-  return [...container.querySelectorAll("button, input, select, textarea, [role=option]")]
+  return [...container.querySelectorAll("button, input, select, textarea, [role=option], [role=treeitem]")]
     .filter((el) => !el.disabled && el.tabIndex >= 0 && !el.closest("[hidden]"));
 }
 
@@ -389,6 +390,7 @@ function openDialog(d) {
   if (d.kind === "settings") return openSettings(d);
   if (d.kind === "input") return openInput(d);
   if (d.kind === "layers") return openLayers(d);
+  if (d.kind === "confirm") return openConfirm(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
   dialog.querySelectorAll(".sounds").forEach((el) => el.remove());
@@ -497,9 +499,10 @@ function closeWithAnswer(box, results) {
   }
 }
 
-// The layers list (SCP-6, SCP-7): a check box for each layer under its group; Space switches it. A
-// Settings button opens the zoom range and crossing sound of the layer last focused, in the same box.
-// OK sends one layers.set for each layer changed, Cancel sends nothing. All words come from the core.
+// The layers list (SCP-6, SCP-7): a tree, as the Information panel is, with each layer a check box
+// under its group; Space switches it, Left and Right close and open a group (P2-T18b). A Settings
+// button opens the zoom range and crossing sound of the layer last focused, in the same box. OK
+// sends one layers.set for each layer changed, Cancel sends nothing. All words come from the core.
 function openLayers(d) {
   const box = layersDialog;
   const layers = {};
@@ -509,6 +512,7 @@ function openLayers(d) {
   }
   const start = JSON.parse(JSON.stringify(layers));
   let current = null;
+  const expanded = new Set(d.groups.map((_g, i) => String(i)));   // all open at first; kept while the box is open
 
   const showList = () => {
     const body = focusModeBody(box);
@@ -516,24 +520,16 @@ function openLayers(d) {
     const title = document.createElement("h2");
     title.textContent = d.title;
     body.append(title);
-    for (const g of d.groups) {
-      const set = document.createElement("fieldset");
-      const legend = document.createElement("legend");
-      legend.textContent = g.name;
-      set.append(legend);
-      for (const l of g.layers) {
-        const label = document.createElement("label");
-        const check = document.createElement("input");
-        check.type = "checkbox";
-        check.checked = layers[l.id].on;
-        check.dataset.layer = l.id;
-        check.addEventListener("change", () => { layers[l.id].on = check.checked; });
-        check.addEventListener("focus", () => { current = l.id; });
-        label.append(check, " " + l.name);
-        set.append(label, document.createElement("br"));
-      }
-      body.append(set);
-    }
+    const list = document.createElement("ul");
+    list.id = "layers-tree";
+    list.setAttribute("role", "tree");
+    list.setAttribute("aria-label", d.words.list);
+    body.append(list);
+    const tree = new Tree(list, (id) => { if (id) current = id; }, (id, checked) => { layers[id].on = checked; });
+    tree.expanded = expanded;
+    tree.fill(d.groups.map((g, i) => ({ id: String(i), label: g.name,
+      items: g.layers.map((l) => ({ id: l.id, label: l.name, checked: layers[l.id].on })) })));
+    for (const item of list.querySelectorAll('[aria-checked]')) item.dataset.layer = item.dataset.id;
     current = current || Object.keys(layers)[0];
     const settings = button(d.words.settings_button, () => showSettings(), "layers-settings");
     const ok = button(d.words.ok, apply, "layers-ok");
@@ -601,12 +597,12 @@ function openLayers(d) {
         if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
         Object.assign(l, { min_zoom_m: low, max_zoom_m: high, crossing_earcon: JSON.parse(crossing.value) });
         showList();
-        box.querySelector(`[data-layer="${current}"]`).focus();
+        focusLayer();
       }).catch(showError);
     }, "layer-settings-ok");
     const cancel = button(d.words.cancel, () => {
       showList();
-      box.querySelector(`[data-layer="${current}"]`).focus();
+      focusLayer();
     }, "layer-settings-cancel");
     body.append(title, row(d.words.min_zoom, minZoom), document.createElement("br"),
                row(d.words.max_zoom, maxZoom), document.createElement("br"),
@@ -614,9 +610,22 @@ function openLayers(d) {
     minZoom.focus();
   };
 
+  // The current layer's item, its group opened, takes the focus and the tree's one Tab stop.
+  const focusLayer = () => {
+    const item = box.querySelector(`[data-layer="${current}"]`);
+    const group = item.parentElement.closest('[role="treeitem"]');
+    if (group.getAttribute("aria-expanded") !== "true") {
+      group.setAttribute("aria-expanded", "true");
+      expanded.add(group.dataset.id.replace(/^group:/, ""));
+    }
+    for (const other of box.querySelectorAll('#layers-tree [role="treeitem"]')) other.tabIndex = -1;
+    item.tabIndex = 0;
+    item.focus();
+  };
+
   showList();
   box.showModal();
-  box.querySelector("input").focus();
+  focusLayer();
 }
 
 // Space ticks a box, and Enter anywhere but on a button presses OK: the list's, or the layer
@@ -680,6 +689,27 @@ function showMessage(title, text, okWord, after) {
   messageAfter = after;
   messageBox.showModal();
   $("messagebox-ok").focus();
+}
+// A question in the message box, such as Reset all settings (P2-T18h): the core's words, its button
+// to go ahead, and Cancel, which has the focus first. The answer is carried out before the box closes,
+// so the map's name as the focus comes back is what it said, as for Go to (P2-T17c).
+function openConfirm(d) {
+  $("messagebox-title").textContent = d.title;
+  $("messagebox-text").textContent = d.text;
+  messageBox.querySelectorAll("button").forEach((b) => b.remove());
+  let sending = false;
+  const ok = button(d.ok, () => {
+    if (sending) return;
+    sending = true;
+    const { width, height } = mapSize();
+    client.send({ type: "run", commands: [[d.submit, {}]], width, height })
+      .then((r) => closeWithAnswer(messageBox, [r])).catch(showError);
+  }, "messagebox-ok");
+  const cancel = button(d.cancel, () => messageBox.close(), "messagebox-cancel");
+  messageBox.append(ok, cancel);
+  messageAfter = afterClose;
+  messageBox.showModal();
+  cancel.focus();
 }
 messageBox.addEventListener("close", () => {
   const after = messageAfter;

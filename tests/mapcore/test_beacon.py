@@ -69,9 +69,9 @@ def test_every_response_carries_where_the_beacon_is_now(session):
     assert r.beacon["placed"]["relative_deg"] == 270
 
 
-def test_its_loudness_is_its_own_volume_not_the_distance_or_the_earcon_volume(session):
+def test_its_loudness_is_its_own_volume_not_the_distance_or_an_earcons_volume(session):
     session.run("beacon.toggle")
-    session.run("settings.set", field="earcon_volume", value=30)
+    session.run("settings.set", field="earcon_volume_tick", value=30)
     assert session.beacon()["placed"]["gain"] == pytest.approx(1.0)
     session.run("settings.set", field="beacon_volume", value=40)
     p = session.beacon()["placed"]
@@ -151,12 +151,16 @@ def test_the_beacon_is_in_the_sounds_with_its_own_file_but_no_second_switch():
     assert beacon["file"] == "beacon.wav"
     fields = settings_mod.fields()
     assert "earcon_beacon" in fields and "earcon_on_beacon" not in fields   # B is its switch
+    assert "earcon_volume_beacon" not in fields                            # beacon_volume is its volume
 
 
-def test_the_beacon_volume_and_the_switch_are_in_the_sound_tab():
-    sound = next(t for t in settings_mod.schema()["tabs"] if t["id"] == "sound")
-    ids = [f["id"] for f in sound["fields"]]
-    assert {"beacon_on", "beacon_volume", "beacon_interval_s", "beacon_target"} <= set(ids)
+def test_the_beacons_switch_volume_and_own_file_are_in_the_sound_tab_not_the_earcons_list():
+    """P2-T17p, DP163: the orientation beacon's settings are together, in the Sound tab."""
+    tabs = {t["id"]: t for t in settings_mod.schema()["tabs"]}
+    ids = [f["id"] for f in tabs["sound"]["fields"]]
+    assert {"beacon_on", "beacon_volume", "beacon_interval_s", "earcon_beacon", "beacon_target"} <= set(ids)
+    assert "beacon" not in [r["event"] for r in tabs["earcons"]["earcons"]]
+    assert not any(f["id"].startswith("beacon") or f["id"] == "earcon_beacon" for f in tabs["earcons"]["fields"])
 
 
 def test_joined_commands_keep_the_last_beacon(session):

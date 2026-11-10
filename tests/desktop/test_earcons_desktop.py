@@ -1,14 +1,16 @@
-"""The earcons on the desktop (P2-T8; SON-6, SON-7, SON-8): your own file chosen in the Earcons
-tab, a file that cannot be played refused or falling back to the default, said once, and the
-earcon volume reaching the player. No sound device is opened."""
+"""The earcons on the desktop (P2-T8, P2-T17p; SON-6, SON-7, SON-8, DP163): the Earcons tab's one
+list with a check box for each earcon, and one set of controls for the earcon chosen in it; your
+own file, a file that cannot be played refused or falling back to the default, said once, and each
+earcon's own volume reaching the player. No sound device is opened."""
 import wave
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from desktop.announcer import RecordingAnnouncer
-from desktop.dialogs import SettingsDialog, SoundFileField
+from desktop.dialogs import EarconsPage, SettingsDialog, SoundFileField
 from desktop.sounds import RecordingSounds, readable_wav
 from desktop.window import MainWindow
 from mapcore.session import MapSession
@@ -40,6 +42,16 @@ def open_settings(window):
     return dialog
 
 
+def earcons_page(dialog) -> EarconsPage:
+    dialog.tabs.setCurrentWidget(next(dialog.tabs.widget(i) for i in range(dialog.tabs.count())
+                                      if dialog.tabs.widget(i).isAncestorOf(dialog.earcons)))
+    return dialog.earcons
+
+
+def choose_earcon(page, label):
+    page.list.setCurrentRow(next(i for i, r in enumerate(page.rows) if r["label"] == label))
+
+
 def test_a_readable_wav_is_known_from_one_that_is_not(tmp_path):
     assert readable_wav(a_wav(tmp_path / "mine.wav"))
     (tmp_path / "text.wav").write_text("not a sound")
@@ -48,38 +60,104 @@ def test_a_readable_wav_is_known_from_one_that_is_not(tmp_path):
     assert not readable_wav(tmp_path / "missing.wav")
 
 
-def test_the_earcons_tab_has_a_switch_and_an_own_file_for_each(window):
+def test_the_earcons_tab_is_one_list_with_a_check_box_for_each(window):
+    """P2-T17p, desktop checklist 10.6: one list of every earcon, each with a check box, and no
+    volume for all of them together (DP163). The beacon is in the Sound tab."""
     dialog = open_settings(window)
-    field = dialog.controls["earcon_tick"]
+    page = earcons_page(dialog)
+    names = [page.list.item(i).text() for i in range(page.list.count())]
+    assert names[:3] == ["Tick", "Blocked", "Something added"] and "Orientation beacon" not in names
+    assert page.list.accessibleName() == "Earcons"
+    assert all(page.list.item(i).checkState() == Qt.CheckState.Checked for i in range(page.list.count()))
+    assert page.list.currentRow() == 0
+    assert "earcon_volume" not in dialog.controls
+    dialog.cancel_button.click()
+
+
+def test_the_controls_below_the_list_are_for_the_earcon_chosen_in_it(window):
+    dialog = open_settings(window)
+    page = earcons_page(dialog)
+    assert page.volume.accessibleName() == "Tick: volume, in percent" and page.volume.value() == 100
+    assert page.volume_label.text() == "Tick: volume, in percent"
+    field = page.file
     assert isinstance(field, SoundFileField)
     assert field.edit.accessibleName() == "Tick: your own sound file"
     assert field.choose_button.accessibleName() == "Choose file for Tick"
     assert field.default_button.accessibleName() == "Use the default for Tick"
-    assert dialog.controls["earcon_on_tick"].isChecked()
+    choose_earcon(page, "Blocked")
+    assert page.volume.accessibleName() == "Blocked: volume, in percent"
+    assert field.edit.accessibleName() == "Blocked: your own sound file"
+    assert field.choose_button.accessibleName() == "Choose file for Blocked"
+    assert field.default_button.accessibleName() == "Use the default for Blocked"
     dialog.cancel_button.click()
 
 
-def test_choosing_your_own_file_keeps_it_and_use_the_default_clears_it(window, tmp_path):
+def test_each_earcon_keeps_its_own_volume_and_file_and_ok_saves_them(window, tmp_path):
     mine = a_wav(tmp_path / "mine.wav")
     dialog = open_settings(window)
-    field = dialog.controls["earcon_blocked"]
-    field._choose_dialog = lambda: str(mine)
-    field.choose()
+    page = earcons_page(dialog)
+    choose_earcon(page, "Blocked")
+    page.volume.setValue(40)
+    page.file._choose_dialog = lambda: str(mine)
+    page.file.choose()
+    choose_earcon(page, "Tick")                       # the tick is as it was
+    assert page.volume.value() == 100 and page.file.text() == ""
+    choose_earcon(page, "Blocked")                    # and the blocked sound keeps its own
+    assert page.volume.value() == 40 and page.file.text() == str(mine)
     dialog.ok_button.click()
     QApplication.processEvents()
-    assert window.session.settings["earcon_blocked"] == str(mine)
+    s = window.session.settings
+    assert s["earcon_volume_blocked"] == 40 and s["earcon_blocked"] == str(mine)
+    assert s["earcon_volume_tick"] == 100
     assert window.session.earcon_file("blocked")["custom"] == str(mine)
     dialog = open_settings(window)
-    dialog.controls["earcon_blocked"].use_default()
+    page = earcons_page(dialog)
+    choose_earcon(page, "Blocked")
+    assert page.volume.value() == 40
+    page.file.use_default()
     dialog.ok_button.click()
     QApplication.processEvents()
     assert window.session.settings["earcon_blocked"] == ""
 
 
+def test_cancel_keeps_nothing_changed_in_the_tab(window):
+    dialog = open_settings(window)
+    page = earcons_page(dialog)
+    page.volume.setValue(10)
+    page.list.item(0).setCheckState(Qt.CheckState.Unchecked)
+    dialog.cancel_button.click()
+    QApplication.processEvents()
+    assert window.session.settings["earcon_volume_tick"] == 100 and window.session.settings["earcon_on_tick"]
+
+
+def test_space_in_the_list_ticks_and_enter_presses_ok(window, qtbot):
+    dialog = open_settings(window)
+    page = earcons_page(dialog)
+    choose_earcon(page, "Blocked")
+    page.list.setFocus()
+    qtbot.keyClick(page.list, Qt.Key.Key_Space)
+    assert page.list.currentItem().checkState() == Qt.CheckState.Unchecked
+    assert page.list.currentRow() == 1                 # Space did not move along the list
+    qtbot.keyClick(page.list, Qt.Key.Key_Return)
+    QApplication.processEvents()
+    assert not dialog.isVisible()
+    assert window.session.settings["earcon_on_blocked"] is False
+    assert window.session.settings["earcon_on_tick"] is True
+
+
+def test_the_beacons_own_file_is_in_the_sound_tab(window):
+    dialog = open_settings(window)
+    field = dialog.controls["earcon_beacon"]
+    assert isinstance(field, SoundFileField)
+    assert field.edit.accessibleName() == "Orientation beacon: your own sound file"
+    assert field.choose_button.accessibleName() == "Choose file for Orientation beacon"
+    dialog.cancel_button.click()
+
+
 def test_a_file_that_cannot_be_played_is_refused_and_you_are_told(window, tmp_path):
     (tmp_path / "notes.wav").write_text("not a sound")
     dialog = open_settings(window)
-    field = dialog.controls["earcon_tick"]
+    field = earcons_page(dialog).file
     field._choose_dialog = lambda: str(tmp_path / "notes.wav")
     field.choose()
     assert field.text() == ""
@@ -96,7 +174,7 @@ def test_the_message_stays_on_screen_and_takes_the_focus(window, tmp_path, qtbot
     source = Path(__file__).resolve().parents[2] / "desktop" / "sounds.py"
     chosen = shutil.copy(source, tmp_path / "sounds.wav") if renamed else source
     dialog = open_settings(window)
-    field = dialog.controls["earcon_tick"]
+    field = earcons_page(dialog).file
     assert field.message.isHidden()
     field._choose_dialog = lambda: str(chosen)
     field.choose()
@@ -109,9 +187,22 @@ def test_the_message_stays_on_screen_and_takes_the_focus(window, tmp_path, qtbot
     dialog.cancel_button.click()
 
 
+def test_the_message_goes_when_another_earcon_is_chosen(window, tmp_path):
+    (tmp_path / "notes.wav").write_text("not a sound")
+    dialog = open_settings(window)
+    page = earcons_page(dialog)
+    page.file._choose_dialog = lambda: str(tmp_path / "notes.wav")
+    page.file.choose()
+    assert not page.file.message.isHidden()
+    choose_earcon(page, "Blocked")
+    assert page.file.message.isHidden()
+    dialog.cancel_button.click()
+
+
 def test_switching_an_earcon_off_in_the_dialog_silences_it(window):
     dialog = open_settings(window)
-    dialog.controls["earcon_on_blocked"].setChecked(False)
+    page = earcons_page(dialog)
+    page.list.item(1).setCheckState(Qt.CheckState.Unchecked)    # Blocked
     dialog.ok_button.click()
     QApplication.processEvents()
     window.sounds.played.clear()
@@ -131,8 +222,8 @@ def test_an_own_file_that_fails_falls_back_and_is_said_once(window):
     assert window.sounds.played.count("blocked") == 3
 
 
-def test_the_earcon_volume_reaches_the_player(window):
-    window.session.run("settings.set", field="earcon_volume", value=30)
+def test_an_earcons_own_volume_reaches_the_player(window):
+    window.session.run("settings.set", field="earcon_volume_blocked", value=30)
     window.session.back_places.clear()
     window.dispatch("history.back")
     assert window.sounds.gains[-1] == pytest.approx(0.3)

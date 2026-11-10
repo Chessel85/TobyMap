@@ -32,17 +32,15 @@ def bearing_text(bearing: float, style: str = "points8") -> str:
 
 
 def direction_text(bearing: float, style: str = "points8", heading: float | None = None) -> str:
-    """The direction to something (NAV-12, ANN-5). With heading None, as in
-    north-fixed, a compass direction: "north-east". With the heading the user faces,
-    relative to it: "ahead right", "2 o'clock", "47 degrees to your right"."""
+    """The direction to something (NAV-12, ANN-5). With heading None, a compass direction
+    in the chosen format: "north-east", "47 degrees". With the heading the user faces, the
+    same format measured from it, with "at your" (DP159): "at your north-east" is ahead
+    right, "at your 2 o'clock", "at your 47 degrees"."""
     if heading is None:
         return bearing_text(bearing, style)
-    b = formats.relative_parts(formats.relative_bearing(bearing, heading), style)
-    if b.kind == "clock":
-        return say("bearing.clock", value=b.value)
-    if b.kind == "relative_point":
-        return say(f"relative.points.{b.value}")
-    return say(f"relative.{b.kind}", value=b.value)
+    b = formats.bearing_parts(formats.relative_bearing(bearing, heading), style)
+    value = point_text(b.value) if b.kind == "point" else b.value
+    return say(f"relative.{b.kind}", value=value)
 
 
 def _angle_text(angle: formats.Angle, dms: bool) -> str:

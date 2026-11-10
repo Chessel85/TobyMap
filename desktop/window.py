@@ -595,8 +595,7 @@ class MainWindow(QMainWindow):
             box.accepted.connect(lambda b=box: self._carry_out_answer(
                 self.session.run(dialog["set"], layer=i, values=v) for i, v in b.changes()))
         elif kind == "input":
-            box = InputDialog(self, dialog, submit=lambda text: self.session.run(dialog["submit"], text=text),
-                              speak=lambda text: self.announcer.speak(text, "assertive"))
+            box = InputDialog(self, dialog, submit=lambda text: self.session.run(dialog["submit"], text=text))
             box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
         else:
             box = TextDialog(self, dialog["title"], dialog["text"], self.words["close"])

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from mapcore.geo.formats import POINTS_32
+from mapcore.geo.formats import METRES_PER_MILE, METRES_PER_YARD, POINTS_32
 
 # Compass points a person may type, by name or by letters: "NE", "north-east", "north east",
 # "northeast". The 16 principal points; the "by" points are too fine to type.
@@ -74,6 +74,37 @@ _WAY = r"north|south|east|west|[nsew]"
 _MOVE = re.compile(rf"(?P<way1>{_WAY})\s*{_amount('1')}(?:(?:\s*,\s*|\s*)(?P<way2>{_WAY})\s*{_amount('2')})?")
 
 
+# Forward and back by a distance, in cardinal and free facing (P2-T17r, DP161): "f 24", "F24mi240yds",
+# "back 24 km 50 m". A number alone is in the user's own distance unit; units may be typed, one or more.
+_AHEAD = re.compile(r"(?P<way>forwards?|f|backwards?|backward|back|b)\s*(?P<amount>.+)")
+_UNITS = {"km": 1000.0, "kilometre": 1000.0, "kilometres": 1000.0, "kilometer": 1000.0, "kilometers": 1000.0,
+          "mi": METRES_PER_MILE, "mile": METRES_PER_MILE, "miles": METRES_PER_MILE,
+          "m": 1.0, "metre": 1.0, "metres": 1.0, "meter": 1.0, "meters": 1.0,
+          "yds": METRES_PER_YARD, "yd": METRES_PER_YARD, "yard": METRES_PER_YARD, "yards": METRES_PER_YARD}
+_UNIT = "|".join(sorted(_UNITS, key=len, reverse=True))   # the longest first: "mi" before "m"
+_PART = re.compile(rf"(?P<n>{_NUMBER})\s*(?P<unit>{_UNIT})\s*(?:,\s*)?(?:and\s+)?")
+
+
+def _distance(text: str, unit_m: float) -> float:
+    """Metres from "24", in the user's unit, or from parts each with a unit: "24mi240yds",
+    "24 km 50 m", "2 miles and 100 yards". Each unit at most once."""
+    text = text.strip()
+    if re.fullmatch(_NUMBER, text):
+        return float(text) * unit_m
+    metres, seen, at = 0.0, set(), 0
+    while at < len(text):
+        m = _PART.match(text, at)
+        if not m:
+            raise ValueError(f"not a distance: {text!r}")
+        unit = _UNITS[m.group("unit")]
+        if unit in seen:
+            raise ValueError(f"one unit twice: {text!r}")
+        seen.add(unit)
+        metres += float(m.group("n")) * unit
+        at = m.end()
+    return metres
+
+
 def _clean(text: str) -> str:
     cleaned = str(text).strip().lower()
     for old, new in (("′′", '"'), ("''", '"'), ("′", "'"), ("’", "'"), ("‘", "'"), ("`", "'"), ("″", '"'),
@@ -120,7 +151,7 @@ def parse_coordinates(text: str) -> tuple[float, float]:
     return _value(m, "1", "ns", 90.0, "latitude"), _value(m, "2", "ew", 180.0, "longitude")
 
 
-def parse_goto(text: str) -> tuple[str, float | None, float | None]:
+def parse_goto(text: str, unit_m: float = 1000.0) -> tuple[str, float | None, float | None]:
     """What is typed in Go to (NAV-8, the PO's answers of 8 November 2026), as one of:
 
     * ("to", lat, lon): both coordinates, as parse_coordinates reads them.
@@ -131,9 +162,17 @@ def parse_goto(text: str) -> tuple[str, float | None, float | None]:
       with or without a comma: "north 5", "s 2 e 3", "west 10, n 1". South and west are
       negative. A direction comes first; a number first is always where to go, so "-33" is
       33 degrees south and nothing clashes.
+    * ("ahead", metres, None): f or forward, or b or back, then a distance; back is negative
+      (DP161). A number alone is in unit_m, the user's own unit: "f 24" is 24 kilometres in
+      metric. Units may be typed instead: km, mi, m and yds, or their words, and several
+      together: "F24mi240yds", "b 24km 50m". Only cardinal and free facing use it.
 
     Raises ValueError for anything else."""
     cleaned = _clean(text)
+    m = _AHEAD.fullmatch(cleaned)
+    if m:
+        metres = _distance(m.group("amount"), unit_m)
+        return "ahead", (-metres if m.group("way").startswith("b") else metres), None
     m = _MOVE.fullmatch(cleaned)
     if m:
         moves = {"n": 0.0, "e": 0.0}

@@ -15,7 +15,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -278,7 +278,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -339,12 +339,12 @@ window.addEventListener("blur", () => { if (heldKey) release(); });
 // What Tab reaches in a dialog: not a hidden page of the settings, and only the
 // chosen tab of the tab list.
 function tabbable(container) {
-  return [...container.querySelectorAll("button, input, select, textarea")]
+  return [...container.querySelectorAll("button, input, select, textarea, [role=option]")]
     .filter((el) => !el.disabled && el.tabIndex >= 0 && !el.closest("[hidden]"));
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [settingsDialog, inputDialog, layersDialog, dialog].find((d) => d.open);
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -647,16 +647,45 @@ function openInput(d) {
   help.textContent = d.help;
   // Go to has no help: its label is enough (the PO, 8 November 2026).
   if (d.help) field.setAttribute("aria-describedby", "input-help");
-  const message = document.createElement("p");
-  message.id = "input-message";
-  const go = () => submit(d.submit, { text: field.value }, message, box).then(() => { if (box.open) field.select(); });
+  // What can't be read opens a message box with the core's words and an OK button; after OK you are
+  // back in the field with your text chosen, so typing replaces it (P2-T17o, as on the desktop). The
+  // screen reader reads the message box as the focus enters it, so the words are not spoken as well.
+  let sending = false;
+  const go = () => {
+    if (sending || messageBox.open) return;   // Enter can arrive twice: one answer at a time
+    sending = true;
+    const { width, height } = mapSize();
+    client.send({ type: "run", commands: [[d.submit, { text: field.value }]], width, height }).then((r) => {
+      sending = false;
+      if (r.response.error) return showMessage(d.title, r.response.error, d.ok, () => { field.focus(); field.select(); });
+      closeWithAnswer(box, [r]);
+    }).catch((error) => { sending = false; showError(error); });
+  };
   const ok = button(d.ok, go, "input-ok");
   const cancel = button(d.cancel, () => box.close(), "input-cancel");
-  box.append(title, label, field, ...(d.help ? [help] : []), message, ok, cancel);
+  box.append(title, label, field, ...(d.help ? [help] : []), ok, cancel);
   field.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
   box.showModal();
   field.focus();
 }
+
+// A message box over another box: a title, the words, and one OK button, which has the focus. OK,
+// Enter on it, Space or Escape closes it, and then `after` puts the focus back (P2-T17o).
+let messageAfter = null;
+function showMessage(title, text, okWord, after) {
+  $("messagebox-title").textContent = title;
+  $("messagebox-text").textContent = text;
+  messageBox.querySelectorAll("button").forEach((b) => b.remove());
+  messageBox.append(button(okWord, () => messageBox.close(), "messagebox-ok"));
+  messageAfter = after;
+  messageBox.showModal();
+  $("messagebox-ok").focus();
+}
+messageBox.addEventListener("close", () => {
+  const after = messageAfter;
+  messageAfter = null;
+  if (after) after();
+});
 
 dialogClose.addEventListener("click", () => dialog.close());
 function returnTarget() {
@@ -673,8 +702,8 @@ layersDialog.addEventListener("close", afterClose);
 // Enter in a settings field presses OK, as on the desktop (web checklist 5).
 settingsDialog.addEventListener("keydown", (e) => {
   const el = e.target;
-  if (e.key === "Enter" && (el.tagName === "SELECT" || (el.tagName === "INPUT" && el.type !== "file"))
-      && el.id !== "settings-keys") {
+  if (e.key === "Enter" && (el.tagName === "SELECT" || (el.tagName === "INPUT" && el.type !== "file")
+      || el.getAttribute("role") === "option") && el.id !== "settings-keys") {   // an earcon in its list (P2-T17p)
     e.preventDefault();
     $("settings-ok").click();
   }
@@ -751,8 +780,13 @@ async function openSettings() {
   };
   const controls = {};
   const ownChanges = new Map();   // your own sound files chosen, kept in the browser only on OK
+  const earconValues = {};   // the Earcons tab's values, for every earcon, kept until OK (P2-T17p)
   for (const tab of schema.tabs) {
     const page = addPage(tab.id, tab.label);
+    if (tab.earcons) {
+      earconsPage(page, tab, schema.values, earconValues, ownChanges);
+      continue;
+    }
     for (const f of tab.fields) {
       const label = document.createElement("label");
       label.textContent = f.label + " ";
@@ -773,24 +807,7 @@ async function openSettings() {
       } else if (f.kind === "sound_file") {
         control = soundFileField(f, schema.values[f.id], ownChanges);
       } else {
-        control = document.createElement("input");
-        control.type = f.kind === "number" ? "number" : "text";
-        if (f.kind === "number") {
-          control.min = f.min;
-          control.max = f.max;
-          control.step = f.step || 1;   // the beacon's seconds go in halves (P2-T17m)
-          // Home sets the largest value, as Home is above End on the keyboard, and End the smallest,
-          // as on the desktop (P2-T17m, desktop checklist 12.4).
-          control.addEventListener("keydown", (e) => {
-            if ((e.key !== "Home" && e.key !== "End") || e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
-            e.preventDefault();
-            control.value = e.key === "Home" ? f.max : f.min;
-            control.select();
-          });
-        }
-        control.value = schema.values[f.id];
-        // Arriving with Tab chooses the whole value, so typing replaces it (web checklist 8).
-        control.addEventListener("focus", () => control.select());
+        control = textField(f, schema.values[f.id]);
       }
       control.dataset.field = f.id;
       control.dataset.kind = f.kind;
@@ -837,9 +854,12 @@ async function openSettings() {
       } catch (e) { /* no storage, as in private browsing: the default plays and you are told */ }
     }
     if (ownChanges.size) sounds.forgetOwn();
+    const values = { ...earconValues };
     for (const [id, control] of Object.entries(controls)) {
-      const value = control.dataset.kind === "yes_no" ? control.checked
+      values[id] = control.dataset.kind === "yes_no" ? control.checked
         : control.dataset.kind === "number" ? Number(control.value) : control.value;
+    }
+    for (const [id, value] of Object.entries(values)) {
       if (value !== schema.values[id]) await run("settings.set", { field: id, value });
     }
     settingsDialog.close();
@@ -857,10 +877,115 @@ async function openSettings() {
   tabs[0].focus();
 }
 
+// A number or text box in Settings. Arriving with Tab chooses the whole value, so typing replaces
+// it (web checklist 8). In a number box Home sets the largest value, as Home is above End on the
+// keyboard, and End the smallest, as on the desktop (P2-T17m, desktop checklist 12.4).
+function textField(f, value) {
+  const control = document.createElement("input");
+  control.type = f.kind === "number" ? "number" : "text";
+  if (f.kind === "number") {
+    control.min = f.min;
+    control.max = f.max;
+    control.step = f.step || 1;   // the beacon's seconds go in halves (P2-T17m)
+    control.addEventListener("keydown", (e) => {
+      if ((e.key !== "Home" && e.key !== "End") || e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+      e.preventDefault();
+      control.value = e.key === "Home" ? f.max : f.min;
+      control.dispatchEvent(new Event("input"));
+      control.select();
+    });
+  }
+  control.value = value;
+  control.addEventListener("focus", () => control.select());
+  return control;
+}
+
+// The Earcons tab (P2-T17p; SON-6, SON-7, SON-8, DP163, desktop checklist 10.6): one list of every
+// earcon, each with a check box to play it or not; Space ticks it, Enter presses OK. Each item
+// takes the focus itself, as the web shell's rule asks. Below the list, one set of controls for
+// the earcon chosen in it: its own volume and your own file, whose labels say which earcon they
+// are for. What is changed is kept in `values`, for every earcon, until OK.
+function earconsPage(page, tab, start, values, ownChanges) {
+  const fields = {};
+  for (const f of tab.fields) { fields[f.id] = f; values[f.id] = start[f.id]; }
+  const heading = document.createElement("div");
+  heading.id = "settings-earcons-label";
+  heading.textContent = tab.list_label;
+  const list = document.createElement("div");
+  list.id = "settings-earcons";
+  list.className = "earcon-list";
+  list.setAttribute("role", "listbox");
+  list.setAttribute("aria-labelledby", heading.id);
+  const below = document.createElement("div");
+  let current = 0;
+  const marks = [];
+  const options = tab.earcons.map((r, i) => {
+    const o = document.createElement("div");
+    o.setAttribute("role", "option");
+    o.id = `settings-earcon-${r.event}`;
+    o.dataset.earcon = r.event;
+    const mark = document.createElement("input");   // shown for sighted users; the option says checked
+    mark.type = "checkbox";
+    mark.tabIndex = -1;
+    mark.setAttribute("aria-hidden", "true");
+    marks.push(mark);
+    o.append(mark, " " + r.label);
+    o.addEventListener("click", (e) => { if (e.target === mark) tick(i); show(i, true); });
+    list.append(o);
+    return o;
+  });
+  const tick = (i) => {
+    const id = tab.earcons[i].on;
+    values[id] = !values[id];
+    paint(i);
+  };
+  const paint = (i) => {
+    const on = !!values[tab.earcons[i].on];
+    options[i].setAttribute("aria-checked", String(on));
+    marks[i].checked = on;
+  };
+  const show = (i, focus) => {
+    current = i;
+    options.forEach((o, k) => {
+      o.tabIndex = k === i ? 0 : -1;
+      o.setAttribute("aria-selected", String(k === i));
+    });
+    if (focus) options[i].focus();
+    const r = tab.earcons[i];
+    below.textContent = "";
+    const volume = fields[r.volume], own = fields[r.file];
+    const box = textField(volume, values[r.volume]);
+    box.dataset.field = r.volume;
+    box.dataset.kind = "number";
+    box.addEventListener("input", () => { values[r.volume] = Number(box.value); });
+    const file = soundFileField(own, values[r.file], ownChanges, (name) => { values[r.file] = name; });
+    file.dataset.field = r.file;
+    file.dataset.kind = "sound_file";
+    for (const [f, control] of [[volume, box], [own, file]]) {
+      const label = document.createElement("label");
+      label.textContent = f.label + " ";
+      label.appendChild(control);
+      below.appendChild(label);
+      if (control.extras) below.append(" ", ...control.extras);
+      below.appendChild(document.createElement("br"));
+    }
+  };
+  list.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const last = options.length - 1;
+    const to = { ArrowDown: Math.min(last, current + 1), ArrowUp: Math.max(0, current - 1), Home: 0, End: last }[e.key];
+    if (to !== undefined) { e.preventDefault(); show(to, true); }
+    else if (e.key === " ") { e.preventDefault(); tick(current); }
+  });
+  tab.earcons.forEach((_r, i) => paint(i));
+  show(0, false);
+  page.append(heading, list, below);
+}
+
 // Your own sound file for an earcon (P2-T8b, SON-8, DP123): a read-only box with the file's
 // name, empty for the default, then Choose file and Use the default. A file that is not a
 // WAV sound the browser can play is refused, shown and said. Nothing is kept until OK.
-function soundFileField(f, value, ownChanges) {
+function soundFileField(f, value, ownChanges, onChange = () => {}) {
   const control = document.createElement("input");
   control.type = "text";
   control.readOnly = true;
@@ -880,6 +1005,7 @@ function soundFileField(f, value, ownChanges) {
     control.value = "";
     message.textContent = "";
     ownChanges.set(f.earcon, null);
+    onChange("");
     control.focus();
   }, `settings-default-${f.earcon}`);
   useDefault.setAttribute("aria-label", words.use_default_for.replace("{name}", f.name));
@@ -896,6 +1022,7 @@ function soundFileField(f, value, ownChanges) {
       control.value = file.name;
       message.textContent = "";
       ownChanges.set(f.earcon, { name: file.name, bytes });
+      onChange(file.name);
     } else {
       message.textContent = words.file_unreadable.replace("{file}", file.name);   // shown and said once
       speak(message.textContent, "assertive");

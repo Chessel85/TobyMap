@@ -514,7 +514,10 @@ def test_the_bearing_box_keeps_open_on_a_bad_answer_and_takes_a_good_one(app):
     assert app.evaluate("document.activeElement.id") == "input-field"
     app.fill("#input-field", "sideways")
     app.click("#input-ok")
-    app.wait_for_function("document.getElementById('input-message').textContent.startsWith('That is not a bearing')")
+    app.wait_for_function("document.getElementById('messagebox').open")
+    assert app.text_content("#messagebox-text").startswith("sideways is not a valid bearing.")
+    app.click("#messagebox-ok")
+    app.wait_for_function("!document.getElementById('messagebox').open")
     assert app.evaluate("document.getElementById('inputdialog').open")
     app.fill("#input-field", "NE")
     app.keyboard.press("Enter")
@@ -836,7 +839,38 @@ def test_enter_on_cancel_closes_the_bearing_box_without_reading_it(app):
     app.focus("#input-cancel")
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('inputdialog').open")
-    assert not any(t.startswith("That is not a bearing") for t in said(app))
+    assert not app.evaluate("document.getElementById('messagebox').open")   # nothing was read
+
+
+@pytest.mark.parametrize("key, title, words", [
+    ("Control+b", "Type a bearing", "hello is not a valid bearing. Enter a value in degrees in the range 0 to 360."),
+    ("Control+g", "Go to coordinates", "hello is not a valid entry. Enter latitude and then longitude"),
+], ids=["bearing", "go to"])
+def test_a_wrong_entry_opens_a_message_box_and_ok_comes_back_to_the_text(app, key, title, words):
+    # P2-T17o, as on the desktop: a message box with an OK button; after OK, back in the box with the text.
+    app.keyboard.press(key)
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    if key == "Control+b":
+        assert app.text_content("#inputdialog label") == "Enter a bearing in degrees, or a compass direction:"
+        assert app.query_selector("#input-help") is None   # the label alone
+    before = len(said(app))
+    app.keyboard.type("hello")
+    app.keyboard.press("Enter")
+    app.wait_for_function("document.getElementById('messagebox').open")
+    assert app.get_attribute("#messagebox", "role") == "alertdialog"
+    assert app.text_content("#messagebox-title") == title
+    assert app.text_content("#messagebox-text").startswith(words)
+    assert app.evaluate("document.activeElement.id") == "messagebox-ok"
+    assert app.text_content("#messagebox-ok") == "OK"
+    app.keyboard.press("Tab")                                # Tab stays on the one button
+    assert app.evaluate("document.activeElement.id") == "messagebox-ok"
+    assert said(app)[before:] == []                          # the screen reader reads the message box itself
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('messagebox').open")
+    assert app.evaluate("document.getElementById('inputdialog').open")
+    assert app.evaluate("document.activeElement.id") == "input-field"
+    assert app.input_value("#input-field") == "hello"
+    assert app.evaluate("(() => { const f = document.activeElement; return f.value.slice(f.selectionStart, f.selectionEnd); })()") == "hello"
 
 
 # The place said once as a dialog closes (P2-T17c; web checklist 5.2, 8.6) ------------------------

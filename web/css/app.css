@@ -45,6 +45,10 @@ dialog button { margin-top: 8px; font: inherit; padding: 4px 16px; }
 #settings [role="tab"] { margin: 0; border: 2px solid #999; border-bottom: 0; background: #ddd; color: #111; }
 #settings [role="tab"][aria-selected="true"] { background: #fff; border-color: #444; font-weight: bold; }
 #settings .settings-page { min-height: 12em; }
+/* The Earcons tab's list (P2-T17p): the chosen earcon is highlighted. */
+#settings .earcon-list { border: 1px solid #888; max-height: 14em; overflow-y: auto; margin: 0.25em 0 0.75em; }
+#settings .earcon-list [role="option"] { padding: 0.1em 0.4em; cursor: default; }
+#settings .earcon-list [aria-selected="true"] { background: #0b57d0; color: #fff; }
 #settings-keys, #sounds-list { width: 100%; font: inherit; }
 #settings label { display: inline-block; margin: 2px 0; }
 #settings button, #keydialog button, #inputdialog button, #layersdialog button { margin: 4px 8px 4px 0; font: inherit; padding: 4px 16px; }

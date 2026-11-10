@@ -23,7 +23,7 @@ import mapcore
 from mapcore import settings as settings_mod
 from mapcore.commands import registry
 from mapcore.describe import describer, say, templates, words
-from mapcore.geo import geodesy, parse
+from mapcore.geo import formats, geodesy, parse
 from mapcore.layers import LayerCatalogue
 from mapcore.layers.visible import VisibleRule
 from mapcore.world import WorldState
@@ -458,7 +458,7 @@ class MapSession:
         """The Information panel groups (UX section 6), as plain data."""
         zoom = self.world.zoom_m
         shown = self.visible.shown_layers(zoom)
-        heading = describer.facing(self.world)
+        heading = describer.words_facing(self.world, self.settings)
         key = (self.world.lat, self.world.lon, self.settings["units"], self.settings["bearing"],
                self.settings["nearby_count"], zoom, shown, heading, self._interval(), self._crossed_gen,
                id(self.crossed))
@@ -548,13 +548,14 @@ class MapSession:
 
     def earcon_file(self, event: str) -> dict:
         """Which file to play for an earcon (SON-8): the user's own if one is set, else the
-        default, and how loud, from the earcon volume (P2-T8)."""
+        default, and how loud, from the earcon's own volume (P2-T17p, DP163). A sound with no
+        volume of its own, such as the beacon, is at full volume here."""
         from mapcore.describe import earcon_list
 
         default = next((e["file"] for e in earcon_list() if e["event"] == event), None)
         custom = self.settings.values.get(f"earcon_{event}", "")
         return {"event": event, "custom": custom or None, "default": default,
-                "gain": self.settings["earcon_volume"] / 100.0}
+                "gain": self.settings.values.get(f"earcon_volume_{event}", 100) / 100.0}
 
     def earcon_on(self, event: str) -> bool:
         """Whether an earcon plays: sound not muted, and its own switch on (P2-T8; SON-6, SON-7).
@@ -584,7 +585,7 @@ class MapSession:
                        beyond_tone=self.settings["beyond_view"] == "tone"   # the tone switched off: quiet and muffled
                        and self.settings["earcon_on_beyond_view"]).to_dict()
         placed["file"] = self.earcon_file(placed["sound"])
-        placed["gain"] *= placed["file"]["gain"]   # the earcon volume (P2-T8)
+        placed["gain"] *= placed["file"]["gain"]   # the earcon's own volume (P2-T17p)
         return placed
 
     # The orientation beacon (P2-T9; SON-10, SON-2) -----------------------------------
@@ -1014,12 +1015,13 @@ class MapSession:
 
     def _bearing_set(self, text: str = "", **_a) -> Response:
         """A typed bearing: face it. In north-fixed or cardinal facing this switches to free
-        facing, and says so (NAV-12). A bearing that can't be read is refused with the words
-        that list what is accepted, and the box stays open."""
+        facing, and says so (NAV-12). A bearing that can't be read is refused with words that
+        name it and list what is accepted, which the shell shows in a message box; the box to
+        type in stays open (P2-T17o)."""
         try:
             bearing = parse.parse_bearing(text)
         except ValueError:
-            return Response(error=say("typing.bearing_error"))
+            return Response(error=self._refused("bearing", text))
         was_free = self.world.orientation == "free"
         self.world.face(bearing)
         # No jump, so the focus stays on the same item; its words change with the facing.
@@ -1030,6 +1032,13 @@ class MapSession:
         self._panel_cache = None
         return r.speak(say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE)
 
+    @staticmethod
+    def _refused(box: str, text: str) -> str:
+        """The words for a typed answer that can't be read, naming what was typed, such as "hello
+        is not a valid bearing." (P2-T17o, the PO's notes on desktop checklist 3.5 and 5.3)."""
+        entry = " ".join(text.split())
+        return say(f"typing.{box}_error", entry=entry) if entry else say(f"typing.{box}_empty")
+
     def _goto_coordinates(self, **_a) -> Response:
         self._answer_to = self._pressed_in
         return Response(dialog={"kind": "input", "title": say("typing.goto_title"),
@@ -1039,17 +1048,41 @@ class MapSession:
     def _goto_set(self, text: str = "", **_a) -> Response:
         """Typed coordinates: jump there, keeping the zoom and step (NAV-8). One number keeps the
         longitude, a comma and a number keep the latitude, and a direction and degrees, such as
-        "north 5", move by that much from here (parse_goto). Past a pole, the move stops at it."""
+        "north 5", move by that much from here (parse_goto). Past a pole, the move stops at it.
+        In cardinal and free facing, "f 24" or "b 2 km" moves forward or back (P2-T17r, DP161)."""
+        unit_m = {"imperial": formats.METRES_PER_MILE, "nautical": formats.METRES_PER_NAUTICAL_MILE}
         try:
-            kind, a, b = parse.parse_goto(text)
+            kind, a, b = parse.parse_goto(text, unit_m.get(self.settings["units"], 1000.0))
         except ValueError:
-            return Response(error=say("typing.goto_error"))
+            return Response(error=self._refused("goto", text))
         w = self.world
+        if kind == "ahead":
+            return self._goto_ahead(a)
         if kind == "by":
             lat, lon = w.lat + a, w.lon + b
         else:
             lat, lon = (w.lat if a is None else a), (w.lon if b is None else b)
         r = self._land(self._jump(lat, lon))
+        r.focus = self._focus_back()
+        return r
+
+    def _goto_ahead(self, metres: float) -> Response:
+        """Forward or back by a distance, along the way you face, as Up and Down step: over a
+        pole you come out facing the other way, which is said. A jump, so Alt+comma comes back.
+        North-fixed has no forward, so the box says so and stays open (DP161)."""
+        w = self.world
+        if w.orientation == "north-fixed":
+            return Response(error=say("typing.goto_facing_only"))
+        lat, lon = w.lat, w.lon
+        result = w.forward(1 if metres >= 0 else -1, abs(metres))
+        if not result.moved:   # east or west at a pole
+            return Response().earcon("blocked")
+        w.lat, w.lon = lat, lon   # the jump moves there, after keeping this place
+        r = self._jump(result.lat, result.lon)
+        if result.pole:
+            r.speak(say("movement.pole_crossed", pole=say(f"movement.poles.{result.pole}"),
+                        heading=describer.facing_text(w)), ASSERTIVE)
+        r = self._land(r)
         r.focus = self._focus_back()
         return r
 

@@ -25,6 +25,10 @@ tabs:
           - [points8, Compass with 8 points]
           - [points16, Compass with 16 points]
           - [points32, Compass with 32 points]
+      - id: relative_directions
+        label: "In cardinal and free facing, give directions from the way you face"
+        kind: yes_no
+        default: false
       - id: coordinates
         label: Coordinates
         kind: choice
@@ -217,25 +221,30 @@ tabs:
         min: 0.5
         max: 5
         step: 0.5   # a number box with a fraction says its step; the others go in whole numbers (P2-T17m)
+      # The beacon's own file, here with its other settings, not in the Earcons tab's list (P2-T17p).
+      - id: earcon_beacon
+        label: "Orientation beacon: your own sound file"
+        kind: sound_file
+        default: ""
+        earcon: beacon
+        name: Orientation beacon
       - id: beacon_target
         label: "Orientation beacon: comes from"
         kind: choice
         default: north_pole
         choices: [[north_pole, The North Pole]]
-  # The earcons (P2-T8; SON-6, SON-8): the volume, then for every earcon in
-  # mapcore/describe/earcons.yaml a switch, earcon_on_<event>, and your own file,
-  # earcon_<event>, made by mapcore/settings.py from the two labels below.
+  # The earcons (P2-T8, P2-T17p; SON-6, SON-7, SON-8, DP163): one list of every earcon in
+  # mapcore/describe/earcons.yaml, each with a check box to play it, earcon_on_<event>, then
+  # one set of controls for the earcon chosen in the list: its own volume,
+  # earcon_volume_<event>, and your own file, earcon_<event>. Made by mapcore/settings.py
+  # from the labels below. There is no volume for all the earcons together (DP163).
   - id: earcons
     label: Earcons
-    fields:
-      - id: earcon_volume
-        label: "Earcons: volume, in percent"
-        kind: number
-        default: 100
-        min: 0
-        max: 100
+    fields: []
     each_earcon:
+      list_label: Earcons
       on_label: "{name}: play it"
+      volume_label: "{name}: volume, in percent"
       file_label: "{name}: your own sound file"
   - id: display
     label: Display

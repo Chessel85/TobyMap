@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
-                               QDoubleSpinBox, QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
+                               QDoubleSpinBox, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
@@ -148,12 +148,16 @@ class HistoryDialog(ListDialog):
 
 class InputDialog(QDialog):
     """A box to type in, with OK and Cancel (ACC-7): a bearing or coordinates. The core reads what
-    was typed; if it can't, the words it gives are shown and spoken and the box stays open."""
+    was typed; if it can't, its words open in a message box with an OK button, and after OK you are
+    back in the box with your text (P2-T17o, the PO's notes on desktop checklist 3.5 and 5.3). The
+    screen reader reads the message box as it opens, so the words are not spoken as well."""
 
-    def __init__(self, parent, dialog: dict, submit, speak=None):
+    def __init__(self, parent, dialog: dict, submit):
         super().__init__(parent)
-        self._submit, self._speak = submit, speak
+        self._submit = submit
+        self._ok_word = dialog["ok"]
         self.response = None
+        self.error_box: QMessageBox | None = None
         self.setWindowTitle(dialog["title"])
         layout = QVBoxLayout(self)
         label = QLabel(dialog["label"])
@@ -164,31 +168,43 @@ class InputDialog(QDialog):
         layout.addWidget(self.field)
         self.help = QLabel(dialog["help"])
         self.help.setWordWrap(True)
-        if dialog["help"]:   # Go to has none: its label is enough (the PO, 8 November 2026)
+        if dialog["help"]:   # neither box has one now: their labels are enough (the PO, P2-T17o)
             self.field.setAccessibleDescription(dialog["help"])
             layout.addWidget(self.help)
-        self.message = QLabel("")
-        self.message.setWordWrap(True)
-        layout.addWidget(self.message)
         self.ok_button, self.cancel_button = button_row(layout, [dialog["ok"], dialog["cancel"]])
         self.ok_button.clicked.connect(self.apply)
         self.cancel_button.clicked.connect(self.reject)
         self.field.returnPressed.connect(self.apply)
-        self.resize(520, 200)
+        self.resize(520, 140)
         self.field.setFocus()
 
     def apply(self):
+        if self.error_box is not None:   # Enter can reach the box twice: one message box at a time
+            return
         response = self._submit(self.field.text())
         if response.error:
-            self.message.setText(response.error)
-            self.message.setAccessibleDescription(response.error)
-            if self._speak is not None:
-                self._speak(response.error)
-            self.field.setFocus()
-            self.field.selectAll()
+            self._show_error(response.error)
         else:
             self.response = response
             self.accept()
+
+    def _show_error(self, text: str) -> None:
+        """The core's words in a message box, titled as this box, with one OK button. It is opened,
+        not run, so nothing waits on it; OK, Enter or Space close it, and the focus comes back to
+        the field with the text chosen, so typing replaces it."""
+        box = QMessageBox(QMessageBox.Icon.Warning, self.windowTitle(), text, QMessageBox.StandardButton.NoButton, self)
+        ok = box.addButton(self._ok_word, QMessageBox.ButtonRole.AcceptRole)
+        box.setDefaultButton(ok)
+        box.setEscapeButton(ok)
+        box.finished.connect(self._error_closed)
+        self.error_box = box
+        box.open()
+
+    def _error_closed(self, _result) -> None:
+        self.error_box.deleteLater()
+        self.error_box = None
+        self.field.setFocus()
+        self.field.selectAll()
 
 
 class SoundsDialog(ListDialog):
@@ -467,6 +483,15 @@ class SoundFileField(QWidget):
     def setAccessibleName(self, name: str) -> None:   # the field's label goes on the path box
         self.edit.setAccessibleName(name)
 
+    def show_for(self, field: dict, value: str) -> None:
+        """The same controls for another earcon, chosen in the Earcons tab's list (P2-T17p): its
+        file, and names that say which earcon they are for."""
+        self.edit.setText(value)
+        self.edit.setAccessibleName(field["label"])
+        self.choose_button.setAccessibleName(self.words["choose_file_for"].format(name=field["name"]))
+        self.default_button.setAccessibleName(self.words["use_default_for"].format(name=field["name"]))
+        self._tell("")
+
     def _ask(self) -> str:
         from PySide6.QtWidgets import QFileDialog
 
@@ -495,6 +520,70 @@ class SoundFileField(QWidget):
         return self.edit.text()
 
 
+class EarconsPage(QWidget):
+    """The Earcons tab (P2-T17p; SON-6, SON-7, SON-8, DP163, desktop checklist 10.6). One list of
+    every earcon, each with a check box to play it or not: Space ticks it. Below the list, one set
+    of controls for the earcon chosen in it: its own volume, your own file (empty for the
+    default), Choose file and Use the default. Their labels and names say which earcon they are
+    for. What is changed is kept for each earcon until OK or Cancel."""
+
+    def __init__(self, tab: dict, values: dict, words: dict, speak=None):
+        super().__init__()
+        self.rows = tab["earcons"]
+        self.fields = {f["id"]: f for f in tab["fields"]}
+        self.values = {fid: values[fid] for fid in self.fields}
+        self._row: dict | None = None
+        layout = QVBoxLayout(self)
+        label = QLabel(tab["list_label"])
+        self.list = QListWidget()
+        self.list.setAccessibleName(tab["list_label"])
+        label.setBuddy(self.list)
+        for r in self.rows:
+            item = QListWidgetItem(r["label"])
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked if self.values[r["on"]] else Qt.CheckState.Unchecked)
+            self.list.addItem(item)
+        layout.addWidget(label)
+        layout.addWidget(self.list)
+        form = QFormLayout()
+        self.volume_label, self.file_label = QLabel(), QLabel()
+        self.volume = NumberBox()
+        self.volume_label.setBuddy(self.volume)
+        first = self.fields[self.rows[0]["file"]]
+        self.file = SoundFileField("", first, words, speak=speak)
+        self.file_label.setBuddy(self.file.edit)
+        form.addRow(self.volume_label, self.volume)
+        form.addRow(self.file_label, self.file)
+        layout.addLayout(form)
+        self.list.itemChanged.connect(self._ticked)
+        self.list.currentRowChanged.connect(self._show)
+        self.volume.valueChanged.connect(lambda v: self._keep("volume", v))
+        self.file.edit.textChanged.connect(lambda text: self._keep("file", text))
+        self.list.setCurrentRow(0)
+
+    def _keep(self, which: str, value) -> None:
+        if self._row is not None:
+            self.values[self._row[which]] = value
+
+    def _ticked(self, item) -> None:
+        r = self.rows[self.list.row(item)]
+        self.values[r["on"]] = item.checkState() == Qt.CheckState.Checked
+
+    def _show(self, i: int) -> None:
+        if i < 0:
+            return
+        self._row = None    # nothing is kept while the controls change to the new earcon
+        r = self.rows[i]
+        volume = self.fields[r["volume"]]
+        self.volume.setRange(int(volume["min"]), int(volume["max"]))
+        self.volume.setValue(int(self.values[r["volume"]]))
+        self.volume_label.setText(volume["label"])
+        self.volume.setAccessibleName(volume["label"])
+        self.file_label.setText(self.fields[r["file"]]["label"])
+        self.file.show_for(self.fields[r["file"]], str(self.values[r["file"]]))
+        self._row = r
+
+
 class SettingsDialog(QDialog):
     """The settings, from the core's schema, with OK and Cancel (PLT-5, ACC-7)."""
 
@@ -510,9 +599,18 @@ class SettingsDialog(QDialog):
         self.tabs = QTabWidget()
         self.tabs.setAccessibleName(words["settings_title"])
         self.controls: dict[str, QWidget] = {}
+        self.earcons: EarconsPage | None = None
         for tab in schema["tabs"]:
-            page = QWidget()
-            form = QFormLayout(page)
+            if tab.get("earcons"):    # one list, and one set of controls for its chosen earcon (P2-T17p)
+                announcer = getattr(self.parent(), "announcer", None)
+                page = self.earcons = EarconsPage(tab, schema["values"], words,
+                                                  speak=announcer.speak if announcer is not None else None)
+                tab = {**tab, "fields": []}
+            else:
+                page = QWidget()
+            form = QFormLayout() if tab["fields"] else None
+            if form is not None:
+                page.setLayout(form)
             for f in tab["fields"]:
                 control = self._control(f, schema["values"][f["id"]])
                 control.setAccessibleName(f["label"])
@@ -621,8 +719,10 @@ class SettingsDialog(QDialog):
         self.key_list.setFocus()
 
     def apply(self):
-        for field_id, control in self.controls.items():
-            value = self._value(control)
+        values = {field_id: self._value(control) for field_id, control in self.controls.items()}
+        if self.earcons is not None:
+            values.update(self.earcons.values)
+        for field_id, value in values.items():
             if value != self._opened.get(field_id):
                 self.responses.append(self.session.run("settings.set", field=field_id, value=value))
         self.accept()

@@ -228,10 +228,11 @@ class WorldState:
         elif orientation == "cardinal":
             self.heading = nearest_cardinal(self.heading)
 
-    def next_orientation(self) -> str:
-        """Cycle north-fixed, cardinal facing, free facing, then north-fixed (NAV-12)."""
-        i = ORIENTATIONS.index(self.orientation) if self.orientation in ORIENTATIONS else -1
-        self.set_orientation(ORIENTATIONS[(i + 1) % len(ORIENTATIONS)])
+    def next_orientation(self, direction: int = 1) -> str:
+        """Cycle north-fixed, cardinal facing, free facing, then north-fixed (NAV-12), or the
+        other way with a direction of -1 (P2-T17l)."""
+        i = ORIENTATIONS.index(self.orientation) if self.orientation in ORIENTATIONS else (-1 if direction > 0 else 0)
+        self.set_orientation(ORIENTATIONS[(i + direction) % len(ORIENTATIONS)])
         return self.orientation
 
     def step_many(self, directions) -> list[StepResult]:

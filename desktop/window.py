@@ -216,6 +216,7 @@ class MainWindow(QMainWindow):
         self._dialogs: list[QDialog] = []
         self._answer_words: list[str] | None = None   # while a dialog's answer is carried out (P2-T17c)
         self._said_on_return: list[str] = []          # what it said, for the map's name as focus comes back
+        self._opened_in: dict = {}                     # each open dialog: the region it was opened in
         self._held_key: str | None = None
         self._held_seen = 0.0              # when the system last said the held key is down
         self._hold_clock = _HoldClock(self)
@@ -455,6 +456,13 @@ class MainWindow(QMainWindow):
         self.handle(self.session.run(name, **args))
 
     def handle(self, response, key_at: float | None = None):
+        # Focus moved within the window, as after Enter on an item of the Information panel, goes
+        # first: the screen reader stops speaking when the focus moves, so the place said after the
+        # move is heard (P2-T17k). The panel is brought up to date first, so the item is there.
+        focus_first = bool(response.focus) and response.focus["region"] in ("panel", "details")
+        if focus_first:
+            self._refresh_regions(response)
+            self._apply_focus(response.focus)
         for a in response.announcements:
             if a["channel"] == "braille":
                 if not self.announcer.braille(a["text"]) and a.get("fallback"):
@@ -478,17 +486,14 @@ class MainWindow(QMainWindow):
             diagnostics.add_shell(self.session, key_pressed_at=key_at, handed_over_at=time.time())
         if response.redraw:
             self.map.redraw()
-        if response.panel_stale:
-            self.map.refresh_name()
-            self._fill_tree()
-        if response.details_stale:
-            self.details.setPlainText(self.session.details())
+        if not focus_first:
+            self._refresh_regions(response)
         if response.settings_changed:
             self.save()
             self._registry = self.session.registry()
             self._build_menus()
         self._refresh_toggles()
-        if response.focus:
+        if response.focus and not focus_first:
             self._apply_focus(response.focus)
         if response.dialog:
             self._open_dialog(response.dialog)
@@ -496,6 +501,13 @@ class MainWindow(QMainWindow):
             self.close()
         if response.background:
             self._background.start()
+
+    def _refresh_regions(self, response) -> None:
+        if response.panel_stale:
+            self.map.refresh_name()
+            self._fill_tree()
+        if response.details_stale:
+            self.details.setPlainText(self.session.details())
 
     def _play(self, event: str) -> None:
         info = self.session.earcon_file(event)
@@ -589,6 +601,10 @@ class MainWindow(QMainWindow):
         else:
             box = TextDialog(self, dialog["title"], dialog["text"], self.words["close"])
         self._dialogs.append(box)
+        # The focus goes back to where the box was opened: the Information panel or Details, or else
+        # the map (P2-T17k, desktop checklist 10.5).
+        opened_in = self.region_of(QApplication.focusWidget())
+        self._opened_in[box] = opened_in if opened_in in ("panel", "details") else "map"
         box.finished.connect(lambda _r, b=box: self._dialog_closed(b))
         box.open()
 
@@ -610,6 +626,14 @@ class MainWindow(QMainWindow):
         if box in self._dialogs:
             self._dialogs.remove(box)
         said, self._said_on_return = self._said_on_return, []
+        region = self._opened_in.pop(box, "map")
+        if region != "map":
+            # Back in the panel or Details, the focus arrives on an item or the text, which the
+            # screen reader reads; what the answer said follows it, spoken (P2-T17k).
+            (self.tree if region == "panel" else self.details).setFocus(Qt.FocusReason.OtherFocusReason)
+            for text in said:
+                self.announcer.speak(text, "assertive")
+            return
         self.map.name_on_return(" ".join(said) or None)
         self.map.setFocus()
 
@@ -690,5 +714,7 @@ class MainWindow(QMainWindow):
         if item_id is not None and str(item_id).startswith("group:"):
             item_id = None
         parent = current.parent() if current is not None else None
-        group = str(parent.data(0, ITEM_ID)).removeprefix("group:") if parent is not None else None
+        # A group heading is in its own group: Go to comes back to it (P2-T17k).
+        heading = current if current is not None and parent is None else parent
+        group = str(heading.data(0, ITEM_ID)).removeprefix("group:") if heading is not None else None
         self.dispatch("panel.select", item=item_id, group=group)

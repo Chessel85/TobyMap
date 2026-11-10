@@ -63,13 +63,13 @@ def test_tree_items_are_nested_in_their_groups(window):
     tree = window.tree
     tree.topLevelItem(0).setExpanded(True)
     QApplication.processEvents()
-    assert names(tree)[:2] == ["Within", "Nearby"]
+    assert names(tree)[:2] == ["Within, 3 items", "Nearby, 1 item"]   # with the count (P2-T17k)
     within = QAccessible.queryAccessibleInterface(tree).child(0)
     kent = within.child(0)
     assert within.role() == QAccessible.Role.TreeItem
-    assert [within.child(i).text(QAccessible.Text.Name) for i in range(within.childCount())][:3] == \
+    assert [within.child(i).text(QAccessible.Text.Name).split(",")[0] for i in range(within.childCount())][:3] == \
         ["Kent", "England", "United Kingdom"]
-    assert kent.parent().text(QAccessible.Text.Name) == "Within"
+    assert kent.parent().text(QAccessible.Text.Name) == "Within, 3 items"
     assert kent.parent().parent().role() == QAccessible.Role.Tree
     assert within.state().expanded and not kent.state().expandable
 
@@ -79,10 +79,10 @@ def test_tree_focus_is_the_current_item_at_any_level(window):
     tree.setFocus()
     tree.setCurrentItem(tree.topLevelItem(0).child(1))
     QApplication.processEvents()
-    assert focus_name(tree) == "England"
+    assert focus_name(tree) == "England, centre 140 kilometres west"
     tree.setCurrentItem(tree.topLevelItem(1))
     QApplication.processEvents()
-    assert focus_name(tree) == "Nearby"
+    assert focus_name(tree) == "Nearby, 1 item"
 
 
 def test_tree_items_are_right_after_a_group_is_closed(window):
@@ -98,7 +98,7 @@ def test_tree_items_are_right_after_a_group_is_closed(window):
     QApplication.processEvents()
     assert group.childCount() == 0
     assert group.state().collapsed
-    assert focus_name(tree) == "Nearby"
+    assert focus_name(tree) == "Nearby, 1 item"
 
 
 def test_alt_letters_open_the_menus(window):

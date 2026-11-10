@@ -39,9 +39,9 @@ PLACE_LIMIT = 1000   # places kept to go back to (NAV-10, DP142)
 # history can go back there (ANN-4, DP141). Help, settings and the like have none.
 PLACE_COMMANDS = {"start", "release", "move.north", "move.south", "move.east", "move.west", "zoom.in", "zoom.out",
                   "step.larger", "step.smaller", "step.link", "where.am_i", "where.coordinates", "where.heading",
-                  "where.visible", "map.click", "map.hover", "map.drag", "orientation.cycle", "turn.left",
+                  "where.visible", "map.click", "map.hover", "map.drag", "orientation.cycle", "orientation.previous", "turn.left",
                   "turn.right", "turn.fine_left", "turn.fine_right", "bearing.set", "goto.set", "history.back",
-                  "history.forward", "history.go", "layers.set", "panel.hear"}
+                  "history.forward", "history.go", "layers.set", "panel.hear", "panel.go"}
 REGIONS = ("map", "panel", "details", "menu")
 # Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
 # the times the core gives, so the clicks never wait for the map to be drawn.
@@ -156,6 +156,9 @@ class MapSession:
         self.panel_item: str | None = None  # the item last focused there, for F3 (DP106)
         self.panel_group: str | None = None  # and its group, as an area can be in two groups
         self.panel_on_item = True            # False while a group heading has the focus (P2-T17f)
+        self.panel_at_group: str | None = None   # the group the focus is in, on an item or its heading
+        self._pressed_in = "map"                 # the region of the key being carried out
+        self._answer_to = "map"                  # where Go to's or the bearing's box was opened (P2-T17k)
         self.held_moves = 0
         self.held_turns = 0               # turns made while Left or Right is held in a facing orientation
         self.holding: str | None = None   # the movement command whose key is down (DP140)
@@ -203,16 +206,19 @@ class MapSession:
             **{f"panel.{g}": (lambda g=g, **a: Response(focus={"region": "panel", "group": g}, panel_stale=True))
                for g in registry.panel_groups()},
             "panel.hear": self._hear,
+            "panel.go": self._panel_go,
             "speech.repeat": self._repeat,
             "speech.history": self._history,
             "speech.braille_test": self._braille_test,
             "sound.mute": self._mute,
-            "verbosity.next": self._verbosity_next,
+            "verbosity.next": lambda **a: self._verbosity_step(+1),
+            "verbosity.previous": lambda **a: self._verbosity_step(-1),
             "theme.next": lambda **a: self._theme_step(+1),
             "theme.previous": lambda **a: self._theme_step(-1),
             "isolate.toggle": self._isolate_toggle,
             "beacon.toggle": self._beacon_toggle,
-            "orientation.cycle": self._orientation_cycle,
+            "orientation.cycle": lambda **a: self._orientation_step(+1),
+            "orientation.previous": lambda **a: self._orientation_step(-1),
             "turn.left": lambda **a: self._turn(sign=-1),
             "turn.right": lambda **a: self._turn(sign=1),
             "turn.fine_left": lambda **a: self._turn("fine_turn_deg", -1),
@@ -260,10 +266,17 @@ class MapSession:
         r.speak(say("start", place=self._place_text()), POLITE)
         return self._record("start", r)
 
-    def run(self, name: str, **args) -> Response:
+    def run(self, name: str, pressed_in: str | None = None, **args) -> Response:
+        """Carry out a command. pressed_in is the region its key was pressed in, when a shell
+        knows it: Go to and Type a bearing send the focus back there (P2-T17k). A menu item or
+        a list gives none, which is the map."""
         started = self.clock()
         handler = self._handlers[name]  # KeyError for an unknown command
-        r = self._record(name, handler(**args), started)
+        self._pressed_in = pressed_in or "map"
+        try:
+            r = self._record(name, handler(**args), started)
+        finally:
+            self._pressed_in = "map"
         return r
 
     def run_many(self, commands: list[tuple[str, dict]]) -> Response:
@@ -314,7 +327,7 @@ class MapSession:
             return None
         if command.name == "help.keys":
             return self.run("help.keys", region=region)
-        return self.run(command.name)
+        return self.run(command.name, pressed_in=region)
 
     def _describe_key(self, key: str) -> str:
         """What a key does, wherever the focus is (PO feedback on checklist 2.2). Keys
@@ -451,14 +464,19 @@ class MapSession:
                id(self.crossed))
         if self._panel_cache and self._panel_cache[0] == key:
             return self._panel_cache[1]
-        within = [{"id": a.id, "label": a.name, "level": 1} for a in self.areas]
+        units = self.settings["units"]
+        within = []
+        for a in self.areas:   # the distance and direction to its centre, as Nearby has (P2-T17k, DP155)
+            distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, *box_centre(a.record["bbox"]))
+            within.append({"id": a.id, "level": 1, "label": say(
+                "within.item", name=a.name, distance=words.distance_text(distance, units),
+                direction=words.direction_text(bearing, self.settings["bearing"], heading))})
         inside = {a.id for a in self.areas}   # Contains is never limited by the zoom (ANN-7)
         count = self.settings["nearby_count"]
         # Nearby searches within the zoom (NAV-13), and lists only visible features.
         near = self.store.nearby(self.world.lat, self.world.lon, zoom, limit=count + len(inside), exclude=inside,
                                  layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom)
                                  and self._interval_ok(a.record))
-        units = self.settings["units"]
         # Within: you are inside, so its place is the centre of the area, taken as the centre of
         # its bounding box (the PO's answer, 8 November 2026).
         self._spots = {("within", a.id): (a, *box_centre(a.record["bbox"])) for a in self.areas}
@@ -466,15 +484,24 @@ class MapSession:
         self._spots.update({("crossed", c.area.id): (c.area, c.lat, c.lon) for c in self.crossed})
         nearby = [{"id": n.area.id, "label": describer.nearby_label(n, units, self.settings["bearing"], heading),
                    "level": 1} for n in near[:count]]
+        crossed = self._crossed_items(heading)
         groups = {g["id"]: g for g in [
-            {"id": "within", "label": say("panel.within"), "items": within, "empty": say("place.none")},
-            {"id": "nearby", "label": say("panel.nearby"), "items": nearby, "empty": say("nearby.none")},
-            {"id": "crossed", "label": say("panel.crossed"), "items": self._crossed_items(heading),
+            {"id": "within", "label": self._group_label("within", within), "items": within, "empty": say("place.none")},
+            {"id": "nearby", "label": self._group_label("nearby", nearby), "items": nearby, "empty": say("nearby.none")},
+            {"id": "crossed", "label": self._group_label("crossed", crossed), "items": crossed,
              "empty": say("crossed.none")},
         ]}
         groups = [groups[g] for g in registry.panel_groups()]   # in the registry's order, as their keys are
         self._panel_cache = (key, groups)
         return groups
+
+    @staticmethod
+    def _group_label(group: str, items: list) -> str:
+        """A group heading with how many items it holds, such as "Nearby, 5 items" (P2-T17k,
+        desktop checklist 10.4). Go to Nearby and the like keep the plain name."""
+        name, n = say(f"panel.{group}"), len(items)
+        return say("panel.count_none", group=name) if n == 0 else (
+            say("panel.count_one", group=name) if n == 1 else say("panel.count", group=name, count=n))
 
     def details(self) -> str:
         """Details of the selected item, or of the smallest area here (DAT-9)."""
@@ -967,10 +994,11 @@ class MapSession:
             return Response().earcon("blocked")
         return self._turned(False, False, self.clock())
 
-    def _orientation_cycle(self, **_a) -> Response:
-        """The orientation key: north-fixed, cardinal facing, free facing (NAV-11, NAV-12). It never
-        moves you. The new orientation is said with the way you now face."""
-        self.world.next_orientation()
+    def _orientation_step(self, direction: int) -> Response:
+        """O: north-fixed, cardinal facing, free facing, and round again; Shift+O the other way
+        (NAV-11, NAV-12, P2-T17l). It never moves you. The new orientation is said with the way you
+        now face."""
+        self.world.next_orientation(direction)
         return self._orientation_said(Response(redraw=True, panel_stale=True))
 
     def _orientation_said(self, r: Response) -> Response:
@@ -979,6 +1007,7 @@ class MapSession:
                            heading=describer.facing_text(self.world)), ASSERTIVE)
 
     def _bearing_type(self, **_a) -> Response:
+        self._answer_to = self._pressed_in
         return Response(dialog={"kind": "input", "title": say("typing.bearing_title"),
                                 "label": say("typing.bearing_label"), "help": say("typing.bearing_help"),
                                 "submit": "bearing.set", "ok": say("ui.ok"), "cancel": say("ui.cancel")})
@@ -993,13 +1022,16 @@ class MapSession:
             return Response(error=say("typing.bearing_error"))
         was_free = self.world.orientation == "free"
         self.world.face(bearing)
-        r = Response(redraw=True, panel_stale=True)
+        # No jump, so the focus stays on the same item; its words change with the facing.
+        r = Response(redraw=True, panel_stale=True,
+                     focus=self._focus_back(self.panel_item if self.panel_on_item else None))
         if not was_free:
             return self._orientation_said(r)
         self._panel_cache = None
         return r.speak(say("movement.facing", heading=describer.facing_text(self.world)), ASSERTIVE)
 
     def _goto_coordinates(self, **_a) -> Response:
+        self._answer_to = self._pressed_in
         return Response(dialog={"kind": "input", "title": say("typing.goto_title"),
                                 "label": say("typing.goto_label"), "help": say("typing.goto_help"),
                                 "submit": "goto.set", "ok": say("ui.ok"), "cancel": say("ui.cancel")})
@@ -1017,7 +1049,9 @@ class MapSession:
             lat, lon = w.lat + a, w.lon + b
         else:
             lat, lon = (w.lat if a is None else a), (w.lon if b is None else b)
-        return self._land(self._jump(lat, lon))
+        r = self._land(self._jump(lat, lon))
+        r.focus = self._focus_back()
+        return r
 
     # Jumping and the position history (NAV-8, NAV-10, DP142) -----------------
 
@@ -1073,7 +1107,10 @@ class MapSession:
 
     def _changed_sizes(self, zoom_before: float, step_before: float) -> str:
         """Only what changed: the zoom, the step, or both when they are linked
-        (PO feedback on checklist 7, second pass)."""
+        (PO feedback on checklist 7, second pass). Linked, both are always said, even when
+        the nearest size in the list is the one already in use (NAV-2, P2-T17j)."""
+        if self.world.link:
+            return self._zoom_step()
         units = self._units()
         zoom_changed, step_changed = self.world.zoom_m != zoom_before, self.world.step_m != step_before
         if zoom_changed and not step_changed:
@@ -1160,6 +1197,7 @@ class MapSession:
         A group heading comes with no item: F3 still goes back to the item last focused, but
         Hear its direction is then on the heading, not on that item (P2-T17f)."""
         self.panel_on_item = bool(item)
+        self.panel_at_group = group or self.panel_at_group
         if item:
             self.panel_item, self.panel_group = item, group
         if item == self.selected:
@@ -1204,6 +1242,38 @@ class MapSession:
         r.label = label
         return r
 
+    def _panel_go(self, item: str | None = None, group: str | None = None, **_a) -> Response:
+        """Enter on an item of the Information panel: go there, as a jump, so Alt+comma comes back
+        (P2-T17k, INF-10, DP155). A point goes to the point; an area to its centre, the centre of
+        its bounding box, as Within's distance is; a line to the place its item is about, the
+        nearest point or where it was crossed. The focus stays in the panel, on the first item of
+        the same group, as the group's items change with the place."""
+        self.panel()   # the items' places are kept as the panel is made
+        if not item and self.panel_on_item:
+            item, group = self.panel_item, self.panel_group
+        groups = [group] if group else ["within", "nearby", "crossed"]
+        found = next(((g, self._spots[(g, item)]) for g in groups if (g, item) in self._spots), None)
+        if found is None:
+            return Response().speak(say("go.choose"), ASSERTIVE)
+        group, (area, lat, lon) = found
+        layer = self.layers.get(area.layer)
+        if (layer is None or layer.geometry == "area") and area.record.get("bbox"):
+            lat, lon = box_centre(area.record["bbox"])
+        r = self._land(self._jump(lat, lon))
+        r.focus = {"region": "panel", "group": group, "item": None}
+        return r
+
+    def _focus_back(self, item: str | None = None) -> dict | None:
+        """Where the focus goes once Go to's or the bearing's box has its answer: back to the
+        Information panel or Details if it was opened there (P2-T17k, desktop checklist 10.5). In
+        the panel, after a jump, the first item of the same group, as its items have changed. From
+        the map or a menu, None: the shell's box closes into the map."""
+        if self._answer_to == "details":
+            return {"region": "details"}
+        if self._answer_to == "panel":
+            return {"region": "panel", "group": self.panel_at_group or "within", "item": item}
+        return None
+
     def voice_problem(self, problem: str) -> Response:
         """The shell's voice could not do something: "missing", "failed" or "loading" (P2-T7)."""
         return Response().speak(say(f"voice.{problem}"), ASSERTIVE)
@@ -1238,12 +1308,16 @@ class MapSession:
         key = "sound.muted" if self.settings["mute"] else "sound.unmuted"
         return Response(settings_changed=True).speak(say(key), ASSERTIVE)
 
-    def _verbosity_next(self, **_a) -> Response:
-        """The next verbosity preset: terse, normal, detailed, and round again. From Custom,
-        terse. Says the preset and what it says (ACC-5, DP144)."""
+    def _verbosity_step(self, direction: int) -> Response:
+        """A: the next verbosity preset, terse, normal, detailed, and round again; Shift+A the
+        other way (P2-T17l). From Custom, A goes to terse and Shift+A to detailed. Says the preset
+        and what it says (ACC-5, DP144)."""
         names = list(settings_mod.presets())
         now = self.settings["verbosity"]
-        preset = names[(names.index(now) + 1) % len(names)] if now in names else names[0]
+        if now in names:
+            preset = names[(names.index(now) + direction) % len(names)]
+        else:
+            preset = names[0] if direction > 0 else names[-1]
         self.settings.set("verbosity", preset)
         return Response(settings_changed=True).speak(say(f"verbosity.{preset}"), ASSERTIVE)
 

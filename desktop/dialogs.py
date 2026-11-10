@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
+                               QDoubleSpinBox, QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
@@ -38,6 +38,28 @@ def button_row(parent_layout, labels: list[str], default: bool = True) -> list[Q
     parent_layout.addLayout(row)
     return buttons
 
+
+
+class _HomeEnd:
+    """In a number box, Home sets the largest value, as Home is above End on the keyboard, and End
+    the smallest (P2-T17m, the PO's note on desktop checklist 12.4). A plain spin box moved the
+    text cursor instead."""
+
+    def keyPressEvent(self, event):
+        if event.modifiers() == Qt.KeyboardModifier.NoModifier and event.key() in (Qt.Key.Key_Home, Qt.Key.Key_End):
+            self.setValue(self.maximum() if event.key() == Qt.Key.Key_Home else self.minimum())
+            self.selectAll()
+            return
+        super().keyPressEvent(event)
+
+
+class NumberBox(_HomeEnd, QSpinBox):
+    """A number box in whole numbers."""
+
+
+class DecimalBox(_HomeEnd, QDoubleSpinBox):
+    """A number box whose setting has a step with a fraction, such as the beacon's 0.5 seconds. A
+    whole number box showed 0 for 0.5 and could not be set to it (P2-T17m)."""
 
 class TextDialog(QDialog):
     """A read-only text with a Close button, so Escape is never needed (ACC-7)."""
@@ -553,9 +575,17 @@ class SettingsDialog(QDialog):
             check.setChecked(bool(value))
             return check
         if f["kind"] == "number":
-            spin = QSpinBox()
-            spin.setRange(int(f["min"]), int(f["max"]))
-            spin.setValue(int(value))
+            step = f.get("step", 1)
+            if step == int(step):
+                spin = NumberBox()
+                spin.setRange(int(f["min"]), int(f["max"]))
+                spin.setValue(int(value))
+            else:
+                spin = DecimalBox()
+                spin.setDecimals(1)
+                spin.setSingleStep(float(step))
+                spin.setRange(float(f["min"]), float(f["max"]))
+                spin.setValue(float(value))
             return spin
         return QLineEdit(str(value))
 
@@ -565,7 +595,7 @@ class SettingsDialog(QDialog):
             return control.currentData()
         if isinstance(control, QCheckBox):
             return control.isChecked()
-        if isinstance(control, QSpinBox):
+        if isinstance(control, (QSpinBox, QDoubleSpinBox)):
             return control.value()
         return control.text()
 

@@ -22,17 +22,18 @@ def changed_areas(old, new) -> list:
     return [a for a in new if a.id not in seen]
 
 
-def place_text(areas, all_off: bool = False) -> str:
+def place_text(areas, why_none: str | None = None) -> str:
     """The smallest area and its parents, such as "England, United Kingdom" (LOC-2).
-    No place is ever blank (LOC-3). all_off: there are areas here, but every one is
-    in a layer that is switched off, which is said, so you are never left in
-    silence (LOC-6, SCP-6)."""
+    No place is ever blank (LOC-3). why_none, when there are areas here but none is
+    said: "layers_off", every one is in a layer that is switched off (LOC-6, SCP-6),
+    or "out_of_zoom", every one is in a layer outside its zoom range (DP160). It is
+    said, so you are never left in silence."""
     if not areas:
-        return say("place.layers_off") if all_off else say("place.none")
+        return say(f"place.{why_none}") if why_none else say("place.none")
     return say("place.list_separator").join(area_names(areas))
 
 
-def announcement(old, new, all_off: bool = False, say_area: str = "changed") -> str | None:
+def announcement(old, new, why_none: str | None = None, say_area: str = "changed") -> str | None:
     """What to say after a move, or None when only the tick plays (ANN-1). say_area is the
     verbosity switch (ACC-5, DP144): "changed", every area that changed; "smallest", only the
     smallest of them; "whole", the whole place, as Where am I says it; "off", nothing."""
@@ -44,7 +45,7 @@ def announcement(old, new, all_off: bool = False, say_area: str = "changed") -> 
             return place_text(new)
         return say("place.list_separator").join(area_names(changed[:1] if say_area == "smallest" else changed))
     if not new and old:
-        return place_text(new, all_off)
+        return place_text(new, why_none)
     return None
 
 

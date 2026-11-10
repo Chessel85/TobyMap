@@ -1,6 +1,14 @@
 # Requirements Catalogue
 
-Version 0.10, 3 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.11, 10 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.11
+
+These changes come from your answer to DP160 and your notes on desktop checklist 8.6 (task P2-T17i).
+
+* ANN-7: a layer outside its zoom range is not said, as it is not drawn (DP160). This covers the place said after a step, Where am I, and Within. If every area here is in a layer outside its zoom range, you hear "No data at this zoom level". The size rule (DP80) still applies only to lists, not to what is said.
+* SCP-7: an area layer, such as Countries, can have a crossing earcon too. It plays when a step crosses the border of one of its areas.
+* SCP-7: the two ends of a layer's zoom range are called the minimum zoom and the maximum zoom. The minimum zoom is the closest.
 
 ## Changes in version 0.10
 
@@ -212,14 +220,15 @@ The high level requirements document stays the product owner's own statement of 
   * its name, as heard in the layers list, and the group it belongs to, such as Transport or Boundaries
   * which features it contains, chosen by the pipeline
   * how it is drawn on the visual map in each theme
-  * its zoom range: the zooms at which it is visible (NAV-13). For example, motorways are visible at every zoom, and bus stops only when zoomed in to 1 km or closer.
+  * its zoom range, from its minimum zoom to its maximum zoom: the zooms at which it is visible and said (NAV-13, DP160). Zoom is a distance, so the minimum zoom is the closest. For example, motorways are visible at every zoom, and bus stops only when zoomed in to 1 km or closer.
   * for an area layer, its minimum size: how large an area must be, compared with the view, to count as visible (NAV-13, DP80)
-  * its sounds: the crossing earcon for a line layer, the sound used for its features in look around and "hear its direction", and the ding when one is passed while driving
+  * its sounds: the crossing earcon, played when a step crosses one of its lines, or the border of one of its areas; the sound used for its features in look around and "hear its direction"; and the ding when one is passed while driving
   * whether it is a network type in network mode (NAV-5), and whether its points can be stop points (NAV-6)
 * The data manager sets the defaults in the pack configuration. The user can switch a layer on or off, change its sounds, and widen or narrow its zoom range in the layers list.
 * Acceptance criteria:
   * The graticule layer (DAT-13) is added by configuration alone, with no code that is specific to it.
   * Changing a layer's crossing earcon in the layers list changes the sound for that layer only.
+  * Given a crossing earcon, the Countries layer plays it when a step goes from one country into another, or into or out of the sea beyond every country. A step that leaves a country and comes back into it within the same step plays nothing.
 
 ---
 
@@ -666,11 +675,12 @@ The high level requirements document stays the product owner's own statement of 
 * Acceptance criteria: Entering an area flagged as disputed adds "disputed" to the announcement, and the details name the source's view.
 
 ### ANN-7 Detail follows zoom, but where you are is always told
-* Outcome: Lists that gather many features show only what is visible at the current zoom, so a continent-wide view is not flooded with bus stops. The location itself is never filtered: whatever the zoom or step, the user hears the smallest area they are in.
-* Source: UXReview, DP66, DP70
-* Priority: Must. Status: Agreed (DP78, DP80).
+* Outcome: Lists that gather many features show only what is visible at the current zoom, so a continent-wide view is not flooded with bus stops. What is said about where you are follows the layers' zoom ranges, so what you hear always matches what is drawn (DP160).
+* Source: UXReview, DP66, DP70, DP160
+* Priority: Must. Status: Agreed (DP78, DP80, DP160).
 * Acceptance criteria:
-  * The location announcement (ANN-1), "where am I" and the Within group use every active layer, whatever the zoom. At a 1000 km zoom with a 25 km step, landing in a field announces "Field".
+  * The location announcement (ANN-1), "where am I" and the Within group use every layer that is switched on and inside its zoom range (DP160). The step never changes them, and nor does the size rule. With Regions given a maximum zoom of 100 km, at a 250 km zoom you hear "Kent, United Kingdom", not "Kent, England, United Kingdom".
+  * If there are areas here, but every one is in a layer outside its zoom range, "No data at this zoom level" is said. If every one is in a layer that is switched off, "Every layer here is switched off" is said, as before (LOC-6).
   * Contains, Nearby, look around, and Crossed and passed include only features whose layer is visible at the current zoom (NAV-13). For example, with default layer settings, motorways appear at every zoom, and bus stops only at 1 km zoom or closer.
   * Within, Bordering, Overlapping, Crossing and Search are about the current feature's own relationships, or about what the user asked for, so they use every active layer, whatever the zoom (DP80).
   * At the United Kingdom zoomed to fit, Contains does not offer bus stops, so the application never has to list tens of thousands of them.
@@ -787,7 +797,7 @@ The high level requirements document stays the product owner's own statement of 
   * Groups are filled when opened, so movement is never slowed by them (NFR-1).
   * The selected item is highlighted on the visual map.
   * Every list can be sorted by name, by distance, or by bearing clockwise from ahead. One key cycles the sort order and announces it. Within also offers its natural order, smallest to largest, which is its default. Nearby defaults to distance, Bordering to bearing, and the others to name.
-  * Contains, Nearby, and Crossed and passed show only visible features (ANN-7). Within, Bordering, Overlapping, Crossing and Search are not limited by zoom (DP80).
+  * Contains, Nearby, and Crossed and passed show only visible features (ANN-7). Within follows the layers' zoom ranges, as the place does (DP160). Bordering, Overlapping, Crossing and Search are not limited by zoom (DP80).
   * The groups, their order and their sorting are set in one place in the code, so they can be changed easily after testing.
 
 ### INF-11 Grid values

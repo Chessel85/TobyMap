@@ -141,6 +141,18 @@ def test_not_on_an_item_it_says_where_it_works(session):
     assert r.announcements[0]["text"] == "Hear its direction works on an item, not on a group."
 
 
+def test_on_a_group_heading_after_an_item_it_says_where_it_works(session):
+    """P2-T17f, desktop checklist 11.6: a group heading is selected with no item. Space there
+    said the item last focused again, as F3 keeps that item to go back to."""
+    hear_station(session)
+    session.run("panel.select", item=None, group=None)   # Up to the group's heading
+    r = session.press("Space", "panel")
+    assert r.voice is None and not r.sounds
+    assert r.announcements[0]["text"] == "Hear its direction works on an item, not on a group."
+    session.run("panel.select", item=station_id(session), group="nearby")
+    assert session.press("Space", "panel").voice is not None
+
+
 def test_on_a_within_item_it_comes_from_the_centre_of_the_area(session):
     """The PO's answer, 8 November 2026 (checklist 9.5): you are inside the area, so its sound
     and its label come from the centre of the area, with the distance to it."""

@@ -564,8 +564,8 @@ function openLayers(d) {
       label.append(text + " ", control);
       return label;
     };
-    const closest = zoomSelect(d.words.closest, l.min_zoom_m || 0, 0);
-    const farthest = zoomSelect(d.words.farthest, l.max_zoom_m, null);
+    const minZoom = zoomSelect(d.words.min_zoom, l.min_zoom_m || 0, 0);
+    const maxZoom = zoomSelect(d.words.max_zoom, l.max_zoom_m, null);
     const crossing = document.createElement("select");
     crossing.setAttribute("aria-label", d.words.crossing);
     for (const [v, text] of [[null, d.words.no_sound], ...d.earcons.map((e) => [e.event, e.label])]) {
@@ -578,7 +578,7 @@ function openLayers(d) {
     const message = document.createElement("p");
     message.id = "layer-settings-message";   // shown here and said by the announcer, once
     const ok = button(d.words.ok, () => {
-      const low = JSON.parse(closest.value), high = JSON.parse(farthest.value);
+      const low = JSON.parse(minZoom.value), high = JSON.parse(maxZoom.value);
       const { width, height } = mapSize();
       client.send({ type: "run", commands: [[d.check, { low, high }]], width, height }).then((r) => {
         if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
@@ -591,10 +591,10 @@ function openLayers(d) {
       showList();
       box.querySelector(`[data-layer="${current}"]`).focus();
     }, "layer-settings-cancel");
-    body.append(title, row(d.words.closest, closest), document.createElement("br"),
-               row(d.words.farthest, farthest), document.createElement("br"),
+    body.append(title, row(d.words.min_zoom, minZoom), document.createElement("br"),
+               row(d.words.max_zoom, maxZoom), document.createElement("br"),
                row(d.words.crossing, crossing), message, ok, cancel);
-    closest.focus();
+    minZoom.focus();
   };
 
   showList();

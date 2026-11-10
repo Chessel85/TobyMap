@@ -1,6 +1,6 @@
 # User Experience Description
 
-Version 0.12, 9 November 2026. Section 2 now says what is heard as a dialog closes, and at the start.
+Version 0.13, 10 November 2026. Section 4.4 now says that a layer outside its zoom range is not said (DP160), and section 8 that an area layer's crossing earcon plays at its borders.
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
@@ -242,7 +242,9 @@ The lists split into two kinds (DP80):
 * Lists that gather many features in an area are limited to what is visible: Contains, Nearby, look around, and Crossed and passed. For Crossed and passed, only the zoom range and size rule apply, because a long step can reach beyond the view.
 * Lists about one feature's own relationships, or about what you asked for, always show everything from the layers that are switched on: Within, Bordering, Overlapping, Crossing and Search. Otherwise, zoomed in to a street in Paris, Bordering for France would be empty, and a search for Tokyo would find nothing.
 
-"Where am I" is never limited (DP66). In version 0.3 I proposed skipping small areas, such as fields, after large steps. You rightly said that if you are in a field, you should hear "Field". I had assumed a large step meant you wanted less detail. With zoom and step separate, that assumption no longer holds, and the rule is gone.
+What is said about where you are follows the layers' zoom ranges, as the map does (DP160). This covers the place said after a step, "Where am I" and Within. A layer outside its zoom range is treated as switched off: with Counties visible to 100 km, at a 250 km zoom you hear "England, United Kingdom", not "Kent, England, United Kingdom". Zooming changes the place the map is named after, but says nothing more; Space says the new place. If every area here is in a layer outside its zoom range, you hear "No data at this zoom level".
+
+The step never limits what is said, and nor does the size rule (DP66). In version 0.3 I proposed skipping small areas, such as fields, after large steps. You rightly said that if you are in a field, you should hear "Field". A field layer's zoom range now decides when it is said, as it decides when it is drawn.
 
 ## 5. Moving around
 
@@ -384,7 +386,7 @@ The panel is a tree. Its top level holds these groups:
 
 Every list can be sorted three ways: by name, by distance, or by bearing clockwise from ahead. Ctrl+S, in the panel, cycles the sort and announces it: "Sorted by distance". Within also has its natural order, smallest to largest, which is its default. Nearby starts sorted by distance, Bordering by bearing, and the rest by name. Typing the start of a name jumps to it, as in any Windows tree.
 
-Contains, Nearby, and Crossed and passed show only visible features (section 4.4). The other groups are not limited by zoom (DP80).
+Contains, Nearby, and Crossed and passed show only visible features (section 4.4). Within follows the layers' zoom ranges, as the place does (DP160). The other groups are not limited by zoom (DP80).
 
 Each group is filled when it is opened, so it never slows down movement. After a move, the groups are refreshed the next time the user goes to the panel.
 
@@ -444,8 +446,8 @@ Shift+L opens the layers list (SCP-6). Each layer, such as roads, railway statio
 Everything about a layer is defined in one place (SCP-7, DP74):
 
 * how it looks on the map
-* its zoom range, which decides when it is visible
-* its sounds: a crossing earcon for a line layer, the sound its features make in look around and "hear its direction", and the ding when one is passed while driving
+* its zoom range, from its minimum zoom (the closest) to its maximum zoom, which decides when it is visible and said
+* its sounds: a crossing earcon, played when you cross one of its lines, or the border of one of its areas, the sound its features make in look around and "hear its direction", and the ding when one is passed while driving
 * whether it is a network type in network mode, and whether its points can be stop points
 
 The data manager chooses sensible defaults. In the layers list, each layer also has a settings button where the user can change its sounds and its zoom range. For example, to hear a sound every time you cross a railway, give the railways layer a crossing earcon.
@@ -516,7 +518,7 @@ Short sounds mark these events (SON-6):
 * the hierarchy "up" menu appearing (the beep)
 * crossing a line of a layer that has a crossing earcon
 
-There are no earcons by default for crossing a border or for moving between land and water, because the new name makes them clear. You can still give the borders layer a crossing earcon if you want one.
+There are no earcons by default for crossing a border or for moving between land and water, because the new name makes them clear. You can still give an area layer, such as Countries, a crossing earcon if you want one. It plays when a step ends in a different area of that layer from the one it started in, such as from France into Belgium, or from a country out to sea. A step that leaves a country and comes back into it within the same step plays nothing.
 
 The graticule layer (DAT-13) holds the lines of latitude and longitude at an interval you set, and the special lines: the equator, the prime meridian, the antimeridian, the tropics and the polar circles. Each has its own crossing earcon, off by default. Like any layer, it can be shown on the map, listed in the crossed and passed list, and followed in network mode.
 

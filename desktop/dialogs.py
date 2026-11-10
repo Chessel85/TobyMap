@@ -11,7 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
                                QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
-                               QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                               QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
 from mapcore.commands.registry import key_text
@@ -269,9 +269,9 @@ class KeyCaptureDialog(QDialog):
 
 
 class LayerSettingsDialog(QDialog):
-    """The settings of one layer: the closest and farthest zoom it is visible at, and the sound when
-    a line of it is crossed (SCP-7). OK checks the range with the core and stays open, saying why, if
-    the closest zoom is farther than the farthest. Every word and choice comes from the core."""
+    """The settings of one layer: the minimum and maximum zoom it is visible at, and the sound when
+    a line or border of it is crossed (SCP-7). OK checks the range with the core and stays open, saying
+    why, if the minimum zoom is larger than the maximum. Every word and choice comes from the core."""
 
     def __init__(self, parent, layer: dict, dialog: dict, check, speak=None):
         super().__init__(parent)
@@ -280,15 +280,15 @@ class LayerSettingsDialog(QDialog):
         self.setWindowTitle(words["settings_title"].format(layer=layer["name"]))
         layout = QVBoxLayout(self)
         form = QFormLayout()
-        self.closest = self._zoom_box(dialog, words["closest"], layer["min_zoom_m"] or 0.0, 0.0)
-        self.farthest = self._zoom_box(dialog, words["farthest"], layer["max_zoom_m"], None)
+        self.min_zoom = self._zoom_box(dialog, words["min_zoom"], layer["min_zoom_m"] or 0.0, 0.0)
+        self.max_zoom = self._zoom_box(dialog, words["max_zoom"], layer["max_zoom_m"], None)
         self.crossing = QComboBox()
         self.crossing.setAccessibleName(words["crossing"])
         self.crossing.addItem(words["no_sound"], None)
         for e in dialog["earcons"]:
             self.crossing.addItem(e["label"], e["event"])
         self.crossing.setCurrentIndex(max(0, self.crossing.findData(layer["crossing_earcon"])))
-        for label, box in ((words["closest"], self.closest), (words["farthest"], self.farthest),
+        for label, box in ((words["min_zoom"], self.min_zoom), (words["max_zoom"], self.max_zoom),
                            (words["crossing"], self.crossing)):
             form.addRow(label, box)
         layout.addLayout(form)
@@ -298,7 +298,7 @@ class LayerSettingsDialog(QDialog):
         self.ok_button, self.cancel_button = button_row(layout, [words["ok"], words["cancel"]])
         self.ok_button.clicked.connect(self._ok)
         self.cancel_button.clicked.connect(self.reject)
-        self.closest.setFocus()
+        self.min_zoom.setFocus()
 
     @staticmethod
     def _zoom_box(dialog: dict, name: str, current, none_value) -> QComboBox:
@@ -313,7 +313,7 @@ class LayerSettingsDialog(QDialog):
         return box
 
     def values(self) -> dict:
-        return {"min_zoom_m": self.closest.currentData() or 0.0, "max_zoom_m": self.farthest.currentData(),
+        return {"min_zoom_m": self.min_zoom.currentData() or 0.0, "max_zoom_m": self.max_zoom.currentData(),
                 "crossing_earcon": self.crossing.currentData()}
 
     def _ok(self):
@@ -324,7 +324,7 @@ class LayerSettingsDialog(QDialog):
             self.message.setAccessibleDescription(response.error)
             if self._speak is not None:
                 self._speak(response.error)
-            self.closest.setFocus()
+            self.min_zoom.setFocus()
             return
         self.accept()
 
@@ -499,6 +499,10 @@ class SettingsDialog(QDialog):
             scroll = QScrollArea()   # the Earcons tab is taller than the dialog (P2-T8)
             scroll.setWidgetResizable(True)
             scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+            # Tab goes from the tabs straight to the first setting: the scroll area took the
+            # focus first, and NVDA called it "grouping" (P2-T17g, ACC-1). It still scrolls to
+            # the setting with the focus.
+            scroll.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             scroll.setWidget(page)
             self.tabs.addTab(scroll, tab["label"])
         self.keys_page = QWidget()
@@ -513,6 +517,10 @@ class SettingsDialog(QDialog):
         self._fill_keys()
         self.tabs.addTab(self.keys_page, words["keys_tab"])
         layout.addWidget(self.tabs)
+        # The tab bar's scroll arrows, shown when the tabs do not fit, are not stops for Tab:
+        # Left and Right on the tabs already go to every tab (P2-T17g).
+        for arrow in self.tabs.tabBar().findChildren(QToolButton):
+            arrow.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         labels = [words["ok"], words["cancel"]] + ([words["export"]] if export_cb else []) \
             + ([words["import"]] if import_cb else [])
         buttons = button_row(layout, labels)

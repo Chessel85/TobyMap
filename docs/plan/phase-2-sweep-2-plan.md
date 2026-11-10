@@ -94,10 +94,21 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 ### P2-T17f Space on a group heading (desktop 11.6; SON-3)
 
 * Sonnet. On the desktop, Space on a group heading repeats the last announcement instead of saying "Hear its direction works on an item, not on a group." The web version is right. Find why and fix it, with a test.
+* Done, 10 November 2026, on branch P2-T17f.
+* The cause was in the core, not the desktop. A group heading has no item, so the core kept the item last focused, which F3 goes back to. Space then used that item, so you heard it again. Its label goes only to Braille on the desktop, so it seemed like a repeat of the last announcement.
+* Now the core notes when a heading has the focus, and Space there says "Hear its direction works on an item, not on a group." F3 still goes back to the item last focused.
+* The web version sends the same thing for a heading, so it had the same fault after Space on an item. It passed your test probably because no item had been heard first. The fix is in the core, so it covers both.
+* To check with NVDA, as only you can: desktop 11.6, after pressing Space on an item first. The same in the web version.
+* Tests: 1 new core test and 1 new desktop test. Both failed on the old code.
 
 ### P2-T17g "Grouping" in Settings (desktop 2.10; ACC-1)
 
 * Sonnet. Tab from the tab control lands on something NVDA calls "grouping" before the first setting. Tab should go straight to the first setting, in every tab.
+* Done, 10 November 2026, on branch P2-T17f, with P2-T17f.
+* The cause: each tab's settings sit in a scroll area, added in P2-T8 because the Earcons tab is taller than the dialog. The scroll area had no name and took the focus before the first setting, so NVDA called it "grouping". It no longer takes the focus, and it still scrolls to the setting that has it.
+* Also: when the eight tabs do not fit across the dialog, Qt shows two arrows to scroll the tabs, and Tab could stop on them. They no longer take the focus. Left and Right on the tabs still go to every tab.
+* To check with NVDA, as only you can: desktop 2.10. In each tab, Tab from the tab control goes straight to the first setting.
+* Tests: 1 new desktop test, going through every tab. It failed on the old code.
 
 ### P2-T17h The layers list as a tree (desktop 8.1, web 8.6; SCP-6)
 
@@ -110,6 +121,17 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 * Sonnet. Rename "closest zoom" and "farthest zoom" to "minimum zoom" and "maximum zoom", as you asked. As zoom is in kilometres, the minimum is the closest. The glossary gets both words first.
 * Opus. The crossing sound you gave Countries did not play. Find out why, and fix it.
 * Whether a zoom range changes what is said, as you expected with England, waits for DP160.
+* Done, 10 November 2026, on branch P2-T17i. DP160 was answered (option B), so it is done here too.
+* The words: the layer's settings now say "Minimum zoom" and "Maximum zoom", and a wrong range says "The minimum zoom must not be larger than the maximum zoom." Both words are in the glossary, with "crossing sound".
+* Why the crossing sound did not play: crossing sounds were looked for only on line layers, such as the graticule. Countries is an area layer, so its sound could never play, although the dialog let you choose one. Now an area layer's crossing sound plays when a step ends in a different area of that layer from the one it started in, such as from England into France, or out to sea. A step that leaves a country and comes back into it within the same step plays nothing. It works for held steps too.
+* The label in the dialog is now "Sound when a line or border of this layer is crossed".
+* DP160: a layer outside its zoom range is now treated as switched off for what is said: the place after a step, Where am I, Within in the Information panel, and the map's name. If every area here is in a layer outside its range, you hear "No data at this zoom level".
+* Zooming in or out finds the place again, so the map's name and Within follow the zoom, but nothing more is said as you zoom. Space says the new place. If you would like the place said when a zoom changes it, say so.
+* Note: in the world pack, Counties have a maximum zoom of 100 kilometres, and Regions 1,000 kilometres. So, from today, at a zoom wider than 100 kilometres you no longer hear the county, and wider than 1,000 kilometres you no longer hear the region. You can widen either in the layer's settings.
+* The size rule, which leaves small areas out of lists when zoomed out (DP80), still does not change what is said. Only the zoom range does, as DP160 asked.
+* Requirements catalogue version 0.11 (ANN-7, SCP-7, INF-10) and user experience description version 0.13 (sections 4.4, 6 and 8) say all this.
+* To check with NVDA, as only you can: desktop 8.6 and web 8.6. Open a layer's settings: you hear "Minimum zoom" and "Maximum zoom". Give Countries a crossing sound and step from Kent into France: it plays. Give Regions a maximum zoom of 100 kilometres, zoom out to 250 kilometres and press Space: you hear "United Kingdom", with no England (and no Kent, as Counties stop at 100 kilometres).
+* Tests: 9 new core tests. 6 failed on the old code; the other 3 check what must stay the same, such as no sound for a step inside one country. 4 core tests, 2 desktop tests, 1 browser test and the Bering Strait acceptance script were changed for the new words or the new rule. The Bering script now starts at a 100 kilometre zoom, so its districts are still said.
 
 ### P2-T17j Page Up with the step linked, in the web version (web 16.2; NAV-13)
 

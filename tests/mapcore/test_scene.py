@@ -124,7 +124,8 @@ def test_a_click_gives_the_same_answer_as_stepping_there(test_pack):
     names = [t["text"] for t in clicked.announcements]
     assert names == ["Pas-de-Calais, Hauts-de-France, France"] or names, "a click describes the place it lands in"
     b.world.lat, b.world.lon = a.world.lat, a.world.lon
-    assert [x.id for x in b.store.at(b.world.lat, b.world.lon)] == [x.id for x in a.areas]
+    # Both leave out the layers outside their zoom range, such as Counties at 250 km (DP160).
+    assert [x.id for x in b._here()] == [x.id for x in a.areas]
 
 
 def test_a_frame_is_built_quickly_once_the_tiles_are_cached(test_pack):

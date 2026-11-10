@@ -123,7 +123,8 @@ class MapSession:
         self.layers = LayerCatalogue(self.store.packs, lambda: self.settings.layers)
         # Which features are visible: layer, zoom range, size and view (NAV-13, P2-T4a).
         self.visible = VisibleRule(self.store, self.layers)
-        self.all_off_here = False   # there are areas here, but every one is in a layer that is off (LOC-6)
+        # Why nothing is said here although there are areas: "layers_off" or "out_of_zoom" (LOC-6, DP160).
+        self.why_none_here: str | None = None
         self.world = WorldState.from_defaults(self.defaults)
         self.world.use_units(self.settings["units"])   # before restoring, so the saved sizes are found exactly
         if saved_state:
@@ -154,6 +155,7 @@ class MapSession:
         self.selected: str | None = None   # the Information panel item chosen, an area id
         self.panel_item: str | None = None  # the item last focused there, for F3 (DP106)
         self.panel_group: str | None = None  # and its group, as an area can be in two groups
+        self.panel_on_item = True            # False while a group heading has the focus (P2-T17f)
         self.held_moves = 0
         self.held_turns = 0               # turns made while Left or Right is held in a facing orientation
         self.holding: str | None = None   # the movement command whose key is down (DP140)
@@ -705,16 +707,25 @@ class MapSession:
         return response
 
     def _here(self) -> list:
-        """The areas at the location from the layers that are on, smallest first.
-        Notes whether there were areas here that every one is in a layer that is off."""
-        everything = self.store.at(self.world.lat, self.world.lon)
-        active = self.layers.active()
-        areas = [a for a in everything if a.layer in active]
-        self.all_off_here = bool(everything) and not areas
+        """The areas at the location that are said, smallest first, and notes why none is."""
+        areas, self.why_none_here = self._said_at(self.world.lat, self.world.lon)
         return areas
 
+    def _said_at(self, lat: float, lon: float) -> tuple[list, str | None]:
+        """The areas at a point from the layers that are on and inside their zoom range,
+        smallest first: what is drawn is what is said (DP160, SCP-6). With none, why:
+        "layers_off" when every area here is in a layer that is off, "out_of_zoom" when
+        some are on but outside their zoom range, None when there are no areas here."""
+        everything = self.store.at(lat, lon)
+        shown = self.visible.shown_layers(self.world.zoom_m)
+        areas = [a for a in everything if a.layer in shown]
+        if areas or not everything:
+            return areas, None
+        active = self.layers.active()
+        return areas, "out_of_zoom" if any(a.layer in active for a in everything) else "layers_off"
+
     def _place_text(self) -> str:
-        return describer.place_text(self.areas, self.all_off_here)
+        return describer.place_text(self.areas, self.why_none_here)
 
     def _units(self) -> str:
         return self.settings["units"]
@@ -735,13 +746,26 @@ class MapSession:
     def _crossing_sounds(self, r: Response, path) -> Response:
         """Add the crossing sound of each line a step's path crosses, in the order crossed, for
         the layers that are shown and have one (SCP-7, DAT-13). A layer with no crossing sound,
-        or that is off or out of its zoom range, costs nothing."""
+        or that is off or out of its zoom range, costs nothing. An area layer's sound, such as
+        Countries', plays when the step ends in a different area of that layer from the one it
+        started in, or in none: it crossed a border (P2-T17i). A step that leaves an area and
+        comes back into it within the step is not counted."""
         shown = self.visible.shown_layers(self.world.zoom_m)
         layers = {l.id: l for l in self.layers.layers() if l.id in shown and l.crossing_earcon}
-        if not layers:
+        if not layers or not path:
             return r
-        for crossing in self.store.crossed_lines(path, layers=set(layers), accept=lambda a: self._interval_ok(a.record)):
-            sound = layers[crossing.area.layer].crossing_sound(crossing.area.record)   # its type's own, or the layer's
+        sounds = [layers[c.area.layer].crossing_sound(c.area.record)   # its type's own, or the layer's
+                  for c in self.store.crossed_lines(path, layers=set(layers),
+                                                    accept=lambda a: self._interval_ok(a.record))]
+        areas = [l for l in layers.values() if l.geometry == "area"]
+        if areas:
+            (lat0, lon0), (lat1, lon1) = path[0], path[-1]
+            start = self.store.at(lat0, geodesy.wrap_lon(lon0))
+            end = self.store.at(lat1, geodesy.wrap_lon(lon1))
+            for layer in areas:
+                if {a.id for a in start if a.layer == layer.id} != {a.id for a in end if a.layer == layer.id}:
+                    sounds.append(layer.crossing_earcon)
+        for sound in sounds:
             r.earcon(sound)
             r.crossings.append(sound)
         return r
@@ -851,7 +875,7 @@ class MapSession:
     def _arrived(self, r: Response) -> Response:
         """Describe the new place against the last described one (ANN-1)."""
         new = self._here()
-        text = describer.announcement(self.areas, new, self.all_off_here, self.settings["say_area"])
+        text = describer.announcement(self.areas, new, self.why_none_here, self.settings["say_area"])
         self.areas = new
         r.panel_stale = r.details_stale = True
         self.selected = None
@@ -1065,7 +1089,8 @@ class MapSession:
             return Response().speak(say(key, zoom_step=say(
                 "movement.zoom_only", zoom=words.distance_text(self.world.zoom_m, self._units()))), ASSERTIVE)
         self._settings_link_sync()
-        return self._sizes_said(Response(redraw=True, panel_stale=True), before)
+        self.areas = self._here()   # a layer may have come into or gone out of its zoom range (DP160)
+        return self._sizes_said(Response(redraw=True, panel_stale=True, details_stale=True), before)
 
     def _step_size(self, direction: int) -> Response:
         before = (self.world.zoom_m, self.world.step_m)
@@ -1131,7 +1156,10 @@ class MapSession:
         return Response(focus={"region": "panel", "group": group or "within", "item": item}, panel_stale=True)
 
     def _select(self, item: str | None = None, group: str | None = None, **_a) -> Response:
-        """The item focused in the Information panel, and its group (within, nearby or crossed)."""
+        """The item focused in the Information panel, and its group (within, nearby or crossed).
+        A group heading comes with no item: F3 still goes back to the item last focused, but
+        Hear its direction is then on the heading, not on that item (P2-T17f)."""
+        self.panel_on_item = bool(item)
         if item:
             self.panel_item, self.panel_group = item, group
         if item == self.selected:
@@ -1148,7 +1176,7 @@ class MapSession:
         from mapcore.sound.scene import place
 
         self.panel()   # the items' places are kept as the panel is made
-        if not item:
+        if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
         groups = [group] if group else ["within", "nearby", "crossed"]
         spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
@@ -1307,13 +1335,13 @@ class MapSession:
             "kind": "layers", "title": data["title"], "groups": data["groups"], "text": "\n".join(lines),
             "zooms": zooms, "every_zoom": every,
             "earcons": [{"event": e["event"], "label": e["label"]} for e in earcon_list()],
-            "words": {k: say(f"layers.{k}") for k in ("settings_button", "settings_title", "closest", "farthest",
+            "words": {k: say(f"layers.{k}") for k in ("settings_button", "settings_title", "min_zoom", "max_zoom",
                                                       "crossing", "no_sound", "choose_layer")}
             | {"ok": say("ui.ok"), "cancel": say("ui.cancel")},
             "set": "layers.set", "check": "layers.check"})
 
     def _layers_check(self, low=0.0, high=None, **_a) -> Response:
-        """Whether a closest and farthest zoom can go together; the words say what is wrong."""
+        """Whether a minimum and maximum zoom can go together; the words say what is wrong."""
         try:
             low = float(low or 0.0)
             high = None if high in (None, "") else float(high)
@@ -1466,10 +1494,8 @@ class MapSession:
         point = globe.from_screen(self._view_scale(width, height), width, height, x, y)
         if point is None:
             return Response()
-        everything = self.store.at(point[0], point[1])
-        active = self.layers.active()
-        areas = [a for a in everything if a.layer in active]
-        return Response().speak(describer.place_text(areas[:1], bool(everything) and not areas), POLITE)
+        areas, why_none = self._said_at(point[0], point[1])
+        return Response().speak(describer.place_text(areas[:1], why_none), POLITE)
 
     def _zoom_to(self, direction: int = 0, **_a) -> Response:
         """The wheel or a pinch: to the nearest zoom in the list, one step each time (NAV-13)."""

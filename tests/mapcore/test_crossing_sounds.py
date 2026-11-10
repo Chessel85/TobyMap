@@ -157,3 +157,32 @@ def test_the_world_packs_special_lines_layer_names_the_product_owners_sounds():
                                            "equator": "equator_crossed", "tropic": "equator_crossed",
                                            "polar-circle": "equator_crossed"}
     assert special["crossing_earcon"] == "line_crossing"
+
+
+# An area layer's crossing sound plays when a step crosses its border (P2-T17i; SCP-7).
+# Squareland runs from 0 to 20 degrees east; a 100 kilometre step east is about 1.4 degrees.
+
+def test_crossing_into_an_area_plays_its_layers_crossing_sound(pack_path):
+    s = session(pack_path, -0.5)
+    s.run("layers.set", layer="countries", field="crossing_earcon", value="line_crossing")
+    assert s.run("move.east").earcons.count("line_crossing") == 1
+    assert s.run("move.west").earcons.count("line_crossing") == 1    # and out again
+
+
+def test_a_step_within_one_area_plays_no_crossing_sound(pack_path):
+    s = session(pack_path, 4.0)
+    s.run("layers.set", layer="countries", field="crossing_earcon", value="line_crossing")
+    assert "line_crossing" not in s.run("move.east").earcons
+
+
+def test_a_held_step_over_a_border_plays_the_crossing_sound(pack_path):
+    s = session(pack_path, -0.5)
+    s.run("layers.set", layer="countries", field="crossing_earcon", value="line_crossing")
+    assert s.run("move.east", held=True, repeat=True).earcons.count("line_crossing") == 1
+
+
+def test_an_area_layer_out_of_its_zoom_range_plays_no_crossing_sound(pack_path):
+    s = session(pack_path, -0.5)
+    s.run("layers.set", layer="countries", field="crossing_earcon", value="line_crossing")
+    s.run("layers.set", layer="countries", field="max_zoom_m", value=500_000)
+    assert "line_crossing" not in s.run("move.east").earcons

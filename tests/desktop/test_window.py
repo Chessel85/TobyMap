@@ -1238,7 +1238,7 @@ def reset_box(window):
 def test_reset_all_settings_asks_with_cancel_first_and_cancel_changes_nothing(window, qtbot):
     window.session.settings.set("units", "imperial")
     box = reset_box(window)
-    assert box.windowTitle() == "Reset all settings"
+    assert box.windowTitle() == ("" if sys.platform == "darwin" else "Reset all settings")   # a Mac message box has no title
     assert box.ok_button.text() == "Reset" and box.cancel_button.text() == "Cancel"
     assert box.defaultButton() is box.cancel_button
     box.cancel_button.click()

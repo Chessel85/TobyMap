@@ -1,12 +1,27 @@
 # User Experience Description
 
-Version 0.16, 10 November 2026. Section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
+Version 0.18, 10 November 2026. Section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.18
+
+Made in P2-T17r and P2-T17s, from the answers to DP159 and DP161.
+
+* Section 5.1: in cardinal and free facing, directions are said as in north-fixed, unless the setting "In cardinal and free facing, give directions from the way you face" is on, in the Units tab. Then they are in your chosen format, with "at your": "at your north-east", "at your 2 o'clock", "at your 30 degrees".
+* Section 5.7: Go to takes forward and back with a distance, in cardinal and free facing.
+
+## Changes in version 0.17
+
+Made in P2-T17p, from the PO's note on desktop checklist 10.6 and the answer to DP163.
+
+* Section 8.6: the Earcons tab is one list of every earcon, each with a check box to play it or not. Below the list is one set of controls, for the earcon chosen in the list: its own volume, your own file, Choose file and Use the default.
+* Section 8.6: each earcon has its own volume. The one volume for all the earcons is gone (DP163). A volume saved before becomes each earcon's own volume.
+* Sections 8.4 and 8.6: the orientation beacon is not in the Earcons tab's list. Its own file is now in the Sound tab, with its switch, its volume and its other settings.
 
 ## Changes in version 0.16
 
@@ -283,8 +298,10 @@ Two independent choices decide how the user moves. They share the same location,
 The orientation decides how directions are described and which way is "ahead" in sound (NAV-12, SON-2).
 
 * North-fixed: the user always faces north. In stepping mode, the arrow keys move north, east, south and west. Directions are given relative to north, in the user's chosen format, for example "north-east" or "45 degrees". In sound, north is ahead. This is the default.
-* Cardinal facing: the user faces north, east, south or west. Directions are given relative to the way the user faces, for example "ahead" or "to your right". In sound, the way they face is ahead.
-* Free facing (free roaming): the user can face any bearing. Directions and sound are relative to the way the user faces.
+* Cardinal facing: the user faces north, east, south or west. In sound, the way they face is ahead. Directions in words are said as in north-fixed, unless the user asks otherwise (below).
+* Free facing (free roaming): the user can face any bearing. Sound and words are as in cardinal facing.
+
+In the Units tab of Settings, "In cardinal and free facing, give directions from the way you face", off at first, measures the words from the way you face instead of from north, in the same format, with "at your" (ANN-5, DP159). For example, facing east, a place to the south-east is "south-east" without the setting, and "at your north-east" with it, that is, ahead and to your right. Other examples: "Berlin, 25 kilometres at your 30 degrees", "at your 2 o'clock", "at about your 50 degrees". Sound in space is always from the way you face, whatever the setting.
 
 ### 5.2 Turning
 
@@ -384,7 +401,7 @@ Driving moves the user continuously instead of in steps (NAV-14).
 ### 5.7 Jumping
 
 * Ctrl+F searches. Choosing a result jumps there (NAV-8). There is no "focus only" option.
-* G goes to typed coordinates, in any common format.
+* Ctrl+G goes to typed coordinates, in any common format. In cardinal and free facing, it also takes "f" or "forward", or "b" or "back", and a distance, to move along the way you face, as Up and Down do: "f 24" is 24 of your own unit, kilometres or miles, and units can be typed, such as "F24mi240yds" or "b 2km 500m" (P2-T17r, DP161). In north-fixed, a message box says "Forward and back work in cardinal and free facing."
 * Bookmarks and pins (section 9) can be jumped to.
 * "Jump" on any item in the Information panel goes there.
 * A mouse click on the visual map moves the location and gives the normal announcement. This is the sighted user's equivalent of a step of any size.
@@ -524,7 +541,7 @@ B switches on the orientation beacon (SON-10). It is a soft repeating sound that
 * While driving along a curving road, the beacon swings from side to side as the heading changes. That is how the shape of the line can be felt.
 * Near the North Pole, north is unstable. The beacon fades from 200 km and is silent within 100 km of the pole. Going inside, you hear "Beacon off near the North Pole." once; coming back out, "Beacon back on." Switched on near the pole, it says "Beacon on, but silent near the North Pole."
 * It plays about once a second; the time between each sound is a setting. Behind you it has the lower pitch and slight muffling, like every sound placed in space. Its loudness does not change with distance.
-* The Sound tab of Settings has the beacon on or off, its volume, the seconds between each sound, and where it comes from. Ctrl+M silences it with everything else. Its sound is a placeholder until you choose one; your own file goes in the Earcons tab, as for every earcon.
+* The Sound tab of Settings has the beacon on or off, its volume, the seconds between each sound, your own file for it, and where it comes from. Ctrl+M silences it with everything else. Its sound is a placeholder until you choose one.
 * The beacon can point at any pin instead, such as "home" (DP72). It then works as a homing sound. Choose the target in settings, or with "Beacon to this pin" in a pin's actions.
 
 ### 8.5 Hearing where things are
@@ -558,7 +575,7 @@ The graticule layer (DAT-13) holds the lines of latitude and longitude at an int
 
 Every earcon is a WAV file and can be replaced (SON-8). You will supply all of them (DP61). Until each one arrives, a simple placeholder tone is used. Users can point any earcon at their own file in settings.
 
-The Earcons tab of Settings has, for every earcon, a switch to play it or not, and your own file, with Choose file and Use the default buttons. One volume at the top of the tab sets how loud all the earcons are, including those placed in space. The spatial voice and the beacon have their own volumes in the Sound tab. The beacon has no "play it" switch here, because B switches it. Ctrl+M silences everything at once. The sounds, in Help, plays any earcon, even one that is switched off, so you can hear it first.
+The Earcons tab of Settings is one list of every earcon, each with a check box to play it or not. Space ticks the box, and Enter presses OK, as everywhere in Settings. Below the list is one set of controls, for the earcon chosen in the list: its own volume, in percent, and your own file, empty for the default, with Choose file and Use the default buttons. Their labels say which earcon they are for, such as "Tick: volume, in percent". Each earcon's volume also sets how loud it is when placed in space, such as the item's direction sound. There is no volume for all the earcons together (DP163). The spatial voice and the orientation beacon have their own volumes in the Sound tab, and the beacon's own file is there too, with its other settings; it is not in the Earcons tab's list, because B switches it. Ctrl+M silences everything at once. The sounds, in Help, plays any earcon, even one that is switched off, so you can hear it first.
 
 On the desktop, your own file is kept where it is, by its path. In the web version, a page cannot read a path on your computer, so Choose file reads the file you pick and keeps a copy in the browser's storage, and it plays from there from then on (DP123). Every earcon plays in the web version with no set-up. A file that is not a WAV sound is refused when you choose it, and you are told. If your own file cannot be played later, for example because it was moved, the default plays and you are told once.
 

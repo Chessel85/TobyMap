@@ -29,23 +29,40 @@ def schema() -> dict:
         each = tab.pop("each_earcon", None)
         if each:
             tab["fields"] += earcon_fields(each)
+            tab["list_label"] = each["list_label"]
+            tab["earcons"] = earcon_rows(each)
     return data
 
 
-def earcon_fields(each: dict) -> list[dict]:
-    """A switch and an own file for every earcon (P2-T8; SON-6, SON-8). Every earcon is
-    on at first. The file is a "sound_file": the desktop keeps its path, the web version
-    the name of the file kept in the browser."""
+def listed_earcons() -> list[dict]:
+    """The earcons in the Earcons tab's list: all but the beacon, whose settings are in the
+    Sound tab (P2-T17p)."""
     from mapcore.describe import earcon_list
 
+    return [e for e in earcon_list() if e.get("listed", True)]
+
+
+def earcon_fields(each: dict) -> list[dict]:
+    """A switch, a volume and an own file for every earcon in the list (P2-T8, P2-T17p; SON-6,
+    SON-7, SON-8, DP163). Every earcon is on at first, at 100 percent. The file is a
+    "sound_file": the desktop keeps its path, the web version the name of the file kept in
+    the browser."""
     out = []
-    for e in earcon_list():
-        if e.get("switch", True):
-            out.append({"id": f"earcon_on_{e['event']}", "label": each["on_label"].format(name=e["label"]),
-                        "kind": "yes_no", "default": True, "earcon": e["event"]})
+    for e in listed_earcons():
+        out.append({"id": f"earcon_on_{e['event']}", "label": each["on_label"].format(name=e["label"]),
+                    "kind": "yes_no", "default": True, "earcon": e["event"]})
+        out.append({"id": f"earcon_volume_{e['event']}", "label": each["volume_label"].format(name=e["label"]),
+                    "kind": "number", "default": 100, "min": 0, "max": 100, "earcon": e["event"]})
         out.append({"id": f"earcon_{e['event']}", "label": each["file_label"].format(name=e["label"]),
                     "kind": "sound_file", "default": "", "earcon": e["event"], "name": e["label"]})
     return out
+
+
+def earcon_rows(each: dict) -> list[dict]:
+    """The Earcons tab's list, for the shells: each earcon's name, and the ids of its check box,
+    its volume and its own file, which are shown for the earcon chosen in the list (P2-T17p)."""
+    return [{"event": e["event"], "label": e["label"], "on": f"earcon_on_{e['event']}",
+             "volume": f"earcon_volume_{e['event']}", "file": f"earcon_{e['event']}"} for e in listed_earcons()]
 
 
 def fields() -> dict[str, dict]:
@@ -99,8 +116,15 @@ class Settings:
         self.keys: dict[str, str] = dict(keys or {})  # command name -> key, the user's own
         # The user's changes to layers, by layer id: {"regions": {"on": False}} (SCP-6, SCP-7).
         self.layers: dict[str, dict] = {k: dict(v) for k, v in (layers or {}).items() if isinstance(v, dict)}
-        for k, v in (values or {}).items():
-            if k in RENAMED and RENAMED[k] not in (values or {}):
+        values = dict(values or {})
+        # The one volume for every earcon is gone (P2-T17p, DP163): a value saved before becomes
+        # each earcon's own volume, so nothing sounds louder than it did.
+        old_volume = values.pop("earcon_volume", None)
+        if old_volume is not None:
+            for e in listed_earcons():
+                values.setdefault(f"earcon_volume_{e['event']}", old_volume)
+        for k, v in values.items():
+            if k in RENAMED and RENAMED[k] not in values:
                 k = RENAMED[k]
             self.set(k, v, quiet=True)
 

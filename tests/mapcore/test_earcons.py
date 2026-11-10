@@ -1,5 +1,6 @@
 """The earcons: every event has a placeholder tone, short and distinct, own files fall back, and each
-has its own switch, with one volume and the master mute over them all (P1-T12, P2-T8; SON-6, SON-7, SON-8)."""
+has its own switch and its own volume, with the master mute over them all (P1-T12, P2-T8, P2-T17p;
+SON-6, SON-7, SON-8, DP163)."""
 import wave
 
 import pytest
@@ -53,18 +54,42 @@ def earcons_tab():
     return next(t for t in settings_mod.schema()["tabs"] if t["id"] == "earcons")
 
 
-def test_every_earcon_has_a_switch_and_an_own_file_in_the_earcons_tab():
+def test_every_earcon_has_a_switch_a_volume_and_an_own_file_in_the_earcons_tab():
     fields = {f["id"]: f for f in earcons_tab()["fields"]}
-    assert fields["earcon_volume"]["kind"] == "number"
     for e in earcon_list():
-        own = fields[f"earcon_{e['event']}"]
-        if e.get("switch", True):   # the beacon's switch is B and its own setting (P2-T9)
-            on = fields[f"earcon_on_{e['event']}"]
-            assert on["kind"] == "yes_no" and on["default"] is True and on["label"] == f"{e['label']}: play it"
+        if not e.get("listed", True):    # the beacon: its settings are in the Sound tab (P2-T17p)
+            assert not any(f.get("earcon") == e["event"] for f in fields.values())
+            continue
+        on, volume, own = fields[f"earcon_on_{e['event']}"], fields[f"earcon_volume_{e['event']}"], fields[f"earcon_{e['event']}"]
+        assert on["kind"] == "yes_no" and on["default"] is True and on["label"] == f"{e['label']}: play it"
+        assert volume["kind"] == "number" and volume["default"] == 100 and (volume["min"], volume["max"]) == (0, 100)
+        assert volume["label"] == f"{e['label']}: volume, in percent"
         assert own["kind"] == "sound_file" and own["default"] == ""
         assert own["label"] == f"{e['label']}: your own sound file"
     sound = next(t for t in settings_mod.schema()["tabs"] if t["id"] == "sound")
-    assert not any(f["id"].startswith("earcon") for f in sound["fields"])   # all in one place
+    assert [f["id"] for f in sound["fields"] if f["id"].startswith("earcon")] == ["earcon_beacon"]
+
+
+def test_there_is_no_volume_for_every_earcon_together():
+    """DP163: the PO wants no volume over all the earcons, only each earcon's own."""
+    assert "earcon_volume" not in settings_mod.fields()
+
+
+def test_the_earcons_tab_is_one_list_with_the_ids_of_each_earcons_controls():
+    tab = earcons_tab()
+    assert tab["list_label"] == "Earcons"
+    rows = tab["earcons"]
+    assert [r["label"] for r in rows] == [e["label"] for e in earcon_list() if e["event"] != "beacon"]
+    assert rows[0] == {"event": "tick", "label": "Tick", "on": "earcon_on_tick",
+                       "volume": "earcon_volume_tick", "file": "earcon_tick"}
+    ids = {f["id"] for f in tab["fields"]}
+    assert all({r["on"], r["volume"], r["file"]} <= ids for r in rows)
+
+
+def test_a_saved_volume_for_every_earcon_becomes_each_earcons_own():
+    s = settings_mod.Settings({"earcon_volume": 40, "earcon_volume_blocked": 70})
+    assert s["earcon_volume_tick"] == 40 and s["earcon_volume_blocked"] == 70
+    assert "earcon_volume" not in s.values
 
 
 def test_the_old_crossed_and_passed_switch_is_kept_under_its_new_name():
@@ -106,15 +131,18 @@ def test_a_placed_earcon_can_be_switched_off(test_pack):
     s.store.close()
 
 
-def test_the_earcon_volume_goes_with_every_earcon_and_placed_sound(test_pack):
+def test_each_earcons_own_volume_goes_with_it_alone_and_with_its_placed_sound(test_pack):
     from tests.mapcore.test_hear_direction import hear_station, make
 
     s = make(test_pack)
     full = hear_station(s).sounds[0]["gain"]
-    s.run("settings.set", field="earcon_volume", value=40)
+    s.run("settings.set", field="earcon_volume_tick", value=40)
     assert s.earcon_file("tick")["gain"] == pytest.approx(0.4)
+    assert s.earcon_file("blocked")["gain"] == pytest.approx(1.0)      # the others are unchanged
+    assert hear_station(s).sounds[0]["gain"] == pytest.approx(full)
+    s.run("settings.set", field="earcon_volume_item_direction", value=25)
     r = hear_station(s)
-    assert r.sounds[0]["gain"] == pytest.approx(full * 0.4)
+    assert r.sounds[0]["gain"] == pytest.approx(full * 0.25)
     assert r.voice["placed"]["gain"] == pytest.approx(full)   # the voice has its own volume
     s.store.close()
 

@@ -186,8 +186,9 @@ typing:
   goto_title: "Go to coordinates"
   goto_label: "Enter latitude and longitude:"
   goto_help: ""
-  goto_error: "{entry} is not a valid entry. Enter latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. Or enter one of them alone to keep the other. Or enter a direction and degrees to move, such as north 5."
-  goto_empty: "Nothing was entered. Enter latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. Or enter one of them alone to keep the other. Or enter a direction and degrees to move, such as north 5."
+  goto_error: "{entry} is not a valid entry. Enter latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. Or enter one of them alone to keep the other. Or enter a direction and degrees to move, such as north 5. In cardinal or free facing, enter f or b and a distance to move forward or back, such as f 24 or b 2 km 500 m."
+  goto_facing_only: "Forward and back work in cardinal and free facing. Press O to change the orientation, or enter where to go."
+  goto_empty: "Nothing was entered. Enter latitude and then longitude, such as 51.5, -0.12 or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. Or enter one of them alone to keep the other. Or enter a direction and degrees to move, such as north 5. In cardinal or free facing, enter f or b and a distance to move forward or back, such as f 24 or b 2 km 500 m."
 
 dialogs:
   keys_title: Keys
@@ -267,32 +268,14 @@ points:
   NNW: north-north-west
   NbW: north by west
 
-# Directions relative to the way the user faces, in cardinal and free facing
-# (NAV-12, ANN-5). The clock face uses bearing.clock above. The compass formats
-# use these words, 16 of them, by the compass point the direction would be if
-# ahead were north.
+# Directions measured from the way the user faces, in cardinal and free facing, when
+# the setting asks for them (ANN-5, NAV-12, DP159). The chosen format, with "at your":
+# "Berlin, 25 kilometres at your 30 degrees", "at your north-east" (ahead right).
 relative:
-  ahead: "ahead"
-  behind: "behind"
-  right: "{value} degrees to your right"
-  left: "{value} degrees to your left"
-  about_right: "about {value} degrees to your right"
-  about_left: "about {value} degrees to your left"
-  points:
-    NNE: "ahead, slightly right"
-    NE: "ahead right"
-    ENE: "right, slightly ahead"
-    E: "to your right"
-    ESE: "right, slightly behind"
-    SE: "behind right"
-    SSE: "behind, slightly right"
-    SSW: "behind, slightly left"
-    SW: "behind left"
-    WSW: "left, slightly behind"
-    W: "to your left"
-    WNW: "left, slightly ahead"
-    NW: "ahead left"
-    NNW: "ahead, slightly left"
+  degrees: "at your {value} degrees"
+  about_degrees: "at about your {value} degrees"
+  clock: "at your {value} o'clock"
+  point: "at your {value}"
 
 hemispheres:
   N: north

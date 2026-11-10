@@ -1,9 +1,10 @@
 # The earcons (SON-6, SON-8): event, file name in the sounds folder, and the words
-# for Help. Each has a switch and your own file in the Earcons tab of Settings
-# (P2-T8). phase says when it was first played: tick and blocked are the PO's own
-# sounds (DP128); ding and ambiguous_up wait for driving and hierarchy mode, and
-# no_data for network mode. switch: false means B, or its own setting, switches it, so the
-# Earcons tab offers only your own file (the beacon, P2-T9).
+# for Help. Each is in the Earcons tab's list of Settings, with a check box to play it,
+# its own volume and your own file (P2-T8, P2-T17p, DP163). phase says when it was first
+# played: tick and blocked are the PO's own sounds (DP128); ding and ambiguous_up wait for
+# driving and hierarchy mode, and no_data for network mode. listed: false means it is not
+# in that list: the orientation beacon has its switch, volume and own file in the Sound
+# tab, with its other settings (P2-T9, P2-T17p).
 - {event: tick, file: click.wav, label: Tick, meaning: "A step that changed nothing.", phase: 1}
 - {event: blocked, file: bump.wav, label: Blocked, meaning: "A step that could not be taken, such as at a pole.", phase: 1}
 - {event: crossed_added, file: crossed-added.wav, label: Something added, meaning: "Something was added to the Crossed and passed list.", phase: 2}
@@ -15,4 +16,4 @@
 - {event: line_crossing, file: line-crossing.wav, label: Line crossed, meaning: "Crossing a line of a layer that has a crossing sound.", phase: 2}
 - {event: meridian_crossed, file: meridianCrossed.wav, label: Meridian crossed, meaning: "Crossing the prime meridian or the 180 degree meridian.", phase: 2}
 - {event: equator_crossed, file: equatorCrossed.wav, label: Equator or tropic crossed, meaning: "Crossing the equator, a tropic or a polar circle.", phase: 2}
-- {event: beacon, file: beacon.wav, label: Orientation beacon, meaning: "Repeated from the direction of the North Pole while the beacon is on. B switches it on and off.", phase: 2, switch: false}
+- {event: beacon, file: beacon.wav, label: Orientation beacon, meaning: "Repeated from the direction of the North Pole while the beacon is on. B switches it on and off.", phase: 2, listed: false}

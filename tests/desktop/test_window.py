@@ -407,7 +407,8 @@ def test_tab_from_the_tabs_goes_straight_to_the_first_setting(window, qtbot):
     window.dispatch("settings.open")
     dialog = click_dialog(window, SettingsDialog)
     schema = window.session.settings_schema()
-    firsts = [dialog.controls[tab["fields"][0]["id"]] for tab in schema["tabs"]] + [dialog.key_list]
+    firsts = [dialog.earcons.list if tab.get("earcons") else dialog.controls[tab["fields"][0]["id"]]
+              for tab in schema["tabs"]] + [dialog.key_list]   # the Earcons tab starts with its list (P2-T17p)
     assert len(firsts) == dialog.tabs.count()
     for index, first in enumerate(firsts):
         dialog.tabs.setCurrentIndex(index)
@@ -1167,10 +1168,13 @@ def test_home_and_end_in_every_number_box_set_the_largest_and_smallest(window, q
     keyboard, and End the smallest. Every number box in Settings, so none is missed."""
     window.dispatch("settings.open")
     dialog = click_dialog(window, SettingsDialog)
-    numbers = [f for tab in window.session.settings_schema()["tabs"] for f in tab["fields"] if f["kind"] == "number"]
+    tabs = window.session.settings_schema()["tabs"]
+    numbers = [(f, dialog.controls[f["id"]]) for tab in tabs if not tab.get("earcons")
+               for f in tab["fields"] if f["kind"] == "number"]
+    earcons = next(tab for tab in tabs if tab.get("earcons"))   # one box, for the earcon chosen (P2-T17p)
+    numbers.append((next(f for f in earcons["fields"] if f["kind"] == "number"), dialog.earcons.volume))
     assert len(numbers) > 5
-    for f in numbers:
-        box = dialog.controls[f["id"]]
+    for f, box in numbers:
         dialog.tabs.setCurrentWidget(next(dialog.tabs.widget(i) for i in range(dialog.tabs.count())
                                           if dialog.tabs.widget(i).isAncestorOf(box)))
         box.setFocus()

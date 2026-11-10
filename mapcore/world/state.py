@@ -182,21 +182,22 @@ class WorldState:
         self.lat, self.lon = mv.lat, mv.lon
         return StepResult(True, mv.lat, mv.lon, mv.heading, mv.path)   # the direction of travel
 
-    def forward(self, sign: int = 1) -> StepResult:
-        """Move forward (sign 1) or back (sign -1) by the step, in a facing orientation.
-        Moving back keeps facing the same way: the heading is the direction of travel
-        on arrival, turned round."""
+    def forward(self, sign: int = 1, metres: float | None = None) -> StepResult:
+        """Move forward (sign 1) or back (sign -1) by the step, or by metres if given (Go to,
+        P2-T17r), in a facing orientation. Moving back keeps facing the same way: the heading
+        is the direction of travel on arrival, turned round."""
         if self.orientation not in FACING:
             return self._step_north_fixed("north" if sign > 0 else "south")
+        distance = self.step_m if metres is None else metres
         travel = norm_heading(self.heading if sign > 0 else self.heading + 180.0)
         if self.orientation == "cardinal" and travel in (90.0, 270.0):
             # East and west follow the line of latitude, as in north-fixed (DP69).
-            mv = geodesy.step_parallel(self.lat, self.lon, self.step_m if travel == 90.0 else -self.step_m)
+            mv = geodesy.step_parallel(self.lat, self.lon, distance if travel == 90.0 else -distance)
             if mv is None:   # at a pole there is no east or west
                 return StepResult(False, self.lat, self.lon, self.heading)
             self.lat, self.lon = mv.lat, mv.lon
             return StepResult(True, mv.lat, mv.lon, self.heading, mv.path)
-        mv = geodesy.step_heading(self.lat, self.lon, travel, self.step_m)
+        mv = geodesy.step_heading(self.lat, self.lon, travel, distance)
         arrival = mv.heading if sign > 0 else mv.heading + 180.0
         self.heading = nearest_cardinal(arrival) if self.orientation == "cardinal" else norm_heading(arrival)
         self.lat, self.lon = max(-90.0, min(90.0, mv.lat)), mv.lon

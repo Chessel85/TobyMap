@@ -71,9 +71,16 @@ def heading_report(world, units: str) -> str:
 
 
 def facing(world) -> float | None:
-    """The heading directions are relative to: the way the user faces in cardinal and
-    free facing, or None in north-fixed, where directions are compass directions (NAV-12)."""
+    """The heading sound in space is relative to: the way the user faces in cardinal and
+    free facing, or None in north-fixed (NAV-12, SON-2)."""
     return None if world.orientation == "north-fixed" else world.heading
+
+
+def words_facing(world, settings) -> float | None:
+    """The heading spoken directions are measured from: as facing(), but only when the
+    setting asks for directions from the way you face (DP159). Otherwise None, and every
+    direction is a compass direction in the chosen format, in every orientation."""
+    return facing(world) if settings["relative_directions"] else None
 
 
 def nearby_label(near, units: str, bearing: str, heading: float | None = None) -> str:

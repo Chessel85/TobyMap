@@ -142,6 +142,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Passed: a point, such as a railway station, that a move's path came within the passed nearby distance of.
 * Passed nearby distance: how near a move's path must come to a point for it to be listed as passed. A share of the step, 10% at first, or a fixed distance (DP58).
 * Beacon: a soft repeating sound from the direction of the North Pole, or later a pin, so you can feel which way you face (SON-10).
+* Item's direction sound: the earcon played from an item's direction, before its name, when you press Space on an item in the Information panel (Hear its direction, SON-3). It is not the beacon.
 * Verbosity preset: a named choice of how much is said by itself after a move: terse, normal or detailed. It sets four switches; changing one makes the preset Custom (ACC-5, DP144).
 * Theme: the set of colours the map is drawn in: standard, high contrast dark, high contrast light or colour-blind safe (VIS-2).
 * Contrast ratio: how much lighter one colour is than another, from 1 to 1 (the same) to 21 to 1 (black on white), measured as the web accessibility guidelines do. The high contrast themes keep every outline and name at 7 to 1 or more.

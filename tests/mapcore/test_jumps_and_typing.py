@@ -2,6 +2,7 @@
 (P2-T1c, P2-T2, P2-T15; NAV-8, NAV-10, NAV-12, ANN-4, DP141, DP142)."""
 import pytest
 
+from mapcore.geo import geodesy
 from mapcore.geo.parse import parse_bearing, parse_coordinates, parse_goto
 from mapcore.session import MapSession
 
@@ -72,6 +73,28 @@ def test_go_to_reads_one_number_a_comma_and_a_number_and_a_direction_and_an_amou
     """The PO's answers, 8 November 2026. A direction first moves by that many degrees; a number
     first is where to go."""
     assert same(parse_goto(text), reading), parse_goto(text)
+
+
+# P2-T17r, DP161: forward and back. A number alone is in the user's unit; units may be typed.
+MILE, YARD = 1609.344, 0.9144
+
+
+@pytest.mark.parametrize("text, unit_m, metres", [
+    ("F24", 1000.0, 24_000), ("f 24", MILE, 24 * MILE), ("forward 2.5", 1000.0, 2_500), ("B24", 1000.0, -24_000),
+    ("back 3", 1852.0, -3 * 1852.0), ("backward 1", 1000.0, -1000), ("forwards 1", 1000.0, 1000),
+    ("F24mi240yds", 1000.0, 24 * MILE + 240 * YARD), ("B24km50m", MILE, -24_050), ("B24.05km", MILE, -24_050),
+    ("f 24 mi 240 yds", 1000.0, 24 * MILE + 240 * YARD), ("f 2 miles and 100 yards", 1000.0, 2 * MILE + 100 * YARD),
+    ("f 500 m", MILE, 500), ("f 3 kilometres", MILE, 3000), ("b 10 yd", 1000.0, -10 * YARD), ("f 0.5mi", 1000.0, MILE / 2),
+])
+def test_go_to_reads_forward_and_back_with_a_distance(text, unit_m, metres):
+    kind, amount, other = parse_goto(text, unit_m)
+    assert kind == "ahead" and other is None and amount == pytest.approx(metres)
+
+
+@pytest.mark.parametrize("text", ["f", "b", "f km", "f 24 km 3", "f 2km 3km", "f -5", "f 5 feet", "fore 5", "f 5 north"])
+def test_go_to_refuses_a_forward_or_back_it_cannot_read(text):
+    with pytest.raises(ValueError):
+        parse_goto(text)
 
 
 @pytest.mark.parametrize("text", ["north 5 south 2", "n -5", "up 5", "north", "5 north 3", ", 0.12N", "91",
@@ -183,7 +206,9 @@ def test_the_go_to_box_asks_and_refuses_what_it_cannot_read(session):
     assert bad.error == ("91, 0 is not a valid entry. Enter latitude and then longitude, such as 51.5, -0.12 "
                          "or 51d 30m N, 0d 7m W. Latitude is up to 90 degrees and longitude up to 180. "
                          "Or enter one of them alone to keep the other. "
-                         "Or enter a direction and degrees to move, such as north 5.")
+                         "Or enter a direction and degrees to move, such as north 5. "
+                         "In cardinal or free facing, enter f or b and a distance to move forward or back, "
+                         "such as f 24 or b 2 km 500 m.")
     assert not bad.announcements and near(session, 51.2, 1.2)
 
 
@@ -200,6 +225,40 @@ def test_go_to_with_one_number_keeps_the_other_and_a_direction_moves_by_it(sessi
     session.run("goto.set", text="east 2")     # across the 180 degree line
     assert near(session, 0.0, -179.0)
     assert len(session.back_places) == 6       # each is a jump, so Alt+comma comes back
+
+
+def test_forward_and_back_in_go_to_work_only_when_facing(session):
+    r = session.run("goto.set", text="f 24")
+    assert r.error == "Forward and back work in cardinal and free facing. Press O to change the orientation, or enter where to go."
+    assert not r.announcements and near(session, 51.2, 1.2) and not session.back_places
+
+
+def test_forward_in_go_to_moves_the_distance_the_way_you_face(session):
+    session.world.set_orientation("free")
+    session.world.heading = 90.0
+    r = session.run("goto.set", text="f 24")      # kilometres, as the units are metric
+    distance, bearing, _ = geodesy.inverse(51.2, 1.2, session.world.lat, session.world.lon)
+    assert distance == pytest.approx(24_000, abs=1) and bearing == pytest.approx(90.0, abs=0.01)
+    assert r.error is None and r.announcements and len(session.back_places) == 1   # a jump: Alt+comma comes back
+    session.run("goto.set", text="b24km")       # back the same way, still facing about east
+    assert geodesy.distance_m(51.2, 1.2, session.world.lat, session.world.lon) < 1
+    assert session.world.heading == pytest.approx(90.0, abs=0.5) and session.world.orientation == "free"
+
+
+def test_back_in_cardinal_facing_and_the_users_own_unit(session):
+    session.run("settings.set", field="units", value="imperial")
+    session.world.set_orientation("cardinal")      # facing north
+    session.run("goto.set", text="b 10")           # 10 miles south
+    assert geodesy.distance_m(51.2, 1.2, session.world.lat, session.world.lon) == pytest.approx(10 * MILE, abs=1)
+    assert session.world.lat < 51.2 and session.world.lon == pytest.approx(1.2) and session.world.heading == 0.0
+
+
+def test_forward_over_a_pole_comes_out_facing_the_other_way_and_says_so(session):
+    session.run("goto.set", text="89.9, 0")
+    session.world.set_orientation("cardinal")
+    r = session.run("goto.set", text="f 50")
+    assert session.world.heading == 180.0 and session.world.lat < 89.9
+    assert any(a["text"].startswith("Crossed the North Pole. Now facing south.") for a in r.announcements)
 
 
 def test_a_jump_keeps_the_zoom_and_says_the_place(session):

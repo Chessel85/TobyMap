@@ -1,6 +1,19 @@
 # Requirements Catalogue
 
-Version 0.11, 10 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.13, 10 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.13
+
+These changes come from your answers to DP159 and DP161 (tasks P2-T17s and P2-T17r).
+
+* ANN-5 and NAV-12: in cardinal and free facing, spoken directions are compass directions in your chosen format, as in north-fixed, unless the new setting asks for directions from the way you face. Then they are in your chosen format with "at your", such as "at your 30 degrees" or "at your north-east". "Behind you" and "to your right" are gone. Sound in space is always from the way you face.
+* NAV-8: in cardinal and free facing, Go to takes forward or back and a distance, such as "f 24" or "b 2km 500m".
+
+## Changes in version 0.12
+
+This change comes from your answer to DP163 and your note on desktop checklist 10.6 (task P2-T17p).
+
+* SON-6: each earcon has its own volume, set in the Earcons tab, and there is no volume for all the earcons together.
 
 ## Changes in version 0.11
 
@@ -520,6 +533,7 @@ The high level requirements document stays the product owner's own statement of 
   * Jumping to an area zooms the view to fit it. Jumping to a point or to coordinates keeps the current zoom. Going back (NAV-10) restores the previous zoom as well as the previous position (DP77).
   * All of these coordinate formats are accepted: "51.5, -0.12", "51.5N 0.12W" and "51°30′N 0°07′W".
   * Input that cannot be read gives an error saying which formats are accepted.
+  * In cardinal and free facing, "f" or "forward" and a distance moves forward, and "b" or "back" moves back, along the way the user faces. A number alone is in the user's distance unit: kilometres, miles, or nautical miles. Units may be typed instead, one or more of km, mi, m and yds: "F24mi240yds" is 24 miles and 240 yards, "B24.05km" is back 24 kilometres and 50 metres. In north-fixed, Go to says "Forward and back work in cardinal and free facing." (DP161).
   * Pressing Enter on a search result moves the location there and announces it.
 
 ### NAV-9 Mouse and pointer
@@ -555,8 +569,8 @@ The high level requirements document stays the product owner's own statement of 
 * Priority: Must. Status: Agreed.
 * The three orientations are:
   * North-fixed: the user always faces north. In stepping mode, the arrow keys move north, east, south and west. Directions are given relative to north, in the user's chosen format (ANN-5).
-  * Cardinal facing: the user faces north, east, south or west, and turns in 90° steps. Directions are given relative to the way they face.
-  * Free facing (free roaming): the user can face any bearing. Directions are given relative to the way they face.
+  * Cardinal facing: the user faces north, east, south or west, and turns in 90° steps. Directions are given as in north-fixed, or from the way they face if the user chooses (ANN-5, DP159).
+  * Free facing (free roaming): the user can face any bearing. Directions are given as in cardinal facing.
 * The movement modes that combine with them are stepping, hierarchy and network.
 * Turning (DP69):
   * Shift+Left and Shift+Right turn by the large amount in free facing (default 90°, a setting), in every movement mode.
@@ -666,7 +680,7 @@ The high level requirements document stays the product owner's own statement of 
     * clock face gives "2 o'clock"
     * 8 or 16 points gives "north-east"
     * 32 points gives "north-east" (the range 39.4° to 50.6°)
-  * In the facing orientations, every direction, including the clock face, is relative to the user's heading. In north-fixed, it is relative to north (NAV-12).
+  * In every orientation, directions are measured from north by default. A setting, "In cardinal and free facing, give directions from the way you face", off at first, measures them from the user's heading in the facing orientations instead, in the same format with "at your": "Berlin, 25 kilometres at your 30 degrees", "Manchester, 1.5 miles at your north-east", "at your 2 o'clock" (DP159). Sound in space is always placed from the way the user faces (SON-2).
 
 ### ANN-6 Disputed areas
 * Outcome: When the data source marks an area or border as disputed, the user is told so.
@@ -911,7 +925,7 @@ The high level requirements document stays the product owner's own statement of 
   * crossing a line of a line layer, where the layer has a crossing earcon (SCP-7). For example, the graticule layer (DAT-13) has crossing earcons for lines of latitude and longitude at a set interval, and one each for the equator, the prime meridian, the antimeridian, the tropics and the polar circles. They are off by default.
 * Crossing earcons belong to the layer definition (SCP-7), so any line layer can have one, such as "play a sound when I cross a railway".
 * There are no earcons for crossing a border or moving between land and water by default, because the new name makes these clear.
-* Acceptance criteria: Each earcon can be switched off individually, and the earcon volume is separate from speech.
+* Acceptance criteria: Each earcon can be switched off individually and has its own volume, separate from speech (DP163).
 
 ### SON-7 Sound must not get in the way of speech
 * Outcome: Sound never delays or blocks screen reader speech.

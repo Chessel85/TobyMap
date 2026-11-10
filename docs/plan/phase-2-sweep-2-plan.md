@@ -214,6 +214,23 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 * Below the list, one set of controls for the earcon chosen in the list: its own volume, its file (empty means the default), a Browse button, and a "Set to default" button.
 * Each earcon having its own volume is new. DP163 asks how it works with the volume at the top.
 * Both shells. Then sections 17 of both checklists can be tested.
+* Done, 10 November 2026, on branch P2-T17o, as you asked, with your answer to DP163.
+* The tab is now one list, "Earcons", of every earcon, each with a check box. Space ticks it, Enter presses OK. Below the list are the controls for the earcon chosen in it: "Tick: volume, in percent", "Tick: your own sound file", Choose file and Use the default. Their names change with the earcon chosen, so NVDA always says which earcon they are for. Each earcon keeps its own changes until OK or Cancel.
+* As you answered in DP163, there is no volume for all the earcons any more. Each earcon has its own, 100 percent at first. If you had set the old volume, each earcon now starts at that value, so nothing is louder than before. An earcon's volume also applies when it is placed in space, such as the item's direction sound.
+* In the web version, each earcon in the list takes the focus itself, as the Information panel's items do. NVDA should say "checked" or "not checked" on each.
+
+#### Your question in DP163: the beacon
+
+No, I was not mixing up the two, but my words did not make the difference clear. There are two different sounds:
+
+* The item's direction sound: played from an item's direction before its name, when you press Space on an item in the Information panel. It is an ordinary earcon, so it is in the list, with its check box, volume and file. It is now in the glossary under that name.
+* The orientation beacon: the repeating sound from the North Pole, switched with B. It was in the old Earcons tab for its own file only, with its switch and volume in the Sound tab. That was why I asked about it.
+
+As it had to be treated differently from every other earcon, I took it out of the list. Its own file is now in the Sound tab, after "Orientation beacon: seconds between each sound", so all its settings are together and every item in the Earcons list works the same way. If you would rather have it in the list, say so.
+
+* Documents: the user experience description is now version 0.17 (sections 8.4 and 8.6), and the requirements catalogue version 0.12 (SON-6). Section 17 and step 10.6 of both checklists are rewritten for the new tab.
+* To check with NVDA, as only you can: section 17 and step 10.6 of both checklists.
+* Tests: 4 new core tests and 3 changed; 7 new desktop tests and 6 changed; 4 new browser tests and 3 changed. The desktop and browser tests that go through every setting now include the Earcons tab's list and its volume box.
 
 ### P2-T17q Always say the place (desktop 15; ACC-5)
 
@@ -222,10 +239,31 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 ### P2-T17r Forward and back in Go to (desktop 5.10; NAV-8)
 
 * Sonnet. "f" or "forward" and a number moves you forward, "b" or "back" backward, in cardinal and free facing only. In north-fixed it says these work only in the facing orientations. Waits for DP161, on the units.
+* Done, 10 November 2026, with your answer to DP161, in the same working copy as P2-T17p, on branch P2-T17o, not yet committed.
+* A number alone is in your own distance unit: kilometres in metric, miles in imperial, nautical miles in nautical. So "F24" is forward 24 kilometres in metric.
+* Units can be typed instead, one or more, with or without spaces: km, mi, m and yds, as you listed. The words work too, such as kilometres, miles, metres and yards, and "yd". "F24mi240yds" is 24 miles and 240 yards, "B24km50m" and "B24.05km" are both back 24 kilometres and 50 metres. A unit used twice, such as "f 2km 3km", or a number with no unit after one with a unit, such as "f 24 km 3", is not read, and the message box opens.
+* The move goes the way you face, exactly as Up and Down do. Back keeps you facing the same way. In cardinal facing east or west, it follows the line of latitude. Over a pole you come out facing the other way, and hear "Crossed the North Pole. Now facing south." before the place.
+* It is a jump, so Alt+comma comes back, and the zoom and step stay.
+* In north-fixed, a message box says "Forward and back work in cardinal and free facing. Press O to change the orientation, or enter where to go." After OK you are back in the box with your text.
+* Go to's message for a wrong entry now ends: "In cardinal or free facing, enter f or b and a distance to move forward or back, such as f 24 or b 2 km 500 m."
+* North, south, east and west are still in degrees, as before. Your answer was about F and B only. If you want units after north and the others too, say so.
+* Requirements catalogue version 0.13 (NAV-8) and user experience description version 0.18 (section 5.7) say this. Step 5.11 is new in both checklists.
+* To check with NVDA, as only you can: step 5.11 of both checklists.
+* Tests: 25 new core tests for what is read and refused, and 4 for the move: north-fixed refused, forward and back in free facing, back in miles in cardinal facing, and over the North Pole. The test for Go to's message has the new last sentence.
 
 ### P2-T17s Directions in cardinal and free facing (desktop 11.4; ANN-5)
 
 * Sonnet. Waits for DP159: whether to keep "behind you" and "to your right", or say directions in your chosen format.
+* Done, 10 November 2026, with your answer to DP159 (option C), in the same working copy as P2-T17p and P2-T17r, not yet committed.
+* A new setting in the Units tab, after Directions: "In cardinal and free facing, give directions from the way you face". It is off at first.
+* Off: every direction in words is a compass direction in your chosen format, measured from north, in every orientation. This is a change: until now, cardinal and free facing always said "ahead right" and the like.
+* On, in cardinal and free facing: the direction is measured from the way you face, in your chosen format, with "at your", as you asked. For example, "Manchester, 1.5 miles at your north-east", "Berlin, 25 kilometres at your 30 degrees", "at your 2 o'clock". Rounded degrees say "at about your 50 degrees". So "at your north" is ahead, "at your east" is to your right, and "at your south" is behind you.
+* "Ahead", "behind", "to your right" and the other old words are gone.
+* This covers Nearby, Within and Crossed and passed in the Information panel. The spatial voice says only the name and distance, so it is unchanged. Sound in space is always from the way you face, whatever the setting.
+* In north-fixed the setting does nothing.
+* Requirements catalogue version 0.13 (ANN-5, NAV-12) and user experience description version 0.18 (section 5.1) say this. Step 11.4 of both checklists now tries the setting.
+* To check with NVDA, as only you can: step 11.4 of both checklists, and that the setting's name is clear to you.
+* Tests: the 15 tests of each format's words were rewritten for "at your", and 3 new tests: the setting's place and default, that only the setting and a facing orientation measure from the way you face, and that the Information panel keeps compass directions when the setting is off and uses "at your" when it is on. The browser tests for Settings and Go to pass in Chromium and Firefox.
 
 ### P2-T17t The announcement history and a location history (desktop 7.6; ANN-4, NAV-10)
 

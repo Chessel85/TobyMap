@@ -2,6 +2,7 @@
 (P2-T1a and P2-T1b; NAV-3, NAV-11, NAV-12, ANN-5, SON-2)."""
 import pytest
 
+from mapcore import settings
 from mapcore.describe import describer, words
 from mapcore.geo import formats, geodesy
 from mapcore.session import MapSession
@@ -115,28 +116,30 @@ def test_the_orientation_and_heading_are_saved():
 
 # P2-T1b: directions relative to the way you face -----------------------------------
 
-def test_nav12_a_feature_at_90_degrees_is_east_or_ahead():
+def test_nav12_a_feature_at_90_degrees_is_east_or_at_your_north():
     assert words.direction_text(90.0, "points8") == "east"
-    assert words.direction_text(90.0, "points8", heading=90.0) == "ahead"
-    assert words.direction_text(90.0, "clock", heading=90.0) == "12 o'clock"
+    assert words.direction_text(90.0, "points8", heading=90.0) == "at your north"
+    assert words.direction_text(90.0, "clock", heading=90.0) == "at your 12 o'clock"
     assert words.direction_text(90.0, "clock") == "3 o'clock"
 
 
+# DP159: directions from the way you face are in the chosen format, with "at your".
 @pytest.mark.parametrize("bearing, style, text", [
-    (137.0, "points4", "to your right"),
-    (137.0, "points8", "ahead right"),
-    (137.0, "points16", "ahead right"),
-    (137.0, "points32", "ahead right"),
-    (110.0, "points16", "ahead, slightly right"),
-    (270.0, "points8", "behind"),
-    (0.0, "points8", "to your left"),
-    (47.0, "points8", "ahead left"),
-    (137.0, "exact", "47 degrees to your right"),
-    (43.0, "exact", "47 degrees to your left"),
-    (90.0, "exact", "ahead"),
-    (271.0, "round10", "behind"),
-    (139.0, "round10", "about 50 degrees to your right"),
-    (137.0, "clock", "2 o'clock"),
+    (137.0, "points4", "at your east"),
+    (137.0, "points8", "at your north-east"),
+    (137.0, "points16", "at your north-east"),
+    (110.0, "points16", "at your north-north-east"),
+    (102.0, "points32", "at your north by east"),
+    (270.0, "points8", "at your south"),
+    (0.0, "points8", "at your west"),
+    (47.0, "points8", "at your north-west"),
+    (137.0, "exact", "at your 47 degrees"),
+    (43.0, "exact", "at your 313 degrees"),
+    (90.0, "exact", "at your 0 degrees"),
+    (271.0, "round10", "at about your 180 degrees"),
+    (139.0, "round10", "at about your 50 degrees"),
+    (137.0, "clock", "at your 2 o'clock"),
+    (300.0, "clock", "at your 7 o'clock"),
 ])
 def test_relative_directions_in_each_format(bearing, style, text):
     assert words.direction_text(bearing, style, heading=90.0) == text
@@ -149,6 +152,13 @@ def test_the_one_rule_gives_a_relative_bearing():
     assert describer.facing(world(0, 0, "free", 47.0)) == 47.0
 
 
+def test_spoken_directions_are_from_the_way_you_face_only_when_the_setting_asks():
+    free = world(0, 0, "free", 47.0)
+    assert describer.words_facing(free, {"relative_directions": False}) is None
+    assert describer.words_facing(free, {"relative_directions": True}) == 47.0
+    assert describer.words_facing(world(0, 0), {"relative_directions": True}) is None   # north-fixed
+
+
 # The session ------------------------------------------------------------------------
 
 @pytest.fixture
@@ -159,16 +169,29 @@ def session(test_pack):
     s.store.close()
 
 
-def test_nearby_is_relative_in_a_facing_orientation(session):
-    def labels():
-        return [i["label"] for g in session.panel() if g["id"] == "nearby" for i in g["items"]]
-    fixed = labels()
+def _labels(session, group):
+    return [i["label"] for g in session.panel() if g["id"] == group for i in g["items"]]
+
+
+def test_the_relative_directions_setting_is_off_at_first_in_the_units_tab(session):
+    tab = next(t for t in settings.schema()["tabs"] if any(f["id"] == "bearing" for f in t["fields"]))
+    ids = [f["id"] for f in tab["fields"]]
+    assert ids[ids.index("bearing") + 1] == "relative_directions"
+    assert session.settings["relative_directions"] is False
+
+
+def test_nearby_and_within_keep_compass_directions_when_facing_unless_asked(session):
+    fixed = _labels(session, "nearby"), _labels(session, "within")
     session.world.set_orientation("cardinal")
     session.world.turn(90)
-    facing = labels()
-    assert fixed != facing
-    assert any("south" in label for label in fixed)
-    assert not any(" south" in label or "north" in label for label in facing)
+    assert (_labels(session, "nearby"), _labels(session, "within")) == fixed   # DP159: off at first
+    session.run("settings.set", field="relative_directions", value=True)
+    facing = _labels(session, "nearby")
+    assert facing != fixed[0]
+    assert any("south" in label for label in fixed[0])
+    assert all(" at your " in label for label in facing + _labels(session, "within")), facing
+    session.world.set_orientation("north-fixed")   # north-fixed is always compass directions
+    assert _labels(session, "nearby") == fixed[0]
 
 
 def test_turning_says_the_heading_and_moves_nothing(session):

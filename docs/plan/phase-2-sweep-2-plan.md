@@ -94,10 +94,21 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 ### P2-T17f Space on a group heading (desktop 11.6; SON-3)
 
 * Sonnet. On the desktop, Space on a group heading repeats the last announcement instead of saying "Hear its direction works on an item, not on a group." The web version is right. Find why and fix it, with a test.
+* Done, 10 November 2026, on branch P2-T17f.
+* The cause was in the core, not the desktop. A group heading has no item, so the core kept the item last focused, which F3 goes back to. Space then used that item, so you heard it again. Its label goes only to Braille on the desktop, so it seemed like a repeat of the last announcement.
+* Now the core notes when a heading has the focus, and Space there says "Hear its direction works on an item, not on a group." F3 still goes back to the item last focused.
+* The web version sends the same thing for a heading, so it had the same fault after Space on an item. It passed your test probably because no item had been heard first. The fix is in the core, so it covers both.
+* To check with NVDA, as only you can: desktop 11.6, after pressing Space on an item first. The same in the web version.
+* Tests: 1 new core test and 1 new desktop test. Both failed on the old code.
 
 ### P2-T17g "Grouping" in Settings (desktop 2.10; ACC-1)
 
 * Sonnet. Tab from the tab control lands on something NVDA calls "grouping" before the first setting. Tab should go straight to the first setting, in every tab.
+* Done, 10 November 2026, on branch P2-T17f, with P2-T17f.
+* The cause: each tab's settings sit in a scroll area, added in P2-T8 because the Earcons tab is taller than the dialog. The scroll area had no name and took the focus before the first setting, so NVDA called it "grouping". It no longer takes the focus, and it still scrolls to the setting that has it.
+* Also: when the eight tabs do not fit across the dialog, Qt shows two arrows to scroll the tabs, and Tab could stop on them. They no longer take the focus. Left and Right on the tabs still go to every tab.
+* To check with NVDA, as only you can: desktop 2.10. In each tab, Tab from the tab control goes straight to the first setting.
+* Tests: 1 new desktop test, going through every tab. It failed on the old code.
 
 ### P2-T17h The layers list as a tree (desktop 8.1, web 8.6; SCP-6)
 

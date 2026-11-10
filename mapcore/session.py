@@ -154,6 +154,7 @@ class MapSession:
         self.selected: str | None = None   # the Information panel item chosen, an area id
         self.panel_item: str | None = None  # the item last focused there, for F3 (DP106)
         self.panel_group: str | None = None  # and its group, as an area can be in two groups
+        self.panel_on_item = True            # False while a group heading has the focus (P2-T17f)
         self.held_moves = 0
         self.held_turns = 0               # turns made while Left or Right is held in a facing orientation
         self.holding: str | None = None   # the movement command whose key is down (DP140)
@@ -1131,7 +1132,10 @@ class MapSession:
         return Response(focus={"region": "panel", "group": group or "within", "item": item}, panel_stale=True)
 
     def _select(self, item: str | None = None, group: str | None = None, **_a) -> Response:
-        """The item focused in the Information panel, and its group (within, nearby or crossed)."""
+        """The item focused in the Information panel, and its group (within, nearby or crossed).
+        A group heading comes with no item: F3 still goes back to the item last focused, but
+        Hear its direction is then on the heading, not on that item (P2-T17f)."""
+        self.panel_on_item = bool(item)
         if item:
             self.panel_item, self.panel_group = item, group
         if item == self.selected:
@@ -1148,7 +1152,7 @@ class MapSession:
         from mapcore.sound.scene import place
 
         self.panel()   # the items' places are kept as the panel is made
-        if not item:
+        if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
         groups = [group] if group else ["within", "nearby", "crossed"]
         spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)

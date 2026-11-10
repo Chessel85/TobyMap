@@ -11,7 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
                                QLineEdit, QListWidget, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
-                               QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                               QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop.keys import key_name
 from mapcore.commands.registry import key_text
@@ -499,6 +499,10 @@ class SettingsDialog(QDialog):
             scroll = QScrollArea()   # the Earcons tab is taller than the dialog (P2-T8)
             scroll.setWidgetResizable(True)
             scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+            # Tab goes from the tabs straight to the first setting: the scroll area took the
+            # focus first, and NVDA called it "grouping" (P2-T17g, ACC-1). It still scrolls to
+            # the setting with the focus.
+            scroll.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             scroll.setWidget(page)
             self.tabs.addTab(scroll, tab["label"])
         self.keys_page = QWidget()
@@ -513,6 +517,10 @@ class SettingsDialog(QDialog):
         self._fill_keys()
         self.tabs.addTab(self.keys_page, words["keys_tab"])
         layout.addWidget(self.tabs)
+        # The tab bar's scroll arrows, shown when the tabs do not fit, are not stops for Tab:
+        # Left and Right on the tabs already go to every tab (P2-T17g).
+        for arrow in self.tabs.tabBar().findChildren(QToolButton):
+            arrow.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         labels = [words["ok"], words["cancel"]] + ([words["export"]] if export_cb else []) \
             + ([words["import"]] if import_cb else [])
         buttons = button_row(layout, labels)

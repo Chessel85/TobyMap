@@ -14,7 +14,11 @@ Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP
     * M switches between stepping and hierarchy mode, in place of 1 and 2 (P3-T6). M was also proposed, and kept by you, for measuring (P3-T7), so one of them needs another key: asked when P3-T6 is done.
     * Ctrl+Shift+W for the Wikipedia article (P3-T5) closes the whole window in Chrome and Firefox, and a page cannot stop it, so it cannot be used in the web version. Ctrl+Shift+W is now in tests/data/forbidden_keys.yaml. Another key asked when P3-T5 is done.
     * Measuring, distance to a found feature, search in the browsers, and the world tree: you want to know more about each first. Each is explained, and its key confirmed, when its task is done.
-* [ ] P3-T0d Samples for the test pack: Hampshire, the New Forest, Switzerland and its neighbours, the Rhine, the Bay of Biscay, and places with shared names.
+* [x] P3-T0d Samples for the test pack: Hampshire, the New Forest, Switzerland and its neighbours, the Rhine, the Bay of Biscay, and places with shared names.
+  * Done on 10 November 2026. Six samples in tests/samples/osm, read from the planet file of 26 October 2026 by tools/make_phase3_samples.py in under a minute, and the same byte for byte when made again. tests/samples/README.md describes each.
+  * In the test pack now: Hampshire and Wiltshire whole, with England and the counties round them; Switzerland, Liechtenstein and the four larger neighbours; and the Rhine from Basel to Schaffhausen.
+  * Waiting for the layers of the work items that use them: the New Forest National Park (95% in Hampshire, 5% in Wiltshire), the Bay of Biscay (an area in OpenStreetMap), and places with shared names: two Parises, two Portlands, two Newports, and São Paulo the city and the state.
+  * tests/mapcore/test_samples_phase3.py checks where you are in each new sample, that France stays one area from the Channel to the Alps, and that a step north at Rheinfelden crosses the Rhine from Switzerland into Germany.
 * [ ] P3-T0e The implementation plan, version 0.6.
 * [ ] P3-T0f Four more step sizes, 2.5, 10, 50 and 500 km (DP166).
 

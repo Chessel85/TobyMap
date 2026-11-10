@@ -14,8 +14,13 @@ These small files are built into the test pack by `python -m mapdata build test`
   * `antarctica-south-pole.geojson`: Antarctica south of 86 degrees south.
   * `niagara-falls.geojson`: Canada, Ontario, the USA, New York and their counties at Niagara Falls, at 0.0001 degrees.
   * `southampton-itchen.geojson`: the River Itchen through Southampton (a line, in the layer rivers), Longbridge Lake (an area, in lakes) and Southampton Central station (a point, in stations), read from the planet file of 26 October 2026 with GeoDesk and simplified to 0.0001 degrees (P2-T10c). They are for the tests of Crossed and passed (ANN-2) only. The world pack gets rivers and railways in Phase 3. Their layers are in `mapdata/config/layers/samples.yaml`, used by the test pack only. Made by `tools/make_itchen_samples.py`, which needs the planet file.
+  * The Phase 3 samples (P3-T0d), read from the planet file of 26 October 2026 with GeoDesk by `tools/make_phase3_samples.py`, which needs the planet file and takes under a minute. Running it again makes the same files byte for byte.
+    * `hampshire-wiltshire.geojson`: England and its 21 counties cut to a box round Hampshire and Wiltshire, at 0.001 degrees, keeping shared borders. England here is the counties joined, so it holds each of them. Before it, the Channel sample's box ended at 51.3 degrees north, cutting Wiltshire in two.
+    * `switzerland-neighbours.geojson`: Switzerland and Liechtenstein whole, and France, Germany, Italy and Austria cut to a box round them, at 0.002 degrees, keeping shared borders. France has the same id as in the Channel sample, so it stays one area.
+    * `rhine.geojson`: the Rhine from Basel to Schaffhausen, where it is the border of Switzerland and Germany, at 0.0002 degrees, in the layer rivers.
+    * Not yet in the test pack, because their layers come with the work items that use them: `new-forest.geojson`, the New Forest National Park, which overlaps Hampshire and Wiltshire (layer national_parks; only for INF-5 and NAV-4's ambiguous up, as national parks come to the real packs in Phase 4); `bay-of-biscay.geojson`, the Bay of Biscay as OpenStreetMap has it, an area (layer seas); and `shared-names.geojson`, two Parises, two Portlands, two Newports, and São Paulo the city and the state (layers places and regions), each with "where" to tell them apart, for the tests of search.
 
-Together they are about 4 MB.
+Together they are about 4.5 MB.
 
 ## How the samples fit together
 

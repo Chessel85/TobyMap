@@ -18,12 +18,15 @@ stages:
       - {source: sample-world}
       - {source: sample-oceans}
       - {source: sample-osm, file: england-france-channel.geojson}
+      - {source: sample-osm, file: hampshire-wiltshire.geojson}
       - {source: sample-osm, file: isle-of-wight-solent.geojson}
       - {source: sample-osm, file: fiji.geojson}
       - {source: sample-osm, file: bering-strait.geojson}
       - {source: sample-osm, file: antarctica-south-pole.geojson}
       - {source: sample-osm, file: niagara-falls.geojson}
+      - {source: sample-osm, file: switzerland-neighbours.geojson}
       - {source: sample-osm, file: southampton-itchen.geojson}
+      - {source: sample-osm, file: rhine.geojson}
   - stage: water
     land_layer: countries
   - stage: write

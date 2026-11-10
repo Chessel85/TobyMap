@@ -7,8 +7,8 @@ from mapcore.world import WorldState
 
 
 class A:
-    def __init__(self, id, name):
-        self.id, self.name = id, name
+    def __init__(self, id, name, layer="regions"):
+        self.id, self.name, self.layer = id, name, layer
 
 
 @pytest.mark.parametrize("style, text", [
@@ -54,6 +54,22 @@ def test_what_changed_is_listed_smallest_to_largest():
     # Into the next county of the same country: only the county is new.
     surrey = A("s", "Surrey")
     assert describer.announcement([kent, england, uk], [surrey, england, uk]) == "Surrey"
+
+
+def test_always_says_the_place_when_nothing_changed():
+    """P2-T17q, DP162: terse the smallest area, normal it and its country, detailed the whole place."""
+    kent, england, uk = A("k", "Kent", "counties"), A("e", "England", "regions"), A("u", "United Kingdom", "countries")
+    here = [kent, england, uk]
+    assert describer.announcement(here, here, say_area="smallest", always=True) == "Kent"
+    assert describer.announcement(here, here, say_area="changed", always=True) == "Kent, United Kingdom"
+    assert describer.announcement(here, here, say_area="whole", always=True) == "Kent, England, United Kingdom"
+    assert describer.announcement(here, here, say_area="off", always=True) is None
+    assert describer.announcement(here, here, say_area="changed") is None   # the switch off: the tick
+    sea = [A("o", "North Atlantic Ocean", "oceans")]
+    assert describer.announcement(sea, sea, say_area="changed", always=True) == "North Atlantic Ocean"
+    country = [uk]
+    assert describer.announcement(country, country, say_area="changed", always=True) == "United Kingdom"
+    assert describer.announcement([], [], why_none="layers_off", always=True) == describer.place_text([], "layers_off")
 
 
 def test_a_place_is_never_blank():

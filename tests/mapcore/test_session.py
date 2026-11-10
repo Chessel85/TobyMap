@@ -41,6 +41,15 @@ def test_a_move_that_changes_nothing_is_only_a_tick(session):
     assert spoken(r) == [] and r.earcons == ["tick"]
 
 
+def test_every_command_tells_the_shell_to_stop_the_voice_except_one_that_starts_a_label(session):
+    """P2-T17n, SON-3: a key press never leaves the voice talking over the screen reader."""
+    assert session.run("move.south").stop_voice
+    assert session.run("speech.repeat").stop_voice
+    assert session.run_many([("move.north", {}), ("move.south", {})]).stop_voice
+    session.run("sound.mute")
+    assert session.run("move.south").stop_voice
+
+
 def test_unknown_keys_are_left_to_the_shell(session):
     assert session.press("F9") is None
     assert session.press("Y") is None
@@ -386,7 +395,7 @@ def test_the_zoom_is_the_distance_to_the_nearer_edge(session):
 def test_imperial_zoom_and_step_are_round_numbers(session):
     """Checklist 7.5, DP136: imperial zoom and step are round sizes, and Page Up goes on through them."""
     session.run("settings.set", field="units", value="imperial")
-    assert "Zoom 10 miles, step 25 miles." in spoken(session.press("H"))[0]     # nearest to 25 kilometres
+    assert "Zoom 10 miles, step 10 miles." in spoken(session.press("H"))[0]     # nearest to 25 kilometres
     assert spoken(session.press("Page Up")) == ["Zoom 25 miles."]
     assert spoken(session.press("Page Down")) == ["Zoom 10 miles."]
 
@@ -404,21 +413,22 @@ def test_only_the_size_that_changed_is_said(session):
 
 def test_linked_both_are_said_even_when_the_nearest_step_is_the_same(session):
     """Web checklist 16.2, desktop 16.2 (P2-T17j, NAV-2, NAV-13): linked, the step is the one in
-    the list nearest a quarter of the zoom, so 25 and 50 kilometres both give 5 kilometres.
-    Page Up still says the zoom and the step, as NAV-2 asks, never the zoom alone."""
+    the list nearest a quarter of the zoom. With the step sizes of P3-T0f every zoom from 1 to
+    1,000 kilometres has its own step, so Page Up changes both; both are still said, as NAV-2 asks.
+    The same step for two zooms remains below 1 kilometre, tested next."""
     session.press("S")
     assert session.world.step_m == 5000
-    assert spoken(session.press("Page Up")) == ["Zoom 50 kilometres, step 5 kilometres."]
-    assert session.world.step_m == 5000
+    assert spoken(session.press("Page Up")) == ["Zoom 50 kilometres, step 10 kilometres."]
+    assert session.world.step_m == 10000
     assert spoken(session.press("Page Up")) == ["Zoom 100 kilometres, step 25 kilometres."]
-    assert spoken(session.press("Page Down")) == ["Zoom 50 kilometres, step 5 kilometres."]
+    assert spoken(session.press("Page Down")) == ["Zoom 50 kilometres, step 10 kilometres."]
 
 
 def test_linked_the_step_keys_say_both_even_when_the_nearest_zoom_is_the_same(session):
     """P2-T17j, NAV-2: the step keys, linked, say the zoom and the step too. Steps of 25 and
     10 metres both give a zoom of 100 metres, the smallest."""
     session.press("S")
-    for _ in range(7):   # 5 kilometres down to 10 metres
+    for _ in range(8):   # 5 kilometres down to 10 metres
         said = spoken(session.press("Shift+Page Down"))[0]
         assert said.startswith("Zoom ") and ", step " in said, said
     assert said == "Zoom 100 metres, step 10 metres."

@@ -1,12 +1,20 @@
 # User Experience Description
 
-Version 0.20, 10 November 2026. Your notes on the Phase 2 sweep (P2-T18): Space and Enter on a group heading in the Information panel say and do nothing (section 6.3); the layers list is a tree whose groups close and open, and the maximum zoom is the closest (section 7.1); an item under a metre away is "here", and a line you are on is not nearby (section 6); the beacon can come from either pole or the equator (section 8.4); and Reset all settings is in the Map menu (section 13). Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
+Version 0.21, 10 November 2026. A switch in the Speech tab says the place after every step, even when it has not changed, instead of the tick (section 3.1; P2-T17q, DP162). Version 0.20, 10 November 2026. Your notes on the Phase 2 sweep (P2-T18): Space and Enter on a group heading in the Information panel say and do nothing (section 6.3); the layers list is a tree whose groups close and open, and the maximum zoom is the closest (section 7.1); an item under a metre away is "here", and a line you are on is not nearby (section 6); the beacon can come from either pole or the equator (section 8.4); and Reset all settings is in the Map menu (section 13). Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.21
+
+Made in P2-T17q, from the answer to DP162.
+
+* Section 3.1: a new switch in the Speech tab, "Say the place after every step, even when it has not changed", off at first. It is outside the presets, so changing it never makes the preset Custom.
+* With it on, a step that changed nothing says the place instead of the tick. How much follows "After a step": in terse, the smallest area, such as "Kent"; in normal, the smallest area and its country, such as "Kent, United Kingdom"; in detailed, the whole place, such as "Kent, England, United Kingdom". With "Say nothing, only the tick", it still only ticks.
+* A held key still clicks on each step, and only the place where you let go is said.
 
 ## Changes in version 0.19
 
@@ -181,7 +189,7 @@ After each move, the user hears only what has changed (ANN-1). The rule is:
 
 1. The new smallest area under the location, if it changed.
 2. Then any larger areas that changed, from smallest to largest.
-3. If nothing changed, only a soft tick plays (DP43).
+3. If nothing changed, only a soft tick plays (DP43), unless you have asked for the place after every step (below).
 
 Holding an arrow key, each step clicks, and the place is said when you let go. Letting go adds no tick: if nothing changed, you hear nothing more. In the web version, a step not yet due when you let go is not made, and its click is taken back.
 
@@ -204,7 +212,9 @@ How much is said is chosen with a verbosity preset, in the Speech tab of Setting
 * Normal, the default: the rule above, and the zoom, the step and the heading when they change.
 * Detailed: the whole place, as Where am I says it, whenever an area changed, and in free facing the heading after every step.
 
-Under the preset are its four switches: what to say after a step (only the smallest area that changed, every area that changed, the whole place, or nothing), the zoom and step, the heading after a turn, and the heading after every step in free facing. Changing one makes the preset "Custom". The tick, for a step that changed nothing, has its own switch in the Earcons tab. Where am I, H, the orientation key and crossing a pole are always said.
+Under the preset are its four switches: what to say after a step (only the smallest area that changed, every area that changed, the whole place, or nothing), the zoom and step, the heading after a turn, and the heading after every step in free facing. Changing one makes the preset "Custom". The tick, for a step that changed nothing, has its own switch in the Earcons tab.
+
+After the four switches is one more, outside the presets, so changing it never makes the preset Custom: "Say the place after every step, even when it has not changed" (DP162). It is off at first. With it on, a step that changed nothing says the place instead of the tick, as much as "After a step" asks: only the smallest area, such as "Kent"; every area, which says the smallest area and its country, such as "Kent, United Kingdom"; or the whole place, "Kent, England, United Kingdom". At sea, with no country, the smallest area is said alone. With "Say nothing, only the tick", it still only ticks. A step that changes an area is said as before. Holding an arrow key, each step still clicks, and only the place where you let go is said. Where am I, H, the orientation key and crossing a pole are always said.
 
 ### 3.2 The crossed and passed list
 

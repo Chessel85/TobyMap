@@ -187,6 +187,19 @@ def test_space_on_a_nearby_item_plays_its_sound_then_says_its_label_in_the_voice
     assert w.session.last_spoken == said["text"]   # Shift+Space repeats it
 
 
+def test_a_key_that_runs_a_command_stops_the_voice_before_the_step_is_said(qtbot, test_pack, tmp_path):
+    """P2-T17n, SON-3."""
+    v = RecordingVoice()
+    w = make_window(qtbot, test_pack, tmp_path, v)
+    on_station(w, qtbot)
+    assert v.events[-1] == "say"
+    spoken_before = len(w.announcer.texts)
+    w.focus_region("map")
+    qtbot.keyClick(w.map, Qt.Key.Key_Down)
+    assert v.events[-1] == "stop"
+    assert len(w.announcer.texts) > spoken_before, "the step was said"
+
+
 def test_with_also_speak_on_the_screen_reader_says_the_label_too(qtbot, test_pack, tmp_path):
     v = RecordingVoice()
     w = make_window(qtbot, test_pack, tmp_path, v)

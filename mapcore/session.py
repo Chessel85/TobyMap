@@ -71,6 +71,10 @@ class Response:
     # after says the label waits for the sounds of this response to finish. A newer label
     # stops an older one that is still playing (ANN-3).
     voice: dict | None = None
+    # True when the shell stops the spatial voice before anything else in this response, so it never
+    # talks over the screen reader (P2-T17n, SON-3). Every command's response has it, except one that
+    # starts a label, which stops the older label itself (ANN-3).
+    stop_voice: bool = False
     # A spatial label, kept for Repeat even when muted (ANN-4). Not sent to the shells.
     label: str | None = None
     # The orientation beacon now (P2-T9, SON-10): {"on", "placed", "interval_s"}, as beacon() gives it.
@@ -307,6 +311,7 @@ class MapSession:
             merged.error = r.error or merged.error
             merged.sounds += r.sounds
             merged.voice = r.voice or merged.voice
+            merged.stop_voice |= r.stop_voice
             merged.label = r.label or merged.label
             merged.beacon = r.beacon or merged.beacon
         return merged
@@ -723,6 +728,7 @@ class MapSession:
 
     def _record(self, name: str, response: Response, started: float | None = None) -> Response:
         self._beacon_told(name, response)
+        response.stop_voice = response.voice is None or self.settings["mute"]
         if self.settings["mute"]:
             response.earcons = []
             response.crossings = []
@@ -915,7 +921,8 @@ class MapSession:
     def _arrived(self, r: Response) -> Response:
         """Describe the new place against the last described one (ANN-1)."""
         new = self._here()
-        text = describer.announcement(self.areas, new, self.why_none_here, self.settings["say_area"])
+        text = describer.announcement(self.areas, new, self.why_none_here, self.settings["say_area"],
+                                      self.settings["say_place_always"])
         self.areas = new
         r.panel_stale = r.details_stale = True
         self.selected = None

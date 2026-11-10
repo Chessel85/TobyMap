@@ -26,7 +26,7 @@ let toggles = {};   // the ticks of the menu items, from the core
 
 // window.tobymap is for the browser tests and diagnostics only.
 window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.heard, clicks: sounds.clicks, ready: false, error: null,
-  paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceState: voice.getState };
+  paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceHalts: voice.counts, voiceState: voice.getState };
 const told = new Set();   // voice problems and own sound files that failed, each said once
 
 // Your own sound file could not be played, so the default was: said once for each file (SON-8).
@@ -83,6 +83,7 @@ function beaconUpdate(b) {
 function handle(result, keyAt, held = false, named = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
   const r = result.response;
+  if (r.stop_voice) voice.halt();   // a key press stops the voice before anything is said (P2-T17n, SON-3)
   // Focus moved to the Information panel or Details, as after Enter on an item, goes first: the
   // screen reader stops speaking when the focus moves, so the place said after it is heard (P2-T17k).
   // The panel and Details are brought up to date first, so the item is there.

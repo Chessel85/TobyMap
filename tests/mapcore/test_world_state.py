@@ -33,8 +33,9 @@ def test_imperial_has_its_own_round_lists():
         "100 yards", "250 yards", "0.5 miles", "1 mile", "2.5 miles", "5 miles", "10 miles", "25 miles", "50 miles",
         "100 miles", "250 miles", "500 miles", "1,000 miles", "2,500 miles", "6,000 miles"]
     assert [words.distance_text(s, "imperial") for s in w.step_list] == [
-        "10 yards", "25 yards", "50 yards", "100 yards", "250 yards", "0.5 miles", "1 mile", "5 miles",
-        "25 miles", "100 miles", "250 miles", "600 miles"]
+        "10 yards", "25 yards", "50 yards", "100 yards", "250 yards", "400 yards", "0.5 miles", "1 mile",
+        "2.5 miles", "5 miles", "10 miles", "25 miles", "50 miles", "100 miles", "250 miles", "500 miles",
+        "600 miles"]
     assert words.distance_text(w.zoom_m, "imperial") == "2.5 miles"      # nearest to 5 kilometres
     assert words.distance_text(w.step_m, "imperial") == "100 yards"      # nearest to 100 metres
     w.use_units("metric")
@@ -83,6 +84,40 @@ def test_unlinked_keeps_other():
     assert w.step_m == 100
     w.change_step(1)
     assert w.zoom_m == 10000
+
+
+def _linked_steps_from_zoom_range(w, low, high):
+    w.zoom_index = w.zoom_list.index(low)
+    w.set_link(True)
+    seen = [w.step_m]
+    while w.zoom_m < high:
+        assert w.change_zoom(1)   # Page Up zooms out
+        seen.append(w.step_m)
+    return seen
+
+
+def test_linked_every_zoom_from_1_to_1000_km_has_its_own_step():
+    """P3-T0f, DP166: Page Up linked changes the step on every press, from 1 km to 1,000 km."""
+    seen = _linked_steps_from_zoom_range(make(), 1000, 1_000_000)
+    assert len(seen) == 10 and len(set(seen)) == 10 and seen == sorted(seen)
+    assert {2500, 10000, 50000, 500000} <= set(make().step_list)   # 2.5, 10, 50 and 500 km
+
+
+def test_linked_imperial_every_zoom_from_1_to_1000_miles_has_its_own_step():
+    w = make()
+    w.use_units("imperial")
+    seen = _linked_steps_from_zoom_range(w, w.zoom_list[3], w.zoom_list[-3])   # 1 mile to 1,000 miles
+    assert len(seen) == 10 and len(set(seen)) == 10 and seen == sorted(seen)
+
+
+def test_a_saved_step_from_before_still_loads():
+    """A step saved with the old list (such as 5 km, or 600 m after a list change) finds the nearest size."""
+    from mapcore.world.state import nearest_index
+    w = make()
+    for saved in (10, 100, 5000, 25000, 100000, 250000, 1000000):
+        assert w.step_list[nearest_index(w.step_list, saved)] == saved
+    w2 = make(step_index=nearest_index(make().step_list, 600))
+    assert w2.step_m == 500
 
 
 def test_link_both_ways():

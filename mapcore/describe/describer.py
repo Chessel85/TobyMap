@@ -10,6 +10,9 @@ from mapcore.describe import words
 from mapcore.geo import formats
 
 HERE_M = 1.0   # closer than this, an item is "here", with no distance or direction (P2-T18e)
+# The layer whose area is "its country" in the normal preset's place when nothing changed (DP162).
+# Named here so the continents of Phase 3 (P3-T1e), larger than a country, are not taken for it.
+COUNTRY_LAYER = "countries"
 
 
 def area_names(areas) -> list[str]:
@@ -35,10 +38,12 @@ def place_text(areas, why_none: str | None = None) -> str:
     return say("place.list_separator").join(area_names(areas))
 
 
-def announcement(old, new, why_none: str | None = None, say_area: str = "changed") -> str | None:
+def announcement(old, new, why_none: str | None = None, say_area: str = "changed",
+                 always: bool = False) -> str | None:
     """What to say after a move, or None when only the tick plays (ANN-1). say_area is the
     verbosity switch (ACC-5, DP144): "changed", every area that changed; "smallest", only the
-    smallest of them; "whole", the whole place, as Where am I says it; "off", nothing."""
+    smallest of them; "whole", the whole place, as Where am I says it; "off", nothing.
+    always is the switch to say the place even when nothing changed (P2-T17q, DP162)."""
     if say_area == "off":
         return None
     changed = changed_areas(old, new)
@@ -46,9 +51,25 @@ def announcement(old, new, why_none: str | None = None, say_area: str = "changed
         if say_area == "whole":
             return place_text(new)
         return say("place.list_separator").join(area_names(changed[:1] if say_area == "smallest" else changed))
-    if not new and old:
+    if not new and (old or always):
         return place_text(new, why_none)
+    if always:
+        return unchanged_place(new, say_area)
     return None
+
+
+def unchanged_place(areas, say_area: str) -> str:
+    """The place said when nothing changed and the switch says to say it anyway (P2-T17q, DP162):
+    "smallest", the smallest area; "changed", the smallest area and its country, or the largest
+    area where there is no country, such as at sea; "whole", the whole place."""
+    if say_area == "whole":
+        return place_text(areas)
+    said = [areas[0]]
+    if say_area == "changed":
+        top = next((a for a in areas if a.layer == COUNTRY_LAYER), areas[-1])
+        if top is not areas[0]:
+            said.append(top)
+    return say("place.list_separator").join(area_names(said))
 
 
 def zoom_step_text(world, units: str) -> str:

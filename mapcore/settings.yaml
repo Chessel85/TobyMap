@@ -146,6 +146,13 @@ tabs:
         label: "Free facing: say the heading after every step"
         kind: yes_no
         default: false
+      # Outside the presets, so changing it never makes the preset Custom (P2-T17q, DP162). When
+      # nothing changed, "After a step" decides how much: the smallest area; it and its country;
+      # or the whole place. A held key still clicks, and the place is said on the release (ANN-3).
+      - id: say_place_always
+        label: "Say the place after every step, even when it has not changed"
+        kind: yes_no
+        default: false
   - id: layers
     label: Layers
     fields:

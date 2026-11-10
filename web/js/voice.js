@@ -55,12 +55,22 @@ export function getState() {
 // null. Gives the voice's state at once: unless it is "ready", nothing is said.
 export function say(v, after) {
   if (state !== "ready") return state;
-  gen += 1;
   stop();
+  gen += 1;
   const job = { gen, voice: v, after, asked: performance.now() };
   if (making) waiting = job;
   else ask(job);
   return state;
+}
+
+export const counts = { halts: 0 };
+
+// A key press stops the voice, and whatever is still being made (P2-T17n, SON-3).
+export function halt() {
+  counts.halts += 1;
+  stop();
+  gen += 1;
+  waiting = null;
 }
 
 export function stop() {

@@ -215,7 +215,7 @@ def test_s_then_page_up_says_the_zoom_and_the_step(window, qtbot):
     qtbot.keyClick(window.map, Qt.Key.Key_S)
     assert window.announcer.texts[-1].startswith("Step linked to zoom.")
     qtbot.keyClick(window.map, Qt.Key.Key_PageUp)
-    assert window.announcer.texts[-1] == "Zoom 50 kilometres, step 5 kilometres."
+    assert window.announcer.texts[-1] == "Zoom 50 kilometres, step 10 kilometres."
     qtbot.keyClick(window.map, Qt.Key.Key_PageUp)
     assert window.announcer.texts[-1] == "Zoom 100 kilometres, step 25 kilometres."
 

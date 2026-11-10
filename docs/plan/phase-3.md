@@ -20,13 +20,22 @@ Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP
   * Waiting for the layers of the work items that use them: the New Forest National Park (95% in Hampshire, 5% in Wiltshire), the Bay of Biscay (an area in OpenStreetMap), and places with shared names: two Parises, two Portlands, two Newports, and São Paulo the city and the state.
   * tests/mapcore/test_samples_phase3.py checks where you are in each new sample, that France stays one area from the Channel to the Alps, and that a step north at Rheinfelden crosses the Rhine from Switzerland into Germany.
 * [x] P3-T0e The implementation plan, version 0.6. Done on 10 November 2026: the changes are listed at the top of "implementation plan.md", and section 6 now has the start tasks, the carried work, P3-T17 and P3-T18, and national parks moved to Phase 4.
-* [ ] P3-T0f Four more step sizes, 2.5, 10, 50 and 500 km (DP166).
+* [x] P3-T0f Four more step sizes, 2.5, 10, 50 and 500 km (DP166). Done on 10 November 2026: the metric step list has 2.5, 10, 50 and 500 km, and the imperial list 400 yards (a quarter of a mile is said as 0.3), 2.5, 10, 50 and 500 miles, so linked Page Up changes the step on every press from 1 km to 1,000 km, and from 1 to 1,000 miles. A saved step still loads, at the nearest size. Three session tests and one window test that expected the old steps now expect the new ones.
 
 ## Carried from Phase 2
 
-* [ ] P2-T17n The spatial voice stops at a key press.
-* [ ] P2-T17q Always say the place (DP162).
-* [ ] P2-T17u The listening test for sound in space and the voice (DP164). You run it.
+* [x] P2-T17n The spatial voice stops at a key press. Done: the core sets Response.stop_voice on every response without a label; both shells stop the voice first. Tests: core, desktop, Chromium and Firefox.
+* [x] P2-T17q Always say the place (DP162). Done on 10 November 2026: a new switch at the end of the Speech tab, "Say the place after every step, even when it has not changed", off at first and outside the presets, so it never makes the preset Custom. With it on, a step that changed nothing says the place instead of the tick: terse "Kent", normal "Kent, United Kingdom", detailed "Kent, England, United Kingdom". At sea, with no country, normal says the sea alone. "Say nothing, only the tick" still only ticks. A held key still clicks, and only the place where you let go is said. Both shells show it with no change of their own, as the Speech tab comes from the core. The user experience description is version 0.21 (section 3.1). Tests: 12 new core tests and 1 changed.
+* [x] P2-T17u The listening test for sound in space and the voice (DP164). You ran it on 10 November 2026; the findings are in docs/spikes/listening-test/compass-findings.md.
+  * Every one of your 32 answers was within one compass point, and none mixed up front and back, in any model. Right exactly: as now 7 of 8, HRTF 5 of 8, twice the lower pitch 8 of 8, more muffling 8 of 8. How easy: as now 4, HRTF 2, twice the lower pitch 2, more muffling 3, out of 5. The voice 3 out of 5 in every model.
+  * Proposed: keep stereo with a lower pitch behind, as now. One answer in eight is chance, and you found it the easiest. HRTF stays a choice in Settings, but not the first.
+  * Built on 10 November 2026: tools/listening_test/compass.py. It runs in the command window, with no window of its own, on your headphones, facing north. Run it with: .venv\Scripts\python.exe -m tools.listening_test.compass
+  * Four blocks of eight, one block for each sound model: stereo with a lower pitch behind, as now; HRTF with a lower pitch behind; stereo with twice the lower pitch behind (the sound 6 semitones lower instead of 3, the voice 3 instead of 1.5); and stereo with more muffling behind. No echo.
+  * Each of the eight compass points once in each block, in a mixed order. Each is the item's direction sound, then a name and "30 kilometres" in the Alba voice from the same place, as Hear its direction plays them. The names are only labels, and move to new compass points in each block, so a name never gives its direction away.
+  * You type the compass point, such as n, ne or south west, and Enter. 0 if you can't tell, r to hear it again, q to stop. Before the first block, d plays all eight points in order. After each block, two ratings from 1 to 5: how easy it was to tell where, and how clear the voice was. About 15 minutes.
+  * --rate sets the voice's speed in percent, as in your settings, for example --rate 200.
+  * Your answers are saved after each one, in docs/spikes/listening-test, in a file starting "compass". When you have run it, tell me, and I write the findings with --analyse and propose the settings.
+  * Tests: 27 new, in tests/mapcore/test_listening_compass.py, with a stand-in voice and no sound device. Also checked with the real Alba voice: each sound and its name take about 2.4 seconds, made in about 130 ms.
 * [ ] P2-T17v The map for sighted users: the special lines, and the lines across France and from Sweden to Shetland.
 
 ## Tasks

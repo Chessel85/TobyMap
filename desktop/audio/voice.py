@@ -216,14 +216,16 @@ class RecordingVoice:
     def __init__(self, state: str = "ready"):
         self.state = state
         self.said: list[tuple[dict, int | None]] = []
+        self.events: list[str] = []   # "say" and "stop", in order
 
     def say(self, voice: dict, start_frame: int | None = None) -> str:
         if self.state == "ready":
             self.said.append((voice, start_frame))
+            self.events.append("say")
         return self.state
 
     def stop(self) -> None:
-        pass
+        self.events.append("stop")
 
     def close(self) -> None:
         pass

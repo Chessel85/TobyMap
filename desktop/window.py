@@ -469,6 +469,8 @@ class MainWindow(QMainWindow):
         self.handle(self.session.run(name, **args))
 
     def handle(self, response, key_at: float | None = None):
+        if response.stop_voice:
+            self.voice.stop()   # a key press stops the voice before anything is said (P2-T17n, SON-3)
         # Focus moved within the window, as after Enter on an item of the Information panel, goes
         # first: the screen reader stops speaking when the focus moves, so the place said after the
         # move is heard (P2-T17k). The panel is brought up to date first, so the item is there.

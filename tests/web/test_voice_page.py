@@ -72,6 +72,17 @@ def test_with_four_threads_a_label_is_placed_with_the_items_sound_and_can_be_rep
     app.wait_for_function("t => window.tobymap.announcements.some(a => a.text === t)", arg=label["text"])
 
 
+def test_a_key_press_stops_the_voice_before_the_step_is_said(page, site_url):
+    """P2-T17n, SON-3: a label is playing, Down is pressed: it stops."""
+    app = open_app(page, site_url, state=STATION_WEST)
+    voice_ready(app)
+    on_station(app)
+    halts = app.evaluate("window.tobymap.voiceHalts.halts")
+    app.focus("#map")
+    app.keyboard.press("ArrowDown")
+    app.wait_for_function(f"window.tobymap.voiceHalts.halts > {halts}", timeout=10_000)
+
+
 def test_with_one_thread_the_voice_still_works(page, site_url):
     app = open_app(page, site_url, state=STATION_WEST, query="?threads=1")
     info = voice_ready(app)

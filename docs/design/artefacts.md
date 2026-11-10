@@ -140,8 +140,8 @@ Inside mapdata/:
   * Phase: 0 (spike), 1 onwards. Owner: CC.
 * The listening test tool
   * Where: tools/listening_test/.
-  * For: the PO's sound tests, recording results to CSV (SON-1, SON-9).
-  * Phase: 0 (demo), 1 (full). Owner: CC.
+  * For: the PO's sound tests, recording results to CSV (SON-1, SON-9). compass.py is the Phase 3 test of sound models and the voice at the eight compass points (P2-T17u, SON-2, SON-3).
+  * Phase: 0 (demo), 1 (full), 3 (compass points). Owner: CC.
 * The placeholder sound generator
   * Where: tools/make_placeholder_sounds.py.
   * For: simple tones for every earcon until the PO's WAV files arrive (SON-8).
@@ -353,7 +353,7 @@ Inside mapdata/:
   * For: every command has a key or menu entry (SCP-2), and no default key clashes with screen reader or browser keys (ACC-4).
   * Phase: 1. Owner: CC.
 * Listening test results
-  * Where: docs/spikes/listening-test/, the CSV files and the analysis.
+  * Where: docs/spikes/listening-test/, the CSV files and the analysis. The compass point test's files start with "compass", and its analysis is compass-findings.md.
   * For: the evidence for the sound settings (SON-1, SON-9).
   * Phase: 1, repeated if the sound design changes. Owner: PO produces, CC analyses.
 

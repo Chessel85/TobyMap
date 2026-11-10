@@ -1,0 +1,41 @@
+participant,date,time,block,model,kind,trial,name,played_point,played_bearing,heard_point,heard_bearing,plays,rating,voice_rate
+po,2026-11-10,20:22,1,now,direction,1,Saint Petersburg,north-east,45.0,east,90.0,1,,100
+po,2026-11-10,20:22,1,now,direction,2,Berlin,west,270.0,west,270.0,1,,100
+po,2026-11-10,20:22,1,now,direction,3,Kilimanjaro,south-west,225.0,south-west,225.0,1,,100
+po,2026-11-10,20:22,1,now,direction,4,Bay of Biscay,north,0.0,north,0.0,1,,100
+po,2026-11-10,20:22,1,now,direction,5,Lake Geneva,north-west,315.0,north-west,315.0,1,,100
+po,2026-11-10,20:22,1,now,direction,6,Southampton,east,90.0,east,90.0,1,,100
+po,2026-11-10,20:22,1,now,direction,7,Isle of Skye,south,180.0,south,180.0,1,,100
+po,2026-11-10,20:22,1,now,direction,8,River Thames,south-east,135.0,south-east,135.0,1,,100
+po,2026-11-10,20:22,1,now,ease,,,,,,,,4,100
+po,2026-11-10,20:22,1,now,voice,,,,,,,,3,100
+po,2026-11-10,20:22,2,hrtf,direction,1,Lake Geneva,south-east,135.0,south-east,135.0,1,,100
+po,2026-11-10,20:22,2,hrtf,direction,2,Saint Petersburg,north,0.0,north,0.0,1,,100
+po,2026-11-10,20:22,2,hrtf,direction,3,Southampton,west,270.0,north-west,315.0,1,,100
+po,2026-11-10,20:22,2,hrtf,direction,4,Berlin,north-east,45.0,east,90.0,1,,100
+po,2026-11-10,20:22,2,hrtf,direction,5,River Thames,north-west,315.0,west,270.0,1,,100
+po,2026-11-10,20:22,2,hrtf,direction,6,Kilimanjaro,south,180.0,south,180.0,1,,100
+po,2026-11-10,20:22,2,hrtf,direction,7,Isle of Skye,south-west,225.0,south-west,225.0,1,,100
+po,2026-11-10,20:22,2,hrtf,direction,8,Bay of Biscay,east,90.0,east,90.0,1,,100
+po,2026-11-10,20:22,2,hrtf,ease,,,,,,,,2,100
+po,2026-11-10,20:22,2,hrtf,voice,,,,,,,,3,100
+po,2026-11-10,20:22,3,lower,direction,1,Lake Geneva,south,180.0,south,180.0,2,,100
+po,2026-11-10,20:22,3,lower,direction,2,Saint Petersburg,south-east,135.0,south-east,135.0,1,,100
+po,2026-11-10,20:22,3,lower,direction,3,Kilimanjaro,east,90.0,east,90.0,1,,100
+po,2026-11-10,20:22,3,lower,direction,4,Southampton,north,0.0,north,0.0,1,,100
+po,2026-11-10,20:22,3,lower,direction,5,Berlin,north-east,45.0,north-east,45.0,1,,100
+po,2026-11-10,20:22,3,lower,direction,6,Isle of Skye,west,270.0,west,270.0,1,,100
+po,2026-11-10,20:22,3,lower,direction,7,River Thames,south-west,225.0,south-west,225.0,1,,100
+po,2026-11-10,20:22,3,lower,direction,8,Bay of Biscay,north-west,315.0,north-west,315.0,1,,100
+po,2026-11-10,20:22,3,lower,ease,,,,,,,,2,100
+po,2026-11-10,20:22,3,lower,voice,,,,,,,,3,100
+po,2026-11-10,20:22,4,muffled,direction,1,Kilimanjaro,east,90.0,east,90.0,1,,100
+po,2026-11-10,20:22,4,muffled,direction,2,Southampton,north-west,315.0,north-west,315.0,1,,100
+po,2026-11-10,20:22,4,muffled,direction,3,River Thames,south,180.0,south,180.0,1,,100
+po,2026-11-10,20:22,4,muffled,direction,4,Saint Petersburg,south-east,135.0,south-east,135.0,1,,100
+po,2026-11-10,20:22,4,muffled,direction,5,Lake Geneva,south-west,225.0,south-west,225.0,1,,100
+po,2026-11-10,20:22,4,muffled,direction,6,Berlin,north-east,45.0,north-east,45.0,1,,100
+po,2026-11-10,20:22,4,muffled,direction,7,Bay of Biscay,west,270.0,west,270.0,1,,100
+po,2026-11-10,20:22,4,muffled,direction,8,Isle of Skye,north,0.0,north,0.0,1,,100
+po,2026-11-10,20:22,4,muffled,ease,,,,,,,,3,100
+po,2026-11-10,20:22,4,muffled,voice,,,,,,,,3,100

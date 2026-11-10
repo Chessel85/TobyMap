@@ -100,6 +100,9 @@ Older documents written before this glossary, such as architecture section 6 and
 
 ## Testing
 
+* Listening test: a program you run on your own headphones that plays sounds from different directions, asks where you heard each one, and saves your answers, so the sound settings are chosen from what you really hear (tools/listening_test).
+* Sound model: one way of placing sounds in space that the listening test compares, such as stereo with a lower pitch behind, or HRTF.
+* HRTF (head-related transfer function): placing a sound by how a real head and ears change it from each direction, recorded with a dummy head. It is made for headphones.
 * Acceptance script: a small file of key presses and the announcements expected after each, tied to requirement IDs. It runs as an automatic test, and is also turned into the PO's checklist, so both check the same thing (architecture 11.3).
 
 ## Hosting and the browser

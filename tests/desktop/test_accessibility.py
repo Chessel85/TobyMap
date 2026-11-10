@@ -44,14 +44,14 @@ def focus_name(widget):
 def test_map_is_a_pane_named_after_the_place(window):
     iface = QAccessible.queryAccessibleInterface(window.map)
     assert iface.role() == QAccessible.Role.Pane
-    assert iface.text(QAccessible.Text.Name) == "Kent, England, United Kingdom"
+    assert iface.text(QAccessible.Text.Name) == "Kent, England, United Kingdom. Press F1 for keys."   # the start (P2-T17d)
 
 
 def test_map_name_changes_only_while_it_does_not_have_focus(window, qtbot):
     window.map.setFocus()
     QApplication.processEvents()
     window.dispatch("move.south")
-    assert window.map.accessibleName() == "Kent, England, United Kingdom"  # unchanged while focused
+    assert window.map.accessibleName() == "Kent, England, United Kingdom. Press F1 for keys."  # unchanged while focused
     window.focus_region("panel")
     QApplication.processEvents()
     assert window.map.accessibleName() == "North Atlantic Ocean"           # updated on leaving

@@ -29,6 +29,13 @@ def test_start_announces_the_place(test_pack):
     assert r.redraw and r.panel_stale and r.details_stale
 
 
+def test_the_map_is_named_with_the_start_less_the_window_title(test_pack):
+    # The screen reader reads the window's title, then the map's name, as the window appears (P2-T17d).
+    s = MapSession(packs=[test_pack], saved_state=dict(KENT))
+    s.start()
+    assert s.start_label() == "Kent, England, United Kingdom. Press F1 for keys."
+
+
 def test_a_move_that_changes_nothing_is_only_a_tick(session):
     r = session.press("Up")
     assert spoken(r) == [] and r.earcons == ["tick"]

@@ -148,6 +148,7 @@ Started on 5 November 2026, after you accepted Phase 1.
   * The writing took 30 minutes 31 seconds; the other stages were skipped. The pack is 127.4 MB, with 8,728 pack tiles. It now holds the special lines' own crossing sounds (the meridian sound for the prime meridian and the 180 degree line, the equator sound for the equator, tropics and polar circles) and the regions' zoom range (up to 1,000 km). All checks passed: 89 of 89 check places, 7 of 7 other checks.
   * The installer, dist_installer\TobyMap-0.1.0-setup.exe, is 147.1 MB, and the portable zip 178.7 MB. Its self-test on the world pack passed.
   * Found on the way: a voice test could fail on a busy computer, because it asked for three labels before the first was being made. It now waits until the first is being made.
+* [ ] P2-T17 Your notes from the second sweep, 9 November 2026: 22 tasks, P2-T17a to P2-T17v, in docs/plan/phase-2-sweep-2-plan.md, with DP158 to DP165.
 * [ ] Your acceptance, and the question about publishing (DP110).
 
 ## Suggested order

@@ -634,6 +634,14 @@ class MapSession:
         name = next((e["label"] for e in earcon_list() if e["event"] == event), event)
         return Response().speak(say("sound.own_file_failed", sound=name), ASSERTIVE)
 
+    def start_label(self) -> str:
+        """The map region's name as the focus first arrives on it at start (P2-T17d). The screen
+        reader reads the window's title, TobyMap, then this name, so the start is heard in full.
+        Spoken as well, the start was cut off by that reading and "Press F1 for keys" was lost."""
+        if not self.store.packs:
+            return say("packs.none_installed")
+        return say("start_label", place=self._place_text())
+
     def map_label(self) -> str:
         """The map region's accessible name: the place under the centre."""
         return say("map_label", place=self._place_text())

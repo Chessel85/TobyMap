@@ -101,6 +101,7 @@ def start(width: int, height: int, startup_ms: float, packs, saved_json: str, st
     response = _session.start()
     out = {"registry": _session.registry(), "words": _session.words()}
     out["map_label"] = _session.map_label()
+    out["start_label"] = _session.start_label()   # the map's name as the focus first arrives (P2-T17d)
     out["details"] = _session.details()
     out["panel"] = _session.panel()
     out["scene"] = _scene(width, height)

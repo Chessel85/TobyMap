@@ -253,6 +253,7 @@ class MapWidget(QWidget):
         self._session = session
         self.setObjectName("map")
         self.setAccessibleName(session.map_label())
+        self._named_at_start = False
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMinimumSize(300, 300)
         self.last_paint_ms: float | None = None
@@ -315,6 +316,7 @@ class MapWidget(QWidget):
 
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
+        self._named_at_start = False
         self.caret.release()
         self.refresh_name()
         self.update()
@@ -322,8 +324,21 @@ class MapWidget(QWidget):
     def refresh_name(self) -> None:
         """Name the map after the place under the centre, but only while it
         does not have focus, so NVDA never reads a name change during turning."""
-        if not self.hasFocus():
+        if not self.hasFocus() and not self._named_at_start:
             self.setAccessibleName(self._session.map_label())
+
+    def name_at_start(self) -> None:
+        """Before the window is first shown: the name NVDA reads after the window's title as the
+        window appears, the place and "Press F1 for keys" (P2-T17d). Until the window is shown,
+        the map does not have focus, so the name is kept until the focus first leaves the map."""
+        self._named_at_start = True
+        self.setAccessibleName(self._session.start_label())
+
+    def name_on_return(self, said: str | None) -> None:
+        """Just before the focus comes back from a dialog: the name NVDA will read as it arrives.
+        It is what the dialog's answer said, if anything, or the place as it is now (P2-T17c).
+        Leaving the map again names it after the place, as ever."""
+        self.setAccessibleName(said or self._session.map_label())
 
     def event(self, event):
         if event.type() == QEvent.Type.Gesture:

@@ -138,6 +138,12 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 * Sonnet. With the step linked to the zoom, Page Up changes only the zoom in the web version. It should change both, as on the desktop.
 * A browser test.
 * Your note on the desktop (16.2), that once only the zoom was said, is checked by the same test on the desktop.
+* Done, 10 November 2026, on branch P2-T17j.
+* The cause was not in the web version. With the step linked, the step is the size in the step list nearest to a quarter of the zoom. The step list has gaps, so some neighbouring zooms share a step. Your checklist starts at a zoom of 25 kilometres with the step at 5 kilometres. Page Up goes to 50 kilometres, and a quarter of that, 12.5 kilometres, is still nearest to 5 kilometres. So the step stayed the same, and only the zoom was said. The desktop does the same, which explains your desktop note: it depends on the zoom you start from.
+* The fix: with the step linked, Page Up and Page Down always say the zoom and the step, as NAV-2 asks, even when the step has not changed. The step keys do the same. The fix is in the core, so it covers both versions.
+* Whether every zoom should have its own step when linked is DP166.
+* To check with NVDA, as only you can: web 16.2 and desktop 16.2. From a zoom of 25 kilometres, press S, then Page Up: you hear "Zoom 50 kilometres, step 5 kilometres." Page Up again: "Zoom 100 kilometres, step 25 kilometres."
+* Tests: 2 new core tests, 1 new desktop test and 1 new browser test. Each failed on the old code.
 
 ## Changes you asked for
 
@@ -147,17 +153,39 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 * Sonnet. Within items show the distance and direction to the area's centre, as Nearby items do (DP155).
 * Sonnet. Enter on an item jumps there: to a point, or to an area's centre (DP155, INF-10).
 * Sonnet. Ctrl+G, and Ctrl+B for a bearing, work from the Information panel and Details. After the jump, the focus stays where it was, on the first item of the same group.
+* Done, 10 November 2026, in the same working copy as P2-T17j, not yet committed.
+* Group headings: "Within, 3 items", "Nearby, 1 item", "Crossed and passed, no items". Go to Within, Shift+1, keeps the plain name.
+* Within items: "England, centre 140 kilometres west". The word "centre" is there because Nearby's distances are to the nearest point, and Within's to the centre of the area's bounding box, as in DP155.
+* Enter on an item goes there, as a jump, so Alt+comma comes back. A point goes to the point, an area to its centre, and a line to the place its item is about. The new place is said, and the focus stays in the panel, on the first item of the same group. Enter on a group heading says "Go there works on an item, not on a group." In the web version, Enter on a group heading used to open or close it; it now does the same as the desktop. Right and Left still open and close a group.
+* Ctrl+G and Ctrl+B now work from the map, the panel and Details. After the box closes, the focus goes back where it was. After Go to, in the panel, it is on the first item of the same group; after a bearing, on the same item, whose words change with the facing. Cancel goes back to the same item.
+* What the answer says, such as the new place, is spoken after the focus arrives, not as the map's name, because the focus is not the map. Both shells now move the focus before speaking whenever the focus goes to the panel or Details, so the screen reader's reading of the item does not cut off the place.
+* The user experience description is now version 0.14, and section 6.3 says that Enter goes there in Phase 2. The full list of actions on an item, from INF-10, is still for later.
+* To check with NVDA, as only you can: desktop and web 10.4, 10.5, 11.5 and 11.7. In particular, after Enter on an item and after Go to from the panel, whether you hear both the item and the new place, and in which order.
+* Tests: 14 new core tests, 7 new desktop tests and 4 new browser tests. Older tests that check the panel's words were updated to the new words.
 
 ### P2-T17l Shift goes the other way (desktop 4.4, other thoughts)
 
 * Sonnet. Every key that goes round a list goes back with Shift: Shift+O for orientation and Shift+A for the verbosity preset. Shift+T already does this for themes.
 * The key list and the key clash test are updated.
 * The rule goes into the user experience description, so every new cycling key follows it.
+* Done, 10 November 2026, in the same working copy as P2-T17j and P2-T17k, not yet committed.
+* Shift+O goes back through the orientations: from north-fixed to free facing, then cardinal facing, then north-fixed. Shift+A goes back through the verbosity presets: from normal to terse, then detailed. From Custom, A goes to terse, as before, and Shift+A to detailed. Both are in the menus beside O and A, and in F1's list.
+* A test checks that each key that goes round a list, O, A and T, has its Shift partner in the same region and menu. The test that no key is used twice where it could clash passes with the two new keys. Neither is on the list of screen reader and browser keys.
+* The key list, docs/plan/phase-2-keys.csv, has a line for each new key, and one for Go there, Enter, from P2-T17k. Type a bearing and Go to coordinates now say they work anywhere. Your own column is unchanged.
+* The user experience description is now version 0.15, with the rule in section 12. It also now says O for the orientation, not F, as built.
+* To check with NVDA, as only you can: desktop and web, Shift+O and Shift+A on the map, each three times, and that they come back to where you started.
+* Tests: 7 new core tests and 1 new desktop test. Each failed on the old code.
 
 ### P2-T17m Home and End in number boxes (desktop 12.4)
 
 * Sonnet. In every number box, in both shells, Home sets the largest value and End the smallest, as you asked.
 * A test goes through every number box in Settings and the layer settings, so none is missed.
+* Done, 10 November 2026, in the same working copy as P2-T17j, P2-T17k and P2-T17l, not yet committed.
+* Home sets the largest value and End the smallest, in every number box in Settings, in both versions. The value is then chosen, so typing replaces it.
+* The layer settings have no number boxes: the minimum and maximum zoom are lists to choose from, where Home and End go to the first and last choice, as in any list.
+* The test found a second fault, on the desktop. "Orientation beacon: seconds between each sound" goes from 0.5 to 5, but its box took only whole numbers, so 0.5 showed as 0 and could not be chosen. It now goes in steps of 0.5 in both versions: 0.5, 1, 1.5 and so on. A new test checks that every number setting fits its step.
+* To check with NVDA, as only you can: desktop and web 12.4. In Settings, Sound, on "Orientation beacon: volume, in percent", Home gives 100 and End gives 0. On "Orientation beacon: seconds between each sound", End gives 0.5, and Up from there gives 1.
+* Tests: 1 new core test, 1 new desktop test and 1 new browser test, each going through every number box. Each failed on the old code. The P2-T17l tests were not run in full, as you asked.
 
 ### P2-T17n The spatial voice stops at a key press (desktop 11.2; SON-3)
 

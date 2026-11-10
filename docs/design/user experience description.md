@@ -1,12 +1,28 @@
 # User Experience Description
 
-Version 0.13, 10 November 2026. Section 4.4 now says that a layer outside its zoom range is not said (DP160), and section 8 that an area layer's crossing earcon plays at its borders.
+Version 0.15, 10 November 2026. Section 12 now has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.15
+
+Made in P2-T17l, from the PO's note on desktop checklist 4.4 and in other thoughts.
+
+* Section 12: a rule, that every key that goes round a list goes back with Shift. Shift+O goes back through the orientations, and Shift+A through the verbosity presets. Shift+T already did this for themes.
+* Sections 3.1, 5.1 and 12: the orientation key is O, as built, not F.
+* Section 12: in every number box, Home sets the largest value and End the smallest (P2-T17m).
+
+## Changes in version 0.14
+
+Made in P2-T17k, from the PO's notes on desktop checklist 10.4, 10.5, 11.5 and 11.7.
+
+* Section 6.1: each group heading says how many items it holds, such as "Nearby, 5 items". Each Within item says the distance and direction to the area's centre, such as "England, centre 140 kilometres west".
+* Section 6.3: Enter on an item goes there, at once, rather than opening a list of actions (DP155). Space hears its direction. The focus stays in the panel.
+* Section 2: Go to coordinates (Ctrl+G) and Type a bearing (Ctrl+B) work from the Information panel and Details too, and the focus goes back there afterwards.
 
 ## Changes in version 0.12
 
@@ -150,7 +166,7 @@ Example of stepping in the north-fixed orientation, with a 100 metre step, start
 
 Crossing a border needs no special earcon, because the new name says it. The same goes for moving between land and water.
 
-How much is said is chosen with a verbosity preset, in the Speech tab of Settings, or with A on the map, which goes to the next one and says what it does (ACC-5, DP144):
+How much is said is chosen with a verbosity preset, in the Speech tab of Settings, or with A on the map, which goes to the next one and says what it does, and Shift+A, which goes back (ACC-5, DP144):
 
 * Terse: only the smallest area that changed, such as "Somme" instead of "Somme, Hauts-de-France". The zoom, the step and the heading are not said when they change; the tick plays instead.
 * Normal, the default: the rule above, and the zoom, the step and the heading when they change.
@@ -253,7 +269,7 @@ Two independent choices decide how the user moves. They share the same location,
 * Orientation: which way the user faces. F cycles through the three orientations, and the new one is announced.
 * Movement mode: what the arrow keys move between. The number keys 1 to 3 choose stepping (free roaming), hierarchy or network, and the new mode is announced.
 
-### 5.1 The three orientations (F)
+### 5.1 The three orientations (O, and Shift+O the other way)
 
 The orientation decides how directions are described and which way is "ahead" in sound (NAV-12, SON-2).
 
@@ -375,7 +391,7 @@ The Information panel answers "what is around me, and how does it relate to me?"
 
 The panel is a tree. Its top level holds these groups:
 
-* Within: every area containing the location, from smallest to largest (LOC-3).
+* Within: every area containing the location, from smallest to largest (LOC-3). Each item says the distance and direction to the area's centre, the centre of its bounding box (DP155): "England, centre 140 kilometres west".
 * Contains: the types of visible feature inside the current feature, each with a count, then the features of each type (INF-4).
 * Bordering: the neighbours of the current feature, each with the shared border length, or the distance and bearing for areas that only nearly touch (INF-2).
 * Overlapping: areas that overlap the current feature, with how much of it each covers (INF-5).
@@ -385,6 +401,8 @@ The panel is a tree. Its top level holds these groups:
 * Search: the last search results.
 
 Every list can be sorted three ways: by name, by distance, or by bearing clockwise from ahead. Ctrl+S, in the panel, cycles the sort and announces it: "Sorted by distance". Within also has its natural order, smallest to largest, which is its default. Nearby starts sorted by distance, Bordering by bearing, and the rest by name. Typing the start of a name jumps to it, as in any Windows tree.
+
+Each group heading says how many items it holds: "Nearby, 5 items", "Within, 1 item", or "Crossed and passed, no items".
 
 Contains, Nearby, and Crossed and passed show only visible features (section 4.4). Within follows the layers' zoom ranges, as the place does (DP160). The other groups are not limited by zoom (DP80).
 
@@ -406,7 +424,14 @@ From there, arrow keys move through the tree. Tab returns to the map.
 
 ### 6.3 Acting on an item
 
-Enter on any item opens its actions (INF-10):
+In Phase 2, two actions have their own keys:
+
+* Enter goes there, as a jump, so Alt+comma comes back (DP155). A point goes to the point. An area goes to its centre, the centre of its bounding box. A line goes to the place its item is about: its nearest point, or where it was crossed. The new place is said, and the focus stays in the panel, on the first item of the same group, as the group's items have changed. Enter on a group heading says "Go there works on an item, not on a group."
+* Space hears its direction (DP143).
+
+Go to coordinates (Ctrl+G) and Type a bearing (Ctrl+B) work from the panel and from Details as well as from the map. After the box closes, the focus goes back where it was. In the panel, after Go to, it is on the first item of the same group; after a bearing, on the same item. The answer, such as the new place, is spoken after the item is read.
+
+The full set of actions on any item is (INF-10):
 
 * jump: move there, and make it the current feature
 * details: show its details in the Details panel
@@ -589,6 +614,10 @@ The visual map is the Earth viewed from space, an orthographic projection (VIS-5
 
 These are draft bindings, to be tested with NVDA in both the desktop and web versions before they are fixed. All of them can be changed by the user. F1 lists the commands available in the current region, and a key describer mode speaks what a key does without doing it.
 
+A rule for every key that goes round a list, now and later: the key goes forward through the list, and the same key with Shift goes back (P2-T17l, the PO's note on desktop checklist 4.4). O and Shift+O go through the orientations, A and Shift+A through the verbosity presets, and T and Shift+T through the themes. A new key that goes round a list gets its Shift partner at the same time.
+
+In every number box, such as those in Settings, Home sets the largest value and End the smallest (P2-T17m, the PO's note on desktop checklist 12.4). Home is above End on the keyboard, so it goes to the top.
+
 Keys changed since version 0.3 (agreed, DP79):
 
 * Page Up and Page Down now change only the zoom.
@@ -598,7 +627,7 @@ Keys changed since version 0.3 (agreed, DP79):
 
 ### Movement
 * Arrow keys: move, with the meaning depending on the movement mode and orientation (section 5).
-* F: cycle the orientation: north-fixed, cardinal facing, free facing.
+* O: cycle the orientation: north-fixed, cardinal facing, free facing. Shift+O goes the other way.
 * 1, 2, 3: stepping, hierarchy and network modes. 3 again: next network type.
 * Shift+Left and Shift+Right: turn 90 degrees.
 * Ctrl+Left and Ctrl+Right: fine turn in free facing.
@@ -645,7 +674,7 @@ Keys changed since version 0.3 (agreed, DP79):
 * Ctrl+K: collections.
 
 ### Other
-* A: the next verbosity preset (DP144).
+* A: the next verbosity preset (DP144). Shift+A: the previous one.
 * T and Shift+T: the next and previous theme.
 * Ctrl+I: isolate the area you are in, and again to show everything.
 * P: data packs.

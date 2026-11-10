@@ -83,6 +83,11 @@ function beaconUpdate(b) {
 function handle(result, keyAt, held = false, named = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
   const r = result.response;
+  // Focus moved to the Information panel or Details, as after Enter on an item, goes first: the
+  // screen reader stops speaking when the focus moves, so the place said after it is heard (P2-T17k).
+  // The panel and Details are brought up to date first, so the item is there.
+  const focusFirst = !!r.focus && (r.focus.region === "panel" || r.focus.region === "details");
+  if (focusFirst) { refreshRegions(result); applyFocus(r.focus); }
   let spoke = false;
   for (const a of r.announcements) {
     if (a.channel === "braille") { if (a.fallback) speak(a.fallback, "polite"); }  // no Braille-only route in a browser
@@ -123,27 +128,33 @@ function handle(result, keyAt, held = false, named = false) {
     try { localStorage.setItem(STORAGE_KEY, result.save); } catch (e) { /* private browsing: nothing is kept */ }
   }
   if (result.scene) paint(result.scene);
-  if (result.panel) tree.fill(result.panel);
+  if (!focusFirst) refreshRegions(result);
   if (result.map_label !== undefined) { if (named) mapLabel = result.map_label; else setMapLabel(result.map_label); }
+  if (r.focus && !focusFirst) applyFocus(r.focus);
+  if (r.dialog) openDialog(r.dialog);
+  if (r.background) {   // the Crossed and passed search, when the worker is free (P2-T5)
+    const { width, height } = mapSize();
+    client.idle({ type: "crossed", width, height }).then((b) => handle(b)).catch(showError);
+  }
+}
+
+function refreshRegions(result) {
+  if (result.panel) tree.fill(result.panel);
   if (result.details !== undefined) {
     details.value = result.details;
     details.setSelectionRange(0, 0);  // so Tab or F4 always lands on the first line
     details.scrollTop = 0;
   }
-  if (r.focus) {
-    if (r.focus.region === "panel") tree.focusItem(r.focus.item, r.focus.group || "within");
-    else if (r.focus.region === "menu") menubar.focusBar();
-    else if (r.focus.region === "map") { menubar.closeAll(false); mapEl.focus(); }
-    else if (r.focus.region === "details") {
-      details.setSelectionRange(0, 0);  // before focus, so the first line is read on arrival
-      details.scrollTop = 0;
-      details.focus();
-    }
-  }
-  if (r.dialog) openDialog(r.dialog);
-  if (r.background) {   // the Crossed and passed search, when the worker is free (P2-T5)
-    const { width, height } = mapSize();
-    client.idle({ type: "crossed", width, height }).then((b) => handle(b)).catch(showError);
+}
+
+function applyFocus(focus) {
+  if (focus.region === "panel") tree.focusItem(focus.item, focus.group || "within");
+  else if (focus.region === "menu") menubar.focusBar();
+  else if (focus.region === "map") { menubar.closeAll(false); mapEl.focus(); }
+  else if (focus.region === "details") {
+    details.setSelectionRange(0, 0);  // before focus, so the first line is read on arrival
+    details.scrollTop = 0;
+    details.focus();
   }
 }
 
@@ -313,7 +324,8 @@ document.addEventListener("keydown", (e) => {
     }).catch(showError);
     return;
   }
-  run(name, name === "help.keys" ? { region: region || "map" } : {}, keyAt);
+  // The region goes with the command, so Go to and Type a bearing send the focus back there (P2-T17k).
+  run(name, name === "help.keys" ? { region: region || "map" } : { pressed_in: region || "map" }, keyAt);
 });
 
 document.addEventListener("keyup", (e) => {
@@ -478,6 +490,11 @@ function closeWithAnswer(box, results) {
   }
   box.close();
   for (const r of results) handle(r, undefined, false, target === mapEl);
+  // Opened in the Information panel or Details, the answer may have moved the focus there, such as
+  // to the first item of the same group after Go to: the box's close comes back to that (P2-T17k).
+  if (target !== mapEl && document.activeElement && document.activeElement !== document.body) {
+    returnFocus = document.activeElement;
+  }
 }
 
 // The layers list (SCP-6, SCP-7): a check box for each layer under its group; Space switches it. A
@@ -758,7 +775,19 @@ async function openSettings() {
       } else {
         control = document.createElement("input");
         control.type = f.kind === "number" ? "number" : "text";
-        if (f.kind === "number") { control.min = f.min; control.max = f.max; }
+        if (f.kind === "number") {
+          control.min = f.min;
+          control.max = f.max;
+          control.step = f.step || 1;   // the beacon's seconds go in halves (P2-T17m)
+          // Home sets the largest value, as Home is above End on the keyboard, and End the smallest,
+          // as on the desktop (P2-T17m, desktop checklist 12.4).
+          control.addEventListener("keydown", (e) => {
+            if ((e.key !== "Home" && e.key !== "End") || e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+            e.preventDefault();
+            control.value = e.key === "Home" ? f.max : f.min;
+            control.select();
+          });
+        }
         control.value = schema.values[f.id];
         // Arriving with Tab chooses the whole value, so typing replaces it (web checklist 8).
         control.addEventListener("focus", () => control.select());

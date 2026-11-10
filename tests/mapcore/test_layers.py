@@ -237,7 +237,7 @@ def test_where_am_i_leaves_out_a_layer_outside_its_zoom_range(session):
     session.run("layers.set", layer="regions", field="max_zoom_m", value=50000)
     _zoom(session, 100000)
     assert spoken(session.press("Space")) == ["Kent, United Kingdom"]
-    within = [i["label"] for g in session.panel() if g["id"] == "within" for i in g["items"]]
+    within = [i["label"].split(",")[0] for g in session.panel() if g["id"] == "within" for i in g["items"]]
     assert within == ["Kent", "United Kingdom"]
     _zoom(session, 50000)
     assert spoken(session.press("Space")) == ["Kent, England, United Kingdom"]

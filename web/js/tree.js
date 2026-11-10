@@ -5,7 +5,8 @@
 // Keys: Up and Down move through visible items, Right opens a group or goes to
 // its first item, Left closes a group or goes to its parent, Home and End go
 // to the first and last item. Typing a letter jumps to the next item starting
-// with it.
+// with it. Enter is the registry's Go there (P2-T17k), as on the desktop, so it does not
+// open or close a group.
 
 export class Tree {
   constructor(element, onSelect) {
@@ -142,7 +143,8 @@ export class Tree {
     item.setAttribute("aria-selected", "true");
     if (!quiet && (select || document.activeElement === item)) {
       const id = item.dataset.id;
-      const group = item.parentElement.closest('[role="treeitem"]');
+      // A group heading is in its own group: Go to comes back to it (P2-T17k).
+      const group = item.parentElement.closest('[role="treeitem"]') || (item.hasAttribute("aria-expanded") ? item : null);
       this.onSelect(id && !id.startsWith("group:") ? id : null,
                     group ? group.dataset.id.replace(/^group:/, "") : null);
     }
@@ -183,9 +185,6 @@ export class Tree {
       case "ArrowLeft":
         if (item.getAttribute("aria-expanded") === "true") this._expand(item, false);
         else this._move(item.parentElement.closest('[role="treeitem"]'));
-        break;
-      case "Enter":
-        if (item.hasAttribute("aria-expanded")) this._toggle(item);
         break;
       default:
         if (e.key.length === 1 && e.key !== " ") {

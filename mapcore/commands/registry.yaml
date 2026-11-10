@@ -45,15 +45,19 @@ commands:
   - {name: step.link, label: Link step to zoom, key: S, region: map, menu: Map, toggle: true}
   # Orientation and turning (NAV-3, NAV-11, NAV-12). Left and Right also turn, in the facing orientations.
   - {name: orientation.cycle, label: "Change orientation: north-fixed, cardinal facing, free facing", key: O, region: map, menu: Map}
+  # Every key that goes round a list goes back with Shift (P2-T17l, the PO's note on desktop checklist 4.4).
+  - {name: orientation.previous, label: "Change orientation the other way: free facing, cardinal facing, north-fixed", key: Shift+O, region: map, menu: Map}
   - {name: turn.left, label: Large turn left in free facing, key: Shift+Left, region: map, menu: Map}
   - {name: turn.right, label: Large turn right in free facing, key: Shift+Right, region: map, menu: Map}
   - {name: turn.fine_left, label: Fine turn left in free facing, key: Ctrl+Left, region: map, menu: Map}
   - {name: turn.fine_right, label: Fine turn right in free facing, key: Ctrl+Right, region: map, menu: Map}
-  - {name: bearing.type, label: Type a bearing, key: Ctrl+B, region: map, menu: Map}
+  # Ctrl+B and Ctrl+G work from the map, the Information panel and Details (P2-T17k, desktop
+  # checklist 10.5), so they are global; the focus comes back to where they were pressed.
+  - {name: bearing.type, label: Type a bearing, key: Ctrl+B, region: global, menu: Map}
   # The orientation beacon (SON-10): your key, from the key list.
   - {name: beacon.toggle, label: Orientation beacon, key: B, region: map, menu: Map, toggle: true}
   # Going to coordinates and back through the places you have been (NAV-8, NAV-10).
-  - {name: goto.coordinates, label: Go to coordinates, key: Ctrl+G, region: map, menu: Map}
+  - {name: goto.coordinates, label: Go to coordinates, key: Ctrl+G, region: global, menu: Map}
   - {name: history.back, label: Back to the previous place, key: "Alt+,", region: map, menu: Map}
   - {name: history.forward, label: Forward to the next place, key: "Alt+.", region: map, menu: Map}
   # The layers list (SCP-6, SCP-7).
@@ -77,6 +81,8 @@ commands:
   - {name: panel.group, label: "Go to {group}", key: "Shift+{number}", region: global, menu: Map, each_panel_group: true}
   # Hear its direction (DP143, SON-3): your key, from the key list. On an item of Nearby or Crossed and passed.
   - {name: panel.hear, label: Hear its direction, key: Space, region: panel, menu: ""}
+  # Enter on an item goes there: to a point, or to an area's centre (P2-T17k, INF-10, DP155).
+  - {name: panel.go, label: Go there, key: Enter, region: panel, menu: ""}
   - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
   - {name: speech.repeat, label: Repeat the last announcement, key: Shift+Space, region: global, menu: Speech}
@@ -84,6 +90,7 @@ commands:
   - {name: sound.mute, label: Mute all sound, key: Ctrl+M, region: global, menu: Speech, toggle: true}
   # The verbosity presets (ACC-5, DP144): your key, from the key list.
   - {name: verbosity.next, label: Next verbosity preset, key: A, region: map, menu: Speech}
+  - {name: verbosity.previous, label: Previous verbosity preset, key: Shift+A, region: map, menu: Speech}
   - {name: speech.braille_test, label: Send a Braille-only message, key: "", region: global, menu: Speech}
   # Settings (PLT-5, ACC-3).
   - {name: settings.open, label: Settings, key: "Ctrl+,", region: global, menu: Settings}

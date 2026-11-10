@@ -320,7 +320,8 @@ def test_the_panel_has_within_and_nearby_with_levels(test_pack):
     s = MapSession(packs=[test_pack], saved_state={"lat": 43.08, "lon": -79.08, "zoom_m": 5000, "step_m": 100})
     s.start()
     within, nearby, _crossed = s.panel()
-    assert [i["label"] for i in within["items"]] == ["Niagara Region", "Ontario", "Canada"]
+    assert [i["label"].split(",")[0] for i in within["items"]] == ["Niagara Region", "Ontario", "Canada"]
+    assert all(", centre " in i["label"] for i in within["items"])   # its centre's distance and direction (P2-T17k)
     assert nearby["items"][0]["label"].startswith("United States, 410 metres east")
     assert all(i["level"] == 1 for g in (within, nearby) for i in g["items"])
     assert {i["id"] for i in within["items"]}.isdisjoint({i["id"] for i in nearby["items"]})
@@ -404,6 +405,28 @@ def test_only_the_size_that_changed_is_said(session):
     session.run("step.link", on=True)
     said = spoken(session.press("Page Up"))[0]
     assert said.startswith("Zoom 25 kilometres, step ")
+
+
+def test_linked_both_are_said_even_when_the_nearest_step_is_the_same(session):
+    """Web checklist 16.2, desktop 16.2 (P2-T17j, NAV-2, NAV-13): linked, the step is the one in
+    the list nearest a quarter of the zoom, so 25 and 50 kilometres both give 5 kilometres.
+    Page Up still says the zoom and the step, as NAV-2 asks, never the zoom alone."""
+    session.press("S")
+    assert session.world.step_m == 5000
+    assert spoken(session.press("Page Up")) == ["Zoom 50 kilometres, step 5 kilometres."]
+    assert session.world.step_m == 5000
+    assert spoken(session.press("Page Up")) == ["Zoom 100 kilometres, step 25 kilometres."]
+    assert spoken(session.press("Page Down")) == ["Zoom 50 kilometres, step 5 kilometres."]
+
+
+def test_linked_the_step_keys_say_both_even_when_the_nearest_zoom_is_the_same(session):
+    """P2-T17j, NAV-2: the step keys, linked, say the zoom and the step too. Steps of 25 and
+    10 metres both give a zoom of 100 metres, the smallest."""
+    session.press("S")
+    for _ in range(7):   # 5 kilometres down to 10 metres
+        said = spoken(session.press("Shift+Page Down"))[0]
+        assert said.startswith("Zoom ") and ", step " in said, said
+    assert said == "Zoom 100 metres, step 10 metres."
 
 
 def test_s_links_the_step_to_the_zoom_on_the_map_only(session):

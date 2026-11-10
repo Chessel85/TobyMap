@@ -57,6 +57,10 @@ panel:
   within: Within
   nearby: Nearby
   crossed: Crossed and passed
+  # A group heading with how many items it holds (P2-T17k, desktop checklist 10.4).
+  count_none: "{group}, no items"
+  count_one: "{group}, 1 item"
+  count: "{group}, {count} items"
   empty_later: "Nothing yet. This group is filled from Phase 2."
 
 details:
@@ -107,6 +111,10 @@ sound:
 hear:
   label: "{name}, {distance}"
   choose: "Hear its direction works on an item, not on a group."
+
+# Enter on an Information panel item goes there (P2-T17k, INF-10, DP155).
+go:
+  choose: "Go there works on an item, not on a group."
 
 # The spatial voice (P2-T7, SON-3). Each is said once, by the screen reader.
 voice:
@@ -367,6 +375,10 @@ history:
 nearby:
   item: "{name}, {distance} {direction}"
   none: "Nothing nearby."
+
+# A Within item: you are inside it, so the distance and direction are to its centre (P2-T17k, DP155).
+within:
+  item: "{name}, centre {distance} {direction}"
 
 # Crossed and passed (ANN-2): what the last move went over or near. The distance and
 # direction are from where you are now; closest is how near the path came.

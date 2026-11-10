@@ -212,7 +212,7 @@ def test_f2_f3_f4_and_ctrl_alt_m_go_where_they_should(app):
     app.wait_for_function("document.activeElement.id === 'details'")
     app.keyboard.press("F3")
     app.wait_for_function("document.activeElement.getAttribute('role') === 'treeitem'")
-    assert app.evaluate("document.activeElement.textContent") == "Kent"
+    assert app.evaluate("document.activeElement.textContent") == "Kent, centre 35 kilometres west"
     app.keyboard.press("F2")
     app.wait_for_function("document.activeElement.id === 'map'")
     go_to_menu_bar(app)
@@ -230,7 +230,7 @@ def test_the_tree_has_levels_and_real_focus_on_its_items(app):
     assert app.evaluate("document.activeElement.firstChild.nodeType") == 3
     assert app.locator("#tree [aria-labelledby]").count() == 0
     app.keyboard.press("ArrowLeft")
-    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Within"
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Within, 3 items"
     assert app.evaluate("document.activeElement.getAttribute('aria-level')") == "1"
 
 
@@ -871,3 +871,103 @@ def test_after_a_bearing_leaving_the_map_names_it_after_the_place_again(app):
     app.keyboard.press("F3")
     app.wait_for_function("document.getElementById('tree').contains(document.activeElement)")
     assert app.get_attribute("#map", "aria-label") == "Kent, England, United Kingdom"
+
+
+def test_page_up_with_the_step_linked_says_the_zoom_and_the_step(app):
+    """Web checklist 16.2 (P2-T17j, NAV-2, NAV-13): S links the step, and Page Up then says both.
+    From 25 to 50 kilometres the step stays at 5 kilometres, the nearest to a quarter of the zoom;
+    from 50 to 100 kilometres it changes to 25 kilometres."""
+    app.keyboard.press("s")
+    wait_said(app, 1)
+    assert said(app)[-1].startswith("Step linked to zoom.")
+    app.keyboard.press("PageUp")
+    wait_said(app, 2)
+    assert said(app)[-1] == "Zoom 50 kilometres, step 5 kilometres."
+    app.keyboard.press("PageUp")
+    wait_said(app, 3)
+    assert said(app)[-1] == "Zoom 100 kilometres, step 25 kilometres."
+    stored = json.loads(app.evaluate("localStorage.getItem('tobymap')"))
+    assert stored["state"]["link"] is True and stored["state"]["step_m"] == 25000
+
+
+# The Information panel (P2-T17k; INF-10, DP155, desktop checklist 10.4, 10.5, 11.5, 11.7) -------
+
+def focus_tree_item(app, text_start):
+    app.keyboard.press("F3")
+    app.wait_for_function("document.activeElement.getAttribute('role') === 'treeitem'")
+    for _ in range(10):
+        if app.evaluate("document.activeElement.textContent").startswith(text_start):
+            return
+        app.keyboard.press("ArrowDown")
+    raise AssertionError(f"no item starting {text_start!r}")
+
+
+def test_enter_on_a_within_item_goes_to_its_centre_and_stays_in_the_panel(app):
+    assert app.evaluate("document.querySelector('#tree [role=treeitem]').getAttribute('aria-label')") == "Within, 3 items"
+    focus_tree_item(app, "England, centre ")
+    app.keyboard.press("Enter")
+    wait_said(app, 1)
+    assert "Kent" not in said(app)[-1]
+    app.wait_for_function("JSON.parse(localStorage.getItem('tobymap')).state.lon < 0")
+    assert region(app) == "panel"
+    # The first item of the same group, Within.
+    assert app.evaluate("document.activeElement.getAttribute('aria-posinset')") == "1"
+    assert app.evaluate("document.activeElement.parentElement.closest('[role=treeitem]').dataset.id") == "group:within"
+
+
+def test_enter_on_a_group_heading_says_it_works_on_an_item(app):
+    app.keyboard.press("F3")
+    app.wait_for_function("document.activeElement.getAttribute('role') === 'treeitem'")
+    app.keyboard.press("ArrowLeft")
+    app.wait_for_function("document.activeElement.getAttribute('aria-level') === '1'")
+    app.keyboard.press("Enter")
+    wait_said(app, 1)
+    assert said(app)[-1] == "Go there works on an item, not on a group."
+    assert app.evaluate("document.activeElement.getAttribute('aria-expanded')") == "true"   # Enter no longer closes it
+
+
+def test_ctrl_g_from_the_panel_comes_back_to_the_first_item_of_the_same_group(app):
+    focus_tree_item(app, "United Kingdom, centre ")
+    app.keyboard.press("Control+g")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "51.3, 0.5")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    wait_said(app, 1)
+    app.wait_for_function("document.activeElement.getAttribute('aria-posinset') === '1'")
+    assert region(app) == "panel"
+    assert app.evaluate("document.activeElement.parentElement.closest('[role=treeitem]').dataset.id") == "group:within"
+    assert said(app)[-1].endswith("United Kingdom")   # the new place is spoken, as the focus is not the map
+
+
+def test_ctrl_b_from_details_comes_back_to_details(app):
+    app.keyboard.press("F4")
+    app.wait_for_function("document.activeElement.id === 'details'")
+    app.keyboard.press("Control+b")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "90")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    wait_said(app, 1)
+    assert said(app)[-1] == "Free facing, 90 degrees."
+    app.wait_for_function("document.activeElement.id === 'details'")
+
+
+def test_home_and_end_in_every_number_box_set_the_largest_and_smallest(app):
+    """P2-T17m, desktop checklist 12.4: Home sets the largest value and End the smallest, in every
+    number box in Settings, as on the desktop."""
+    app.keyboard.press("Control+,")
+    app.wait_for_function("document.getElementById('settings').open")
+    ids = app.evaluate("[...document.querySelectorAll('#settings input[type=number]')].map(el => el.dataset.field)")
+    assert len(ids) > 5
+    for field in ids:
+        box = f"#settings input[data-field={field}]"
+        app.evaluate(f"""(() => {{ const el = document.querySelector('{box}');
+            document.querySelectorAll('#settings [role=tabpanel]').forEach(p => {{ p.hidden = !p.contains(el); }});
+            el.focus(); }})()""")
+        app.keyboard.press("Home")
+        assert app.input_value(box) == app.get_attribute(box, "max"), field
+        app.keyboard.press("End")
+        assert app.input_value(box) == app.get_attribute(box, "min"), field
+    app.click("#settings-cancel")
+    app.wait_for_function("!document.getElementById('settings').open")

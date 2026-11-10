@@ -129,12 +129,12 @@ def test_f2_f3_f4_go_where_they_should_from_each_region(window, qtbot):
 
 def test_f3_lands_on_within_first_and_then_on_the_item_last_focused(window, qtbot):
     qtbot.keyClick(window.map, Qt.Key.Key_F3)
-    assert window.tree.currentItem().text(0) == "Kent"
+    assert window.tree.currentItem().text(0) == "Kent, centre 35 kilometres west"
     assert window.details.toPlainText().splitlines()[0] == "Kent"
     window.tree.setCurrentItem(window.tree.topLevelItem(1).child(0))
     qtbot.keyClick(window.tree, Qt.Key.Key_F2)
     qtbot.keyClick(window.map, Qt.Key.Key_F3)
-    assert window.tree.currentItem().parent().text(0) == "Nearby"
+    assert window.tree.currentItem().parent().text(0).startswith("Nearby, ")
 
 
 def test_an_area_in_two_groups_is_selected_and_heard_in_the_group_focused(qtbot, test_pack, tmp_path):
@@ -204,6 +204,17 @@ def test_the_link_menu_item_shows_its_state(window):
     window.actions_by_name["step.link"].trigger()
     assert window.session.world.link and window.actions_by_name["step.link"].isChecked()
     assert window.announcer.texts[-1].startswith("Step linked to zoom.")
+
+
+def test_s_then_page_up_says_the_zoom_and_the_step(window, qtbot):
+    """Desktop and web checklist 16.2 (P2-T17j, NAV-2, NAV-13): linked by S, Page Up says
+    both, even from 25 to 50 kilometres, where the step stays at 5 kilometres."""
+    qtbot.keyClick(window.map, Qt.Key.Key_S)
+    assert window.announcer.texts[-1].startswith("Step linked to zoom.")
+    qtbot.keyClick(window.map, Qt.Key.Key_PageUp)
+    assert window.announcer.texts[-1] == "Zoom 50 kilometres, step 5 kilometres."
+    qtbot.keyClick(window.map, Qt.Key.Key_PageUp)
+    assert window.announcer.texts[-1] == "Zoom 100 kilometres, step 25 kilometres."
 
 
 def test_braille_test_falls_back_to_speech_without_nvda(window):
@@ -1036,3 +1047,107 @@ def test_after_a_bearing_leaving_the_map_names_it_after_the_place_again(window, 
     box.field.setText("180")
     enter(qtbot, box.field)
     assert window.map.accessibleName() == "Facing 180 degrees."
+
+
+# The Information panel (P2-T17k; INF-10, DP155, desktop checklist 10.4, 10.5, 11.5, 11.7) -------
+
+def back_to_window(window, qtbot):
+    window.activateWindow()   # offscreen: the window is not given back the keyboard when a box closes
+    qtbot.waitUntil(lambda: QApplication.activeWindow() is window)
+
+
+def test_each_group_heading_has_its_count_and_within_its_distances(window):
+    within = window.tree.topLevelItem(0)
+    assert within.text(0) == "Within, 3 items"
+    assert window.tree.topLevelItem(1).text(0) == "Nearby, 1 item"
+    assert within.child(0).text(0) == "Kent, centre 35 kilometres west"
+
+
+def test_enter_on_a_within_item_goes_to_its_centre_and_stays_in_the_panel(window, qtbot):
+    window.focus_region("panel")
+    window.tree.setCurrentItem(window.tree.topLevelItem(0).child(1))   # England
+    before = len(window.announcer.texts)
+    press(qtbot, window.tree, Qt.Key.Key_Return)
+    assert window.session.world.lon < 0   # England's centre is west of Greenwich in the test pack
+    assert window.announcer.texts[before:] == [window.session._place_text()]
+    assert region(window) == "panel"
+    assert window.tree.currentItem() is window.tree.topLevelItem(0).child(0)
+
+
+def test_enter_on_a_group_heading_says_it_works_on_an_item(window, qtbot):
+    window.focus_region("panel")
+    window.tree.setCurrentItem(window.tree.topLevelItem(1))
+    press(qtbot, window.tree, Qt.Key.Key_Return)
+    assert window.announcer.texts[-1] == "Go there works on an item, not on a group."
+    assert window.session.world.lat == 51.2
+
+
+@pytest.mark.parametrize("key", [Qt.Key.Key_G, Qt.Key.Key_B], ids=["go to", "bearing"])
+def test_ctrl_g_and_ctrl_b_work_from_the_panel_and_come_back_there(window, qtbot, key):
+    window.focus_region("panel")
+    within = window.tree.topLevelItem(0)
+    window.tree.setCurrentItem(within.child(2))
+    press(qtbot, window.tree, key, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    before = len(window.announcer.texts)
+    box.field.setText("51.3, 0.5" if key == Qt.Key.Key_G else "90")
+    enter(qtbot, box.field)
+    assert not box.isVisible()
+    back_to_window(window, qtbot)
+    assert region(window) == "panel"
+    # After a jump, the first item of the same group; after a bearing, the same item.
+    assert window.tree.currentItem() is within.child(0 if key == Qt.Key.Key_G else 2)
+    said = window.announcer.texts[before:]
+    assert said == ([window.session._place_text()] if key == Qt.Key.Key_G else ["Free facing, 90 degrees."])
+
+
+def test_ctrl_g_works_from_details_and_comes_back_there(window, qtbot):
+    window.focus_region("details")
+    press(qtbot, window.details, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    box.field.setText("51.3, 0.5")
+    enter(qtbot, box.field)
+    back_to_window(window, qtbot)
+    assert region(window) == "details" and window.session.world.lat == pytest.approx(51.3)
+
+
+def test_cancel_from_the_panel_comes_back_to_the_same_item(window, qtbot):
+    window.focus_region("panel")
+    item = window.tree.topLevelItem(0).child(1)
+    window.tree.setCurrentItem(item)
+    press(qtbot, window.tree, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    before = len(window.announcer.texts)
+    enter(qtbot, box.cancel_button)
+    back_to_window(window, qtbot)
+    assert region(window) == "panel" and window.tree.currentItem() is item
+    assert window.announcer.texts[before:] == []
+
+
+def test_shift_o_and_shift_a_go_the_other_way(window, qtbot):
+    """P2-T17l, the PO's note on desktop checklist 4.4: Shift goes back round a list."""
+    press(qtbot, window.map, Qt.Key.Key_O, Qt.KeyboardModifier.ShiftModifier)
+    assert window.announcer.texts[-1].startswith("Free facing, ")
+    press(qtbot, window.map, Qt.Key.Key_O, Qt.KeyboardModifier.ShiftModifier)
+    assert window.announcer.texts[-1].startswith("Cardinal facing, ")
+    press(qtbot, window.map, Qt.Key.Key_A, Qt.KeyboardModifier.ShiftModifier)
+    assert window.announcer.texts[-1].startswith("Terse.")
+
+
+def test_home_and_end_in_every_number_box_set_the_largest_and_smallest(window, qtbot):
+    """P2-T17m, desktop checklist 12.4: Home sets the largest value, as it is above End on the
+    keyboard, and End the smallest. Every number box in Settings, so none is missed."""
+    window.dispatch("settings.open")
+    dialog = click_dialog(window, SettingsDialog)
+    numbers = [f for tab in window.session.settings_schema()["tabs"] for f in tab["fields"] if f["kind"] == "number"]
+    assert len(numbers) > 5
+    for f in numbers:
+        box = dialog.controls[f["id"]]
+        dialog.tabs.setCurrentWidget(next(dialog.tabs.widget(i) for i in range(dialog.tabs.count())
+                                          if dialog.tabs.widget(i).isAncestorOf(box)))
+        box.setFocus()
+        qtbot.keyClick(box, Qt.Key.Key_Home)
+        assert box.value() == f["max"], f["id"]
+        qtbot.keyClick(box, Qt.Key.Key_End)
+        assert box.value() == f["min"], f["id"]
+    dialog.cancel_button.click()

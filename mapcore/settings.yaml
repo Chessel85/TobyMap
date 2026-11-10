@@ -216,6 +216,7 @@ tabs:
         default: 1
         min: 0.5
         max: 5
+        step: 0.5   # a number box with a fraction says its step; the others go in whole numbers (P2-T17m)
       - id: beacon_target
         label: "Orientation beacon: comes from"
         kind: choice

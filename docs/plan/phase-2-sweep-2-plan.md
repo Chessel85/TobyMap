@@ -85,6 +85,11 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 * Opus. Measure, on the world pack, the time from the key to each stage: the core's answer, the speech handed to NVDA, and the sound reaching the sound card. The test trace already records the first two.
 * Reduce whatever is slow. If it is the mixer's buffer, ask the sound card for a smaller one.
 * Report the times before and after, in plain words, in docs/plan.
+* Done, 10 November 2026, on branch P2-T17e. The times are in docs/plan/p2-t17e-lag-timing.md.
+* The cause of the late sounds: TobyMap used MME, Windows' oldest route to the sound card, which held each sound back about 105 ms. The desktop now uses WASAPI, shared, which holds it about 24 ms. If WASAPI will not open, the old route is used.
+* The core answered in under 20 ms, and the speech was handed to the screen reader within 16 ms of the key. As you asked, nothing is changed for NVDA alone.
+* To check with NVDA, as only you can: desktop 2.11 and 4.5. The blocked sound and the clicks should come sooner.
+* Tests: 4 new desktop tests, with a stand-in for the sound library, so no sound device is opened. Three failed on the old code.
 
 ### P2-T17f Space on a group heading (desktop 11.6; SON-3)
 

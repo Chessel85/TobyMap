@@ -7,7 +7,8 @@ stream from sounddevice mixes whatever is playing, block by block, and never wai
 speech or for the map (SON-7).
 
 The stream is opened when the player is made, before the first sound, so a sound starts
-within 50 ms of being asked for (NFR-1). If there is no sound device, or sounddevice
+within 50 ms of being asked for (NFR-1). On Windows it goes through WASAPI, not the
+default MME, which held each sound back about 105 ms (P2-T17e). If there is no sound device, or sounddevice
 cannot be loaded, the player is silent, and `missing` says so; the window tells the user
 once, in the core's words.
 
@@ -153,22 +154,46 @@ class SpatialPlayer:
         self.stream = None
         self.missing = False
         self.hrtf_missing = False
+        self.route: str | None = None        # the way to the sound card: "Windows WASAPI" or "default"
+        self.latency_ms: float | None = None  # how long the sound card route holds sound back
         if open_stream:
             self._open()
 
     def _open(self) -> None:
+        """WASAPI first, then the system's default route (P2-T17e, NFR-1). On Windows the default
+        is MME, which held each sound back about 105 ms on the PO's laptop; WASAPI about 24 ms.
+        WASAPI is opened shared, so NVDA and other programs still play, and Windows converts
+        the player's rate to the sound card's own, which WASAPI alone refuses to do."""
         try:
             import sounddevice as sd
+        except Exception:   # no PortAudio: carry on silent
+            sd = None
 
-            def callback(outdata, frames, _time, _status):
-                outdata[:] = self.mixer.mix(frames)
+        def callback(outdata, frames, _time, _status):
+            outdata[:] = self.mixer.mix(frames)
 
-            self.stream = sd.OutputStream(samplerate=spatial.RATE, channels=2, dtype="float32", blocksize=BLOCK,
-                                          latency="low", callback=callback)
-            self.stream.start()
-        except Exception:   # no PortAudio, no device, or the device refused: carry on silent
-            self.stream = None
-            self.missing = True
+        routes: list[tuple[str, dict]] = []
+        if sd is not None:
+            try:
+                wasapi = next((a for a in sd.query_hostapis() if a["name"] == "Windows WASAPI"), None)
+                if wasapi is not None and wasapi["default_output_device"] >= 0:
+                    routes.append(("Windows WASAPI", {"device": wasapi["default_output_device"],
+                                                      "extra_settings": sd.WasapiSettings(auto_convert=True)}))
+            except Exception:
+                pass
+            routes.append(("default", {}))
+        for route, extra in routes:
+            try:
+                stream = sd.OutputStream(samplerate=spatial.RATE, channels=2, dtype="float32", blocksize=BLOCK,
+                                         latency="low", callback=callback, **extra)
+                stream.start()
+            except Exception:   # no device, or the device refused: try the next route
+                continue
+            self.stream, self.route = stream, route
+            self.latency_ms = float(stream.latency) * 1000
+            return
+        self.stream = None
+        self.missing = True
 
     def close(self) -> None:
         if self.stream is not None:

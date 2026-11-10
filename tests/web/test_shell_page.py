@@ -873,7 +873,10 @@ def test_a_wrong_entry_opens_a_message_box_and_ok_comes_back_to_the_text(app, ke
     assert app.evaluate("document.getElementById('inputdialog').open")
     assert app.evaluate("document.activeElement.id") == "input-field"
     assert app.input_value("#input-field") == "hello"
-    assert app.evaluate("(() => { const f = document.activeElement; return f.value.slice(f.selectionStart, f.selectionEnd); })()") == "hello"
+    # The dialog is marked closed at once, but its close event, which chooses the text, comes a
+    # moment later: wait for it (a race seen once in Chromium on continuous integration).
+    app.wait_for_function("(() => { const f = document.activeElement; return f.id === 'input-field' && "
+                          "f.value.slice(f.selectionStart, f.selectionEnd) === 'hello'; })()")
 
 
 # The place said once as a dialog closes (P2-T17c; web checklist 5.2, 8.6) ------------------------

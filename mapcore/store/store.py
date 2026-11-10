@@ -280,6 +280,12 @@ class Store:
         self.cache = TileCache(cache_bytes) if cache_bytes else TileCache()
         self._indexes: list[_PackIndex] = []
         self._lock = threading.RLock()
+        # A tile's shapes are shared and prepared, and Shapely builds a prepared shape's index on
+        # its first use, which is not safe from two threads at once: the Crossed and passed
+        # search and a step's lookup together made Windows stop the program (P2-T17w). Every
+        # use of a tile's shape is under this lock, one shape test at a time, so a step never
+        # waits for a whole search.
+        self._shapes = threading.Lock()
         for p in packs if isinstance(packs, (list, tuple)) else [packs]:
             pack = p if isinstance(p, Pack) else Pack(p)
             self._indexes.append(_PackIndex(pack, self.problems))
@@ -386,8 +392,9 @@ class Store:
                     if (p, entry.feature) in found or entry.kind not in tiles.AREA_KINDS:
                         continue   # lines and points have no inside, so are never "here"
                     if entry.kind != tiles.COVERED:
-                        shape = data.shape(i)
-                        if not shapely.intersects_xy(shape, lon, lat):
+                        with self._shapes:
+                            inside = shapely.intersects_xy(data.shape(i), lon, lat)
+                        if not inside:
                             continue
                     area = self._area(p, entry.feature)
                     if area is not None and (layers is None or area.layer in layers):
@@ -429,7 +436,8 @@ class Store:
                         for i, entry in enumerate(data.entries):
                             if entry.kind != tiles.LINES:
                                 continue
-                            met = shapely.intersection(data.shape(i), piece)
+                            with self._shapes:
+                                met = shapely.intersection(data.shape(i), piece)
                             if met.is_empty:
                                 continue
                             area = self._area(p, entry.feature)
@@ -509,7 +517,9 @@ class Store:
         import shapely
 
         old = near.get(key)
-        for lon, lat in shapely.get_coordinates(data.shape(i)).tolist():
+        with self._shapes:
+            points = shapely.get_coordinates(data.shape(i)).tolist()
+        for lon, lat in points:
             closest, along = _closest_m(path, lat, lon)
             if closest > passed_m or (old is not None and old.closest_m <= closest):
                 continue
@@ -521,8 +531,9 @@ class Store:
     def _passed_over(self, data, i, box, key, piece, path, wanted, accept, over) -> None:
         import shapely
 
-        shape = box if data.entries[i].kind == tiles.COVERED else data.shape(i)
-        met = shapely.intersection(shape, piece)
+        with self._shapes:
+            shape = box if data.entries[i].kind == tiles.COVERED else data.shape(i)
+            met = shapely.intersection(shape, piece)
         if met.is_empty:
             return
         area = self._area(*key)
@@ -665,8 +676,10 @@ class Store:
                 n_lon = west if ((west - lon) % 360.0) <= ((lon - east) % 360.0) else east
             px, py = (float(v) for v in flat.forward(n_lat, n_lon))
             return math.hypot(px, py), px, py
-        shape = data.shape(i)
-        if shapely.intersects_xy(shape, lon, lat):
+        with self._shapes:
+            shape = data.shape(i)
+            inside = shapely.intersects_xy(shape, lon, lat)
+        if inside:
             return 0.0, 0.0, 0.0
         projected = flat.transform(shape)
         distance = float(shapely.distance(origin, projected))

@@ -277,7 +277,17 @@ As it had to be treated differently from every other earcon, I took it out of th
 * Documents: requirements catalogue version 0.14 (NAV-10 is now the location history, ANN-4 keeps only repeat, SON-3), user experience description version 0.19 (sections 2, 8.5 and 12), the glossary ("Location history" replaces "Position history" and "Announcement history"), the architecture, and the key list. Section 7 of both checklists is rewritten, with new steps 7.7 and 7.8 for a layer switched off, and step 11.7 now uses Shift+Space.
 * To check with NVDA, as only you can: section 7 of both checklists. Also whether "Here:" before where you are is clear, and whether the list should open on Here or on the newest place.
 * Tests: 7 new core tests, and each failed on the old code. 1 new desktop test and 1 new browser test, that the list opens on Here. About 18 older tests were changed from the announcement history to the location history or to Shift+Space. All 1,167 Python tests pass, and the changed browser tests pass in Chromium and Firefox.
-* Not caused by this task: in some desktop test runs, on main as well as on this branch, Windows stopped the run with a memory fault in the test "a step is announced quickly". Run again, the tests passed. I can look at it separately if you want.
+* Not caused by this task: in some desktop test runs, on main as well as on this branch, Windows stopped the run with a memory fault in the test "a step is announced quickly". Fixed in P2-T17w.
+
+### P2-T17w A crash when a step and the Crossed and passed search meet (NFR-1, ANN-2)
+
+* Opus. Found while doing P2-T17t. Done, 10 November 2026, on branch P2-T17w.
+* What happened: about one desktop test run in three, and the continuous integration run of 8 November on Windows and macOS, stopped with a memory fault. The program itself could do the same, though more rarely, as it needs a step while the last step's search is still running.
+* The cause: a step looks up the areas where you are, and the Crossed and passed search, on its own thread, looks along the step's path, both in the same cached shapes. Shapely builds a shape's search index the first time it is used, and two threads doing that at once can damage memory. Now every use of a cached shape is under one lock, one shape test at a time, so a step waits at most for one shape test, never for a whole search.
+* Also: closing the window now stops the search and waits for it before the map store is closed. Before, the search could go on reading a closed store.
+* And: on macOS a message box has no title, so the P2-T17o test now checks the title only on Windows. This was the one failure in today's continuous integration run.
+* Nothing for you to check, other than that TobyMap never closes by itself.
+* Tests: 1 new desktop test, for closing during a search. It failed on the old code. The desktop tests then ran six times without a crash. Before the fix, two runs in five crashed.
 
 ### P2-T17u A listening test for sound in space and the voice (desktop 11.2, 18; SON-1, SON-2, SON-3, SON-9)
 

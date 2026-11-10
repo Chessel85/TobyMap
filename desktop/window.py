@@ -124,7 +124,8 @@ class _HoldClock(QObject):
 class _Background(QObject):
     """Crossed and passed (P2-T5, architecture 7.5): the search along a move's path runs on a
     thread of its own, so the announcement never waits for it. The result comes back to the
-    window's thread through a signal. A newer move makes the core throw an older search away."""
+    window's thread through a signal. A newer move makes the core throw an older search away.
+    stop() ends a search before the window closes the store it reads (P2-T17w)."""
 
     done = Signal(object, object)
 
@@ -132,20 +133,31 @@ class _Background(QObject):
         super().__init__(parent)
         self.session = session
         self.thread: threading.Thread | None = None
+        self._stopping = threading.Event()
 
     def start(self) -> None:
+        if self._stopping.is_set():
+            return
         job = self.session.crossed_job()
         if job is None:
             return
         self.thread = threading.Thread(target=self._run, args=(job,), name="crossed and passed", daemon=True)
         self.thread.start()
 
+    def stop(self) -> None:
+        """Tell the search to stop, and wait for it. Closing the store under a search still
+        reading it made Windows stop the program with a memory fault."""
+        self._stopping.set()
+        if self.thread is not None:
+            self.thread.join(timeout=10)
+
     def _run(self, job) -> None:
         try:
-            found = self.session.crossed_search(job)
+            found = self.session.crossed_search(job, cancelled=self._stopping.is_set)
         except Exception:   # a damaged pack tile must never stop the window; the list stays empty
             found = None
-        self.done.emit(job, found)
+        if not self._stopping.is_set():
+            self.done.emit(job, found)
 
 
 class _MenuTabFilter(QObject):
@@ -297,6 +309,7 @@ class MainWindow(QMainWindow):
         self.map.stop_drawing()
         self.voice.close()
         self.spatial.close()
+        self._background.stop()   # before the store it reads is closed (P2-T17w)
         self.session.store.close()
         super().closeEvent(event)
 

@@ -341,6 +341,17 @@ tabs:
           - [green, Green]
           - [grey, Grey]
           - [light_grey, Light grey]
+      # When the current area is outlined (P2-T17v, VIS-1). The outline of an ocean can run
+      # across open water, such as the North Atlantic's edge from Norway to Iceland.
+      - id: outline_current
+        label: Outline the current area
+        kind: choice
+        default: always
+        choices:
+          - [always, Always]
+          - [not_oceans, "Not for the oceans"]
+          - [not_water, "Never for oceans and seas"]
+          - [never, Never]
       - id: map_names
         label: Show names on the map
         kind: yes_no

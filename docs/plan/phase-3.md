@@ -36,7 +36,14 @@ Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP
   * --rate sets the voice's speed in percent, as in your settings, for example --rate 200.
   * Your answers are saved after each one, in docs/spikes/listening-test, in a file starting "compass". When you have run it, tell me, and I write the findings with --analyse and propose the settings.
   * Tests: 27 new, in tests/mapcore/test_listening_compass.py, with a stand-in voice and no sound device. Also checked with the real Alba voice: each sound and its name take about 2.4 seconds, made in about 130 ms.
-* [ ] P2-T17v The map for sighted users: the special lines, and the lines across France and from Sweden to Shetland.
+* [x] P2-T17v The map for sighted users: the special lines made to stand out, and a setting for when the current area is outlined. The line across France is fixed (P2-T17v-c).
+  * The special lines: a new layer setting, line_style: special, in mapdata/config/layers/graticule.yaml and in the pack. A special layer's lines are drawn thicker, in the theme's special line colour, on top of the other lines. Both versions, as the core makes the drawing.
+  * The world pack written again on 10 November 2026 to carry it: only "writing the pack" ran, in 34 minutes, and the checks.
+  * Outline the current area: a new setting in the Display tab, with always (at first), not for the oceans, never for oceans and seas, and never.
+  * The line across France: an edge along a pack tile edge was outlined when the point before it was merged away. Such a point is now kept.
+  * Found on the way, not changed: at 0 degrees north and 0 degrees east, the North Atlantic has a small square of its own, about 1 degree across, which is outlined when the North Atlantic is the current area. It is in the ocean data from VLIZ, or in how it is cut; to look at with P3-T1b.
+  * To check: switch on the special lines in the layers list (Shift+L), in each theme; and try each choice of "Outline the current area" in the North Sea.
+  * Tests: 18 new in tests/mapcore/test_map_for_sighted_users.py, and 1 in tests/mapcore/test_scene.py.
 
 ## Tasks
 

@@ -3,8 +3,8 @@
 The themes are in themes.yaml. effective() gives the theme the map is drawn with: the
 chosen theme with the map display setting on top, which chooses the fill (different
 colours for neighbours, one colour for all, or none), whether borders are drawn, and the
-colours of the fill, the borders and the current outline. The current outline is always
-drawn (VIS-1).
+colours of the fill, the borders and the current outline. When the current outline is
+drawn is the setting "Outline the current area" (P2-T17v, VIS-1).
 
 The high contrast themes keep the 7 to 1 contrast of every outline and text colour
 against what it is drawn on (VIS-2), with every choice: a chosen colour that would fall
@@ -105,6 +105,7 @@ def contrast_pairs(t: dict) -> list[tuple[str, str, str]]:
         pairs += [("border", t["border"], f) for f in fills]
     pairs += [("current outline", t["current_outline"], f) for f in fills]
     pairs += [("line", t["line"], f) for f in fills]
+    pairs += [("special line", t["special_line"], f) for f in fills]
     pairs += [("marker", t["marker"], f) for f in fills]
     pairs += [("marker outline", t["marker_outline"], t["marker"]),
               ("highlight outline", t["highlight_outline"], t["highlight_fill"]),

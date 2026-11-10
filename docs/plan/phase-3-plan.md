@@ -245,8 +245,17 @@ These keep their Phase 2 numbers, so the sweep plan and your notes still find th
 ### P2-T17v The map for sighted users (Opus)
 
 * Requirements: VIS-1, VIS-2, DAT-13.
-* P2-T17v-a: the special lines (the equator, the prime meridian, the tropics, the polar circles and the date line) drawn thicker and in their own colour, in every theme, keeping 7 to 1 in the high contrast themes.
-* P2-T17v-b: find the straight line across France and the red line that zigzags from Sweden to Shetland, with screenshots before anything is changed. My guess for the red line is the current outline of a sea area. If so, the current outline of a sea is drawn only along its coasts and borders with other seas, not across open water, or not at all; you and the sighted helper choose.
+* As you asked, 10 November 2026: the task is limited to making the special lines stand out on the map, with the outline setting below and the fix for the line across France.
+* P2-T17v-a: the special lines (the equator, the prime meridian, the tropics, the polar circles and the date line) drawn thicker and in their own colour, in every theme, keeping 7 to 1 in the high contrast themes. As you suggested, it is a setting of the layer: the special lines are already a layer of their own, and a new layer setting, line_style: special, is stored in the pack with the layer. The map draws any layer with it thicker, in the theme's special line colour, on top of the plain lines, so nothing in the map knows the special lines (SCP-7). The world pack is written again to carry it; only the stage "writing the pack" runs.
+* The colours: standard, dark purple; high contrast dark, light green (7.25 to 1 against the darkest land); high contrast light, dark red; colour-blind safe, dark purple.
+* P3-T1b gives its named seas, bays and straits the types sea, bay and strait, which the outline setting knows.
+* P2-T17v-b, the red line, found: it is the current outline of the North Atlantic Ocean. Where the North Atlantic meets the Arctic Ocean, its edge runs from Norway past Shetland and the Faroes to Iceland, across open water. A new setting in the Map display tab, "Outline the current area", with four choices:
+  1. Always, as now. This is the setting at first.
+  2. Not for the oceans, the top of the water hierarchy.
+  3. Never for oceans and seas. Until the named seas come in P3-T1b, this is the same as choice 2.
+  4. Never.
+  VIS-1 is changed to say the current area is outlined as this setting chooses.
+* P2-T17v-c, the straight line across France, found and fixed: it ran along 45 degrees north, the edge of a pack tile, at the 1,000 km zoom. A tile edge is never outlined (AD-17), but where the last real point before it was less than a pixel away, that point was merged into the next and the long edge along the tile edge was outlined. Such a point is now always kept. Tested, and checked in a picture of France before and after.
 
 ## P3-T1 The complete base pack
 

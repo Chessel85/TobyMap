@@ -41,6 +41,8 @@ SNAP = 0.7               # pixel cells per pixel: points in the same 1.4 pixel c
 LAYER_ORDER = {"oceans": 0, "countries": 1, "regions": 2, "counties": 3}
 OCEAN_STYLE = 7
 HIGHLIGHT_STYLE = 8
+LINE_STYLE, HIGHLIGHT_LINE_STYLE, SPECIAL_LINE_STYLE = 0, 1, 2   # the line styles (P2-T17v)
+LINE_DRAW_ORDER = {LINE_STYLE: 0, SPECIAL_LINE_STYLE: 1, HIGHLIGHT_LINE_STYLE: 2}
 MIN_RING = 3
 
 
@@ -182,10 +184,11 @@ class SceneBuilder:
     def build(self, world, width: int, height: int, current: str | None = None, highlight: str | None = None,
               centre_cross: bool = True, layers=None, min_widths=None, interval=None, theme: dict | None = None,
               isolate: str | None = None, names: bool = False, label_scale: float = 1.0,
-              heading_up: bool = False) -> dict:
+              heading_up: bool = False, special_layers=frozenset()) -> dict:
         """One frame. theme is the theme to draw with (themes.effective), the builder's own when
         None. isolate keeps only that feature (VIS-2). names places the areas' names, at
-        label_scale times their size (VIS-3, P2-T12d). heading_up turns the map (VIS-5)."""
+        label_scale times their size (VIS-3, P2-T12d). heading_up turns the map (VIS-5).
+        special_layers are the line layers drawn in the special line style (P2-T17v, DAT-13)."""
         import shapely
 
         if theme is not None:
@@ -233,7 +236,7 @@ class SceneBuilder:
         chosen = time.perf_counter()
         frame = self._frame(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
                             current, highlight)
-        frame.update(self._lines(view, cx, cy, r, lines, line_idx, feats, highlight))
+        frame.update(self._lines(view, cx, cy, r, lines, line_idx, feats, highlight, special_layers))
         frame.update(self._markers(view, width, height, cx, cy, r, dots, dot_idx, feats, highlight))
         frame["points"] += int(len(frame["line_coords"]) // 2)
         frame.update(place_names(frame, self.theme, label_scale) if names else no_names(self.theme))
@@ -250,13 +253,17 @@ class SceneBuilder:
         frame["project_ms"] = (time.perf_counter() - start) * 1000   # the whole of the core's part
         return frame
 
-    def _lines(self, view, cx, cy, r, lines, idx, feats, highlight) -> dict:
-        """Each line cut into runs of points on the near side of the globe, in screen pixels."""
+    def _lines(self, view, cx, cy, r, lines, idx, feats, highlight, special_layers=frozenset()) -> dict:
+        """Each line cut into runs of points on the near side of the globe, in screen pixels.
+        A run's style is LINE_STYLE, HIGHLIGHT_LINE_STYLE for the item selected in the
+        Information panel, or SPECIAL_LINE_STYLE for a line of a layer whose line_style is
+        special, such as the equator (P2-T17v). The special lines are drawn last, on top."""
         import shapely
 
         theme = self.theme
         styles = [{"stroke": theme["line"], "width": theme["line_width"]},
-                  {"stroke": theme["highlight_outline"], "width": theme["line_width"] + 2}]
+                  {"stroke": theme["highlight_outline"], "width": theme["special_line_width"] + 2},
+                  {"stroke": theme["special_line"], "width": theme["special_line_width"]}]
         if not len(lines):
             return {"line_coords": np.zeros(0, np.float32), "line_runs": np.zeros(1, np.int32),
                     "line_style": np.zeros(0, np.int32), "line_area": [], "line_styles": styles}
@@ -276,9 +283,20 @@ class SceneBuilder:
         coords[1::2] = cy - r * py[keep]
         first_point = np.searchsorted(run_of[keep], run_ids)
         line_of_run = which[keep][first_point]
-        area = [feats[idx[k]][0] for k in line_of_run.tolist()]
-        return {"line_coords": coords, "line_runs": np.concatenate([[0], np.cumsum(counts)]).astype(np.int32),
-                "line_style": np.array([1 if highlight and a == highlight else 0 for a in area], np.int32),
+        found = [feats[idx[k]] for k in line_of_run.tolist()]
+        area = [f[0] for f in found]
+        style = np.array([HIGHLIGHT_LINE_STYLE if highlight and f[0] == highlight
+                          else SPECIAL_LINE_STYLE if f[3] in special_layers else LINE_STYLE for f in found], np.int32)
+        runs = np.concatenate([[0], np.cumsum(counts)]).astype(np.int32)
+        # Plain lines first, then the special lines, then the highlighted line, so each is on top.
+        order = np.argsort(np.array([LINE_DRAW_ORDER[s] for s in style.tolist()], np.intp), kind="stable")
+        if len(order) and (order != np.arange(len(order))).any():
+            pieces = [coords[2 * runs[k]:2 * runs[k + 1]] for k in order.tolist()]
+            coords = np.concatenate(pieces).astype(np.float32)
+            runs = np.concatenate([[0], np.cumsum(counts[order])]).astype(np.int32)
+            style = style[order]
+            area = [area[k] for k in order.tolist()]
+        return {"line_coords": coords, "line_runs": runs, "line_style": style,
                 "line_area": area, "line_styles": styles}
 
     def _markers(self, view, width, height, cx, cy, r, dots, idx, feats, highlight) -> dict:
@@ -340,12 +358,17 @@ class SceneBuilder:
             seam |= hidden & hidden[nxt] & ~is_last
 
         # Drop the closing point of every ring, then points in the same half pixel as the one before.
+        # A point where a seam starts or ends is always kept: dropped, the long edge along a pack
+        # tile edge would take the mark of the short real edge before it and be outlined, as the
+        # straight line along 45 degrees north across France was (P2-T17v, AD-17).
         keep = ~is_last
         if n_pts:
             qx, qy = np.round(sx * SNAP), np.round(sy * SNAP)
             same = np.zeros(n_pts, bool)
             same[1:] = (qx[1:] == qx[:-1]) & (qy[1:] == qy[:-1])
-            keep &= is_first | ~same
+            turn = np.zeros(n_pts, bool)
+            turn[1:] = seam[1:] != seam[:-1]
+            keep &= is_first | ~same | turn
         kept_counts = np.bincount(ring_of_point[keep], minlength=n_rings).astype(np.intp)
 
         # Cull rings that are off the map, and polygons whose outer ring is too small.

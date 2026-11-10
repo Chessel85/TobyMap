@@ -107,6 +107,26 @@ def box_centre(bbox) -> tuple[float, float]:
     return (south + north) / 2.0, geodesy.wrap_lon((west + east) / 2.0)
 
 
+# The types of water feature that the outline setting leaves out (P2-T17v, VIS-1). The oceans
+# are the top of the water hierarchy (the VLIZ ocean regions, P3-T1b); seas, bays and straits
+# are below them. A record's type is set by the pack build.
+OCEAN_TYPES = frozenset({"ocean"})
+SEA_TYPES = OCEAN_TYPES | {"sea", "bay", "strait"}
+
+
+def outlined(record: dict, setting: str) -> bool:
+    """Whether the current area is outlined on the map, as the setting "Outline the current
+    area" chooses: always, not_oceans, not_water (never for oceans and seas) or never."""
+    kind = record.get("type")
+    if setting == "never":
+        return False
+    if setting == "not_oceans":
+        return kind not in OCEAN_TYPES
+    if setting == "not_water":
+        return kind not in SEA_TYPES
+    return True
+
+
 class MapSession:
     def __init__(self, platform: str = "desktop", packs=None, store=None, settings: dict | None = None,
                  saved_state: dict | None = None, clock=time.perf_counter, start_at: str | None = None):
@@ -416,7 +436,7 @@ class MapSession:
         if self._scene is None:
             self._scene = scene_mod.SceneBuilder(self.store)
         areas = self.areas
-        current = areas[0].id if areas else None
+        current = areas[0].id if areas and outlined(areas[0].record, self.settings["outline_current"]) else None
         # A copy of the place: on the desktop the map is drawn in a thread of its
         # own while the held key steps on (P2-T14).
         v = self.settings
@@ -427,7 +447,9 @@ class MapSession:
                                   interval=self._interval(), theme=self.theme(), isolate=self.isolated,
                                   # Names are left out while a key is held, and drawn on the release.
                                   names=v["map_names"] and self.holding is None,
-                                  label_scale=v["label_size"] / 100.0, heading_up=v["heading_up"])
+                                  label_scale=v["label_size"] / 100.0, heading_up=v["heading_up"],
+                                  special_layers=frozenset(layer.id for layer in self.layers.layers()
+                                                           if layer.line_style == "special"))
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
 

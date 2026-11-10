@@ -193,3 +193,31 @@ def test_the_heading_arrow_turns_with_the_way_you_face(test_pack):
     assert f["heading"]["degrees"] == 47 and (f["heading"]["x"], f["heading"]["y"]) == (400, 300)
     s.run("orientation.cycle")   # north-fixed again: the arrow points up
     assert s.scene(800, 600)["heading"]["degrees"] == 0
+
+
+def test_an_edge_along_a_tile_edge_stays_a_seam_when_the_point_before_it_is_merged():
+    """P2-T17v: the straight line along 45 degrees north across France. A real edge less than
+    a pixel long ends on a pack tile edge, and the long edge along the tile edge follows. The
+    end of the short edge is merged away, as it is in the same pixel, but the long edge must
+    still be a seam, never outlined (AD-17)."""
+    from types import SimpleNamespace
+
+    builder = scene_mod.SceneBuilder(store=None, theme=globe.load_theme())
+    view = globe.View(lat=45.0, lon=5.0, scale=1.0, up=0.0)
+    width = height = 800
+    r = globe._radius(view, width, height)
+    # Inside, then a hair short of the tile's north edge, then on it, along it, and back.
+    ring = [(2.0, 45.0), (2.00001, 49.99999), (2.00002, 50.0), (8.0, 50.0), (8.0, 45.0), (2.0, 45.0)]
+    xy = np.array(ring, float)
+    frame = builder._frame(view, width, height, width / 2, height / 2, r, xy,
+                           np.array([0, len(ring)], np.intp), np.array([0, 1], np.intp),
+                           np.array([0], np.intp), [("a", 1, 1, "countries", None, None, "A")],
+                           np.array([[0.0, 40.0, 10.0, 50.0]]), None, None)
+    pts = np.asarray(frame["coords"]).reshape(-1, 2)
+    seam = np.asarray(frame["seam"], bool)
+    n = len(pts)
+    long_unmarked = [k for k in range(n)
+                     if not seam[k] and abs(pts[k][1] - pts[(k + 1) % n][1]) < 3
+                     and abs(pts[k][0] - pts[(k + 1) % n][0]) > 20 and min(pts[k][1], pts[(k + 1) % n][1]) < height / 2 - 20]
+    assert not long_unmarked, "the edge along the tile's north edge would be outlined"
+    assert seam.any()

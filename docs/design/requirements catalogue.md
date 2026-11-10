@@ -1029,6 +1029,8 @@ The high level requirements document stays the product owner's own statement of 
   * Every non-visual move updates the visual map within 100 ms (proposed).
   * After every move, the location is at the centre of the map.
   * A small plus-shaped cross marks the exact centre, so a sighted helper can see the precise point. It is on by default and can be switched off (DP73).
+  * The current area is outlined as the setting "Outline the current area" chooses: always (at first), not for the oceans, never for oceans and seas, or never. An ocean's outline can run across open water, such as the North Atlantic's edge from Norway to Iceland (PO, 10 November 2026, P2-T17v).
+  * The special lines (the equator, the prime meridian, the tropics, the polar circles and the date line) are drawn thicker than the other lines and in a colour of their own, in every theme (P2-T17v, DAT-13).
 
 ### VIS-2 Themes and isolation
 * Outcome: A partially sighted user can choose a high contrast or colour-blind safe theme, show or hide layers, and isolate a single feature.

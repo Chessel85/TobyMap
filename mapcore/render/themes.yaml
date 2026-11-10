@@ -30,6 +30,8 @@ standard:
   cross_halo: "#ffffff"
   line: "#2e4a62"              # line features, such as the graticule (P2-T10a)
   line_width: 1
+  special_line: "#6a1b9a"         # the equator, prime meridian, tropics, polar circles and date line (P2-T17v)
+  special_line_width: 2.5
   marker: "#7a1f1f"            # point features, such as a railway station
   marker_outline: "#ffffff"
   marker_radius: 4
@@ -61,6 +63,8 @@ high_contrast_dark:
   cross_halo: "#000000"
   line: "#00ffff"
   line_width: 1.5
+  special_line: "#66ff66"
+  special_line_width: 3
   marker: "#ffffff"
   marker_outline: "#000000"
   marker_radius: 5
@@ -92,6 +96,8 @@ high_contrast_light:
   cross_halo: "#ffffff"
   line: "#003300"
   line_width: 1.5
+  special_line: "#8b0000"
+  special_line_width: 3
   marker: "#000000"
   marker_outline: "#ffffff"
   marker_radius: 5
@@ -125,6 +131,8 @@ colour_blind_safe:
   cross_halo: "#ffffff"
   line: "#000000"
   line_width: 1
+  special_line: "#5b1f8a"
+  special_line_width: 3
   marker: "#000000"
   marker_outline: "#ffffff"
   marker_radius: 4

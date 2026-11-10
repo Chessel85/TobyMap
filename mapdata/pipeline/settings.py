@@ -133,7 +133,7 @@ def load_sources(config_dir: Path = CONFIG_DIR) -> dict[str, Source]:
 # layer (SCP-7, mapcore/layers/catalogue.py). These are written into the pack, and
 # only the write stage depends on them, so changing them does not build the areas again.
 SHOWN_FIELDS = ("group", "geometry", "switched_on", "min_zoom_m", "max_zoom_m", "min_size", "crossing_earcon",
-                "crossing_earcons", "sound")
+                "crossing_earcons", "sound", "line_style")
 GEOMETRIES = ("area", "line", "point")
 
 
@@ -177,6 +177,8 @@ def _check_shown(item: dict, path: Path) -> tuple:
         raise BuildStopped(f"{name} has min_zoom_m larger than max_zoom_m. The minimum zoom, the closest, comes first.")
     from mapcore.describe import earcon_list
 
+    if item.get("line_style", "plain") not in ("plain", "special"):
+        raise BuildStopped(f"{name} has line_style: {item['line_style']}; use plain or special.")
     events = [e["event"] for e in earcon_list()]
     by_type = item.get("crossing_earcons")
     if by_type is not None and (not isinstance(by_type, dict) or not all(isinstance(k, str) for k in by_type)):

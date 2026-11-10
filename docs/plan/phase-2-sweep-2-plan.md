@@ -268,6 +268,16 @@ As it had to be treated differently from every other earcon, I took it out of th
 ### P2-T17t The announcement history and a location history (desktop 7.6; ANN-4, NAV-10)
 
 * Opus. Waits for DP158, on the name, what goes in, and places in hidden layers.
+* Done, 10 November 2026, on branch P2-T17t, with your answer to DP158: one list, renamed, holding only places, and the same places that Alt+comma and Alt+full stop go through.
+* Ctrl+Shift+Space now opens the location history. It is in the Map menu, beside Back and Forward, and has left the Speech menu. The key is the same.
+* It lists the places you stopped at, newest first: every step, jump, Go to and click, as Alt+comma has kept them since DP142. Each place is said as the place there, such as "North Atlantic Ocean". Places you went back from come first, then where you are now, as "Here: Ile-de-France, France", chosen as the list opens, then the places before it.
+* Enter on a place goes there as Alt+comma or Alt+full stop would, pressed until you arrive. So no place is added, the list keeps its order, and Alt+full stop comes forward again. This is a change: before, Enter was a jump, which added a place and lost the way forward. Enter on Here says the place again.
+* A place whose areas are all in layers not shown, switched off or outside their zoom range at that place's zoom, is left out of the list, and Alt+comma and Alt+full stop pass over it. It is not deleted: switch the layer on again and it is back. A place with any area in a layer shown stays, named by those areas only.
+* Nothing else is kept. Messages such as "Beacon on." are not in any list now. Shift+Space still repeats the last thing said, including a spoken label from Hear its direction.
+* Documents: requirements catalogue version 0.14 (NAV-10 is now the location history, ANN-4 keeps only repeat, SON-3), user experience description version 0.19 (sections 2, 8.5 and 12), the glossary ("Location history" replaces "Position history" and "Announcement history"), the architecture, and the key list. Section 7 of both checklists is rewritten, with new steps 7.7 and 7.8 for a layer switched off, and step 11.7 now uses Shift+Space.
+* To check with NVDA, as only you can: section 7 of both checklists. Also whether "Here:" before where you are is clear, and whether the list should open on Here or on the newest place.
+* Tests: 7 new core tests, and each failed on the old code. 1 new desktop test and 1 new browser test, that the list opens on Here. About 18 older tests were changed from the announcement history to the location history or to Shift+Space. All 1,167 Python tests pass, and the changed browser tests pass in Chromium and Firefox.
+* Not caused by this task: in some desktop test runs, on main as well as on this branch, Windows stopped the run with a memory fault in the test "a step is announced quickly". Run again, the tests passed. I can look at it separately if you want.
 
 ### P2-T17u A listening test for sound in space and the voice (desktop 11.2, 18; SON-1, SON-2, SON-3, SON-9)
 

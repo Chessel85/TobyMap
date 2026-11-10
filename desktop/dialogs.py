@@ -87,7 +87,7 @@ class TextDialog(QDialog):
 
 
 class ListDialog(QDialog):
-    """A list of lines, one per item, with a Close button: the announcement history (ANN-4)."""
+    """A list of lines, one per item, with a Close button: the location history (NAV-10)."""
 
     def __init__(self, parent, title: str, lines: list[str], close_label: str):
         super().__init__(parent)
@@ -108,12 +108,15 @@ class ListDialog(QDialog):
 
 
 class HistoryDialog(ListDialog):
-    """The announcement history, newest first. Enter on an entry goes back to the place it was said
-    at (ANN-4, DP141); an entry with no place says so and the list stays open. A Help line above
-    the list says what Enter does."""
+    """The location history, newest first, opened on where you are now. Enter on a place goes
+    there (NAV-10, DP158); if the core refuses, it says why and the list stays open. A Help line
+    above the list says what Enter does."""
 
-    def __init__(self, parent, title: str, lines: list[str], close_label: str, help_text: str, go, speak=None):
+    def __init__(self, parent, title: str, lines: list[str], close_label: str, help_text: str, go, speak=None,
+                 current: int = 0):
         super().__init__(parent, title, lines, close_label)
+        if 0 <= current < len(lines):
+            self.list.setCurrentRow(current)
         self._go, self._speak = go, speak
         self.response = None
         self.help = QLabel(help_text)

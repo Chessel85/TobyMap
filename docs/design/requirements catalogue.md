@@ -1,6 +1,14 @@
 # Requirements Catalogue
 
-Version 0.13, 10 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.14, 10 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.14
+
+This change comes from your answer to DP158 (task P2-T17t).
+
+* NAV-10 is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, and a list of them, newest first, with Enter to go to one. A place whose areas are all in layers not shown is left out of the list and passed over.
+* ANN-4 keeps only the repeat key. The list of everything said, the announcement history, is gone.
+* SON-3: a spoken label can be repeated with Shift+Space, as the announcement history is gone.
 
 ## Changes in version 0.13
 
@@ -544,15 +552,18 @@ The high level requirements document stays the product owner's own statement of 
   * A click moves the location and triggers the normal announcement.
   * Hover announcements are off by default and can be switched on.
 
-### NAV-10 Position history
-* Outcome: A user can go back and forward through places they have recently been, like browser back and forward.
-* Source: Proposed
-* Priority: Should. Status: Proposed.
+### NAV-10 Location history
+* Outcome: A user can go back and forward through places they have recently been, like browser back and forward, and pick one from a list.
+* Source: Proposed, DP142, DP158
+* Priority: Should. Status: Agreed.
 * Acceptance criteria:
   * After a jump, "back" returns to the previous position.
   * Every step, jump, Go to and click adds a place; holding an arrow key adds one, where the hold started; going back or forward adds none (DP142).
   * At least the last 1,000 positions are kept.
   * A setting, "Clear the places on start", off at first, starts each run with no places.
+  * The location history lists the same places, newest first, with where you are now marked and chosen as it opens. It holds places only, not other announcements (DP158).
+  * Enter on a place goes there as going back or forward would, adding no place.
+  * A place whose areas are all in layers not shown, switched off or outside their zoom range, is left out of the list, and back and forward pass over it. It is kept, and comes back if the layer is shown again (DP158, DP160).
 
 ### NAV-11 One location, many modes
 * Outcome: All movement modes and orientations share one location, so switching never moves the user.
@@ -659,13 +670,13 @@ The high level requirements document stays the product owner's own statement of 
 * Priority: Must. Status: Proposed.
 * Acceptance criteria: After 10 rapid moves, speech for the earlier moves is interrupted, and the final position is spoken within the latency target in NFR-1.
 
-### ANN-4 Repeat and review
-* Outcome: A user can repeat the last announcement and review recent announcements.
-* Source: Proposed
-* Priority: Must. Status: Proposed.
+### ANN-4 Repeat
+* Outcome: A user can repeat the last announcement.
+* Source: Proposed, DP158
+* Priority: Must. Status: Agreed.
 * Acceptance criteria:
   * A single key repeats the last announcement.
-  * A history list holds at least the last 50 announcements.
+  * There is no list of past announcements. The places you have been are in the location history (NAV-10, DP158).
 
 ### ANN-5 Units and direction formats
 * Outcome: A user can choose how distances and directions are spoken.
@@ -888,7 +899,7 @@ The high level requirements document stays the product owner's own statement of 
 * Priority: Should. Status: Agreed. The defaults below are the architect's decision under DP46 and remain open to change.
 * Acceptance criteria:
   * The label is spoken by a voice built into the application, rendered into the spatial audio. The screen reader's voice cannot be positioned in space.
-  * By default, the screen reader does not speak the label as well, so the user does not hear it twice. The label is added to the announcement history (ANN-4). Where the screen reader allows Braille-only output, as NVDA does on the desktop, the label is also sent to the Braille display.
+  * By default, the screen reader does not speak the label as well, so the user does not hear it twice. Shift+Space repeats the label (ANN-4). Where the screen reader allows Braille-only output, as NVDA does on the desktop, the label is also sent to the Braille display.
   * A setting, "also speak spatial labels through the screen reader", is off by default.
   * The built-in voice's speed and volume can be set separately from the screen reader's.
 

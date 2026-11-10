@@ -109,12 +109,13 @@ def test_it_fades_near_the_pole(session):
 
 def test_50_km_from_the_pole_it_is_silent_and_told_once(session):
     session.run("beacon.toggle")
-    session.run("goto.set", text="89.55, 0")             # about 50 km from the North Pole
+    r = session.run("goto.set", text="89.55, 0")         # about 50 km from the North Pole
+    told = [a["text"] for a in r.announcements]
     r = session.run("where.am_i")
     assert r.beacon["on"] and r.beacon["placed"] is None
-    assert len([h for h in session.history if "Beacon off near the North Pole." in h]) == 1
-    session.run("where.am_i")
-    assert len([h for h in session.history if "Beacon off near the North Pole." in h]) == 1
+    told += [a["text"] for a in r.announcements]
+    told += [a["text"] for a in session.run("where.am_i").announcements]
+    assert len([t for t in told if "Beacon off near the North Pole." in t]) == 1
 
 
 def test_it_comes_back_further_away_and_says_so(session):

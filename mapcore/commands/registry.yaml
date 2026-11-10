@@ -60,6 +60,8 @@ commands:
   - {name: goto.coordinates, label: Go to coordinates, key: Ctrl+G, region: global, menu: Map}
   - {name: history.back, label: Back to the previous place, key: "Alt+,", region: map, menu: Map}
   - {name: history.forward, label: Forward to the next place, key: "Alt+.", region: map, menu: Map}
+  # The location history: the same places as a list (NAV-10, DP158).
+  - {name: history.list, label: Location history, key: Ctrl+Shift+Space, region: global, menu: Map}
   # The layers list (SCP-6, SCP-7).
   - {name: layers.open, label: Layers, key: Ctrl+Shift+L, region: global, menu: Map}
   # Themes and isolate (VIS-2): your keys, from the key list. Escape is kept for the screen reader and the browser.
@@ -86,7 +88,6 @@ commands:
   - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
   - {name: speech.repeat, label: Repeat the last announcement, key: Shift+Space, region: global, menu: Speech}
-  - {name: speech.history, label: Announcement history, key: Ctrl+Shift+Space, region: global, menu: Speech}
   - {name: sound.mute, label: Mute all sound, key: Ctrl+M, region: global, menu: Speech, toggle: true}
   # The verbosity presets (ACC-5, DP144): your key, from the key list.
   - {name: verbosity.next, label: Next verbosity preset, key: A, region: map, menu: Speech}
@@ -119,4 +120,4 @@ commands:
   - {name: layers.check, label: Check a layer's zoom range, key: "", region: global, menu: "", pointer: true}
   - {name: bearing.set, label: Face the typed bearing, key: "", region: map, menu: "", pointer: true}
   - {name: goto.set, label: Go to the typed coordinates, key: "", region: map, menu: "", pointer: true}
-  - {name: history.go, label: Go to the place of an announcement history entry, key: "", region: global, menu: "", pointer: true}
+  - {name: history.go, label: Go to a place in the location history, key: "", region: global, menu: "", pointer: true}

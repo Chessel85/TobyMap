@@ -329,9 +329,10 @@ def test_history_repeat_and_the_key_describer(app):
     app.keyboard.press("Shift+Space")          # repeat (P2-T0c, your key)
     wait_said(app, 2)
     assert said(app)[-1] == "Kent, England, United Kingdom"
-    app.keyboard.press("Control+Shift+Space")
+    app.keyboard.press("Control+Shift+Space")  # the location history (DP158)
     app.wait_for_function("document.getElementById('dialog').open")
-    assert app.eval_on_selector("#history-list option", "o => o.textContent") == "Kent, England, United Kingdom"
+    assert app.eval_on_selector("#history-list option", "o => o.textContent") == "Here: Kent, England, United Kingdom"
+    assert app.get_attribute("#history-list", "aria-label") == "Location history"
     app.click("#dialog-close")
     app.keyboard.press("Shift+F1")
     wait_said(app, 3)
@@ -574,7 +575,7 @@ def test_after_enter_in_the_history_the_map_has_that_place_as_its_name_when_focu
     app.evaluate(LABEL_ON_FOCUS)
     app.keyboard.press("Control+Shift+Space")
     app.wait_for_function("document.getElementById('dialog').open")
-    app.keyboard.press("ArrowDown")          # the zoom entry, said at Kent
+    app.keyboard.press("ArrowDown")          # from Here to Kent, where the jump was made
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('dialog').open")
     app.wait_for_function("window.labelsOnFocus.length > 0")
@@ -582,9 +583,7 @@ def test_after_enter_in_the_history_the_map_has_that_place_as_its_name_when_focu
     assert len(said(app)) == 1                # the zoom: the place is not spoken as well (P2-T17c)
 
 
-def test_enter_in_the_announcement_history_goes_back_there(app):
-    app.keyboard.press("PageUp")
-    wait_said(app, 1)
+def test_enter_in_the_location_history_goes_back_there(app):
     app.keyboard.press("Control+g")
     app.wait_for_function("document.getElementById('inputdialog').open")
     app.fill("#input-field", "10, 10")
@@ -592,23 +591,27 @@ def test_enter_in_the_announcement_history_goes_back_there(app):
     app.wait_for_function("!document.getElementById('inputdialog').open")
     app.keyboard.press("Control+Shift+Space")
     app.wait_for_function("document.getElementById('dialog').open")
-    app.keyboard.press("ArrowDown")          # the zoom entry, said at Kent
+    app.keyboard.press("ArrowDown")          # from Here to Kent
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('dialog').open")
     assert app.get_attribute("#map", "aria-label") == "Kent, England, United Kingdom"
-    app.keyboard.press("Alt+,")
-    wait_said(app, 2)
+    app.keyboard.press("Alt+.")              # as Alt+comma would have: forward comes back (DP158)
+    wait_said(app, 1)
     assert said(app)[-1] != "Kent, England, United Kingdom"
 
 
-def test_enter_on_an_entry_with_no_place_keeps_the_history_open(app):
-    app.keyboard.press("Control+m")          # speaks, but has no place
+def test_the_location_history_opens_on_where_you_are(app):
+    app.keyboard.press("Control+g")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "10, 10")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    app.keyboard.press("Alt+,")
     wait_said(app, 1)
     app.keyboard.press("Control+Shift+Space")
     app.wait_for_function("document.getElementById('dialog').open")
-    app.keyboard.press("Enter")
-    app.wait_for_function("document.getElementById('history-message').textContent === 'No place for this entry.'")
-    assert app.evaluate("document.getElementById('dialog').open")
+    assert app.evaluate("document.getElementById('history-list').selectedIndex") == 1
+    assert app.evaluate("document.activeElement.id") == "history-list"
 
 
 # The layers dialog (P2-T3c; SCP-6, SCP-7) -------------------------------------------------

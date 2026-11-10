@@ -125,7 +125,6 @@ Older documents written before this glossary, such as architecture section 6 and
 * Click: the tick each step makes while a key is held, so you can hear the steps being made (DP129). The clicks keep their own even time, and never wait for the map to be drawn (DP140).
 * Drawing: making one picture of the map. It has three parts: choosing the shapes in view and cutting them to it, projecting them onto the globe in screen pixels, and painting them. The first two are done by the core, the painting by the desktop or the web page.
 * Key describer: a mode, switched on and off with Shift+F1, in which each key you press is described and nothing is carried out.
-* Announcement history: the list of what the application has said, newest first, kept to at least 50 entries (ANN-4).
 * Minimum zoom and maximum zoom: the two ends of a layer's zoom range, set in its settings in the layers list (SCP-7). Zoom is a distance, so the minimum zoom is the closest, the most zoomed in, and the maximum zoom is the farthest. Outside its zoom range, a layer is not drawn and not said, as if it were off (DP160).
 * Crossing sound: the earcon a layer plays when a step crosses one of its lines, such as a line of latitude, or the border of one of its areas, such as a country's border (SCP-7).
 * Hearing range: the distance at which a sound reaches the edge of the view. It is the zoom distance, and the distance curve is measured against it (SON-9).
@@ -133,8 +132,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Orientation: which way you face, and so what "ahead" means for directions and sound. There are three: north-fixed, cardinal facing and free facing (NAV-12). F cycles them.
 * Facing orientations: cardinal facing and free facing together, the two in which you can turn.
 * Message box: a small box that opens over another to tell you something, with one OK button, such as when what you typed in Type a bearing or Go to can't be read. After OK, you are back where you were.
-* Jump: going straight to a place without stepping, such as to typed coordinates, a click on the map, an announcement history entry, or Enter on an Information panel item (NAV-8, INF-10).
-* Position history: the places you were at before each step, jump, Go to and click (a held arrow key is one step, from where the hold started), which Alt+Comma and Alt+Full stop go back and forward through (NAV-10, DP142). Going back or forward adds no place.
+* Jump: going straight to a place without stepping, such as to typed coordinates, a click on the map, or Enter on an Information panel item (NAV-8, INF-10).
+* Location history: the places you stopped at, before each step, jump, Go to and click (a held arrow key is one step, from where the hold started), which Alt+Comma and Alt+Full stop go back and forward through, and Ctrl+Shift+Space lists, newest first (NAV-10, DP142, DP158). Going back or forward, or Enter in the list, adds no place. A place whose areas are all in layers not shown, switched off or outside their zoom range, is left out of the list and passed over by Alt+Comma and Alt+Full stop. It was called the position history. The announcement history, a list of everything said, is gone (DP158).
 * Sound scene: the core's list of the sounds to play, each with its direction relative to ahead, its loudness and its pitch. The desktop and the web version each play it with their own sound player (AD-10).
 * Crossed and passed: the Information panel group that lists what the last move went over or near without stopping on it. It is never spoken by itself; a soft earcon says something was added (ANN-2).
 * Crossed: a line, such as a river, that a move's path went across.

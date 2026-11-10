@@ -429,8 +429,8 @@ function soundsList(d) {
   dialogTitle.after(list, playButton);
 }
 
-// The announcement history: one list, newest first. Enter on an entry goes back to the place it was
-// said at, and closes the list; an entry with no place says so and the list stays (ANN-4, DP141).
+// The location history: one list of places, newest first, opened on where you are now. Enter on a
+// place goes there and closes the list (NAV-10, DP158); if the core refuses, it says why and the list stays.
 function historyList(d) {
   const help = document.createElement("p");
   help.id = "history-help";
@@ -447,7 +447,7 @@ function historyList(d) {
     o.textContent = line;
     list.appendChild(o);
   }
-  list.selectedIndex = 0;
+  list.selectedIndex = d.current || 0;
   const message = document.createElement("p");
   message.id = "history-message";
   message.className = "history";

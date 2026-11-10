@@ -99,16 +99,18 @@ Start with ?at=51.2,1.2, step 25 kilometres. You hear "England, United Kingdom".
 * 6.9 With the setting off, take a few steps and jumps, then reload the page with F5. Alt+Comma goes back through the places from before the reload.
 * 6.10 If your browser takes Alt+Comma or Alt+Full stop for itself, tell me.
 
-## 7. Enter in the announcement history (ANN-4, DP141)
+## 7. The location history (NAV-10, DP158)
 
 Start with ?at=51.2,1.2.
 
 * 7.1 Press Down. You hear "North Atlantic Ocean".
 * 7.2 Press Ctrl+G and go to 48.85, 2.35. You hear "Ile-de-France, France".
-* 7.3 Press Ctrl+Shift+Space. The announcement history opens, newest first, with a line saying what Enter does.
-* 7.4 Move to "North Atlantic Ocean" and press Enter. The history closes and you hear "North Atlantic Ocean", and only that: you are back where it was said.
-* 7.5 Press Alt+Comma. You are back in Paris.
-* 7.6 Open the history again, move to an entry with no place, such as a message from Help, and press Enter. You hear "No place for this entry." and the list stays open. Close it with its Close button.
+* 7.3 Press Ctrl+Shift+Space. The location history opens, with a line saying what Enter does. It holds only places, newest first, and you are on the first: "Here: Ile-de-France, France", then "North Atlantic Ocean", then "England, United Kingdom".
+* 7.4 Move to "North Atlantic Ocean" and press Enter. The history closes and you hear "North Atlantic Ocean", and only that.
+* 7.5 Press Alt+Full stop. You are back in Paris: Enter went back as Alt+Comma does, so the way forward is kept.
+* 7.6 Press Ctrl+Shift+Space again: you are on "Here: Ile-de-France, France". Close it with its Close button.
+* 7.7 Press Ctrl+Shift+L, switch off "Oceans and seas" in the Water group, and press OK. Open the location history: "North Atlantic Ocean" is not in it. Close it, and press Alt+Comma: you hear "England, United Kingdom", passing over the place at sea.
+* 7.8 Switch "Oceans and seas" on again. Open the location history: "North Atlantic Ocean" is back in it. Close it with its Close button.
 
 ## 8. Layers (SCP-6, SCP-7)
 
@@ -153,7 +155,7 @@ Start with ?at=51.2,1.2, zoom 100 kilometres. Use headphones if you can.
 * 11.4 Press F2, then O for cardinal facing, then Right twice to face south. Press Shift+2 and Space on North Atlantic Ocean. It is now ahead of you, at normal pitch, but its words still give a compass direction, such as south: directions in words are from north at first (P2-T17s, DP159). In Settings, Units, tick "In cardinal and free facing, give directions from the way you face" and press OK. Space on North Atlantic Ocean again: its words now give the direction from the way you face, such as "at your north", that is, ahead. Untick the setting again. Press F2, and O until north-fixed.
 * 11.5 Press Shift+1 for Within. On England, press Space. Its sound plays from the centre of England, and the voice says "England" and the distance to that centre.
 * 11.6 On a group heading, such as Within, Space says "Hear its direction works on an item, not on a group."
-* 11.7 Each label is in the announcement history.
+* 11.7 Shift+Space repeats each label.
 * 11.8 A browser cannot send text to Braille without speaking it. So in the web version a label reaches NVDA, and your Braille display, only with "Also speak spatial labels through the screen reader" on, in Settings, Sound tab. It is off at first: Space on an item gives only the Alba voice. Switch it on, and press Space on an item: NVDA speaks the label as well, and it shows on your Braille display. Switch it off again.
 * 11.9 In Settings, Sound tab, set "Spatial voice: speed, in percent" to 500. Press Space on an item: the label is about five times as fast as at 100, at the same pitch. Try 200 and 300 too, then set it as you like it.
 * 11.10 Change "Spatial voice: volume, in percent" and try again: the voice is louder or quieter.

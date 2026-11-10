@@ -184,7 +184,7 @@ def test_space_on_a_nearby_item_plays_its_sound_then_says_its_label_in_the_voice
     assert start == w.spatial.last_end
     assert w.announcer.brailled[-1] == said["text"], "the label goes to Braille"
     assert said["text"] not in w.announcer.texts, "but is not spoken by the screen reader"
-    assert w.session.history[-1] == said["text"]
+    assert w.session.last_spoken == said["text"]   # Shift+Space repeats it
 
 
 def test_with_also_speak_on_the_screen_reader_says_the_label_too(qtbot, test_pack, tmp_path):

@@ -50,8 +50,8 @@ def on_station(page):
     return page.evaluate("window.tobymap.labels[window.tobymap.labels.length - 1]")
 
 
-def test_with_four_threads_a_label_is_placed_with_the_items_sound_and_kept_in_the_history(page, site_url):
-    """Also: the label is kept in the history and not spoken unless asked (one page load, not two)."""
+def test_with_four_threads_a_label_is_placed_with_the_items_sound_and_can_be_repeated(page, site_url):
+    """Also: the label is not spoken unless asked, and Shift+Space repeats it (one page load, not two)."""
     app = open_app(page, site_url, state=STATION_WEST)
     info = voice_ready(app)
     assert info["isolated"] and info["threads"] == min(4, app.evaluate("navigator.hardwareConcurrency"))
@@ -68,9 +68,8 @@ def test_with_four_threads_a_label_is_placed_with_the_items_sound_and_kept_in_th
     print(f"\n{app.context.browser.browser_type.name}, {info['threads']} threads: voice ready in "
           f"{info['load_ms']} ms; each label made in a median of {made[2]} ms, longest {made[-1]} ms; "
           f"the first heard {label['ms']} ms after asking, after the item's sound")
-    app.keyboard.press("Control+Shift+Space")
-    app.wait_for_function("document.querySelector('#dialog[open]')")
-    assert label["text"] in app.evaluate("document.querySelector('#dialog').textContent")
+    app.keyboard.press("Shift+Space")
+    app.wait_for_function("t => window.tobymap.announcements.some(a => a.text === t)", arg=label["text"])
 
 
 def test_with_one_thread_the_voice_still_works(page, site_url):

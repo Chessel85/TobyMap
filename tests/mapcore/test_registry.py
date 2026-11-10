@@ -76,7 +76,7 @@ def test_the_phase_1_keys_are_there():
     for key, name in expected.items():
         assert desktop["map"][key] == name
     for key, name in {"F1": "help.keys", "Shift+F1": "help.describer", "F2": "focus.map", "F3": "focus.panel",
-                      "F4": "focus.details", "Shift+Space": "speech.repeat", "Ctrl+Shift+Space": "speech.history",
+                      "F4": "focus.details", "Shift+Space": "speech.repeat", "Ctrl+Shift+Space": "history.list",
                       "Ctrl+M": "sound.mute", "Ctrl+,": "settings.open"}.items():
         assert desktop["global"][key] == name
     assert registry.keymap("web")["global"]["Ctrl+Alt+M"] == "focus.menu"

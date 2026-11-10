@@ -1,5 +1,6 @@
 """The desktop window, offscreen, with a recording announcer and recording sounds (UX section 2, ACC-1, ACC-7, ANN-3)."""
 import json
+import sys
 import time
 
 import pytest
@@ -389,6 +390,39 @@ def test_a_step_is_announced_quickly(window, qtbot):
         qtbot.keyClick(window.map, Qt.Key.Key_Left)
         times.append((time.perf_counter() - start) * 1000)
     assert sorted(times)[len(times) // 2] < 150   # NFR-1, offscreen, on the small test pack
+
+
+def test_closing_stops_the_crossed_and_passed_search_before_the_store_closes(window, qtbot):
+    """P2-T17w: the window closed the store while the search was still reading it on its own
+    thread, and Windows stopped the program with a memory fault (0xc0000374), seen in CI and in
+    the test above. The search is now told to stop, and is waited for, first."""
+    import threading
+
+    started, store_open, still_searching = threading.Event(), [True], []
+    real_along_path, real_close = window.session.store.along_path, window.session.store.close
+
+    def slow_along_path(*args, cancelled=None, **kw):
+        started.set()
+        for _ in range(200):      # up to 2 seconds, unless told to stop
+            if cancelled is not None and cancelled():
+                break
+            if not store_open[0]:
+                still_searching.append(True)
+            time.sleep(0.01)
+        return real_along_path(*args, cancelled=cancelled, **kw) if store_open[0] else []
+
+    def close():
+        store_open[0] = False
+        real_close()
+
+    window.session.store.along_path = slow_along_path
+    window.session.store.close = close
+    qtbot.keyClick(window.map, Qt.Key.Key_Left)
+    assert started.wait(2)
+    window.close()
+    time.sleep(0.05)
+    assert not still_searching, "the search went on after the store was closed"
+    assert not window._background.thread.is_alive()
 
 
 def test_ctrl_comma_opens_settings_with_ok_and_cancel(window, qtbot):
@@ -918,7 +952,8 @@ def test_a_wrong_entry_opens_a_message_box_and_ok_comes_back_to_the_text(window,
     enter(qtbot, box.field)
     message = box.error_box
     assert message is not None and message.isVisible() and message.isModal()
-    assert message.windowTitle() == title and message.text().startswith(words)
+    # Qt leaves a message box's title empty on macOS, where message boxes have none.
+    assert message.windowTitle() == ("" if sys.platform == "darwin" else title) and message.text().startswith(words)
     assert [b.text() for b in message.buttons()] == ["OK"]
     assert window.announcer.texts[before:] == []   # the screen reader reads the message box itself
     enter(qtbot, message.buttons()[0])

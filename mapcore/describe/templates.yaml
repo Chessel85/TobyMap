@@ -119,8 +119,8 @@ go:
 # The spatial voice (P2-T7, SON-3). Each is said once, by the screen reader.
 voice:
   loading: "The spatial voice is still starting. Try again in a few seconds."
-  missing: "The spatial voice is not installed, so labels are not spoken in space. They still go to Braille and the announcement history."
-  failed: "The spatial voice could not be started, so labels are not spoken in space. They still go to Braille and the announcement history."
+  missing: "The spatial voice is not installed, so labels are not spoken in space. They still go to Braille."
+  failed: "The spatial voice could not be started, so labels are not spoken in space. They still go to Braille."
 
 settings:
   title: Settings
@@ -353,11 +353,12 @@ layers:
   item_on: "{layer}, on"
 
 history:
-  title: Announcement history
-  # Enter on an entry goes back to the place it was said at (ANN-4, NAV-8).
-  help: "Press Enter on an entry to go back to the place it was said at."
-  no_place: "No place for this entry."
-  empty: "Nothing has been announced yet."
+  # The location history: the places you stopped at, which Alt+comma and Alt+full stop go
+  # through, newest first (NAV-10, DP158).
+  title: Location history
+  help: "Newest first. Press Enter on a place to go there. Alt+comma and Alt+full stop go through the same places."
+  here: "Here: {place}"
+  # Shift+Space with nothing said yet (ANN-4).
   nothing_to_repeat: "Nothing to repeat."
 
 nearby:

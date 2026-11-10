@@ -1,4 +1,4 @@
-title: Repeat, history and mute
+title: Repeat and mute
 requirements: [ANN-4, SON-7]
 pack: test
 start: {lat: 51.2, lon: 1.2, zoom_m: 25000, step_m: 25000}

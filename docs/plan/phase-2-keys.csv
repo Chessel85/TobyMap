@@ -17,7 +17,7 @@ Go to the Information panel,anywhere,1,F3,F3,F3,
 Go to Details,anywhere,1,F4,F4,F4,
 Exit,anywhere,1,,,"Alt+F4 on Windows, Cmd+Q on macOS",Only in the desktop version.
 Repeat the last announcement,anywhere,1,Ctrl+Space,Ctrl+Space,Shift+Space,Try it; go back to Ctrl+Space if it gets in the way of typing.
-Announcement history,anywhere,1,Ctrl+Shift+Space,Ctrl+Shift+Space,Ctrl+Shift+Space,
+Location history,anywhere,1,Ctrl+Shift+Space,Ctrl+Shift+Space,Ctrl+Shift+Space,"P2-T17t, DP158. Was the announcement history."
 Mute all sound,anywhere,1,Ctrl+M,Ctrl+M,Ctrl+M,On or off.
 Send a Braille-only message,anywhere,1,,,None,
 Settings,anywhere,1,Ctrl+comma,Ctrl+comma,Ctrl+comma,
@@ -47,9 +47,9 @@ Turn right,the map,2,,Right,Right,P2-T1. As Turn left.
 "Fine turn right, in free facing",the map,2,,Ctrl+Right,Ctrl+Right,"P2-T1. A smaller angle, or a slower rate, than Right."
 Type a bearing,anywhere,2,,A,Ctrl+B,"P2-T1. Bookmarks move to Ctrl+K later, as you decided. From P2-T17k it works from the map, the Information panel and Details, and the focus goes back there."
 Go to coordinates,anywhere,2,,G,Ctrl+G,"P2-T2. Browsers use Ctrl+G for find next; the page takes the key when it has focus. From P2-T17k it works from the map, the Information panel and Details, and the focus goes back there."
-Back through the position history,the map,2,,Backspace,Alt+comma,P2-T2
-Forward through the position history,the map,2,,Shift+Backspace,Alt+full stop,P2-T2
-Go back to a place from the announcement history,the history list,2,,Enter,Enter,P2-T15. In the announcement history.
+Back through the location history,the map,2,,Backspace,Alt+comma,P2-T2
+Forward through the location history,the map,2,,Shift+Backspace,Alt+full stop,P2-T2
+Go to a place in the location history,the location history,2,,Enter,Enter,"P2-T15, P2-T17t. In the location history."
 Layers list,anywhere,2,,Shift+L,control+shift+L,P2-T3
 Orientation beacon on or off,the map,2,,B,B,P2-T9
 Hear its direction,the Information panel,2,,Ctrl+Enter,Space,"DP143, P2-T7. On Nearby and Crossed and passed items. Enter, not Space, jumps to the item."

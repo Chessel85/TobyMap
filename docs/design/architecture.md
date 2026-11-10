@@ -369,9 +369,9 @@ The core Python package is called mapcore. Its modules are:
 * packs: the byte source interface (local file, range requests, browser cache), the pack archive reader, the catalogue, checksums, version checks (PCK-5) and the tile cache.
 * store: the feature store. It answers "what is at this point", "what features of these layers are in this area at this zoom", "get this feature", "get its relations", "get the network near here", "search" and "sample this grid". It merges installed packs using canonical identifiers and tile coverage (AD-13, AD-14).
 * layers: the layer catalogue, combining the pack's layer definitions with the user's own changes (SCP-7), and the visibility rule (NAV-13).
-* world: the world state and the position history (NAV-10).
+* world: the world state. The location history (NAV-10, DP158) is kept by the session.
 * navigation: stepping (NAV-1, NAV-3), hierarchy (NAV-4), network (NAV-5, NAV-6), jumping (NAV-8), driving (NAV-14) and the orientation rules (NAV-11, NAV-12). Each move returns a move result: where it went, the path it followed, and the new heading.
-* describe: change detection (ANN-1), the announcement templates, verbosity (ACC-5), the concise Braille format (ACC-6) and the announcement history (ANN-4).
+* describe: change detection (ANN-1), the announcement templates, verbosity (ACC-5), the concise Braille format (ACC-6) and the last announcement, for Repeat (ANN-4). The location history (NAV-10) is in the session.
 * panel: the Information panel groups (INF-10). Each group is a provider registered in one table, with its name, key, default sort order and whether it is limited to visible features.
 * relations: the relation queries: within, contains, bordering, overlapping, crossing, nearby, distance and bearing, and distance along a line (LOC-3, INF-2 to INF-8, INF-12).
 * search: name matching and the structured query builder (SRB-1 to SRB-4, INF-9).

@@ -56,7 +56,7 @@ def test_start_is_the_map_name_as_focus_arrives_and_map_has_focus(window):
     assert region(window) == "map"
     assert window.map.accessibleName() == "Kent, England, United Kingdom. Press F1 for keys."
     assert window.windowTitle() == "TobyMap"
-    assert window.session.history[0] == "TobyMap. Kent, England, United Kingdom. Press F1 for keys."
+    assert window.session.last_spoken == "TobyMap. Kent, England, United Kingdom. Press F1 for keys."   # Shift+Space
     assert window.tree.accessibleName() == "Information panel"
     assert window.details.accessibleName() == "Details"
 
@@ -167,7 +167,7 @@ def test_space_on_a_group_heading_says_it_works_on_an_item(window, qtbot):
     window.tree.setCurrentItem(within)
     qtbot.keyClick(window.tree, Qt.Key.Key_Space)
     assert window.announcer.texts[-1] == "Hear its direction works on an item, not on a group."
-    assert window.session.history[-1] == "Hear its direction works on an item, not on a group."
+    assert window.session.last_spoken == "Hear its direction works on an item, not on a group."
 
 
 def test_the_panel_keeps_its_items_when_refreshed(window):
@@ -246,11 +246,13 @@ def test_f1_opens_a_dialog_for_the_focused_region_with_a_close_button(window, qt
     assert "Step north or forward" not in click_dialog(window, TextDialog).text.toPlainText()
 
 
-def test_history_dialog_lists_the_announcements_with_a_close_button(window, qtbot):
-    qtbot.keyClick(window.map, Qt.Key.Key_Space)
+def test_the_location_history_lists_the_places_with_a_close_button(window, qtbot):
+    qtbot.keyClick(window.map, Qt.Key.Key_Down)
     qtbot.keyClick(window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
     dialog = click_dialog(window, ListDialog)
-    assert dialog.list.item(0).text() == "Kent, England, United Kingdom"
+    assert dialog.windowTitle() == "Location history" and dialog.list.accessibleName() == "Location history"
+    assert [dialog.list.item(i).text() for i in range(dialog.list.count())] == [
+        "Here: North Atlantic Ocean", "Kent, England, United Kingdom"]
     assert dialog.close_button.text() == "Close"
 
 
@@ -468,7 +470,7 @@ def test_changing_a_key_in_the_keys_tab_warns_when_it_is_taken(window, qtbot):
 
 
 def test_every_dialog_has_a_close_or_cancel_button(window, qtbot):
-    for name in ("help.keys", "help.about", "help.about_data", "help.earcons", "speech.history", "settings.open"):
+    for name in ("help.keys", "help.about", "help.about_data", "help.earcons", "history.list", "settings.open"):
         window.dispatch(name)
         QApplication.processEvents()
         dialogs = [d for d in window.findChildren(TextDialog) + window.findChildren(ListDialog)
@@ -730,29 +732,28 @@ def test_go_to_coordinates_then_back_through_the_places(window, qtbot):
     assert window.session.world.lat == pytest.approx(51.2)
 
 
-def test_enter_in_the_announcement_history_goes_back_there(window, qtbot):
+def test_enter_in_the_location_history_goes_back_there(window, qtbot):
     press(qtbot, window.map, Qt.Key.Key_PageUp)
     zoom = window.session.world.zoom_m
     window.session.run("goto.set", text="52.1, -1.3")
     press(qtbot, window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
     box = click_dialog(window, HistoryDialog)
     assert "Enter" in box.help.text()
-    box.list.setCurrentRow(box.list.count() - 2)
+    box.list.setCurrentRow(box.list.count() - 1)
     qtbot.keyClick(box.list, Qt.Key.Key_Return)
     QApplication.processEvents()
     assert not box.isVisible()
     assert window.session.world.lat == pytest.approx(51.2) and window.session.world.zoom_m == zoom
 
 
-def test_enter_on_an_entry_with_no_place_keeps_the_list_open(window, qtbot):
-    window.session.run("sound.mute")
+def test_the_location_history_opens_on_where_you_are(window, qtbot):
+    """DP158: the list Alt+comma goes through, so after going back the place you came from is above you."""
+    window.session.run("goto.set", text="52.1, -1.3")
+    press(qtbot, window.map, Qt.Key.Key_Comma, Qt.KeyboardModifier.AltModifier)
     press(qtbot, window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
     box = click_dialog(window, HistoryDialog)
-    box.list.setCurrentRow(0)
-    qtbot.keyClick(box.list, Qt.Key.Key_Return)
-    QApplication.processEvents()
-    assert box.isVisible() and box.message.text() == "No place for this entry."
-    assert window.announcer.texts[-1] == "No place for this entry."
+    assert box.list.count() == 2 and box.list.currentRow() == 1
+    assert box.list.currentItem().text() == "Here: Kent, England, United Kingdom"
 
 
 # The layers dialog (P2-T3b; SCP-6, SCP-7, ACC-7) ----------------------------------------
@@ -1021,10 +1022,10 @@ def test_go_to_says_the_new_place_once(window, qtbot):
     assert place != "Kent, England, United Kingdom"
     said_once(window, before, place)
     assert window.announcer.texts[before:] == []
-    assert place in window.session.run("speech.history").dialog["lines"]   # still in the announcement history
+    assert "Here: " + place in window.session.run("history.list").dialog["lines"]   # in the location history
 
 
-def test_enter_in_the_announcement_history_says_the_place_once(window, qtbot):
+def test_enter_in_the_location_history_says_the_place_once(window, qtbot):
     window.dispatch("goto.set", text="52.1, -1.3")
     press(qtbot, window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
     box = click_dialog(window, HistoryDialog)

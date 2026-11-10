@@ -2,9 +2,9 @@
 
 On an item of Nearby or Crossed and passed, Space in the Information panel plays the item's
 sound from its direction and distance, then its name and distance in the spatial voice from
-the same place. The core says how both are heard; it plays nothing. The label goes into the
-announcement history, to Braille without speech on the desktop, and to the screen reader only
-when "also speak spatial labels" is on.
+the same place. The core says how both are heard; it plays nothing. The label is what Shift+Space
+repeats, goes to Braille without speech on the desktop, and to the screen reader only when
+"also speak spatial labels" is on.
 """
 import pytest
 
@@ -85,10 +85,10 @@ def test_facing_the_item_puts_the_label_ahead(session):
     assert abs(r.voice["placed"]["pan"]) < 0.2
 
 
-def test_the_label_goes_into_the_history_and_to_braille_without_speech(session):
+def test_the_label_is_repeated_and_goes_to_braille_without_speech(session):
     r = hear_station(session)
     label = r.voice["text"]
-    assert session.history[-1] == label
+    assert session.last_spoken == label
     assert [a["channel"] for a in r.announcements] == ["braille"]
     assert r.announcements[0]["text"] == label and r.announcements[0]["fallback"] is None
 
@@ -97,7 +97,7 @@ def test_also_speak_sends_the_label_to_the_screen_reader_once(session):
     session.run("settings.set", field="voice_also_speak", value=True)
     r = hear_station(session)
     assert r.announcements == [{"text": r.voice["text"], "channel": "speech", "priority": "polite"}],         "spoken, and so brailled by the screen reader, once"
-    assert session.history.count(r.voice["text"]) == 1
+    assert session.last_spoken == r.voice["text"]
 
 
 def test_the_web_has_no_braille_only_route(test_pack):
@@ -128,11 +128,11 @@ def test_the_voice_goes_up_to_five_times_as_fast(session):
     assert piper_speed(voice["rate"]) * voice["stretch"] == pytest.approx(5.0)
 
 
-def test_muted_nothing_plays_but_the_label_is_kept_in_the_history(session):
+def test_muted_nothing_plays_but_the_label_can_be_repeated(session):
     session.run("sound.mute", on=True)
     r = hear_station(session)
     assert r.voice is None and not r.sounds
-    assert session.history[-1].startswith("Southampton Central, ")
+    assert session.last_spoken.startswith("Southampton Central, ")
 
 
 def test_not_on_an_item_it_says_where_it_works(session):

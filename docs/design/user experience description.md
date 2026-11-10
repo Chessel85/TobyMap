@@ -1,12 +1,20 @@
 # User Experience Description
 
-Version 0.18, 10 November 2026. Section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
+Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.19
+
+Made in P2-T17t, from the answer to DP158.
+
+* Section 12: Ctrl+Shift+Space opens the location history, not the announcement history. It lists the places you stopped at, newest first: the places Alt+Comma and Alt+Full stop go through. Where you are now is marked "Here" and chosen as the list opens. Enter on a place goes there as Alt+Comma or Alt+Full stop would, so no place is added and the way forward is kept.
+* A place whose areas are all in layers not shown, switched off or outside their zoom range, is left out of the list, and Alt+Comma and Alt+Full stop pass over it. It is kept, and comes back when the layer is shown again.
+* Sections 2 and 8.5: what is said is not kept in a list any more. Shift+Space still repeats the last thing said, including a spoken label.
 
 ## Changes in version 0.18
 
@@ -153,11 +161,11 @@ The window has four regions. Tab and Shift+Tab move between the first three, wra
 3. Details. A read-only text panel with the full details of the current feature, or of the item selected in the Information panel. It can be read line by line with the screen reader's normal reading keys.
 4. Menu bar. Contains every command, so nothing depends on remembering keys.
 
-When a dialog closes, the focus comes back to the map, and the screen reader says the map's name as it arrives. That name is what the dialog's answer said, such as "Ile-de-France, France" after Go to, or "Facing 90 degrees." after a bearing. If the answer said nothing, as after Cancel or the layers list, the name is the place as it is now, after the dialog's changes. Either way it is said once, and it still goes into the announcement history (P2-T17c). Leaving the map names it after the place again.
+When a dialog closes, the focus comes back to the map, and the screen reader says the map's name as it arrives. That name is what the dialog's answer said, such as "Ile-de-France, France" after Go to, or "Facing 90 degrees." after a bearing. If the answer said nothing, as after Cancel or the layers list, the name is the place as it is now, after the dialog's changes. Either way it is said once, and Shift+Space repeats it (P2-T17c). Leaving the map names it after the place again.
 
 In the boxes where you type, Type a bearing (Ctrl+B) and Go to coordinates (Ctrl+G), the label is the only text: "Enter a bearing in degrees, or a compass direction:" and "Enter latitude and longitude:". If what you typed can't be read, a message box opens over the box, with one OK button. It names what you typed and says what you can type, such as "hello is not a valid bearing. Enter a value in degrees in the range 0 to 360. Or enter a compass direction such as north or SW." After OK, you are back in the box with your text, all of it chosen, so typing replaces it and End lets you correct it (P2-T17o).
 
-At the start, the same is true. The screen reader says the window's title, TobyMap, as the window appears, then the map's name as the focus arrives on it. That name is the place, then "Press F1 for keys", such as "Kent, England, United Kingdom. Press F1 for keys." It is not spoken as well, as speaking it was cut off by that reading. It goes into the announcement history as "TobyMap. Kent, England, United Kingdom. Press F1 for keys." (P2-T17d). Leaving the map names it after the place.
+At the start, the same is true. The screen reader says the window's title, TobyMap, as the window appears, then the map's name as the focus arrives on it. That name is the place, then "Press F1 for keys", such as "Kent, England, United Kingdom. Press F1 for keys." It is not spoken as well, as speaking it was cut off by that reading. Shift+Space repeats it as "TobyMap. Kent, England, United Kingdom. Press F1 for keys." (P2-T17d). Leaving the map names it after the place.
 
 Lessons from RecallScore apply here: tree items take real focus rather than aria-activedescendant, Escape is never relied on, and all speech goes through one announcement queue.
 
@@ -552,7 +560,7 @@ B switches on the orientation beacon (SON-10). It is a soft repeating sound that
 * Look around (L, SON-4) plays the Nearby list as sound. Nearby (R) gives you the features as a list to read. Look around plays the same features one after another in bearing order, clockwise from ahead, each from its own direction, at most 12 of them. So anything you hear in a scan is also in Nearby in the Information panel. Each feature's name is spoken from the same place as its sound (SON-3, DP39).
 * The spoken names come from a voice built into the application, because a screen reader voice cannot be placed in space (DP46). The defaults are:
   * The screen reader does not also speak the name, so you do not hear everything twice.
-  * The names are added to the announcement history, so they can be reviewed afterwards.
+  * Shift+Space repeats the last name, so it can be heard again.
   * On the desktop with NVDA, the names are also sent to the Braille display without being spoken. A browser has no way to send Braille alone, so in the web version the names reach the screen reader only when the setting below is on.
   * A setting, "also speak spatial labels through the screen reader", is off by default.
   * The built-in voice has its own speed and volume settings.
@@ -663,7 +671,7 @@ Keys changed since version 0.3 (agreed, DP79):
 * Ctrl+Up: start driving. Any movement key stops.
 * Ctrl+Page Up and Ctrl+Page Down: driving speed.
 * G: go to coordinates.
-* Alt+Comma and Alt+Full stop: back and forward through position history: every step, jump, Go to and click (DP142).
+* Alt+Comma and Alt+Full stop: back and forward through the location history: every step, jump, Go to and click (DP142). A place in a layer not shown is passed over (DP158).
 
 ### Where am I
 * Space: where am I.
@@ -671,7 +679,7 @@ Keys changed since version 0.3 (agreed, DP79):
 * Shift+C: plain-language position.
 * H: heading, orientation, movement mode, zoom and step.
 * Shift+Space: repeat the last announcement (Ctrl+Space if Shift+Space gets in the way of typing).
-* Ctrl+Shift+Space: announcement history.
+* Ctrl+Shift+Space: the location history, the places Alt+Comma and Alt+Full stop go through, newest first. Enter goes to a place (DP158).
 
 ### Information panel
 * I: Contains.

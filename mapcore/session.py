@@ -33,15 +33,7 @@ from mapcore.world.state import nearest_index
 DEFAULTS_FILE = Path(__file__).resolve().parent / "defaults.yaml"
 SPEECH, BRAILLE = "speech", "braille"
 ASSERTIVE, POLITE = "assertive", "polite"
-HISTORY_LIMIT = 200  # at least the last 50 (ANN-4)
-PLACE_LIMIT = 1000   # places kept to go back to (NAV-10, DP142)
-# The commands whose announcements belong to a place, so Enter in the announcement
-# history can go back there (ANN-4, DP141). Help, settings and the like have none.
-PLACE_COMMANDS = {"start", "release", "move.north", "move.south", "move.east", "move.west", "zoom.in", "zoom.out",
-                  "step.larger", "step.smaller", "step.link", "where.am_i", "where.coordinates", "where.heading",
-                  "where.visible", "map.click", "map.hover", "map.drag", "orientation.cycle", "orientation.previous", "turn.left",
-                  "turn.right", "turn.fine_left", "turn.fine_right", "bearing.set", "goto.set", "history.back",
-                  "history.forward", "history.go", "layers.set", "panel.hear", "panel.go"}
+PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158)
 REGIONS = ("map", "panel", "details", "menu")
 # Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
 # the times the core gives, so the clicks never wait for the map to be drawn.
@@ -78,7 +70,7 @@ class Response:
     # after says the label waits for the sounds of this response to finish. A newer label
     # stops an older one that is still playing (ANN-3).
     voice: dict | None = None
-    # A spatial label for the announcement history, kept even when muted (ANN-4). Not sent to the shells.
+    # A spatial label, kept for Repeat even when muted (ANN-4). Not sent to the shells.
     label: str | None = None
     # The orientation beacon now (P2-T9, SON-10): {"on", "placed", "interval_s"}, as beacon() gives it.
     # Every command's response has it; None, as in a sound problem's response, means no change. The
@@ -143,10 +135,12 @@ class MapSession:
         self.clock = clock
         self.areas: list = []          # the areas at the last described place, smallest first
         self.last_spoken: str | None = None
-        self.history: list[str] = []
-        self.history_places: list[dict | None] = []   # where each entry was said, or None (DP141)
-        self.back_places: list[dict] = []     # the places before each step or jump, newest last (NAV-10, DP142)
-        self.forward_places: list[dict] = []  # the places went back from, newest last
+        # The location history (NAV-10, DP142, DP158): the places before each step or jump, newest
+        # last, and the places gone back from, newest last. Where you are now sits between them.
+        self.back_places: list[dict] = []
+        self.forward_places: list[dict] = []
+        self._history_rows: list[int] = []   # the open list's rows, as places back (-) or forward (+)
+        self._areas_at: dict[tuple[float, float], list] = {}   # every area at a place in the history
         if saved_state and not self.settings["places_clear_on_start"]:
             jumps = saved_state.get("jumps") or {}
             self.back_places = [p for p in jumps.get("back", []) if self._valid_place(p)][-PLACE_LIMIT:]
@@ -208,7 +202,7 @@ class MapSession:
             "panel.hear": self._hear,
             "panel.go": self._panel_go,
             "speech.repeat": self._repeat,
-            "speech.history": self._history,
+            "history.list": self._history,
             "speech.braille_test": self._braille_test,
             "sound.mute": self._mute,
             "verbosity.next": lambda **a: self._verbosity_step(+1),
@@ -227,8 +221,8 @@ class MapSession:
             "bearing.set": self._bearing_set,
             "goto.coordinates": self._goto_coordinates,
             "goto.set": self._goto_set,
-            "history.back": lambda **a: self._go_through(self.back_places, self.forward_places),
-            "history.forward": lambda **a: self._go_through(self.forward_places, self.back_places),
+            "history.back": lambda **a: self._go_through(-1),
+            "history.forward": lambda **a: self._go_through(+1),
             "history.go": self._history_go,
             "settings.open": self._settings_open,
             "settings.set": self._settings_set,
@@ -715,19 +709,10 @@ class MapSession:
             response.sounds = [s for s in response.sounds if self.earcon_on(s["sound"])]
         spoken = [a["text"] for a in response.announcements if a["channel"] == SPEECH]
         label = response.label
-        if label and label not in spoken:   # a spatial label goes into the history too (ANN-4)
+        if label and label not in spoken:   # a spatial label can be repeated too (ANN-4)
             spoken.append(label)
-        if spoken and name not in ("speech.repeat", "speech.history"):
+        if spoken and name != "speech.repeat":
             self.last_spoken = " ".join(spoken)
-            self.history.append(self.last_spoken)
-            self.history_places.append(self._place_now() if name in PLACE_COMMANDS else None)
-            del self.history[:-HISTORY_LIMIT]
-            del self.history_places[:-HISTORY_LIMIT]
-        elif name == "speech.repeat" and spoken and self.last_spoken:
-            self.history.append(self.last_spoken)
-            self.history_places.append(self.history_places[-1] if self.history_places else None)
-            del self.history[:-HISTORY_LIMIT]
-            del self.history_places[:-HISTORY_LIMIT]
         if started is not None:
             self.trace.append({"command": name, "ms": (self.clock() - started) * 1000, "at": time.time(),
                                "spoken": spoken, "earcons": list(response.earcons)})
@@ -1086,7 +1071,7 @@ class MapSession:
         r.focus = self._focus_back()
         return r
 
-    # Jumping and the position history (NAV-8, NAV-10, DP142) -----------------
+    # Jumping and the location history (NAV-8, NAV-10, DP142, DP158) ----------
 
     @staticmethod
     def _valid_place(p) -> bool:
@@ -1126,14 +1111,48 @@ class MapSession:
         r.panel_stale = r.details_stale = True
         return r.speak(self._place_text(), ASSERTIVE)
 
-    def _go_through(self, source: list, other: list) -> Response:
-        """Back or forward through the places: the zoom and step come back with the place (DP77).
-        Nothing to go to plays the blocked sound."""
-        if not source:
-            return Response().earcon("blocked")
-        other.append(self._place_now())
+    def _history_words(self, place: dict) -> str | None:
+        """What a place in the location history is called: the areas there in the layers shown at
+        its zoom, smallest first. None when there are none, such as when its only areas are in a
+        layer switched off since: then it is left out of the list, and Alt+comma and Alt+full stop
+        pass over it, so you are never offered a place you cannot see (DP158, DP160). It stays in
+        the history, and comes back if the layer is switched on again."""
+        key = (place["lat"], place["lon"])
+        if key not in self._areas_at:
+            if len(self._areas_at) > 4 * PLACE_LIMIT:
+                self._areas_at.clear()
+            self._areas_at[key] = self.store.at(place["lat"], place["lon"])
+        shown = self.visible.shown_layers(place["zoom_m"])
+        areas = [a for a in self._areas_at[key] if a.layer in shown]
+        return describer.place_text(areas, None) if areas else None
+
+    def _history_place(self, offset: int) -> dict:
+        """The place offset places back (-) or forward (+) from where you are now."""
+        if offset < 0:
+            return self.back_places[offset]
+        return self.forward_places[-offset]
+
+    def _go_through(self, direction: int) -> Response:
+        """Alt+comma or Alt+full stop: back or forward to the next place in the location history
+        that is listed in it (DP158). Nothing to go to plays the blocked sound."""
+        source = self.back_places if direction < 0 else self.forward_places
+        for n in range(1, len(source) + 1):
+            if self._history_words(self._history_place(direction * n)) is not None:
+                return self._travel(direction * n)
+        return Response().earcon("blocked")
+
+    def _travel(self, offset: int) -> Response:
+        """Go offset places back (-) or forward (+) through the location history, as that many
+        presses of Alt+comma or Alt+full stop would, places left out of the list included. The
+        zoom and step come back with the place (DP77). No place is added, so the whole history
+        can be gone through again (DP142)."""
+        source, other = (self.back_places, self.forward_places) if offset < 0 else (self.forward_places,
+                                                                                    self.back_places)
+        place = self._place_now()
+        for _ in range(abs(offset)):
+            other.append(place)
+            place = source.pop()
         del other[:-PLACE_LIMIT]
-        place = source.pop()
         self._go_to(place["lat"], place["lon"], place["zoom_m"], place["step_m"])
         self._crossed_clear()
         return self._land(Response(redraw=True, panel_stale=True, details_stale=True, settings_changed=True))
@@ -1315,19 +1334,35 @@ class MapSession:
         return Response().speak(self.last_spoken or say("history.nothing_to_repeat"), ASSERTIVE)
 
     def _history(self, **_a) -> Response:
-        lines = list(reversed(self.history)) or [say("history.empty")]
+        """The location history (NAV-10, DP158): the places you stopped at, the list that Alt+comma
+        and Alt+full stop go through, newest first. Places gone back from come first, then where
+        you are now, chosen as the list opens, then the places before it. A place whose areas are
+        all in layers not shown is left out."""
+        rows, lines = [], []
+        for offset in range(len(self.forward_places), -len(self.back_places) - 1, -1):
+            if offset == 0:
+                areas, why = self._said_at(self.world.lat, self.world.lon)
+                text = say("history.here", place=describer.place_text(areas, why))
+            else:
+                text = self._history_words(self._history_place(offset))
+            if text is not None:
+                rows.append(offset)
+                lines.append(text)
+        self._history_rows = rows
         return Response(dialog={"kind": "history", "title": say("history.title"), "lines": lines,
-                                "text": "\n".join(lines), "help": say("history.help"), "go": "history.go"})
+                                "text": "\n".join(lines), "help": say("history.help"), "go": "history.go",
+                                "current": rows.index(0)})
 
     def _history_go(self, index: int = -1, **_a) -> Response:
-        """Enter on an announcement history entry (listed newest first): go back to the place it
-        was said at, as a jump, so Alt+comma comes back (ANN-4, NAV-8, DP141). An entry with no
-        place says so, and the list stays open."""
-        places = self.history_places[::-1]
-        place = places[index] if 0 <= index < len(places) else None
-        if place is None:
-            return Response(error=say("history.no_place"))
-        return self._land(self._jump(place["lat"], place["lon"], place["zoom_m"], place["step_m"]))
+        """Enter on a row of the location history: go there, as Alt+comma or Alt+full stop
+        pressed until you arrive, so the list keeps its order and you can go on from there
+        (DP158). The row where you are now says the place again."""
+        if not 0 <= index < len(self._history_rows):
+            return Response().earcon("blocked")
+        offset = self._history_rows[index]
+        if offset == 0:
+            return self._land(Response())
+        return self._travel(offset)
 
     def _braille_test(self, **_a) -> Response:
         fallback = say("braille_web") if self.platform == "web" else say("braille_fallback")

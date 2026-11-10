@@ -1,5 +1,5 @@
-"""Typed bearings and coordinates, the position history and Enter in the announcement history
-(P2-T1c, P2-T2, P2-T15; NAV-8, NAV-10, NAV-12, ANN-4, DP141, DP142)."""
+"""Typed bearings and coordinates, and the location history
+(P2-T1c, P2-T2, P2-T15, P2-T17t; NAV-8, NAV-10, NAV-12, DP142, DP158)."""
 import pytest
 
 from mapcore.geo import geodesy
@@ -388,27 +388,81 @@ def test_a_click_counts_as_a_jump(session):
     assert near(session, 51.2, 1.2)
 
 
-# Enter in the announcement history ----------------------------------------------------
+# The location history (NAV-10, DP158) ------------------------------------------------
 
-def test_enter_on_a_history_entry_goes_back_to_its_place_and_zoom(session):
-    session.press("Page Up")                        # said at Kent, at the wider zoom
-    zoom = session.world.zoom_m
-    session.run("goto.set", text="52.1, -1.3")
-    session.press("Page Up")                        # said at the new place, wider still
+def walk_to_france(session):
+    """Kent, two places at sea, then France: four places, each in the oceans layer or not."""
+    for key in ("Down", "Right", "Right"):
+        session.press(key)
+
+
+def test_the_location_history_lists_the_places_newest_first_and_opens_on_here(session):
+    walk_to_france(session)
+    session.press("Alt+,")                          # back to sea: France is now a place forward
     r = session.press("Ctrl+Shift+Space")
-    assert r.dialog["go"] == "history.go" and "Enter" in r.dialog["help"]
-    assert len(r.dialog["lines"]) == 4              # newest first: the zoom, the jump, the first zoom, the start
-    go = session.run("history.go", index=2)
+    d = r.dialog
+    assert d["kind"] == "history" and d["title"] == "Location history" and d["go"] == "history.go"
+    assert d["help"] == ("Newest first. Press Enter on a place to go there. "
+                         "Alt+comma and Alt+full stop go through the same places.")
+    assert d["lines"] == ["Pas-de-Calais, Hauts-de-France, France", "Here: North Atlantic Ocean",
+                          "North Atlantic Ocean", "Kent, England, United Kingdom"]
+    assert d["current"] == 1
+
+
+def test_only_places_go_into_it_not_other_announcements(session):
+    for command in ("where.heading", "sound.mute", "sound.mute", "beacon.toggle", "where.am_i"):
+        session.run(command)
+    assert session.run("history.list").dialog["lines"] == ["Here: Kent, England, United Kingdom"]
+    assert not hasattr(session, "history")          # the announcement history is gone (DP158)
+
+
+def test_enter_on_a_place_goes_there_as_alt_comma_would(session):
+    session.press("Page Up")                        # Kent is kept at this zoom by the step after it
+    zoom = session.world.zoom_m
+    walk_to_france(session)
+    lines = session.run("history.list").dialog["lines"]
+    go = session.run("history.go", index=len(lines) - 1)
     assert (session.world.lat, session.world.lon, session.world.zoom_m) == (51.2, 1.2, zoom)
-    assert go.redraw and not go.error
-    session.press("Alt+,")                          # it was a jump, so back comes to where we were
-    assert near(session, 52.1, -1.3)
+    assert spoken(go) == ["Kent, England, United Kingdom"] and go.redraw and not go.error
+    assert len(session.back_places) == 0 and len(session.forward_places) == 3   # no place added
+    d = session.run("history.list").dialog
+    assert d["lines"][-1] == "Here: Kent, England, United Kingdom" and d["current"] == 3
+    session.run("history.go", index=0)              # and forward again, to France
+    assert spoken(session.press("Space")) == ["Pas-de-Calais, Hauts-de-France, France"]
+    assert not session.forward_places
 
 
-def test_an_entry_with_no_place_says_so_and_does_nothing(session):
-    session.run("sound.mute")                       # speaks, but has no place
-    before = (session.world.lat, session.world.lon)
+def test_enter_on_here_says_the_place_and_stays(session):
+    session.press("Down")
+    before = (list(session.back_places), session.world.lat, session.world.lon)
+    session.run("history.list")
     r = session.run("history.go", index=0)
-    assert r.error == "No place for this entry." and not r.redraw and not r.announcements
-    assert (session.world.lat, session.world.lon) == before and not session.back_places
-    assert session.run("history.go", index=50).error == "No place for this entry."
+    assert spoken(r) == ["North Atlantic Ocean"]
+    assert (session.back_places, session.world.lat, session.world.lon) == before
+
+
+def test_a_place_in_a_layer_switched_off_is_left_out_and_passed_over(session):
+    walk_to_france(session)
+    session.run("layers.set", layer="oceans", field="on", value=False)
+    assert session.run("history.list").dialog["lines"] == ["Here: Pas-de-Calais, Hauts-de-France, France",
+                                                           "Kent, England, United Kingdom"]
+    back = session.press("Alt+,")                   # over both places at sea, straight to Kent
+    assert spoken(back) == ["Kent, England, United Kingdom"] and near(session, 51.2, 1.2)
+    assert session.press("Alt+,").earcons == ["blocked"]
+    session.press("Alt+.")                          # and forward, straight to France
+    assert spoken(session.press("Space")) == ["Pas-de-Calais, Hauts-de-France, France"]
+    session.run("layers.set", layer="oceans", field="on", value=True)
+    assert len(session.run("history.list").dialog["lines"]) == 4   # kept, and listed again
+
+
+def test_a_place_outside_its_layers_zoom_range_is_left_out(session):
+    walk_to_france(session)
+    session.run("layers.set", layer="oceans", field="max_zoom_m", value=10_000)   # the places are at 25 km
+    assert "North Atlantic Ocean" not in session.run("history.list").dialog["lines"]
+
+
+def test_a_wrong_row_does_nothing(session):
+    session.press("Down")
+    session.run("history.list")
+    r = session.run("history.go", index=50)
+    assert r.earcons == ["blocked"] and not r.announcements and not r.error

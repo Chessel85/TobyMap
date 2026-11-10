@@ -270,7 +270,7 @@ class MainWindow(QMainWindow):
         # The start is not spoken: as the window appears, NVDA reads its title and then the map's
         # name, which cut the start off, so "Press F1 for keys" was never heard. The map is named
         # with the rest of the start instead, so it is heard once, in full (P2-T17d, checklist 1.2).
-        # It still goes into the announcement history.
+        # Shift+Space still repeats it.
         self._carry_out_answer([self.session.start()])
         self._said_on_return = []
         self.map.name_at_start()
@@ -587,7 +587,8 @@ class MainWindow(QMainWindow):
         elif kind == "history":
             box = HistoryDialog(self, dialog["title"], dialog["lines"], self.words["close"], dialog["help"],
                                 go=lambda index: self.session.run(dialog["go"], index=index),
-                                speak=lambda text: self.announcer.speak(text, "assertive"))
+                                speak=lambda text: self.announcer.speak(text, "assertive"),
+                                current=dialog.get("current", 0))
             box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
         elif kind == "layers":
             box = LayersDialog(self, dialog, check=lambda low, high: self.session.run(dialog["check"], low=low, high=high),

@@ -46,19 +46,14 @@ def test_unknown_keys_are_left_to_the_shell(session):
     assert session.press("Y") is None
 
 
-def test_history_keeps_at_least_50_and_lists_the_latest_first(session):
-    for _ in range(60):
-        session.run("where.heading")
-    r = session.press("Ctrl+Shift+Space")
-    assert r.dialog["kind"] == "history" and len(r.dialog["lines"]) >= 50
-    session.press("Space")
-    assert session.run("speech.history").dialog["lines"][0] == "Kent, England, United Kingdom"
+def test_ctrl_shift_space_opens_the_location_history(session):
+    r = session.press("Ctrl+Shift+Space")       # DP158: the announcement history is now the location history
+    assert r.dialog["kind"] == "history" and r.dialog["lines"] == ["Here: Kent, England, United Kingdom"]
 
 
-def test_empty_history_and_nothing_to_repeat(test_pack):
+def test_nothing_to_repeat(test_pack):
     s = MapSession(packs=[test_pack], saved_state=dict(KENT))
     assert spoken(s.press("Shift+Space")) == ["Nothing to repeat."]
-    assert s.run("speech.history").dialog["lines"] == ["Nothing has been announced yet."]
 
 
 def test_repeat_says_the_last_announcement_again(session):

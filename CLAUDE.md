@@ -53,7 +53,7 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe -m mapdata build test                         # build a pack from mapdata/config/packs/test.yaml (--workers 3, --away, --wait-for-yes)
 .venv\Scripts\python.exe -m mapdata fetch --pack test                  # fetch every source a pack uses (or a source's key, or list)
 .venv\Scripts\python.exe tools\fetch_vendor.py                         # Pyodide (web) and NVDA Controller Client (desktop), not in git
-.venv\Scripts\python.exe tools\make_key_list.py                                  # make docs/plan/phase-2-keys.csv from the command registry
+.venv\Scripts\python.exe tools\make_key_list.py                                  # make docs/plan/phase-3-keys.csv from the command registry, with clashes noted (--phase 2)
 .venv\Scripts\python.exe tools\time_drawing.py                         # time each part of a drawing on a held key walk (--one-by-one for before P2-T14c, --trial)
 .venv\Scripts\python.exe tools\time_drawing_web.py                     # the same walk in Chromium and Firefox (--one-by-one, --browser)
 .venv\Scripts\python.exe tools\make_voice_samples.py                  # spatial voice samples at each speed and behind, into voices/samples

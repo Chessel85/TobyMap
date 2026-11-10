@@ -9,6 +9,7 @@ exact:
   - Ctrl+L
   - Ctrl+T
   - Ctrl+W
+  - Ctrl+Shift+W      # closes the browser window in Chrome and Firefox; a page cannot stop it
   - Ctrl+N
   - Ctrl+R
   - Ctrl+Tab

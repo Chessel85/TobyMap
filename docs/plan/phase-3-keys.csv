@@ -1,0 +1,85 @@
+Command,Where it works,Phase,Key now,Key proposed,Your key,Notes
+Step north or forward,the map,earlier,Up,Up,,
+Step south or back,the map,earlier,Down,Down,,
+Step west or turn left,the map,earlier,Left,Left,,
+Step east or turn right,the map,earlier,Right,Right,,
+Zoom out,the map,earlier,Page Up,Page Up,,
+Zoom in,the map,earlier,Page Down,Page Down,,
+Larger step,the map,earlier,Shift+Page Up,Shift+Page Up,,
+Smaller step,the map,earlier,Shift+Page Down,Shift+Page Down,,
+Link step to zoom,the map,earlier,S,S,,On or off.
+"Change orientation: north-fixed, cardinal facing, free facing",the map,earlier,O,O,,
+"Change orientation the other way: free facing, cardinal facing, north-fixed",the map,earlier,Shift+O,Shift+O,,
+Large turn left in free facing,the map,earlier,Shift+Left,Shift+Left,,
+Large turn right in free facing,the map,earlier,Shift+Right,Shift+Right,,
+Fine turn left in free facing,the map,earlier,Ctrl+Left,Ctrl+Left,,
+Fine turn right in free facing,the map,earlier,Ctrl+Right,Ctrl+Right,,
+Type a bearing,anywhere,earlier,Ctrl+B,Ctrl+B,,
+Orientation beacon,the map,earlier,B,B,,On or off.
+Go to coordinates,anywhere,earlier,Ctrl+G,Ctrl+G,,
+Back to the previous place,the map,earlier,"Alt+,","Alt+,",,
+Forward to the next place,the map,earlier,Alt+.,Alt+.,,
+Location history,anywhere,earlier,Ctrl+Shift+Space,Ctrl+Shift+Space,,
+Layers,anywhere,earlier,Ctrl+Shift+L,Ctrl+Shift+L,,
+Next theme,the map,earlier,T,T,,
+Previous theme,the map,earlier,Shift+T,Shift+T,,
+Isolate the current area,the map,earlier,Ctrl+I,Ctrl+I,,On or off.
+Reset all settings,anywhere,earlier,,,,
+Where am I,the map,earlier,Space,Space,,
+Coordinates,the map,earlier,C,C,,
+Heading,the map,earlier,H,H,,
+Size of the visible map,the map,earlier,V,V,,
+Go to the map,anywhere,earlier,F2,F2,,
+Go to the Information panel,anywhere,earlier,F3,F3,,
+Go to Details,anywhere,earlier,F4,F4,,
+Go to {group},anywhere,earlier,Shift+number,Shift+number,,
+Hear its direction,the Information panel,earlier,Space,Space,,
+Go there,the Information panel,earlier,Enter,Enter,,
+Exit,anywhere,earlier,,,,Only in the desktop version.
+Repeat the last announcement,anywhere,earlier,Shift+Space,Shift+Space,,
+Mute all sound,anywhere,earlier,Ctrl+M,Ctrl+M,,On or off.
+Next verbosity preset,the map,earlier,A,A,,
+Previous verbosity preset,the map,earlier,Shift+A,Shift+A,,
+Send a Braille-only message,anywhere,earlier,,,,
+Settings,anywhere,earlier,"Ctrl+,","Ctrl+,",,
+Keys for this region,anywhere,earlier,F1,F1,,
+Key describer,anywhere,earlier,Shift+F1,Shift+F1,,On or off.
+About TobyMap,anywhere,earlier,,,,
+About the data,anywhere,earlier,,,,
+The sounds,anywhere,earlier,,,,
+Copy diagnostics,anywhere,earlier,,,,
+Drawing speed,anywhere,earlier,,,,
+Go to the menu bar,anywhere,earlier,Ctrl+Alt+M,Ctrl+Alt+M,,Only in the web version.
+Move the location to a clicked point,the map,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Zoom with the wheel or a pinch,the map,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Turn the globe by dragging,the map,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Describe the point under the mouse,the map,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Select an item in the Information panel,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Change the key of a command,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Play a sound from the list of sounds,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Change a setting,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Change a layer,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Check a layer's zoom range,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Face the typed bearing,the map,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Go to the typed coordinates,the map,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Go to a place in the location history,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Reset all settings once asked,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
+Stepping mode,the map,3,,1,m toggles between step and hierarchy ,"P3-T6. Goes back to stepping from hierarchy mode, without moving."
+Hierarchy mode,the map,3,,2,m toggles between step and hierarchy ,"P3-T6. In hierarchy mode, Up goes to the parent, Down lists what is inside, and Left and Right go to the neighbours, clockwise. No new keys for those."
+Go to Contains,anywhere,3,,Shift+4,Shift+4,"P3-T4. New groups go after the three you know, so Shift+1 to Shift+3 stay as they are (DP156)."
+Go to Bordering,anywhere,3,,Shift+5,Shift+5,P3-T4.
+Go to Overlapping,anywhere,3,,Shift+6,Shift+6,P3-T4.
+Go to Crossing,anywhere,3,,Shift+7,Shift+7,P3-T4.
+Go to Search,anywhere,3,,Shift+8,Shift+8,"P3-T4. The search results, the world tree's lists and the query builder's answers."
+"Next sort order: name, distance, bearing",the Information panel,3,,Ctrl+S,Ctrl+S,P3-T4. Agreed in DP79.
+Previous sort order,the Information panel,3,,Ctrl+Shift+S,Ctrl+Shift+S,P3-T4. New: Shift goes the other way round a list (P2-T17l).
+Bookmark the item,the Information panel,3,,Ctrl+Enter,Ctrl+Enter,"Phase 4, from DP170. Until then it says that bookmarks come in Phase 4."
+Measure to the item or the search result,the map and the Information panel,3,,M,M but really need to know how the feature works in more detail first,P3-T7. You were not sure of this key (DP170); I ask again when P3-T7 is done.
+"Distance to a feature found by search, without moving",the map,3,,Shift+M,shift + M but really need to know how the feature works in more detail first,"P3-T7, INF-8. New, proposed by me."
+Search,anywhere,3,,Ctrl+F,control + F but need to test behaviour in browsers,"P3-T8. In the web version, the page takes Ctrl+F from the browser's own find while TobyMap has focus; the browser tests check this in Chromium and Firefox."
+World tree,the map,3,,W,"W, but need to know more about what this feature is","P3-T9. The design had T, which is now Next theme; W for World. New, proposed by me."
+Open the current feature's Wikipedia article,anywhere,3,,Shift+W,control + shift + W,"P3-T5. New, proposed by me; no key was set in the design."
+List every feature of a kind in the current feature,the map,3,,Ctrl+Shift+F,Ctrl+Shift+F,"P3-T9, SRB-4, such as every lake in Finland. New, proposed by me."
+Query builder,the map,3,,Q,Q,P3-T10.
+Look around,the map,3,,L,L,P3-T11.
+Pack manager,the map,3,,P,P,"P3-T13. On the map only, so P still finds an item by its first letter in the panel."

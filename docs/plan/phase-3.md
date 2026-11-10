@@ -2,13 +2,18 @@
 
 Phase 3 is information, hierarchy and search, with the complete base pack. The tasks are described in "implementation plan.md", section 6, and in detail in phase-3-plan.md, which also raises DP167 to DP174 and splits each task into work items, each labelled Opus or Sonnet. This list shows what is done.
 
-Not started yet. Planned on 10 November 2026, after you accepted Phase 2.
+Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP174. The plan is version 0.2, with your answers.
 
 ## Start of the phase
 
-* [ ] P3-T0a Versions: check for newer PySide6 and Pyodide, and upgrade if every test passes.
-* [ ] P3-T0b The questions left from Phase 2: publishing 0.1.1 (DP110), and DP150. DP167 to DP174 were added to the discussion points file with the plan.
+* [x] P3-T0a Versions: check for newer PySide6 and Pyodide, and upgrade if every test passes. Done on 10 November 2026: PySide6 6.12.0 and Pyodide 314.0.7 are still the latest, so nothing was upgraded.
+* [x] P3-T0b The questions left from Phase 2: publishing 0.1.1 (DP110), and DP150. DP167 to DP174 were added to the discussion points file with the plan. Done on 10 November 2026: you chose no release of 0.1.1, so I ask again at the end of Phase 3; and the web voice's half second before a label felt fine, so DP150 needs no change.
 * [ ] P3-T0c The key list for Phase 3: docs/plan/phase-3-keys.csv, with the clashes marked (T, O).
+  * Made on 10 November 2026 by tools/make_key_list.py, which now takes --phase and writes in the Notes column any proposed key already used where they would meet, or kept by a screen reader or browser (tests/data/forbidden_keys.yaml). 84 lines: 65 commands you have now, and 19 new ones. None of the keys proposed clashes: the world tree is W, as T is the theme, and the new groups are Shift+4 to Shift+8, after the three you know. Waiting for your keys in the "Your key" column.
+  * Your keys arrived on 10 November 2026. Most are as proposed. Changes and notes, each settled with the task that adds the command:
+    * M switches between stepping and hierarchy mode, in place of 1 and 2 (P3-T6). M was also proposed, and kept by you, for measuring (P3-T7), so one of them needs another key: asked when P3-T6 is done.
+    * Ctrl+Shift+W for the Wikipedia article (P3-T5) closes the whole window in Chrome and Firefox, and a page cannot stop it, so it cannot be used in the web version. Ctrl+Shift+W is now in tests/data/forbidden_keys.yaml. Another key asked when P3-T5 is done.
+    * Measuring, distance to a found feature, search in the browsers, and the world tree: you want to know more about each first. Each is explained, and its key confirmed, when its task is done.
 * [ ] P3-T0d Samples for the test pack: Hampshire, the New Forest, Switzerland and its neighbours, the Rhine, the Bay of Biscay, and places with shared names.
 * [ ] P3-T0e The implementation plan, version 0.6.
 * [ ] P3-T0f Four more step sizes, 2.5, 10, 50 and 500 km (DP166).

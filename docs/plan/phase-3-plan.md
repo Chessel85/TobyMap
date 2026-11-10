@@ -1,12 +1,25 @@
 # Phase 3 detailed plan: information, hierarchy and search
 
-Version 0.1, 10 November 2026. Written by Claude Code for the product owner (PO).
+Version 0.2, 10 November 2026. Written by Claude Code for the product owner (PO).
+
+## Changes in version 0.2
+
+These changes come from your answers to DP167 to DP174, 10 November 2026.
+
+* DP167: counties go into the Western Europe trial. The size report (P3-T1a) estimates the world pack's size from it, and what a larger pack would mean for you: start-up time, the time to the first place said, memory, download time and browser storage. Whether counties go into the world build is decided with you after that report.
+* DP168: named seas as recommended.
+* DP169: the thresholds are accepted for the trial. The thresholds for the world build are decided with you after the size report.
+* DP170: no menu of actions on an item. Enter goes there and Space hears its direction, as now; Ctrl+Enter is kept for bookmarking in Phase 4; the Details region is about the current feature, the one on the map, and is reached with F4 or Tab; Shift and a number go to a group, which is about the current feature. Measuring's key is asked when P3-T7 is done. P3-T4e is now only these keys; LOC-4 and INF-10 in the requirements catalogue are changed to match when P3-T4 is done.
+* DP171: the pack manager's test release is a GitHub pre-release.
+* DP172: English and the local name only.
+* DP173: kept as built: a letter first moves, a number first goes to a place. Nothing to change.
+* DP174: the continents as recommended, with Cyprus in Europe, and the continent dividing lines written in the user guide.
 
 This plan turns section 6 of "implementation plan.md" (version 0.5) into the work for each task, P3-T1 to P3-T16, and adds the work carried over from Phase 2 and two tasks from your answer to DP165. It follows the architecture (version 0.10), the requirements catalogue (version 0.15), the user experience description (version 0.20), the Phase 2 report and sweep plans, and your answers up to DP166. The tick list of what is done is docs/plan/phase-3.md.
 
 ## How to read this plan
 
-* "The goal" and "Proposals and questions" are the parts most worth your attention. The questions are new discussion points, DP167 to DP174.
+* "The goal" and "Proposals and questions" are the parts most worth your attention. The questions are discussion points DP167 to DP174, all answered on 10 November 2026; the answers are listed at the top.
 * "Which model does each work item" explains the Opus and Sonnet labels, as in Phase 2.
 * "Order of work" says what is done when, and "Heavy runs" lists every time the laptop will be busy for a long while.
 * Each task has its own level 2 heading, with the same parts in the same order: requirements, what it needs first, its work items, the tests, and when it is done.
@@ -20,8 +33,8 @@ Words follow the glossary. This plan adds nine words to it: tier, continent divi
 The whole world can be explored and questioned at country scale, with the complete base pack:
 
 1. Wherever you are, you hear a name: the country, region and county on land, and the named sea, bay or strait at sea. Continents, mountain ranges, major rivers and lakes, roads, railways, towns and cities are in the pack too.
-2. The Information panel has all its groups: Within, Contains, Bordering, Overlapping, Crossing, Nearby, Crossed and passed, and Search. Every list can be sorted, and every item has the same actions.
-3. D gives the details of any feature, with facts such as population and capital, each with its source and date, and a command opens its Wikipedia article.
+2. The Information panel has all its groups: Within, Contains, Bordering, Overlapping, Crossing, Nearby, Crossed and passed, and Search. Every list can be sorted, and every item works the same way: Enter goes there, Space hears its direction.
+3. The Details region (F4) gives the details of the current feature, with facts such as population and capital, each with its source and date, and a command opens its Wikipedia article.
 4. Hierarchy mode, key 2, moves up from Hampshire to England, the United Kingdom, Europe and the World, down into what an area contains, and across to its neighbours, clockwise.
 5. You can search by name, with accents and small misspellings ignored, and tell apart places with the same name. You can browse the world as a tree, list every feature of a kind in an area, and build a question such as "rivers crossing Germany".
 6. You can measure from where you are to any item or search result, and look around: hear the Nearby group as sound, one item after another.
@@ -29,7 +42,7 @@ The whole world can be explored and questioned at country scale, with the comple
 8. The pack manager installs the base pack from where it is published, checks it, and offers it on first run.
 9. A sighted helper sees a line with the coordinates, zoom and step under the map, and buttons to move.
 
-What Phase 3 does not do: street detail, national parks, land use and points of interest (Phase 4, the Great Britain pack), pins and bookmarks (Phase 4, so the bookmark action waits), network mode and driving (Phase 5), and grid values and the sweep (Phase 6). Unnamed islands are in the base pack only above a size, as DP169 proposes; every island, however small, comes with the regional packs.
+What Phase 3 does not do: street detail, national parks, land use and points of interest (Phase 4, the Great Britain pack), pins and bookmarks (Phase 4, so the bookmark action waits), network mode and driving (Phase 5), and grid values and the sweep (Phase 6). Unnamed islands are in the base pack only above a size (DP169); every island, however small, comes with the regional packs.
 
 ## Which model does each work item
 
@@ -51,11 +64,11 @@ Sonnet is chosen when a work item:
 
 When a Sonnet work item hits something this plan did not foresee, it stops, writes a note in the task list, and the work item is handed to Opus.
 
-In this plan, 65 work items are labelled: 31 Opus and 34 Sonnet. Phase 3 has more Opus work than Phase 2 because most of it is new data and geometry.
+In this plan, 65 work items are labelled: 30 Opus and 35 Sonnet. Phase 3 has more Opus work than Phase 2 because most of it is new data and geometry.
 
 ## Proposals and questions
 
-Each is a new discussion point in the discussion points file. None holds up the start of the phase, but DP167 to DP169 are needed before the world build.
+Each is a discussion point in the discussion points file. You answered all of them on 10 November 2026; "Changes in version 0.2" at the top says what each answer changed. The proposals are kept below as they were asked.
 
 ### DP167: counties in the base pack
 
@@ -159,7 +172,7 @@ You accepted Phase 2 on 10 November. As agreed, I ask whether to publish 0.1.1 a
 9. P3-T18 (controls for sighted users) and P3-T15 (Help).
 10. The installer, the checklists, the phase report, and your acceptance.
 
-Your answers are needed: DP167, DP168, DP169 and DP174 before step 4; DP170 before P3-T4e; DP172 before P3-T12; DP171 before P3-T13's exit check; DP173 whenever suits.
+Every question is answered. Two decisions are still to make with you, after the size report (P3-T1a) and before the world build: whether counties go in (DP167), and the thresholds for the world (DP169).
 
 ## Heavy runs
 
@@ -244,11 +257,11 @@ Every new layer follows the same pattern as the graticule: its layer file in map
 
 Work items:
 
-* P3-T1a The size trial (Opus). A trial pack, mapdata/config/packs/trial-western-europe.yaml, covering Western Europe and the Alps, built with each new layer as it is added. For each layer: its features, points, and its share of the pack in MB, scaled by area to the whole world, and the time each stage took. Written as docs/plan/p3-t1-size-report.md, so you can see where the 250 MB goes before the world build.
+* P3-T1a The size trial (Opus). A trial pack, mapdata/config/packs/trial-western-europe.yaml, covering Western Europe and the Alps, with counties (DP167), built with each new layer as it is added. For each layer: its features, points, and its share of the pack in MB, scaled by area to the whole world, and the time each stage took. Then the estimated size of the world pack, and how far it is from 250 MB. Then what a larger pack means for you, measured on the trial pack and a padded copy of the world's estimated size, on the desktop and in Chromium and Firefox: the start-up time, the time to the first place said, the memory used, the download time at 10 and 50 megabits a second, and the browser storage it needs. Written as docs/plan/p3-t1-size-report.md. You decide with me, from it, whether counties go in and the thresholds for the world build.
 * P3-T1b Named seas, bays and straits (Opus). As DP168 decides. The new sea areas are cut to the land, as the oceans are. A sea that is only a point is a place in the Seas layer, findable by search and Nearby, but not said as where you are (DAT-4). The VLIZ ocean regions stay the top of the water hierarchy.
-* P3-T1c Counties for the whole world (Opus). As DP167 decides. The counties stage runs for every country, writing the counties record as it goes, with "worked out" against each country, and listing every gap it filled in the quality report (DP101). A corrected entry is never overwritten. The trial countries' records from Phase 1 are kept.
-* P3-T1d Islands (Opus). Named islands from OSM, as areas cut to the land polygons, in an Islands layer. Unnamed islands above the size in DP169, called "Unnamed island". An island shared by two countries, such as Märket, is one island in both. Small islands are left out of the wide drawing levels, as now (architecture 6.9).
-* P3-T1e Continents (Opus). As DP174 decides. A stage builds each continent from its countries' land, split along the continent dividing lines in mapdata/config/continents.yaml, with distant parts placed by where they are (DP88). Tested: Russia west of the Urals is in Europe and east in Asia; Istanbul's European side is in Europe; Tenerife is in Africa; there is no land in no continent, and no land in two.
+* P3-T1c Counties for the whole world (Opus). In the trial first (DP167), then in the world build if you agree after the size report. The counties stage runs for every country, writing the counties record as it goes, with "worked out" against each country, and listing every gap it filled in the quality report (DP101). A corrected entry is never overwritten. The trial countries' records from Phase 1 are kept.
+* P3-T1d Islands (Opus). Named islands from OSM, as areas cut to the land polygons, in an Islands layer. Unnamed islands of 1 square kilometre or more (DP169), called "Unnamed island". An island shared by two countries, such as Märket, is one island in both. Small islands are left out of the wide drawing levels, as now (architecture 6.9).
+* P3-T1e Continents (Opus). As DP174: seven continents, Cyprus in Europe. A stage builds each continent from its countries' land, split along the continent dividing lines in mapdata/config/continents.yaml, with distant parts placed by where they are (DP88). Tested: Russia west of the Urals is in Europe and east in Asia; Istanbul's European side is in Europe; Tenerife is in Africa; there is no land in no continent, and no land in two.
 * P3-T1f Mountain ranges, physical regions and peaks (Sonnet). GMBA Mountain Inventory version 2, with its own hierarchy of ranges kept as containment; Natural Earth's physical regions; and peaks as places with their elevation. Tested: a point in the Alps has the Alps in Within (DAT-5).
 * P3-T1g Rivers (Opus). OSM river ways joined into whole rivers by name and Wikidata link, with their direction from source to mouth kept for Phase 5. A river with branches, such as a delta, is one feature with several parts. Checked against Natural Earth's rivers: every Natural Earth river over 500 km has a match. The fall-back, if joining OSM rivers worldwide is too slow or too unreliable, is Natural Earth's rivers with their Wikidata links, and I tell you.
 * P3-T1h Lakes (Sonnet). OSM lakes over the size in DP169, cut where they cross a border, with names, checked against HydroLAKES for missing large lakes. Each lake is in the Water hierarchy, so "where am I" on Lake Geneva says the lake.
@@ -316,7 +329,7 @@ Tests first, on the test pack:
 ## P3-T4 The Information panel
 
 * Requirements: INF-10, INF-2, INF-4, INF-5, INF-6, LOC-3, LOC-4, ANN-7.
-* Needs first: P3-T3 on the test pack; DP170 for P3-T4e.
+* Needs first: P3-T3 on the test pack.
 
 Work items:
 
@@ -324,7 +337,7 @@ Work items:
 * P3-T4b Contains (Sonnet). The types of visible feature inside the current feature, each with a count, such as "Regions 13", and the features of each type below it (INF-4). Only types with something visible. A feature partly inside counts as inside, with no label (DP70).
 * P3-T4c Bordering, Overlapping and Crossing (Sonnet). From the stored relationships: each neighbour with its shared border length, or the distance for one that nearly touches; each overlapping area with its share; each line crossing, or for a line, the areas it passes through in order. Not limited by zoom (DP80).
 * P3-T4d Sorting and typing to jump (Sonnet). Ctrl+S in the panel cycles name, distance and bearing clockwise from ahead, with Within's natural order as its default, and says "Sorted by distance". Typing the start of a name jumps to it, in both shells.
-* P3-T4e The item actions (Opus). As DP170 decides: the actions menu on the Applications key and Shift+F10, D and M on an item, and its own groups in the Search group. Opus, because how NVDA reads a context menu opened from a tree item, and where the focus goes after, must be checked in both shells.
+* P3-T4e The keys on an item (Sonnet). As DP170: no menu of actions. Enter goes there and Space hears its direction, on every item of every group, as now. Ctrl+Enter on an item says "Bookmarks come in Phase 4." until bookmarks are built. Shift and a number go to a group, which is about the current feature, so to see Spain's neighbours you go to Spain first. LOC-4 and INF-10 in the requirements catalogue, and section 6.3 of the user experience description, are changed to say this.
 * P3-T4f The selected item on the map (Sonnet). The item focused in the panel is outlined on the map in the theme's highlight colour, keeping 7 to 1 in the high contrast themes.
 
 Tests first:
@@ -333,7 +346,7 @@ Tests first:
 * With a 5 km zoom, Contains for the United Kingdom lists only what is within 5 km (INF-4).
 * Bordering for Switzerland lists the five, sorted by bearing at first.
 * Each group's default sort, and Ctrl+S's cycle and words, on the desktop and in Chromium and Firefox.
-* Opening Bordering of an item does not move you, and the other groups are unchanged (LOC-4).
+* Enter and Space work on an item of every group; Ctrl+Enter says bookmarks come in Phase 4.
 * A step's time is unchanged with all eight groups (NFR-1).
 
 ## P3-T5 Details and Wikipedia
@@ -343,8 +356,8 @@ Tests first:
 
 Work items:
 
-* P3-T5a The details (Sonnet). D, on the map for the current feature and on a panel item for that item, fills the Details region and says its first line. The details: name and other names, type and tier, area or length, population, capital, elevation, parents, disputed and the source's view, the data source and its licence, each fact with its source and date. All words from the templates. Every answer says which feature it is about (LOC-4).
-* P3-T5b Open in Wikipedia (Sonnet). A command, in the Details region and the actions menu, opens the article in your browser: the desktop through Qt, the web version in a new browser tab. With no article, it says "No Wikipedia article for France." Tests check the address asked for, without opening anything (rule 5).
+* P3-T5a The details (Sonnet). The Details region, reached with F4 or Tab, is about the current feature, the one on the map (DP170), and is filled when you go there. The details: name and other names, type and tier, area or length, population, capital, elevation, parents, disputed and the source's view, the data source and its licence, each fact with its source and date. All words from the templates. Every answer says which feature it is about (LOC-4).
+* P3-T5b Open in Wikipedia (Sonnet). A command in the Details region opens the article in your browser: the desktop through Qt, the web version in a new browser tab. With no article, it says "No Wikipedia article for France." Tests check the address asked for, without opening anything (rule 5).
 
 Tests first: France's details include area, population and capital (INF-1); a disputed area's details name its source; a feature from a CC-BY source names it.
 
@@ -373,11 +386,11 @@ Tests first, on the test pack:
 ## P3-T7 Measuring
 
 * Requirements: INF-3, INF-8.
-* Needs first: P3-T4e; the search part needs P3-T8b.
+* Needs first: P3-T4; the search part needs P3-T8b.
 
 Work items:
 
-* P3-T7a (Sonnet). M measures from where you are to the item focused in the panel, or to a search result: the distance along the ellipsoid and the bearing in your format, to the nearest point by default or to the centre if you choose in the Units tab. Inside an area, measuring to it gives the distance to its border (INF-3). "Distance to…" in the actions menu opens search and measures to the result without moving (INF-8). Both shells.
+* P3-T7a (Sonnet). Its key is asked of you first, as DP170 said. It measures from where you are to the item focused in the panel, or to a search result: the distance along the ellipsoid and the bearing in your format, to the nearest point by default or to the centre if you choose in the Units tab. Inside an area, measuring to it gives the distance to its border (INF-3). "Distance to", a command, opens search and measures to the result without moving (INF-8). Both shells.
 
 Tests first: central London to central Paris is 344 km plus or minus 1, bearing 148 degrees plus or minus 1 (INF-3); measuring to Tokyo from search does not move you (INF-8); in Kent, measuring to Kent gives the distance to its border.
 
@@ -388,7 +401,7 @@ Tests first: central London to central Paris is 344 km plus or minus 1, bearing 
 
 Work items:
 
-* P3-T8a The search index in the pipeline (Opus). Every name in every language kept (DP172), with accents removed and letters in lower case, in groups of three letters for small misspellings (architecture 7.9). Each feature has an importance from its population, tier and how many Wikipedia languages have it, and a description that tells it apart from others of the same name, such as "Paris, Île-de-France, France". The index is in search records, read only for the first three letters typed, so a search never reads the whole index. Offsets are np.intp, as NumPy in Pyodide is 32-bit.
+* P3-T8a The search index in the pipeline (Opus). The English name, the local name and the other names OSM gives in those two (DP172), with accents removed and letters in lower case, in groups of three letters for small misspellings (architecture 7.9). Each feature has an importance from its population, tier and how many Wikipedia languages have it, and a description that tells it apart from others of the same name, such as "Paris, Île-de-France, France". The index is in search records, read only for the first three letters typed, so a search never reads the whole index. Offsets are np.intp, as NumPy in Pyodide is 32-bit.
 * P3-T8b Searching in the core (Opus). Matches ranked by how well they match, then importance. Results within 1 second on the desktop (SRB-1); the web figure recorded, and if it is slow, the reasons and a fix. Memory in the browser measured.
 * P3-T8c The search dialog (Sonnet). Ctrl+F opens a search field; results appear in a list below as you type, after a short pause, and Down moves into them. Enter jumps: an area zooms to fit, a place keeps the zoom (NAV-8). The results also go into the Search group. Cancel closes it (ACC-7). Both shells.
 * P3-T8d Narrowing the search (Sonnet). A choice beside the field: everywhere, inside the current feature, near where you are, or one layer (SRB-2).
@@ -409,7 +422,7 @@ Tests first:
 Work items:
 
 * P3-T9a The world tree (Sonnet). The key from your key list opens the world as a tree: World, continents, countries, then their regions and counties, built from the stored containment, read only as each branch is opened. It uses the Information panel's own tree code, so NVDA says the level and position, such as "level 3, 5 of 44" (SRB-3). Enter jumps to the item. Both shells.
-* P3-T9b Browse by category (Sonnet). "List all" in the actions menu of an area, or a command on the map for the current feature: choose a layer, such as Lakes, and every lake in the area goes into the Search group, not limited by zoom (SRB-4).
+* P3-T9b Browse by category (Sonnet). A command, on the map and in the panel, for the current feature: choose a layer, such as Lakes, and every lake in the area goes into the Search group, not limited by zoom (SRB-4).
 
 Tests first: the tree's levels and positions as NVDA would read them, from the core; Europe's countries listed in the tree; "Lakes in Switzerland" lists Lake Geneva.
 
@@ -443,7 +456,7 @@ Tests first: rivers crossing Germany include the Rhine and the Danube; towns wit
 
 Work items:
 
-* P3-T11a The scan (Opus). L plays the Nearby group, in bearing order clockwise from ahead, at most 12 items: each item's layer sound from its direction, then its name and distance in the Alba voice from the same place, then the next. Every item played is in Nearby (SON-4). Any key stops it (P2-T17n). While an item plays, Enter goes to it and D gives its details (INF-10). The core gives the order and each sound's place; each shell plays them one after another on its own sound player. Opus, because it runs in real time against two sound players.
+* P3-T11a The scan (Opus). L plays the Nearby group, in bearing order clockwise from ahead, at most 12 items: each item's layer sound from its direction, then its name and distance in the Alba voice from the same place, then the next. Every item played is in Nearby (SON-4). Any key stops it (P2-T17n). While an item plays, Enter goes to it (INF-10). The core gives the order and each sound's place; each shell plays them one after another on its own sound player. Opus, because it runs in real time against two sound players.
 * P3-T11b Layer sounds (Sonnet). A placeholder sound for each layer that has none, such as water, towns and mountains, so items can be told apart by sound, made by tools/make_placeholder_sounds.py. Each can be changed in the layer's settings (SCP-7). You can send your own.
 
 Tests first: the items played are Nearby's first 12 in bearing order; a key stops the scan; Enter during an item goes to that item; only visible features are played.
@@ -451,14 +464,14 @@ Tests first: the items played are Nearby's first 12 in bearing order; a key stop
 ## P3-T12 Languages of names
 
 * Requirements: ACC-9.
-* Needs first: P3-T8a; DP172.
+* Needs first: P3-T8a.
 
 Work items:
 
-* P3-T12a Names in the core (Sonnet). The setting "Preferred language for names", from the languages the installed packs hold, English at first. Each name is said in that language, else the local name. Everywhere a name is said or shown uses the same function.
+* P3-T12a Names in the core (Sonnet). The packs hold only the English and the local name (DP172). A setting, "Names: English where there is one, or always the local name", English at first. Everywhere a name is said or shown uses the same function.
 * P3-T12b Marking the language (Opus). In the web version, each name has its lang attribute. On the desktop, find out whether NVDA follows a language given by a Qt item, and use it if so; what works is written in Help.
 
-Tests first: with English, Germany is "Germany"; with German, "Deutschland"; a place with no English name is said by its local name; in Chromium and Firefox, names carry their lang attribute.
+Tests first: with English, Germany is "Germany"; with the local name chosen, "Deutschland"; a place with no English name is said by its local name; in Chromium and Firefox, names carry their lang attribute.
 
 ## P3-T13 The pack manager, first version
 
@@ -505,7 +518,7 @@ Tests first: the line says the same as C and H after a step; a button sends its 
 
 Work items:
 
-* P3-T15a The user guide and the key reference (Sonnet). In Help, in both shells: the user guide, covering everything to Phase 3, with headings for each section; the key reference made from the registry, so it is never out of date; the user glossary (UX section 15); and how the continents are divided (DAT-12).
+* P3-T15a The user guide and the key reference (Sonnet). In Help, in both shells: the user guide, covering everything to Phase 3, with headings for each section; the key reference made from the registry, so it is never out of date; the user glossary (UX section 15); and how the continents are divided, with each continent dividing line and where Cyprus and the distant parts of countries go (DAT-12, DP174). Go to's formats, including that a letter first moves and a number first goes to a place (DP173).
 * P3-T15b About data (Sonnet). Every source in the installed packs, with its licence and date, from each pack's manifest (DAT-9).
 
 Tests first: every command in the registry is in the key reference; every source in the base pack is in About data.
@@ -528,7 +541,7 @@ The checklists, docs/checklists/phase-3-desktop.md and phase-3-web.md, are made 
 3. Hierarchy mode from Hampshire up to the World, and down into France.
 4. The neighbours of Switzerland, in hierarchy mode and in Bordering.
 5. Every Information panel group, sorting with Ctrl+S, and typing to jump.
-6. The item actions: details, its own groups, measure, and Wikipedia.
+6. Enter and Space on items of every group, the Details region, measuring, and Wikipedia.
 7. Search: Sao Paulo, Paris, a misspelling, and narrowing to the current area.
 8. The world tree, and listing lakes in a country.
 9. The query builder: rivers crossing Germany.
@@ -549,7 +562,7 @@ A short checklist for a sighted helper covers the special lines, the selected it
 
 ## Risks
 
-* The base pack may not fit 250 MB with counties, roads, towns and names in several languages. The size trial shows this before the world build, and DP167 and DP169 say what goes first. 250 MB is a soft limit, so I ask you before cutting anything you asked for.
+* The base pack may not fit 250 MB with counties, roads and towns. The size trial shows this before the world build, and you decide with me what goes in (DP167, DP169). 250 MB is a soft limit, so I ask you before cutting anything you asked for.
 * The world build reads much more of the planet file and does far more work than before. Each new stage is tried on the trial region first, the build can stop and carry on with the run switch, and a stall watch runs throughout.
 * Joining OSM rivers worldwide is hard: names change, rivers branch and parts are missing. The fall-back is Natural Earth's rivers.
 * Wikidata's query service limits how much each client asks for. The stage asks in small batches, waits when told to, and keeps what it has, so a stopped fetch carries on.

@@ -7,11 +7,16 @@
 // to the first and last item. Typing a letter jumps to the next item starting
 // with it. Enter is the registry's Go there (P2-T17k), as on the desktop, so it does not
 // open or close a group.
+//
+// The layers list uses this tree too (P2-T18b), so its groups open and close as the panel's do.
+// Its items are check boxes: an item given `checked` has aria-checked, and Space or a click
+// ticks or clears it and calls onToggle(id, checked).
 
 export class Tree {
-  constructor(element, onSelect) {
+  constructor(element, onSelect, onToggle = null) {
     this.el = element;
     this.onSelect = onSelect;
+    this.onToggle = onToggle;
     this.current = null;
     this.expanded = new Set();
     this.el.addEventListener("keydown", (e) => this._key(e));
@@ -23,6 +28,7 @@ export class Tree {
       const item = e.target.closest('[role="treeitem"]');
       if (!item) return;
       if (item.hasAttribute("aria-expanded")) this._toggle(item);
+      else if (item.hasAttribute("aria-checked")) this._check(item);
       this._setCurrent(item, true);
       e.stopPropagation();
     });
@@ -58,6 +64,7 @@ export class Tree {
         if (!li) { li = this._item(item.id, item.label, 2, ii + 1, items.length); list.appendChild(li); }
         this._label(li, item.label);
         li.dataset.id = item.id;
+        if (item.checked !== undefined) li.setAttribute("aria-checked", String(!!item.checked));
         li.setAttribute("aria-setsize", String(items.length));
       });
     });
@@ -167,6 +174,12 @@ export class Tree {
     this._expand(item, item.getAttribute("aria-expanded") !== "true");
   }
 
+  _check(item) {
+    const checked = item.getAttribute("aria-checked") !== "true";
+    item.setAttribute("aria-checked", String(checked));
+    if (this.onToggle) this.onToggle(item.dataset.id, checked);
+  }
+
   _key(e) {
     const item = e.target.closest('[role="treeitem"]');
     if (!item || e.ctrlKey || e.altKey || e.metaKey) return;
@@ -186,8 +199,12 @@ export class Tree {
         if (item.getAttribute("aria-expanded") === "true") this._expand(item, false);
         else this._move(item.parentElement.closest('[role="treeitem"]'));
         break;
+      case " ":
+        if (item.hasAttribute("aria-checked")) this._check(item);
+        else handled = false;
+        break;
       default:
-        if (e.key.length === 1 && e.key !== " ") {
+        if (e.key.length === 1) {
           const letter = e.key.toLowerCase();
           const after = visible.slice(i + 1).concat(visible.slice(0, i + 1));
           this._move(after.find((v) => v.firstChild.textContent.toLowerCase().startsWith(letter)));

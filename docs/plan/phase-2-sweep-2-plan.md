@@ -115,6 +115,7 @@ Everything TobyMap says goes in, not only places. For example: "Beacon on.", "Fa
 * Opus. Desktop: collapsing Boundaries leaves a blank line where NVDA says nothing, and collapsing Water too makes NVDA silent. Use what fixed the Information panel's tree (DP135).
 * Web: the groups cannot be collapsed. Make them collapse with Left and Right, as in the Information panel.
 * Both: Space ticks, Enter presses OK.
+* Done, 10 November 2026, as P2-T18b.
 
 ### P2-T17i Layer settings (desktop 8.6; SCP-7)
 
@@ -299,6 +300,70 @@ As it had to be treated differently from every other earcon, I took it out of th
 
 * Opus. Draw the special lines (equator, prime meridian, tropics, polar circles, date line) thicker or in their own colour, in every theme, keeping 7 to 1 in high contrast.
 * Opus. Find the straight horizontal line across France and the thick red line that zigzags and jumps from Sweden to Shetland. My guess for the red line: it is the current outline, drawn round a sea area such as the North Sea, whose edge runs from Shetland to Norway. If so, the current outline of a sea area may need a different look, or none. I will check with screenshots before changing anything.
+
+## Your further notes, 10 November 2026 (P2-T18)
+
+Your notes after testing this sweep, done on branch P2-T18, 10 November 2026. Each is lettered P2-T18a to P2-T18h.
+
+### P2-T18a Space and Enter on a group heading (INF-10, SON-3)
+
+* As you asked, Space and Enter on a group heading in the Information panel now say and do nothing. "Hear its direction works on an item, not on a group." and "Go there works on an item, not on a group." are gone. Right and Left still open and close the group.
+* Both versions, as it is in the core.
+* To check: desktop and web, Space and Enter on Within's heading: silence.
+* Tests: 4 core tests, 2 desktop tests and 1 browser test changed to expect silence.
+
+### P2-T18b The layers list as a tree (P2-T17h; desktop 8.1, web 8.6; SCP-6)
+
+* You had asked for this before, as P2-T17h, and it had not been done. Done now.
+* The cause on the desktop: the layers list used Qt's own tree, which tells screen readers every row's number as if every group were open. With Boundaries closed, moving down to Water was read as "Countries", or as a blank line, and with Water closed too, NVDA lost its place and was silent. The Information panel had the same fault, fixed by its own tree in DP135. The layers list now uses that tree.
+* The panel's tree now also knows about check boxes: each layer says "checked" or "not checked", and Space sends the change at once.
+* While doing this I found that Qt says every tree item can be ticked. Only items with a real check box are now check boxes, so the Information panel's items never say "not checked".
+* Web: the layers list was groups of check boxes that could not be closed. It is now a tree, built with the Information panel's tree code: Up and Down move, Left closes a group or goes up to it, Right opens it, Space ticks, Enter presses OK. Tab goes from the tree to the Settings button and back.
+* To check with NVDA: desktop 8.1 and web 8.6. Close Boundaries with Left, then Down: you hear "Water". Close Water too, then Down and Up: each group is said. Open them again and move through the layers: each says its name and "checked" or "not checked".
+* Tests: 3 new desktop tests (two failed on the old code, reading "Countries" for Water), 1 new browser test, and 1 browser test changed.
+
+### P2-T18c Maximum and minimum zoom swapped (SCP-7)
+
+* As you asked: "Maximum zoom" is now the closest, the smaller number, such as 1 kilometre, and "Minimum zoom" the farthest, such as 500 kilometres. The first box in a layer's settings is now "Maximum zoom".
+* A wrong range says: "The maximum zoom must not be a larger distance than the minimum zoom."
+* What is stored is unchanged, so your layers' ranges are kept.
+* The glossary, the requirements catalogue (version 0.15) and the user experience description (version 0.20) use the new names.
+
+### P2-T18d The first item's direction missing with say current line (INF-10)
+
+* My finding, as your NVDA log was set to debug only after your test: this is the web version. The side panel is at most 420 pixels wide, so a long item wraps onto a second line. Say current line, NVDA+Up, reads only the first line. Within items have "centre" and Crossed and passed items have "crossed" or "passed, closest", so they are longer than Nearby items and more often wrap. The first item was probably the longest.
+* Each item now stays on one line, and the panel scrolls sideways if it must.
+* On the desktop, NVDA+Up reads an item's whole name, which has no line breaks, so the desktop should not do this. If you heard it on the desktop, say so, and I will look again.
+* To check: web 10.4, NVDA+Up on the first item of Within: you hear the direction.
+* Tests: 1 new browser test.
+
+### P2-T18e "100 degrees west, 0 metres north" (INF-3, ANN-2)
+
+* What it was: the graticule's line of longitude at 100 degrees west. At 45 N, 100 W you were standing on it, so it was 0 metres away, and a direction to something 0 metres away means nothing. The same happens in Crossed and passed when a step ends exactly on a line, as it can on the graticule.
+* Now a line you are standing on is not in Nearby, as an area you are in is not.
+* Anything less than a metre away says "here" in place of the distance and direction, such as "Southampton Central, here" after Enter on a station, or "100 degrees west, crossed, here" in Crossed and passed.
+* To check: switch on the graticule, Go to 45, -100: Nearby has no "100 degrees west".
+* Tests: 3 new core tests. Each failed on the old code.
+
+### P2-T18f Browse (SON-8)
+
+* In the Earcons tab, and for the beacon's own file in the Sound tab, the button is now "Browse", and NVDA says only "Browse", as you asked. Before, it said "Choose file for Tick" and the like.
+* Tests: 2 desktop and 2 browser tests changed.
+
+### P2-T18g More places for the beacon (SON-10)
+
+* In Settings, Sound, "Orientation beacon: comes from" now has: The North Pole, The South Pole, The equator at 0 degrees east, The equator at 90 degrees east, The equator at 180 degrees, and The equator at 90 degrees west.
+* Near the place chosen, the beacon fades and goes silent within 100 kilometres, as near the North Pole, and says so with the place's name, such as "Beacon off near the equator at 90 degrees east."
+* To check: choose the South Pole and switch the beacon on in Kent: it comes from behind you in north-fixed.
+* Tests: 1 core test changed and 7 new.
+
+### P2-T18h Reset all settings (PLT-5)
+
+* A new item in the Map menu, "Reset all settings", with no key. It puts back everything as on a new installation on a new computer: every setting, your keys, your layer choices, your own sound files (in the web version, the copies kept in the browser), your place, zoom and step, and the location history.
+* As it cannot be undone, a message box asks first, with Reset and Cancel. Cancel has the focus, so Enter straight away changes nothing. The message suggests Export settings first, to keep them.
+* After Reset, the focus comes back to the map, and you hear "All settings are reset, as on a new installation." and the place.
+* To check: change a setting, then Map, Reset all settings. Cancel first: the setting is kept. Then Reset: it is back to its default, and you are at the start place.
+* Tests: 2 new core tests, 2 new desktop tests and 2 new browser tests.
 
 ## Left for Phase 3
 

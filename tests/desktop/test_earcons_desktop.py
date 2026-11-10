@@ -82,12 +82,12 @@ def test_the_controls_below_the_list_are_for_the_earcon_chosen_in_it(window):
     field = page.file
     assert isinstance(field, SoundFileField)
     assert field.edit.accessibleName() == "Tick: your own sound file"
-    assert field.choose_button.accessibleName() == "Choose file for Tick"
+    assert field.choose_button.accessibleName() == "Browse"
     assert field.default_button.accessibleName() == "Use the default for Tick"
     choose_earcon(page, "Blocked")
     assert page.volume.accessibleName() == "Blocked: volume, in percent"
     assert field.edit.accessibleName() == "Blocked: your own sound file"
-    assert field.choose_button.accessibleName() == "Choose file for Blocked"
+    assert field.choose_button.accessibleName() == "Browse"
     assert field.default_button.accessibleName() == "Use the default for Blocked"
     dialog.cancel_button.click()
 
@@ -150,7 +150,7 @@ def test_the_beacons_own_file_is_in_the_sound_tab(window):
     field = dialog.controls["earcon_beacon"]
     assert isinstance(field, SoundFileField)
     assert field.edit.accessibleName() == "Orientation beacon: your own sound file"
-    assert field.choose_button.accessibleName() == "Choose file for Orientation beacon"
+    assert field.choose_button.accessibleName() == "Browse"
     dialog.cancel_button.click()
 
 

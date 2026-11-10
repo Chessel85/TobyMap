@@ -85,9 +85,35 @@ def test_the_repeat_is_a_setting(session):
     assert session.beacon()["interval_s"] == 2.5
 
 
-def test_the_target_is_the_north_pole_for_now():
+def test_the_target_is_the_north_pole_at_first_or_a_pole_or_the_equator():
+    """P2-T18g: the South Pole and four places on the equator, as the PO asked."""
     field = settings_mod.fields()["beacon_target"]
-    assert field["default"] == "north_pole" and [c[0] for c in field["choices"]] == ["north_pole"]
+    assert field["default"] == "north_pole"
+    assert [c[1] for c in field["choices"]] == [
+        "The North Pole", "The South Pole", "The equator at 0 degrees east", "The equator at 90 degrees east",
+        "The equator at 180 degrees", "The equator at 90 degrees west"]
+
+
+@pytest.mark.parametrize("target, lat, lon, bearing", [
+    ("north_pole", 10.0, 20.0, 0.0), ("south_pole", 10.0, 20.0, 180.0),
+    ("equator_0e", 0.0, 10.0, 270.0), ("equator_90e", 0.0, 10.0, 90.0),
+    ("equator_180", 0.0, 170.0, 90.0), ("equator_90w", 0.0, 10.0, 270.0)])
+def test_the_beacon_comes_from_the_place_chosen(session, target, lat, lon, bearing):
+    session.settings.set("beacon_target", target)
+    session.run("goto.set", text=f"{lat}, {lon}")
+    session.run("beacon.toggle")
+    assert session.beacon()["placed"] is not None
+    assert session._beacon_target()[1] == pytest.approx(bearing, abs=0.01)
+
+
+def test_near_the_chosen_place_it_says_that_place(session):
+    session.settings.set("beacon_target", "equator_90e")
+    session.run("goto.set", text="0.3, 90")   # about 33 km away
+    assert spoken(session.run("beacon.toggle")) == ["Beacon on, but silent near the equator at 90 degrees east."]
+    session.run("goto.set", text="-89.7, 0")
+    session.settings.set("beacon_target", "south_pole")
+    session.run("beacon.toggle")
+    assert spoken(session.run("beacon.toggle")) == ["Beacon on, but silent near the South Pole."]
 
 
 def test_mute_silences_it_and_it_comes_back_after(session):

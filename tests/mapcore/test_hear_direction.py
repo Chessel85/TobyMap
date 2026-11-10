@@ -135,20 +135,19 @@ def test_muted_nothing_plays_but_the_label_can_be_repeated(session):
     assert session.last_spoken.startswith("Southampton Central, ")
 
 
-def test_not_on_an_item_it_says_where_it_works(session):
+def test_not_on_an_item_it_says_and_does_nothing(session):
     r = session.run("panel.hear", item="no-such-item", group="within")
-    assert r.voice is None
-    assert r.announcements[0]["text"] == "Hear its direction works on an item, not on a group."
+    assert r.voice is None and not r.sounds and not r.announcements   # P2-T18a
 
 
-def test_on_a_group_heading_after_an_item_it_says_where_it_works(session):
+def test_on_a_group_heading_after_an_item_it_says_and_does_nothing(session):
     """P2-T17f, desktop checklist 11.6: a group heading is selected with no item. Space there
-    said the item last focused again, as F3 keeps that item to go back to."""
+    said the item last focused again, as F3 keeps that item to go back to. Now it says and
+    plays nothing (P2-T18a, the PO, 10 November 2026)."""
     hear_station(session)
     session.run("panel.select", item=None, group=None)   # Up to the group's heading
     r = session.press("Space", "panel")
-    assert r.voice is None and not r.sounds
-    assert r.announcements[0]["text"] == "Hear its direction works on an item, not on a group."
+    assert r.voice is None and not r.sounds and not r.announcements
     session.run("panel.select", item=station_id(session), group="nearby")
     assert session.press("Space", "panel").voice is not None
 

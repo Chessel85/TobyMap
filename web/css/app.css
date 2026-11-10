@@ -25,7 +25,20 @@ main { flex: 1; display: flex; min-height: 0; }
 #side { flex: 1; display: flex; flex-direction: column; min-width: 260px; max-width: 420px; background: #f5f5f5; color: #111; }
 #tree { flex: 1; overflow: auto; margin: 0; padding: 4px; list-style: none; border-bottom: 2px solid #999; }
 #tree ul { list-style: none; padding-left: 1.4em; margin: 0; }
-#tree [role="treeitem"] { outline: none; padding: 2px 6px; }
+/* One line each, never wrapped: NVDA's say current line reads one line, so a wrapped item lost
+   its direction (P2-T18d). The panel scrolls sideways instead. */
+#tree [role="treeitem"] { outline: none; padding: 2px 6px; white-space: nowrap; }
+/* The layers list is the same kind of tree (P2-T18b). */
+#layers-tree, #layers-tree ul { list-style: none; margin: 0; padding-left: 1.4em; }
+#layers-tree { padding-left: 0; }
+#layers-tree [role="treeitem"] { outline: none; padding: 2px 6px; }
+#layers-tree [role="treeitem"][aria-expanded]::before { content: "\25B8  "; }
+#layers-tree [role="treeitem"][aria-expanded="true"]::before { content: "\25BE  "; }
+#layers-tree [role="treeitem"][aria-expanded="false"] > ul { display: none; }
+#layers-tree [role="treeitem"][aria-checked]::before { content: "\2610  "; }
+#layers-tree [role="treeitem"][aria-checked="true"]::before { content: "\2611  "; }
+#layers-tree [role="treeitem"]:focus { background: #0b57d0; color: #fff; }
+#layers-tree [role="treeitem"] > ul { color: #111; background: inherit; }
 #tree [role="treeitem"][aria-expanded]::before { content: "\25B8  "; }
 #tree [role="treeitem"][aria-expanded="true"]::before { content: "\25BE  "; }
 #tree [role="treeitem"][aria-expanded="false"] > ul { display: none; }

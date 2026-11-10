@@ -68,6 +68,8 @@ commands:
   - {name: theme.next, label: Next theme, key: T, region: map, menu: Map}
   - {name: theme.previous, label: Previous theme, key: Shift+T, region: map, menu: Map}
   - {name: isolate.toggle, label: Isolate the current area, key: Ctrl+I, region: map, menu: Map, toggle: true}
+  # Every setting back to a new installation's, after a yes in a message box (P2-T18h).
+  - {name: settings.reset, label: Reset all settings, key: "", region: global, menu: Map}
   # Where am I (LOC-1, LOC-7).
   - {name: where.am_i, label: Where am I, key: Space, region: map, menu: Map}
   - {name: where.coordinates, label: Coordinates, key: C, region: map, menu: Map}
@@ -121,3 +123,4 @@ commands:
   - {name: bearing.set, label: Face the typed bearing, key: "", region: map, menu: "", pointer: true}
   - {name: goto.set, label: Go to the typed coordinates, key: "", region: map, menu: "", pointer: true}
   - {name: history.go, label: Go to a place in the location history, key: "", region: global, menu: "", pointer: true}
+  - {name: settings.reset_confirm, label: Reset all settings once asked, key: "", region: global, menu: "", pointer: true}

@@ -23,6 +23,7 @@ import mapcore
 from mapcore import settings as settings_mod
 from mapcore.commands import registry
 from mapcore.describe import describer, say, templates, words
+from mapcore.describe.describer import HERE_M
 from mapcore.geo import formats, geodesy, parse
 from mapcore.layers import LayerCatalogue
 from mapcore.layers.visible import VisibleRule
@@ -226,6 +227,8 @@ class MapSession:
             "history.go": self._history_go,
             "settings.open": self._settings_open,
             "settings.set": self._settings_set,
+            "settings.reset": self._reset_ask,
+            "settings.reset_confirm": self._reset_all,
             "layers.open": self._layers_open,
             "layers.check": self._layers_check,
             "layers.set": self._layers_set,
@@ -463,14 +466,18 @@ class MapSession:
         for a in self.areas:   # the distance and direction to its centre, as Nearby has (P2-T17k, DP155)
             distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, *box_centre(a.record["bbox"]))
             within.append({"id": a.id, "level": 1, "label": say(
-                "within.item", name=a.name, distance=words.distance_text(distance, units),
+                "within.here" if distance < HERE_M else "within.item", name=a.name,
+                distance=words.distance_text(distance, units),
                 direction=words.direction_text(bearing, self.settings["bearing"], heading))})
         inside = {a.id for a in self.areas}   # Contains is never limited by the zoom (ANN-7)
         count = self.settings["nearby_count"]
         # Nearby searches within the zoom (NAV-13), and lists only visible features.
-        near = self.store.nearby(self.world.lat, self.world.lon, zoom, limit=count + len(inside), exclude=inside,
+        near = self.store.nearby(self.world.lat, self.world.lon, zoom, limit=count + len(inside) + 1, exclude=inside,
                                  layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom)
                                  and self._interval_ok(a.record))
+        # A line you are on, such as the graticule's 100 degrees west at 100 degrees west, is not
+        # nearby, as an area you are in is not: it was listed as "0 metres north" (P2-T18e).
+        near = [n for n in near if n.distance_m >= HERE_M or self._geometry(n.area) != "line"]
         # Within: you are inside, so its place is the centre of the area, taken as the centre of
         # its bounding box (the PO's answer, 8 November 2026).
         self._spots = {("within", a.id): (a, *box_centre(a.record["bbox"])) for a in self.areas}
@@ -488,6 +495,10 @@ class MapSession:
         groups = [groups[g] for g in registry.panel_groups()]   # in the registry's order, as their keys are
         self._panel_cache = (key, groups)
         return groups
+
+    def _geometry(self, area) -> str:
+        layer = self.layers.get(area.layer)
+        return layer.geometry if layer is not None else "area"
 
     @staticmethod
     def _group_label(group: str, items: list) -> str:
@@ -586,9 +597,10 @@ class MapSession:
 
     def beacon(self) -> dict:
         """The beacon now: whether it is on, how often it repeats, and how to play it, placed by the
-        sound scene from the direction of its target, the North Pole, relative to the way you face,
-        with the lower pitch and muffling behind. Its loudness is its own volume, not the distance:
-        it fades near the North Pole, where north is unstable, and is silent within 100 km.
+        sound scene from the direction of its target, the North Pole unless the setting chooses
+        another place (P2-T18g), relative to the way you face, with the lower pitch and muffling
+        behind. Its loudness is its own volume, not the distance: it fades near its target, where
+        the direction is unstable, and is silent within 100 km.
         placed is None when it is off, muted or silent. Nothing is played here (AD-10)."""
         from mapcore.sound.scene import place
 
@@ -610,12 +622,24 @@ class MapSession:
         out["placed"] = placed
         return out
 
+    # Where each choice of "Orientation beacon: comes from" is (P2-T18g). A pole has no one
+    # longitude, so it is taken on your own, which gives the true direction to it.
+    BEACON_TARGETS = {"north_pole": (90.0, None), "south_pole": (-90.0, None), "equator_0e": (0.0, 0.0),
+                      "equator_90e": (0.0, 90.0), "equator_180": (0.0, 180.0), "equator_90w": (0.0, -90.0)}
+
     def _beacon_target(self) -> tuple[float, float]:
-        """The distance and bearing from here to the beacon's target: the North Pole, the only
-        target until pins come in Phase 4."""
+        """The distance and bearing from here to the beacon's target, the place chosen in Settings.
+        Pins join the choices in Phase 4."""
         w = self.world
-        distance, bearing, _ = geodesy.inverse(w.lat, w.lon, 90.0, w.lon)
+        lat, lon = self.BEACON_TARGETS.get(self.settings["beacon_target"], self.BEACON_TARGETS["north_pole"])
+        distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, w.lon if lon is None else lon)
         return distance, bearing
+
+    def _beacon_target_name(self) -> str:
+        """The target's name, as Settings lists it, such as "the South Pole", for "silent near ..."."""
+        field = next(f for t in settings_mod.schema()["tabs"] for f in t["fields"] if f["id"] == "beacon_target")
+        name = dict(field["choices"]).get(self.settings["beacon_target"], "")
+        return name[:1].lower() + name[1:] if name.startswith("The ") else name
 
     def _beacon_fade(self, distance_m: float) -> float:
         """1 away from the pole, falling evenly to 0 at the silent distance."""
@@ -632,16 +656,17 @@ class MapSession:
         if not on:
             return r.speak(say("beacon.off"), ASSERTIVE)
         if self._beacon_fade(self._beacon_target()[0]) <= 0.0:
-            return r.speak(say("beacon.on_near_pole"), ASSERTIVE)
+            return r.speak(say("beacon.on_near_pole", target=self._beacon_target_name()), ASSERTIVE)
         return r.speak(say("beacon.on_muted" if self.settings["mute"] else "beacon.on"), ASSERTIVE)
 
     def _beacon_told(self, name: str, response: Response) -> None:
-        """Says once when the beacon goes silent near the North Pole, and when it comes back
+        """Says once when the beacon goes silent near its target, and when it comes back
         further away (SON-10). Then gives the response the beacon as it is now."""
         if self.settings["beacon_on"]:
             near = self._beacon_fade(self._beacon_target()[0]) <= 0.0
             if name != "beacon.toggle" and self._beacon_near is not None and near != self._beacon_near:
-                response.speak(say("beacon.near_pole" if near else "beacon.back"), POLITE)
+                response.speak(say("beacon.near_pole", target=self._beacon_target_name()) if near
+                               else say("beacon.back"), POLITE)
             self._beacon_near = near
         else:
             self._beacon_near = None
@@ -878,6 +903,8 @@ class MapSession:
                       "direction": words.direction_text(bearing, style, heading),
                       "closest": words.distance_text(c.closest_m, units)}
             kind = {"crossed": "crossed", "passed over": "passed_over", "passed": "passed"}[c.kind]
+            if distance < HERE_M:   # the step ended on it: "here", not "0 metres north" (P2-T18e)
+                kind += "_here"
             items.append({"id": c.area.id, "label": say(f"crossed.{kind}", **fields), "level": 1})
         return items
 
@@ -1270,8 +1297,8 @@ class MapSession:
             item, group = self.panel_item, self.panel_group
         groups = [group] if group else ["within", "nearby", "crossed"]
         spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
-        if spot is None:
-            return Response().speak(say("hear.choose"), ASSERTIVE)
+        if spot is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
+            return Response()
         area, lat, lon = spot
         w = self.world
         distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
@@ -1305,8 +1332,8 @@ class MapSession:
             item, group = self.panel_item, self.panel_group
         groups = [group] if group else ["within", "nearby", "crossed"]
         found = next(((g, self._spots[(g, item)]) for g in groups if (g, item) in self._spots), None)
-        if found is None:
-            return Response().speak(say("go.choose"), ASSERTIVE)
+        if found is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
+            return Response()
         group, (area, lat, lon) = found
         layer = self.layers.get(area.layer)
         if (layer is None or layer.geometry == "area") and area.record.get("bbox"):
@@ -1429,6 +1456,25 @@ class MapSession:
     def _settings_open(self, **_a) -> Response:
         return Response(dialog={"kind": "settings", "title": say("settings.title")})
 
+    def _reset_ask(self, **_a) -> Response:
+        """Reset all settings asks first, in a message box with Reset and Cancel, Cancel first
+        (P2-T18h). Reset runs settings.reset_confirm."""
+        return Response(dialog={"kind": "confirm", "title": say("reset.title"), "text": say("reset.question"),
+                                "ok": say("reset.ok"), "cancel": say("ui.cancel"), "submit": "settings.reset_confirm"})
+
+    def _reset_all(self, **_a) -> Response:
+        """Everything back to a new installation's (P2-T18h): settings, keys, layer choices, the
+        place, zoom and step, and the location history. The open packs stay. action "reset" tells
+        the shell to forget what it keeps itself, such as the web's own sound files; it then saves,
+        as settings_changed asks, which writes the new installation's settings."""
+        keep = {"map_size": self.map_size, "trace": self.trace}
+        self.__init__(platform=self.platform, store=self.store, clock=self.clock)
+        for name, value in keep.items():
+            setattr(self, name, value)
+        self.areas = self._here()
+        r = Response(redraw=True, panel_stale=True, details_stale=True, settings_changed=True, action="reset")
+        return r.speak(say("reset.done", place=self._place_text()), ASSERTIVE)
+
     def _settings_set(self, field: str, value, **_a) -> Response:
         try:
             self.settings.set(field, value)
@@ -1478,7 +1524,7 @@ class MapSession:
             "zooms": zooms, "every_zoom": every,
             "earcons": [{"event": e["event"], "label": e["label"]} for e in earcon_list()],
             "words": {k: say(f"layers.{k}") for k in ("settings_button", "settings_title", "min_zoom", "max_zoom",
-                                                      "crossing", "no_sound", "choose_layer")}
+                                                      "crossing", "no_sound", "choose_layer", "list")}
             | {"ok": say("ui.ok"), "cancel": say("ui.cancel")},
             "set": "layers.set", "check": "layers.check"})
 

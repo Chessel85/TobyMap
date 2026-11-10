@@ -19,6 +19,11 @@ Three things found with the test window, tools/spikes/tree_level/harness.py:
   of rows. Those would name the wrong item here, so this tree replaces them
   with focus events sent to the item itself.
 
+The layers list uses this tree too (P2-T18b), as Qt's own tree went wrong there in the same
+way once a group was closed: a blank line, or silence. Its items are check boxes, so an item
+with a check box tells screen readers it is checkable and whether it is ticked, and Space
+ticking it sends that change.
+
 Items are found by position (group number, item number), not by QTreeWidgetItem.
 The window updates the tree in place, so a position keeps its accessible object
 while its words change, and accessible objects are never thrown away while Qt
@@ -27,8 +32,9 @@ may still hold them.
 from __future__ import annotations
 
 import shiboken6
-from PySide6.QtCore import QRect
-from PySide6.QtGui import QAccessible, QAccessibleAttributesInterface, QAccessibleEvent, QAccessibleInterface
+from PySide6.QtCore import QRect, Qt
+from PySide6.QtGui import (QAccessible, QAccessibleAttributesInterface, QAccessibleEvent, QAccessibleInterface,
+                           QAccessibleStateChangeEvent)
 from PySide6.QtWidgets import QAccessibleWidget, QTreeWidget
 
 NULL_POINTER = shiboken6.VoidPtr(0)
@@ -42,6 +48,7 @@ class PanelTree(QTreeWidget):
         super().__init__()
         self.expanded.connect(self._expanded_or_collapsed)
         self.collapsed.connect(self._expanded_or_collapsed)
+        self.itemChanged.connect(self._item_changed)
 
     def accessible(self) -> "PanelAccessible":
         return QAccessible.queryAccessibleInterface(self)
@@ -62,6 +69,16 @@ class PanelTree(QTreeWidget):
         # The current group's state changed: say it again, as expanded or collapsed.
         self.announce_current()
 
+    def _item_changed(self, item, _column):
+        # A check box ticked or cleared, as by Space in the layers list: say so (P2-T18b).
+        if not QAccessible.isActive() or not has_check_box(item):
+            return
+        iface = self.accessible().item_interface(item)
+        if iface is not None:
+            changed = QAccessible.State()
+            changed.checked = True
+            QAccessible.updateAccessibility(QAccessibleStateChangeEvent(iface, changed))
+
     def announce_current(self) -> None:
         """Tell screen readers the focus is on the current item."""
         if not QAccessible.isActive() or not self.hasFocus():
@@ -72,6 +89,12 @@ class PanelTree(QTreeWidget):
         iface = self.accessible().item_interface(item)
         if iface is not None:
             QAccessible.updateAccessibility(QAccessibleEvent(iface, QAccessible.Event.Focus))
+
+
+def has_check_box(item) -> bool:
+    """Only an item given a check state has a check box. Qt's flags say every item can be
+    ticked, so they would have made NVDA say "not checked" on every Information panel item."""
+    return item.data(0, Qt.ItemDataRole.CheckStateRole) is not None
 
 
 class LevelAttributes(QAccessibleAttributesInterface):
@@ -143,6 +166,9 @@ class PanelItemAccessible(QAccessibleInterface):
         tree = self.panel.tree
         s.focusable = True
         s.selectable = True
+        if has_check_box(item):   # a layer's check box (P2-T18b)
+            s.checkable = True
+            s.checked = item.checkState(0) == Qt.CheckState.Checked
         if self.index < 0 and item.childCount():
             s.expandable = True
             s.expanded = item.isExpanded()

@@ -1,6 +1,6 @@
 # User Experience Description
 
-Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
+Version 0.20, 10 November 2026. Your notes on the Phase 2 sweep (P2-T18): Space and Enter on a group heading in the Information panel say and do nothing (section 6.3); the layers list is a tree whose groups close and open, and the maximum zoom is the closest (section 7.1); an item under a metre away is "here", and a line you are on is not nearby (section 6); the beacon can come from either pole or the equator (section 8.4); and Reset all settings is in the Map menu (section 13). Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
@@ -460,8 +460,10 @@ From there, arrow keys move through the tree. Tab returns to the map.
 
 In Phase 2, two actions have their own keys:
 
-* Enter goes there, as a jump, so Alt+comma comes back (DP155). A point goes to the point. An area goes to its centre, the centre of its bounding box. A line goes to the place its item is about: its nearest point, or where it was crossed. The new place is said, and the focus stays in the panel, on the first item of the same group, as the group's items have changed. Enter on a group heading says "Go there works on an item, not on a group."
+* Enter goes there, as a jump, so Alt+comma comes back (DP155). A point goes to the point. An area goes to its centre, the centre of its bounding box. A line goes to the place its item is about: its nearest point, or where it was crossed. The new place is said, and the focus stays in the panel, on the first item of the same group, as the group's items have changed.
 * Space hears its direction (DP143).
+* On a group heading, Enter and Space say and do nothing (the PO, 10 November 2026). Right and Left open and close the group.
+* An item less than a metre away, such as a station you went to with Enter, says "here" in place of a distance and direction: "Southampton Central, here". A line you stand on, such as the graticule's 100 degrees west at 100 degrees west, is not in Nearby, as an area you are in is not (P2-T18e).
 
 Go to coordinates (Ctrl+G) and Type a bearing (Ctrl+B) work from the panel and from Details as well as from the map. After the box closes, the focus goes back where it was. In the panel, after Go to, it is on the first item of the same group; after a bearing, on the same item. The answer, such as the new place, is spoken after the item is read.
 
@@ -505,9 +507,11 @@ Shift+L opens the layers list (SCP-6). Each layer, such as roads, railway statio
 Everything about a layer is defined in one place (SCP-7, DP74):
 
 * how it looks on the map
-* its zoom range, from its minimum zoom (the closest) to its maximum zoom, which decides when it is visible and said
+* its zoom range, from its maximum zoom (the closest, the smaller distance) to its minimum zoom (the farthest), which decides when it is visible and said (P2-T18c)
 * its sounds: a crossing earcon, played when you cross one of its lines, or the border of one of its areas, the sound its features make in look around and "hear its direction", and the ding when one is passed while driving
 * whether it is a network type in network mode, and whether its points can be stop points
+
+The layers list is a tree, like the Information panel: each group, such as Boundaries, holds its layers, each a check box. Up and Down move, Left closes a group or goes up to it, Right opens it, Space ticks or clears a layer, and Enter presses OK (P2-T18b).
 
 The data manager chooses sensible defaults. In the layers list, each layer also has a settings button where the user can change its sounds and its zoom range. For example, to hear a sound every time you cross a railway, give the railways layer a crossing earcon.
 
@@ -543,11 +547,11 @@ The range and the curve are settings, and you will try them in the Phase 1 liste
 
 ### 8.4 Orientation beacon
 
-B switches on the orientation beacon (SON-10). It is a soft repeating sound that comes from the North Pole by default, so the user can feel which way they are facing without asking.
+B switches on the orientation beacon (SON-10). It is a soft repeating sound that comes from the North Pole by default, so the user can feel which way they are facing without asking. In the Sound tab, "Orientation beacon: comes from" can choose the South Pole instead, or the equator at 0 degrees east, 90 degrees east, 180 degrees or 90 degrees west (P2-T18g).
 
 * It is most useful in cardinal facing and free facing. In north-fixed it is always straight ahead.
 * While driving along a curving road, the beacon swings from side to side as the heading changes. That is how the shape of the line can be felt.
-* Near the North Pole, north is unstable. The beacon fades from 200 km and is silent within 100 km of the pole. Going inside, you hear "Beacon off near the North Pole." once; coming back out, "Beacon back on." Switched on near the pole, it says "Beacon on, but silent near the North Pole."
+* Near the place it comes from, its direction is unstable. The beacon fades from 200 km and is silent within 100 km of it. Going inside, you hear "Beacon off near the North Pole." once, or the place chosen; coming back out, "Beacon back on." Switched on near it, it says "Beacon on, but silent near the North Pole."
 * It plays about once a second; the time between each sound is a setting. Behind you it has the lower pitch and slight muffling, like every sound placed in space. Its loudness does not change with distance.
 * The Sound tab of Settings has the beacon on or off, its volume, the seconds between each sound, your own file for it, and where it comes from. Ctrl+M silences it with everything else. Its sound is a placeholder until you choose one.
 * The beacon can point at any pin instead, such as "home" (DP72). It then works as a homing sound. Choose the target in settings, or with "Beacon to this pin" in a pin's actions.
@@ -731,6 +735,8 @@ Settings are a standard accessible dialog with these tabs:
 * Layers: the same list as Shift+L, with each layer's sounds, zoom range, and the graticule interval.
 * Keys: view and change bindings.
 * Data: installed packs, and on-demand download on or off.
+
+Reset all settings, in the Map menu, puts everything back as on a new installation on a new computer (P2-T18h): every setting, your keys, your layer choices and your own sound files, and it clears your place and the location history. A message box asks first, with Reset and Cancel; Cancel has the focus, so Enter straight away changes nothing. After Reset, the focus comes back to the map, whose name is "All settings are reset, as on a new installation." and the place. To keep your settings, Export settings first.
 
 ## 14. Data packs
 

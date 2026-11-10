@@ -9,6 +9,8 @@ from mapcore.describe import say
 from mapcore.describe import words
 from mapcore.geo import formats
 
+HERE_M = 1.0   # closer than this, an item is "here", with no distance or direction (P2-T18e)
+
 
 def area_names(areas) -> list[str]:
     return [a.name for a in areas]
@@ -86,5 +88,6 @@ def words_facing(world, settings) -> float | None:
 def nearby_label(near, units: str, bearing: str, heading: float | None = None) -> str:
     """One Nearby item: the area, and the distance and direction to its nearest point (INF-3),
     relative to the way the user faces when heading is given (NAV-12)."""
-    return say("nearby.item", name=near.area.name, distance=words.distance_text(near.distance_m, units),
+    key = "nearby.here" if near.distance_m < HERE_M else "nearby.item"   # such as a station you went to (P2-T18e)
+    return say(key, name=near.area.name, distance=words.distance_text(near.distance_m, units),
                direction=words.direction_text(near.bearing_deg, bearing, heading))

@@ -125,7 +125,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Click: the tick each step makes while a key is held, so you can hear the steps being made (DP129). The clicks keep their own even time, and never wait for the map to be drawn (DP140).
 * Drawing: making one picture of the map. It has three parts: choosing the shapes in view and cutting them to it, projecting them onto the globe in screen pixels, and painting them. The first two are done by the core, the painting by the desktop or the web page.
 * Key describer: a mode, switched on and off with Shift+F1, in which each key you press is described and nothing is carried out.
-* Minimum zoom and maximum zoom: the two ends of a layer's zoom range, set in its settings in the layers list (SCP-7). Zoom is a distance, so the minimum zoom is the closest, the most zoomed in, and the maximum zoom is the farthest. Outside its zoom range, a layer is not drawn and not said, as if it were off (DP160).
+* Maximum zoom and minimum zoom: the two ends of a layer's zoom range, set in its settings in the layers list (SCP-7). The maximum zoom is the most zoomed in, the closest, so the smaller distance, such as 1 kilometre. The minimum zoom is the least zoomed in, the farthest, so the larger distance, such as 500 kilometres. (Swapped on 10 November 2026, P2-T18c: they were the other way round.) Outside its zoom range, a layer is not drawn and not said, as if it were off (DP160).
 * Crossing sound: the earcon a layer plays when a step crosses one of its lines, such as a line of latitude, or the border of one of its areas, such as a country's border (SCP-7).
 * Hearing range: the distance at which a sound reaches the edge of the view. It is the zoom distance, and the distance curve is measured against it (SON-9).
 * Distance curve: how loud and how muffled a sound is for its distance within the hearing range.
@@ -140,7 +140,9 @@ Older documents written before this glossary, such as architecture section 6 and
 * Passed over: an area, such as a small lake, that a move's path entered and left, with neither the start nor the end of the move in it.
 * Passed: a point, such as a railway station, that a move's path came within the passed nearby distance of.
 * Passed nearby distance: how near a move's path must come to a point for it to be listed as passed. A share of the step, 10% at first, or a fixed distance (DP58).
-* Beacon: a soft repeating sound from the direction of the North Pole, or later a pin, so you can feel which way you face (SON-10).
+* Beacon: a soft repeating sound from the direction of the place chosen in Settings, so you can feel which way you face (SON-10). The place is the North Pole at first, or the South Pole, or one of four places on the equator; pins come later.
+* Here: an item in the Information panel less than a metre away, such as a station you went to, is said with "here" in place of a distance and direction (P2-T18e).
+* Reset all settings: in the Map menu, puts every setting, key, layer choice and own sound file back as on a new installation, and clears your place and the location history, after a message box asks (P2-T18h).
 * Item's direction sound: the earcon played from an item's direction, before its name, when you press Space on an item in the Information panel (Hear its direction, SON-3). It is not the beacon.
 * Verbosity preset: a named choice of how much is said by itself after a move: terse, normal or detailed. It sets four switches; changing one makes the preset Custom (ACC-5, DP144).
 * Theme: the set of colours the map is drawn in: standard, high contrast dark, high contrast light or colour-blind safe (VIS-2).

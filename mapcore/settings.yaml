@@ -232,7 +232,15 @@ tabs:
         label: "Orientation beacon: comes from"
         kind: choice
         default: north_pole
-        choices: [[north_pole, The North Pole]]
+        # The poles and four places on the equator, as the PO asked (P2-T18g). Each id is read
+        # by MapSession._beacon_target; the label is also the "{target}" said near it.
+        choices:
+          - [north_pole, The North Pole]
+          - [south_pole, The South Pole]
+          - [equator_0e, "The equator at 0 degrees east"]
+          - [equator_90e, "The equator at 90 degrees east"]
+          - [equator_180, "The equator at 180 degrees"]
+          - [equator_90w, "The equator at 90 degrees west"]
   # The earcons (P2-T8, P2-T17p; SON-6, SON-7, SON-8, DP163): one list of every earcon in
   # mapcore/describe/earcons.yaml, each with a check box to play it, earcon_on_<event>, then
   # one set of controls for the earcon chosen in the list: its own volume,

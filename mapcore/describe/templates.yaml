@@ -5,6 +5,9 @@
 # Values in braces are filled in by the core.
 
 start: "TobyMap. {place}. Press F1 for keys."
+# The map's name as the focus first arrives on it at start. The screen reader reads
+# it after the window's title, TobyMap, so the start is heard in full once (P2-T17d).
+start_label: "{place}. Press F1 for keys."
 # The map region's name, which the screen reader says when Tab arrives on the
 # map. Just the place, as the PO asked after testing spike S5.
 map_label: "{place}"

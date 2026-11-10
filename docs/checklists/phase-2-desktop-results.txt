@@ -38,130 +38,258 @@ Start with --at 51.2,1.2, zoom and step 25 kilometres. You hear “England, Unit
 • 2.5 Press Left to face west, then Up. It steps forward, to the west, and ticks or says the place.
 > passes
 • 2.6 Press O. You hear “Free facing, 270 degrees.”
+> passes 
 • 2.7 Press Right: “Facing 275 degrees.” Ctrl+Right: “Facing 276 degrees.” Ctrl+Left: “Facing 275 degrees.” Left: “Facing 270 degrees.”
+> passes 
 • 2.8 Press Shift+Right: “Facing 0 degrees.” Press Shift+Left: “Facing 270 degrees.”
+> passes 
 • 2.9 Hold Right for two seconds. It clicks as it turns, and when you let go it says the heading once.
+> passes 
 • 2.10 Open Settings, Movement. There are three turning settings: “Free facing: degrees turned by Left and Right”, 5; “Free facing: degrees turned by Shift with Left and Right”, 90; and “Free facing: degrees turned by Ctrl with Left and Right”, 1. Change the Shift one to 45 and press OK. Shift+Right now turns 45 degrees. Put it back to 90.
+> Passes. But pressing tab from the tab control in the settings dialogue makes nvda announce "grouping". Pressing tab again then moves onto the controls which can be changed.  Having that grouping announcement is undesirable.
 • 2.11 Press O. You hear “North-fixed.” Up steps north again, and Left and Right step west and east.
+> There is a lag between pressing an arrow key and hearing NVDA announce the location (when it isn't a click).  So when I repeatedly pressed right I almost missed that I had gone from the north atlantic into Flanders, Belgium.  Where is this lag coming from?  Can it be reduced?
+
 3. Typing a bearing (NAV-12)
 Still at the same place, in north-fixed.
 • 3.1 Press Ctrl+B. A box opens to type a bearing, with a line saying what you can type.
+> passes 
 • 3.2 Type 47 and press Enter. You hear “Free facing, 47 degrees.”
+> passes
 • 3.3 Press H. You hear “Facing 47 degrees. Free facing. Stepping. Zoom 25 kilometres, step 25 kilometres.”
+> passes 
 • 3.4 Press Ctrl+B, type north-east, and press Enter. You hear “Facing 45 degrees.”
+> passes 
 • 3.5 Press Ctrl+B, type hello, and press Enter. The box stays open and says what it accepts. Press Cancel.
+> When focus is on the cancel button, pressing enter is still pressing ok.  when focus is on a button, enter or space activate it.
+> I think the labelling is too complex.  Can the label for the edit box be just "Enter a bearing in degrees, or a compass direction:".  If the user enters an invalid value, instead of updating text in the same dialogue, can we display a message box saying "<entry> is not a valid bearing.  Enter a value in degrees in the range 0 to 360.  Or enter a compass direction such as north or SW."
 • 3.6 Press O until you hear “North-fixed.”
+> done 
 4. Over the poles (NAV-1, NAV-3)
 Start with --at 89.9,0, step 25 kilometres. You hear “Arctic Ocean”.
 • 4.1 Press O for cardinal facing, then Up. You hear “Crossed the North Pole. Now facing south.” Up again: you carry on, away from the pole.
+> passes 
 • 4.2 Press H. It says you face south, in cardinal facing.
+> passes 
 • 4.3 Close TobyMap and start it again with --at 89.9,0. Press O twice for free facing, which says “Free facing, 0 degrees.”, then Up. You hear “Crossed the North Pole. Now facing 180 degrees.”
+> passes 
 • 4.4 Start with --at -89.9,0. You hear “Antarctica”. Press O until you hear “Cardinal facing, north.”, then Down, which steps back, to the south. You hear “Crossed the South Pole. Now facing south.”
+> I think shift O should rotate through the orientation modes in reverse order
+> passes
 • 4.5 Press O until you hear “North-fixed.”
+> Pressing up from here  plays the blocked sound, which is correct, but there is a lag between pressing the key and hearing the sound.  same as with nvda announcing locations.  Can this lag be reduced?
+
 5. Going to coordinates (NAV-8)
 Start with --at 51.2,1.2. You hear “England, United Kingdom”.
 • 5.1 Press Ctrl+G. A box opens, titled “Go to coordinates”, with the field “Enter latitude and longitude:” and no other text.
+> passes 
 • 5.2 Type 48.85, 2.35 and press Enter. You hear “Ile-de-France, France”, and only that: not the place you left.
+> Passes, although i heard Ile-de-France, France twice.
 • 5.3 Press Ctrl+G, type 91, 0 and press Enter. The box stays open and says those are not coordinates, with examples, and that latitude is up to 90 degrees and longitude up to 180. Press Cancel.
+> Passes. but as with the bearings dialogue,  when focus is on the cancel button, pressing enter is like pressing ok. should activate cancel if cancel button has focus. and instead of updating the text on the go to dialogue, can a message box be displayed saying it is an invalid entry and describing the valid entries?
 • 5.4 Press Ctrl+G and type 48.85N 2.35E. You stay in Paris: “Ile-de-France, France”.
+> Passes, but location announced twice 
 • 5.5 Degrees, minutes and seconds use the letters D, M and S, in either case. Press Ctrl+G and type 48d 51m N, 2d 21m E. You hear “Ile-de-France, France”.
+> passes 
 • 5.6 One number sets the latitude and keeps your longitude. Start again with --at 51.2,1.2. Press Ctrl+G and type 48.85. You hear “Normandy, France”.
+> passes 
 • 5.7 A comma then a number sets the longitude and keeps your latitude. Press Ctrl+G and type , 2.35 (a comma, a space, then 2.35). You hear “Ile-de-France, France”.
+> passes
 • 5.8 A direction then degrees moves you by that much. Press Ctrl+G and type south 2 east 3. You hear “Bourgogne – Franche-Comté, France”.
+> passes 
 • 5.9 Press Ctrl+G and type n 2. You are 2 degrees further north: “Grand Est, France”. Letters work as well as words.
+> passes 
 • 5.10 Press Ctrl+G and type north 90. You stop at the North Pole and hear “Arctic Ocean”. Press Alt+Comma to come back.
+> Passes.
+> Want an extra feature of f or forward preceding a number moves forward but only valid for cardinal and free mode. backward or b goes backwards but only in cardinal and free mode.
+
 6. Going back and forward through your places (NAV-10)
 Start with --at 51.2,1.2, step 25 kilometres. You hear “England, United Kingdom”.
 • 6.1 Press Ctrl+G and go to 48.85, 2.35. You hear “Ile-de-France, France”.
+> passes 
 • 6.2 Press Right once. It ticks or says a place.
+> passes 
 • 6.3 Press Alt+Comma. You are back where you were before that step, in Paris, with the same zoom and step. The place is said.
+> passes 
 • 6.4 Press Alt+Comma again. You hear “England, United Kingdom”: back to before the jump.
+> passes 
 • 6.5 Press Alt+Full stop twice: first Paris, then the place after the step. Press it once more: the blocked sound, as there is nowhere further forward.
+> passes 
 • 6.6 Hold Right for about three seconds and let go. Press Alt+Comma once. You are back where the hold started, in one press.
+> passes 
 • 6.7 Press Alt+Full stop: you go forward to where the hold ended. Now press O twice for free facing, and Right to turn: a turn adds no place. Press Alt+Comma: you go back to where the hold started, as in 6.6. Press O to return to north-fixed.
+> passes 
 • 6.8 Open Settings, Movement. “Clear the places on start” is off. Switch it on and press OK. Close TobyMap and start it again with --at 51.2,1.2. Press Alt+Comma: the blocked sound, as there are no places yet. Switch the setting off again.
+> passes 
 • 6.9 With the setting off, close TobyMap after a few steps and jumps, and start it again. Alt+Comma goes back through the places from last time.
+> passes 
 • 6.10 Click on the map, if you can, or skip this step. A click is a jump, so Alt+Comma comes back from it.
+> passes 
+
 7. Enter in the announcement history (ANN-4, DP141)
 Start with --at 51.2,1.2.
 • 7.1 Press Down. You hear “North Atlantic Ocean”.
+> pass 
 • 7.2 Press Ctrl+G and go to 48.85, 2.35. You hear “Ile-de-France, France”.
+> pass 
 • 7.3 Press Ctrl+Shift+Space. The announcement history opens, newest first, with a line saying what Enter does.
+> pass 
 • 7.4 Move to “North Atlantic Ocean” and press Enter. The history closes and you hear “North Atlantic Ocean”, and only that: you are back where it was said.
+> pass  although I did hear north atlantic ocean announced twice.
 • 7.5 Press Alt+Comma. You are back in Paris.
+> pass 
 • 7.6 Open the history again, move to an entry with no place, such as a message from Help, and press Enter. You hear “No place for this entry.” and the list stays open. Close it with its Close button.
+> can't work out how to get  an announcement not related to a place in the announcement history 
+> it has just dawned on me though, you call this the announcement history. it is really the location history.  It is the trail of locations the user has visited.  So rename the dialogue to Location History.  And explain when anything goes in here that is not a location?
+> Need to work out expected behaviour when the location is no longer visible because the user has hidden the layer.  It should probably not appear in the list i.e. The locaiton history should only show locations from active layers.
+
 8. Layers (SCP-6, SCP-7)
 Start with --at 51.2,1.2.
 • 8.1 Press Ctrl+Shift+L. The layers list opens: the groups Boundaries, Water and Graticule, each with its layers and a check box for each. Graticule has “Lines of latitude and longitude” and “Special lines: equator, prime meridian, tropics, polar circles and date line”, both off.
+> It does open but the tree does not work very well.  when i collapse Boundaries, there is a blank line between boundaries and oceans and seas and NVDA is silent on this line.
+> when I also collapsed water, then nvda announced nothing. 
 • 8.2 Move to Regions and press Space to switch it off. Press Enter: it presses OK, and the list closes.
+> Passes. but as with other dialogues, when focus is on the cancel button, pressing enter acts like the ok button. should activate the cancel key when focus is on it and enter is pressed.
 • 8.3 Press Space on the map. You hear “United Kingdom”: England is gone, because it is a region.
+> passes 
 • 8.4 Open the list again and switch Countries off too. Press OK. Space now says “Every layer here is switched off”.
+> passes 
 • 8.5 Switch both back on. In the list, Space ticks a box and Enter presses OK, wherever you are in the list.
+> pass 
 • 8.6 Open the list, move to a layer and press “Settings for this layer”: its closest zoom, farthest zoom and crossing sound. Enter there presses that OK and goes back to the list. Cancel goes back to the list too.
+> when focus is on settings, pressing enter should activate it, as does space.
+> i added a sound to crossing country and it did not sound.
+> when focus is on the cancel button in the settings sub-dialogue, pressing enter should activate it as well as space.
+> i set the range for regions to be closest zoom 25km and farthest zoom to 100km but when I changed the zoom at the map to be outside of this range, England was still announced.
+> I also struggle with what nearest and farthest zoom mean    How about min and max zoom?
+
 9. The Information panel’s groups (INF-10)
 Start with --at 51.2,1.2, zoom 100 kilometres.
 • 9.1 On the map, press Shift+1. Focus goes to Within in the Information panel.
+> pass. it went to the first entry, England.
 • 9.2 Press Shift+2. Focus goes to Nearby.
+> pass. and it works from both the map and within the information panel which is good.
 • 9.3 Press Shift+3. Focus goes to Crossed and passed.
+> pass 
 • 9.4 The same three keys work from inside the Information panel and from Details.
+> pass 
 • 9.5 Press F1 on the map. The list of keys has “Go to Within: Shift+1”, “Go to Nearby: Shift+2” and “Go to Crossed and passed: Shift+3”.
+> pass 
 • 9.6 Press F2 to go back to the map.
+> pass 
+
 10. Crossed and passed (ANN-2, DP148)
 Start with --at 49.7,5.3. Set the zoom to 1,000 kilometres and the step to 100 kilometres. You hear “Wallonia, Belgium”.
 • 10.1 Press Right. You hear “Rhineland-Palatinate, Germany”, and then a soft earcon: something was added to Crossed and passed. Nothing about it is spoken.
+> pass.  although i would describe it as the earcan and the announcement by nvda happen at the same time  which is fine 
 • 10.2 Press Shift+3. Focus goes to Crossed and passed. It lists “Luxembourg, passed over, 15 kilometres west” and “Moselle condominium, passed over, 15 kilometres west”.
+> pass 
 • 10.3 Press Shift+2 for Nearby. On the first item, press Space. The distance the voice says is the same as the distance in the item’s words.
+> pass 
 • 10.4 Press F2 to go back to the map. Hold Right for a few steps and let go. Shift+3 lists everything the whole held run went over, not only the last step.
+> pass
+> new feature request: can the top level items in the information panel (contains, nearest, crossed and any others that come in the future) have the number of entries in the list appended e.g. Nearby (5 items)
 • 10.5 Press Ctrl+G and jump somewhere. Crossed and passed is empty: a jump has no path.
+> pass. although control G does not work from the information panel. I don't see why it shouldn't.   focus should remain in the information pane and focus the top entry in the section was in when control G pressed. Same applies to details.
 • 10.6 In Settings, Earcons, switch “Something added: play it” off. Take a large step: the earcon is silent. Switch it back on.
+> passes 
+> I'd like the earcans tab simplified.  
+> The tab should have a list control containing all the names of the earcans.  It could even have a checkbox associated with each entry which is the play/don't play toggle.  Then just one set of controls for volume (specific to that earcan), file edit box (where blank means default), a browse button and a "Set to default" button.
+
 11. Hear its direction (SON-3, DP143)
 Start with --at 51.2,1.2, zoom 100 kilometres. Use headphones if you can.
 • 11.1 Press Shift+2 for Nearby. The first items are “North Atlantic Ocean, 11 kilometres south” and “France, 45 kilometres south-east”.
+> pass 
 • 11.2 On North Atlantic Ocean, press Space. The item’s direction sound plays from behind you, lower in pitch, then the Alba voice says “North Atlantic Ocean, 11 kilometres” from the same place. The voice behind you is a little lower, but at its ordinary speed.
+> pass. If there is a keypress whilst the alba voice is playing, can it be stopped?  Otherwise the NVDA speech overlaps the alba voice.
+> Can we set up a test harness, like that done in phase 0, to test out the alba voice again?  I want to test and compare the several options for giving the impression of 3d sound as the atlantic announcement wasn't that clear that it was to the south.
 • 11.3 On France, press Space. It comes from behind and to the right.
+> pass 
 • 11.4 Press F2, then O for cardinal facing, then Right twice to face south. Press Shift+2 and Space on North Atlantic Ocean. It is now ahead of you, at normal pitch. Press F2, and O until north-fixed.
+> pass. but why does the info panel say things like "behind you" or "to your right" when in cardinal mode?  What is wrong with keeping to the preferred direction units specified in settings? e.g. degrees, compass, clock.
 • 11.5 Press Shift+1 for Within. On England, press Space. Its sound plays from the centre of England, and the voice says “England” and the distance to that centre.
+> pass. info panel should say same info as for nearest i.e. distance and bearing.
 • 11.6 On a group heading, such as Within, Space says “Hear its direction works on an item, not on a group.”
+> fail. it repeats the last announcement.
 • 11.7 Each label is in the announcement history, and in NVDA’s Braille viewer without being spoken.
+> passes 
+> have i not said that pressing enter on an item in the information panel jumps to that location?  Or am I contradicting myself.
 • 11.8 In Settings, Sound, switch on “Also speak spatial labels through the screen reader”. Press Space on an item: NVDA now speaks the label as well as the Alba voice. Switch it off again: NVDA is silent and only the Alba voice speaks.
+> passes
 • 11.9 In Settings, Sound, set “Spatial voice: speed, in percent” to 500. Press Space on an item: the label is about five times as fast as at 100, at the same pitch. Try 200 and 300 too, then set it as you like it.
+> passes 
 • 11.10 Change “Spatial voice: volume, in percent” and try again: the voice is louder or quieter.
+> passes 
+
 12. The orientation beacon (SON-10, SON-2)
 Start with --at 51.2,1.2. Headphones help.
 • 12.1 Press B. You hear “Beacon on.” A soft, low whump repeats once a second, straight ahead: the North Pole is north.
+> passes 
 • 12.2 Press O for cardinal facing, then Right to face east. The beacon moves to your left. Right again, facing south: it is behind you, lower in pitch.
+> passes 
 • 12.3 The beat stays even, never missing or delaying a beat, while you press O to change orientation, turn, hold Right to turn for a few seconds, and step about. Each change is heard from the next beat.
+> passes 
 • 12.4 Press O until north-fixed. In Settings, Sound, change “Orientation beacon: seconds between each sound” to 2, and “Orientation beacon: volume, in percent” to 50. It slows and is quieter. Put them back to 1 and 100.
+> passes but the spin box for volume does not respond correctly to home and end which should set value to max and min values.  Use home for max because it is above the end key so is more intuitive this way around.  can you do a check on all spin edit boxes to ensure they respond this way?
 • 12.5 Press B. You hear “Beacon off.” and it stops.
+> passes 
 • 12.6 Start with --at 89.5,0 and press B. You hear “Beacon on, but silent near the North Pole.” Step south with a 25 kilometre step until you hear “Beacon back on.”
+> passes
 • 12.7 Press B to switch it off.
+> passes
 13. The graticule and its crossing sounds (DAT-13, SCP-7)
 Start with --at 0.5,-0.5, zoom 1,000 kilometres, step 100 kilometres. You hear “North Atlantic Ocean”.
 • 13.1 Press Ctrl+Shift+L, go to the Graticule group, and switch on “Lines of latitude and longitude” and “Special lines”. Press OK.
+> passes 
 • 13.2 Press Right. You cross the prime meridian: your meridianCrossed sound plays.
+> passes 
 • 13.3 Press Down. You hear “South Atlantic Ocean” and cross the equator: your equatorCrossed sound plays.
+> passes 
 • 13.4 Open Settings, Layers. The interval of the lines is 10 degrees. Change it to 1 degree, press OK, and step again: the line crossing sound plays at every degree crossed.
+> passes
 • 13.5 Put the interval back to 10, and switch the two layers off again in the layers list.
+> passes
+> Q: Are graticule lines drawn?  They should be. Standard graticules in a basic way, with special lines emphasized in some way.
+
 14. Holding an arrow key (ANN-3, DP140)
 Start with --at 51.2,1.2, step 25 kilometres.
 • 14.1 Hold Right for three seconds. After half a second, the clicks come evenly, about 6 a second, however long the map takes to draw. Each click is clean, with no swish or hiss.
+> passes 
 • 14.2 Let go. There is no extra click as you let go: the last click is the last step’s. Only the last place is spoken.
+> passes 
 • 14.3 Do the same with the beacon on, and with the graticule on. The clicks are still even, and the beacon keeps its beat.
+
+> passes 
 15. How much is said: the verbosity presets (ACC-5, DP144)
 Start with --at 51.2,1.2, zoom and step 25 kilometres.
+> I think we need a speech option which always announces the location rather than playing a click.  Still adheres to terse, normal and verbose e.g. In terse, will just say the smallest area and in verbose will say the complete hierarchy.
 • 15.1 Press A. You hear “Detailed. The whole place is said when an area changes, and the heading after each step in free facing.” Press A again: “Terse. Only the smallest area that changed is said.” Again: “Normal. Every area that changed is said, and the zoom, the step and the heading.”
+> A is tied to both linking zoom and scale as well as verbosity.  Linking zoom and scale should be tied to S.  
+> but otherwise passes as changed verbosity in settings / speech
 • 15.2 Normal first. Start with --at 49.9,2.3, step 100 kilometres. You hear “Hauts-de-France, France”. Press Left. You hear “Normandy”: only what changed.
+> passes 
 • 15.3 Press A once, for detailed. Start again at 49.9,2.3 and press Left. You hear “Normandy, France”: the whole place. Press O twice for free facing and press Up: the heading is said after the place, or alone if no area changed. Press O for north-fixed.
+> passes 
 • 15.4 Press A for terse. Start with --at 51.2,1.2, step 25 kilometres, and do Down, Right, Right. At the third you hear only “Hauts-de-France”, where normal says “Hauts-de-France, France”. Page Up only ticks: the zoom is not said, but H still says it.
+> passes 
 • 15.5 Press A for normal. Open Settings, Speech. The preset is first, then its four switches. Change one: when you press OK, the preset is Custom. Choose Normal again.
+> passes 
 • 15.6 Press F3 to go to the Information panel, and press A. The verbosity does not change, and the step is not linked to the zoom: in the panel, a letter goes to the next item starting with it. If you hear anything about the zoom or the step, tell me exactly what.
+> passes 
 16. Link step to zoom (NAV-13)
 Start with --at 51.2,1.2.
 • 16.1 On the map, press S. You hear “Step linked to zoom.”, then the zoom and step.
+> fails. s not linked 
 • 16.2 Press Page Up. The zoom and the step both change, and both are said.
+> I'm sure the first time I did this via the settings / movement dialogue, only zoom changes were announced when I did page up. but then I pressed H, and after that both zoom and step size were announced.   but I can't repeat it so perhaps I was wrong.
+> otherwise it passes.
 • 16.3 Press S again. You hear “Step no longer linked to zoom.”, then the zoom and step. Page Up now changes only the zoom.
+> passes 
 • 16.4 Press F3 and press S in the Information panel. It goes to the next item starting with S, if there is one, and does not link the step.
+> passes 
 • 16.5 The Map menu has “Link step to zoom”, with S.
+> passes 
+
 17. Earcons (SON-6, SON-7, SON-8, DP123)
 • 17.1 Open Settings, Earcons. At the top is “Earcons: volume, in percent”. Then, for each earcon, “play it” and “your own sound file”.
 • 17.2 Set the earcon volume to 30 and step about: the tick is quieter. Put it back to 100.
@@ -170,7 +298,14 @@ Start with --at 51.2,1.2.
 • 17.5 Open Settings, Earcons again, press Use the default for the tick, and press OK. Step once: only the default tick plays, with nothing of your own sound before it.
 • 17.6 Choose a file that is not a WAV sound, such as a text file renamed to .wav. When the file dialog closes, NVDA reads a message under the field: the file “could not be read as a WAV sound file, so the sound is not changed.” The message stays under the field until you choose again.
 • 17.7 Press Ctrl+M. Everything is silent: earcons, the beacon and the voice. Press Ctrl+M again and sound comes back.
+> none of 17 tested as I've requested a redesign of this tab.
+
 18. The sound design as a whole
 Tell me how the sound in space feels now: the lower pitch behind, the voice behind you, the loudness with distance, the minimum volume, stereo against HRTF (Settings, Sound), the beacon’s new sound, the clicks, and anything else. These notes go against SON-1, SON-2, SON-9 and SON-10.
 Finishing
 When you have been through it, send me your notes. If you accept the desktop version, and the web version passes its own checklist, I ask you about publishing (DP110). That completes Phase 2.
+> As mentioned elsewhere, I'd like to set up a test harness again like in phase 0 to go through the options for spatial sound and speech as it doesn't seem as good now as when I tested in phase 0.
+
+Other thoughts
+or sighted users, there aren't buttons to press to move, nor a area displaying the coordinates, zoom and step.  Perhaps for next phase, we could discuss how this might be done without taking up audio or keystroke real estate 
+Generally, if there is a keystroke to cycle through options, shift keystroke should go the opposite way.

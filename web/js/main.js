@@ -79,13 +79,14 @@ function beaconUpdate(b) {
   }
 }
 
-function handle(result, keyAt, held = false) {
+// named: a dialog's answer whose words are already the map's name, read as focus returns (P2-T17c).
+function handle(result, keyAt, held = false, named = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
   const r = result.response;
   let spoke = false;
   for (const a of r.announcements) {
     if (a.channel === "braille") { if (a.fallback) speak(a.fallback, "polite"); }  // no Braille-only route in a browser
-    else speak(a.text, a.priority);
+    else if (!named) speak(a.text, a.priority);
     spoke = true;
   }
   for (const info of result.earcons || []) {
@@ -123,7 +124,7 @@ function handle(result, keyAt, held = false) {
   }
   if (result.scene) paint(result.scene);
   if (result.panel) tree.fill(result.panel);
-  if (result.map_label !== undefined) setMapLabel(result.map_label);
+  if (result.map_label !== undefined) { if (named) mapLabel = result.map_label; else setMapLabel(result.map_label); }
   if (result.details !== undefined) {
     details.value = result.details;
     details.setSelectionRange(0, 0);  // so Tab or F4 always lands on the first line
@@ -447,8 +448,7 @@ function historyList(d) {
 }
 
 // Send a typed answer or a chosen entry to the core. If it is refused, show and say why and keep the
-// box open; otherwise close the box and carry out the answer. The map's name is changed while the box
-// still has focus, so the screen reader reads the new place, not the old one, as focus returns.
+// box open; otherwise close the box and carry out the answer.
 function submit(name, args, message, box) {
   const { width, height } = mapSize();
   return client.send({ type: "run", commands: [[name, args]], width, height }).then((r) => {
@@ -457,10 +457,27 @@ function submit(name, args, message, box) {
       speak(r.response.error, "assertive");
       return;
     }
-    if (r.map_label !== undefined) setMapLabel(r.map_label);
-    box.close();
-    handle(r);
+    closeWithAnswer(box, [r]);
   }).catch(showError);
+}
+
+// Close a dialog and carry out its answer, such as Go to's place or the layers changed. The screen
+// reader reads the map's name as the focus comes back to it, so what the answer says becomes that
+// name and is not spoken as well; with nothing to say, the name is the place after the changes.
+// Spoken too, the place was said twice; set after the close, the old place was read (P2-T17c, web
+// checklist 5.2 and 8.6). The name is set while the box still has focus, as closing it moves the focus.
+function closeWithAnswer(box, results) {
+  const target = returnTarget();
+  if (target === mapEl) {
+    const said = [];
+    for (const r of results) {
+      for (const a of r.response.announcements) if (a.channel !== "braille") said.push(a.text);
+      if (r.map_label !== undefined) mapLabel = r.map_label;   // the name again once the map is left
+    }
+    mapEl.setAttribute("aria-label", said.join(" ") || mapLabel || "");
+  }
+  box.close();
+  for (const r of results) handle(r, undefined, false, target === mapEl);
 }
 
 // The layers list (SCP-6, SCP-7): a check box for each layer under its group; Space switches it. A
@@ -477,11 +494,11 @@ function openLayers(d) {
   let current = null;
 
   const showList = () => {
-    box.replaceChildren();
+    const body = focusModeBody(box);
     box.setAttribute("aria-label", d.title);
     const title = document.createElement("h2");
     title.textContent = d.title;
-    box.append(title);
+    body.append(title);
     for (const g of d.groups) {
       const set = document.createElement("fieldset");
       const legend = document.createElement("legend");
@@ -498,13 +515,13 @@ function openLayers(d) {
         label.append(check, " " + l.name);
         set.append(label, document.createElement("br"));
       }
-      box.append(set);
+      body.append(set);
     }
     current = current || Object.keys(layers)[0];
     const settings = button(d.words.settings_button, () => showSettings(), "layers-settings");
     const ok = button(d.words.ok, apply, "layers-ok");
     const cancel = button(d.words.cancel, () => box.close(), "layers-cancel");
-    box.append(settings, ok, cancel);
+    body.append(settings, ok, cancel);
   };
 
   const apply = () => {
@@ -516,10 +533,9 @@ function openLayers(d) {
       }
       if (Object.keys(values).length) commands.push([d.set, { layer: id, values }]);
     }
-    box.close();
-    if (!commands.length) return;
+    if (!commands.length) return box.close();
     const { width, height } = mapSize();
-    client.send({ type: "run", commands, width, height }).then(handle).catch(showError);
+    client.send({ type: "run", commands, width, height }).then((r) => closeWithAnswer(box, [r])).catch(showError);
   };
 
   const zoomSelect = (name, value, none) => {
@@ -539,7 +555,7 @@ function openLayers(d) {
 
   const showSettings = () => {
     const l = layers[current];
-    box.replaceChildren();
+    const body = focusModeBody(box);
     const title = document.createElement("h2");
     title.textContent = d.words.settings_title.replace("{layer}", l.name);
     box.setAttribute("aria-label", title.textContent);
@@ -575,7 +591,7 @@ function openLayers(d) {
       showList();
       box.querySelector(`[data-layer="${current}"]`).focus();
     }, "layer-settings-cancel");
-    box.append(title, row(d.words.closest, closest), document.createElement("br"),
+    body.append(title, row(d.words.closest, closest), document.createElement("br"),
                row(d.words.farthest, farthest), document.createElement("br"),
                row(d.words.crossing, crossing), message, ok, cancel);
     closest.focus();
@@ -626,9 +642,12 @@ function openInput(d) {
 }
 
 dialogClose.addEventListener("click", () => dialog.close());
-function afterClose() {
+function returnTarget() {
   // Menu commands return focus to the map, as on the desktop.
-  (returnFocus && document.contains(returnFocus) && !menubar.contains(returnFocus) ? returnFocus : mapEl).focus();
+  return returnFocus && document.contains(returnFocus) && !menubar.contains(returnFocus) ? returnFocus : mapEl;
+}
+function afterClose() {
+  returnTarget().focus();
 }
 dialog.addEventListener("close", afterClose);
 settingsDialog.addEventListener("close", afterClose);
@@ -644,6 +663,18 @@ settingsDialog.addEventListener("keydown", (e) => {
   }
 });
 
+// NVDA's browse mode turns Enter on a check box into a click, so Enter ticked the box instead
+// of pressing OK, and the page never saw the key (P2-T17b, web checklist 8.6 and 10.6). Inside
+// role="application" NVDA stays in focus mode, as on the map, so Enter and Space reach the page:
+// Space ticks, Enter presses OK, and Enter on a button presses that button.
+function focusModeBody(box) {
+  const body = document.createElement("div");
+  body.className = "dialog-body";
+  body.setAttribute("role", "application");
+  box.replaceChildren(body);
+  return body;
+}
+
 function button(label, onClick, id) {
   const b = document.createElement("button");
   b.type = "button";
@@ -658,15 +689,15 @@ function button(label, onClick, id) {
 // Right move along the tabs; Tab goes into the page. Enter in a field is OK.
 async function openSettings() {
   const schema = await client.send({ type: "schema" });
-  settingsDialog.textContent = "";
+  const body = focusModeBody(settingsDialog);
   const title = document.createElement("h2");
   title.textContent = words.settings_title;
   settingsDialog.setAttribute("aria-label", words.settings_title);
-  settingsDialog.appendChild(title);
+  body.appendChild(title);
   const tablist = document.createElement("div");
   tablist.setAttribute("role", "tablist");
   tablist.setAttribute("aria-label", words.settings_title);
-  settingsDialog.appendChild(tablist);
+  body.appendChild(tablist);
   const tabs = [], pages = [];
   const addPage = (id, label) => {
     const tab = document.createElement("button");
@@ -688,7 +719,7 @@ async function openSettings() {
       else if (step) { e.preventDefault(); choose((i + step + tabs.length) % tabs.length, true); }
     });
     tablist.appendChild(tab);
-    settingsDialog.appendChild(page);
+    body.appendChild(page);
     tabs.push(tab);
     pages.push(page);
     return page;
@@ -792,7 +823,7 @@ async function openSettings() {
   file.setAttribute("aria-label", words.import);
   file.addEventListener("change", () => importSettings(file));
   bar.appendChild(file);
-  settingsDialog.appendChild(bar);
+  body.appendChild(bar);
   settingsDialog.showModal();
   tabs[0].focus();
 }
@@ -950,7 +981,11 @@ async function boot() {
     moveRegion, () => mapEl.focus());
   $("loading").remove();
   $("app").removeAttribute("aria-busy");
-  handle(result);
+  // The start is not spoken: the screen reader reads the map's name as the focus arrives, which cut
+  // the start off, so "Press F1 for keys" was never heard. The map is named with the start, less the
+  // page's title, so it is heard once, in full; leaving the map names it after the place (P2-T17d).
+  mapEl.setAttribute("aria-label", result.start_label);
+  handle(result, undefined, false, true);
   sounds.preload(result.preload);
   mapEl.focus();
   window.tobymap.ready = true;

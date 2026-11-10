@@ -1,0 +1,5 @@
+very limited testing from sighted user.
+When viewing nw europe, having regions on was too confusing but made better sense when regions was off and showing just countries.
+There was a funny horizontal line across France.
+There is a thick red line that zigzags all over the place, possibly following coastline but also jumps from sweden to shetland isles.
+And it has just occurred to me that england, wales, scotland and northern island are indeed regions of the UK but are not equivalent to the next tier down of government.  Counties and unitary authorities are the next tier down - similar to departments in France for example.

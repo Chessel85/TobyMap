@@ -5,7 +5,7 @@ import pytest
 
 pytest.importorskip("playwright")
 
-START = "TobyMap. Kent, England, United Kingdom. Press F1 for keys."
+START_LABEL = "Kent, England, United Kingdom. Press F1 for keys."
 KENT = {"lat": 51.2, "lon": 1.2, "zoom_m": 25000, "step_m": 25000}
 
 
@@ -66,11 +66,16 @@ def go_to_menu_bar(app):
     app.wait_for_function("document.getElementById('menubar').contains(document.activeElement)")
 
 
-def test_start_is_announced_and_the_map_has_focus(app):
-    assert said(app) == [START]
+def test_start_is_the_map_name_as_focus_arrives_and_the_map_has_focus(app):
+    # Spoken, the start was cut off by the screen reader reading the map's name as the focus
+    # arrived, so "Press F1 for keys" was never heard (P2-T17d, web checklist 1.2).
+    assert said(app) == []
     assert region(app) == "map"
     assert app.title() == "TobyMap"
     assert app.get_attribute("#map", "role") == "application"
+    assert app.get_attribute("#map", "aria-label") == START_LABEL
+    app.keyboard.press("F3")
+    app.wait_for_function("document.getElementById('tree').contains(document.activeElement)")
     assert app.get_attribute("#map", "aria-label") == "Kent, England, United Kingdom"
     assert app.get_attribute("#tree", "aria-label") == "Information panel"
     assert app.get_attribute("#details", "aria-label") == "Details"
@@ -99,21 +104,21 @@ def test_tab_cycles_the_three_regions_and_wraps(app):
 
 def test_arrow_keys_step_and_speak_and_tick(app):
     app.keyboard.press("ArrowDown")
-    wait_said(app, 2)
+    wait_said(app, 1)
     assert said(app)[-1] == "North Atlantic Ocean"
     app.keyboard.press("ArrowDown")
     app.wait_for_function("window.tobymap.earcons.length >= 1")
     assert app.evaluate("window.tobymap.earcons") == ["tick"]
-    assert len(said(app)) == 2          # a step that changes nothing is only the tick
+    assert len(said(app)) == 1          # a step that changes nothing is only the tick
     app.keyboard.press("PageDown")
-    wait_said(app, 3)
+    wait_said(app, 2)
     assert said(app)[-1] == "Zoom 10 kilometres."      # only what changed (checklist 7, second pass)
 
 
 def test_holding_an_arrow_key_speaks_only_the_final_place_after_release(app):
     """ANN-3: key repeats are made but not spoken; on release only the last place is."""
     app.keyboard.down("ArrowDown")                     # the first press speaks
-    wait_said(app, 2)
+    wait_said(app, 1)
     spoken = len(said(app))
     app.wait_for_timeout(600)                          # past the repeat delay (DP129)
     for _ in range(20):
@@ -134,13 +139,13 @@ def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(page, site_url):
     app = open_app(page, site_url, query="?slowdraw=200")
     paints = app.evaluate("window.tobymap.paints")
     app.keyboard.down("ArrowDown")                     # the press is spoken at once
-    wait_said(app, 2)
+    wait_said(app, 1)
     for _ in range(30):                                # 3 seconds of the system's key repeats
         app.wait_for_timeout(100)
         app.keyboard.down("ArrowDown")
     held_paints = app.evaluate("window.tobymap.paints") - paints
     app.keyboard.up("ArrowDown")
-    wait_said(app, 3)
+    wait_said(app, 2)
     assert said(app)[-1] == "France"
     clicks = app.evaluate("window.tobymap.clicks")
     assert len(clicks) >= 14                           # 2.5 seconds after the delay, 6 a second
@@ -168,13 +173,13 @@ def test_letting_go_of_a_held_key_makes_no_second_click(page, site_url):
                 new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })), 0);
             return n; }; }""")
     app.keyboard.down("ArrowDown")                     # the press steps and is spoken at once
-    wait_said(app, 2)
+    wait_said(app, 1)
     app.wait_for_function("window.releasedAt !== undefined", timeout=10_000)
     app.keyboard.up("ArrowDown")                       # the real key, already let go as far as the page knows
     app.wait_for_timeout(600)                          # the release, and the time the click was due
     after = app.evaluate("window.tobymap.earcons.slice(window.playedAtRelease)")
     assert "tick" not in after, after
-    assert len(said(app)) == 2                         # still at sea: nothing changed, so nothing said
+    assert len(said(app)) == 1                         # still at sea: nothing changed, so nothing said
     released = app.evaluate("window.releasedAt")
     ahead_ms = app.evaluate("""async () => {
         const s = await import(new URL('./js/sounds.js', location.href).href);
@@ -183,7 +188,7 @@ def test_letting_go_of_a_held_key_makes_no_second_click(page, site_url):
     heard = [c for c in app.evaluate("window.tobymap.clicks") if not c["cancelled"]]
     assert all(c["due"] <= released + ahead_ms + 5 for c in heard), (released, ahead_ms, heard[-2:])
     app.keyboard.press("c")
-    wait_said(app, 3)
+    wait_said(app, 2)
     lat = float(said(app)[-1].split(" degrees north")[0])
     steps = round((51.2 - lat) / 0.22482)              # 25 km south each
     assert steps == 1 + len(heard), (lat, len(heard))  # the press, then one step for each click heard
@@ -253,8 +258,8 @@ def test_f3_goes_back_to_the_item_last_focused(app):
 
 def test_map_name_changes_only_while_it_does_not_have_focus(app):
     app.keyboard.press("ArrowDown")
-    wait_said(app, 2)
-    assert app.get_attribute("#map", "aria-label") == "Kent, England, United Kingdom"
+    wait_said(app, 1)
+    assert app.get_attribute("#map", "aria-label") == START_LABEL   # unchanged while focused
     app.keyboard.press("Tab")
     assert app.get_attribute("#map", "aria-label") == "North Atlantic Ocean"
 
@@ -285,7 +290,7 @@ def test_menu_bar_from_the_registry_with_toggles(app):
         app.keyboard.press("ArrowDown")
     assert app.evaluate("document.activeElement.textContent").startswith("Send a Braille-only message")
     app.keyboard.press("Enter")
-    wait_said(app, 2)
+    wait_said(app, 1)
     assert said(app)[-1].startswith("Braille-only messages are not possible in a web browser.")
     assert region(app) == "map"
 
@@ -320,25 +325,25 @@ def test_f1_dialog_for_the_focused_region_has_a_close_button(app):
 
 def test_history_repeat_and_the_key_describer(app):
     app.keyboard.press("Space")
-    wait_said(app, 2)
+    wait_said(app, 1)
     app.keyboard.press("Shift+Space")          # repeat (P2-T0c, your key)
-    wait_said(app, 3)
+    wait_said(app, 2)
     assert said(app)[-1] == "Kent, England, United Kingdom"
     app.keyboard.press("Control+Shift+Space")
     app.wait_for_function("document.getElementById('dialog').open")
     assert app.eval_on_selector("#history-list option", "o => o.textContent") == "Kent, England, United Kingdom"
     app.click("#dialog-close")
     app.keyboard.press("Shift+F1")
-    wait_said(app, 4)
+    wait_said(app, 3)
     app.keyboard.press("ArrowDown")
-    wait_said(app, 5)
+    wait_said(app, 4)
     assert said(app)[-1] == "Down: Step south or back"
-    assert len(said(app)) == 5
+    assert len(said(app)) == 4
     app.keyboard.press("Tab")             # caught: it does nothing (checklist 2.2)
-    wait_said(app, 6)
+    wait_said(app, 5)
     assert said(app)[-1] == "Tab: no command."
     app.keyboard.press("Shift+F1")
-    wait_said(app, 7)
+    wait_said(app, 6)
     assert said(app)[-1] == "Key describer off."
 
 
@@ -425,7 +430,7 @@ def test_the_sounds_in_help_can_be_played(app):
 
 def test_mute_stops_the_earcons(app):
     app.keyboard.press("Control+m")
-    wait_said(app, 2)
+    wait_said(app, 1)
     assert said(app)[-1] == "Sound muted."
     app.keyboard.press("ArrowUp")
     app.wait_for_timeout(500)
@@ -443,16 +448,16 @@ def test_the_wheel_changes_the_zoom(app):
     box = app.locator("#canvas").bounding_box()
     app.mouse.move(box["x"] + 100, box["y"] + 100)
     app.mouse.wheel(0, -120)
-    wait_said(app, 2)
+    wait_said(app, 1)
     assert said(app)[-1].startswith("Zoom 10 kilometres")
 
 
 def test_announcer_alternates_live_regions(page, site_url):
     open_app(page, site_url, values={"coordinate_places": "fixed"}, query="?announcer=live")
     page.keyboard.press("c")
-    wait_said(page, 2)
+    wait_said(page, 1)
     page.keyboard.press("c")
-    wait_said(page, 3)
+    wait_said(page, 2)
     texts = page.evaluate("[...document.querySelectorAll('[id^=live-assertive]')].map(e => e.textContent)")
     assert sorted(texts) == ["", "51.20000 degrees north, 1.20000 degrees east"]
 
@@ -490,15 +495,15 @@ def test_axe_finds_no_serious_accessibility_problems(app):
 
 def test_the_orientation_and_turning_keys(app):
     app.keyboard.press("o")
-    wait_said(app, 2)
+    wait_said(app, 1)
     assert said(app)[-1] == "Cardinal facing, north."
     app.keyboard.press("ArrowRight")            # Shift turns do nothing in cardinal facing (P2-T16c)
-    wait_said(app, 3)
+    wait_said(app, 2)
     assert said(app)[-1] == "Facing east."
     app.keyboard.press("o")
-    wait_said(app, 4)
+    wait_said(app, 3)
     app.keyboard.press("Control+ArrowLeft")
-    wait_said(app, 5)
+    wait_said(app, 4)
     assert said(app)[-1] == "Facing 89 degrees."
 
 
@@ -514,7 +519,7 @@ def test_the_bearing_box_keeps_open_on_a_bad_answer_and_takes_a_good_one(app):
     app.fill("#input-field", "NE")
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('inputdialog').open")
-    assert said(app)[-1] == "Free facing, 45 degrees."
+    assert app.get_attribute("#map", "aria-label") == "Free facing, 45 degrees."   # said as focus returns
     assert app.evaluate("document.activeElement.id") == "map"
 
 
@@ -524,13 +529,12 @@ def test_go_to_coordinates_and_back_through_the_places(app):
     app.fill("#input-field", "52.1 N 1.3 W")
     app.click("#input-ok")
     app.wait_for_function("!document.getElementById('inputdialog').open")
-    wait_said(app, 2)
     app.keyboard.press("Control+g")
     app.wait_for_function("document.getElementById('inputdialog').open")
     app.click("#input-cancel")
     app.wait_for_function("!document.getElementById('inputdialog').open")
     app.keyboard.press("Alt+,")
-    wait_said(app, 3)
+    wait_said(app, 1)
     assert said(app)[-1] == "Kent, England, United Kingdom"
 
 
@@ -541,62 +545,62 @@ LABEL_ON_FOCUS = """() => {
 }"""
 
 
-def test_after_go_to_the_map_has_the_new_place_as_its_name_when_focus_returns(app):
-    # The screen reader reads the map's name as focus returns, so it must already be the new place.
+def test_after_go_to_the_new_place_is_said_once_as_the_maps_name_when_focus_returns(app):
+    # The screen reader reads the map's name as focus returns, so it must already be the new place,
+    # and it is not spoken as well, or it is heard twice (P2-T17c, web checklist 5.2).
     app.evaluate(LABEL_ON_FOCUS)
     app.keyboard.press("Control+g")
     app.wait_for_function("document.getElementById('inputdialog').open")
     app.fill("#input-field", "48.8566, 2.3522")
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('inputdialog').open")
-    wait_said(app, 2)
-    assert "Kent" not in said(app)[-1]
-    assert app.evaluate("window.labelsOnFocus") == [said(app)[-1]]
+    app.wait_for_function("window.labelsOnFocus.length > 0")
+    (place,) = app.evaluate("window.labelsOnFocus")
+    assert place and "Kent" not in place
+    assert said(app) == []
 
 
 def test_after_enter_in_the_history_the_map_has_that_place_as_its_name_when_focus_returns(app):
     app.keyboard.press("PageUp")
-    wait_said(app, 2)
+    wait_said(app, 1)
     app.keyboard.press("Control+g")
     app.wait_for_function("document.getElementById('inputdialog').open")
     app.fill("#input-field", "10, 10")
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('inputdialog').open")
-    wait_said(app, 3)
     app.evaluate(LABEL_ON_FOCUS)
     app.keyboard.press("Control+Shift+Space")
     app.wait_for_function("document.getElementById('dialog').open")
     app.keyboard.press("ArrowDown")          # the zoom entry, said at Kent
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('dialog').open")
-    wait_said(app, 4)
+    app.wait_for_function("window.labelsOnFocus.length > 0")
     assert app.evaluate("window.labelsOnFocus") == ["Kent, England, United Kingdom"]
+    assert len(said(app)) == 1                # the zoom: the place is not spoken as well (P2-T17c)
 
 
 def test_enter_in_the_announcement_history_goes_back_there(app):
     app.keyboard.press("PageUp")
-    wait_said(app, 2)
+    wait_said(app, 1)
     app.keyboard.press("Control+g")
     app.wait_for_function("document.getElementById('inputdialog').open")
     app.fill("#input-field", "10, 10")
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('inputdialog').open")
-    wait_said(app, 3)
     app.keyboard.press("Control+Shift+Space")
     app.wait_for_function("document.getElementById('dialog').open")
     app.keyboard.press("ArrowDown")          # the zoom entry, said at Kent
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('dialog').open")
-    wait_said(app, 4)
-    assert said(app)[-1] == "Kent, England, United Kingdom"
+    assert app.get_attribute("#map", "aria-label") == "Kent, England, United Kingdom"
     app.keyboard.press("Alt+,")
-    wait_said(app, 5)
+    wait_said(app, 2)
     assert said(app)[-1] != "Kent, England, United Kingdom"
 
 
 def test_enter_on_an_entry_with_no_place_keeps_the_history_open(app):
     app.keyboard.press("Control+m")          # speaks, but has no place
-    wait_said(app, 2)
+    wait_said(app, 1)
     app.keyboard.press("Control+Shift+Space")
     app.wait_for_function("document.getElementById('dialog').open")
     app.keyboard.press("Enter")
@@ -617,7 +621,7 @@ def test_the_layers_dialog_lists_layers_in_groups_and_ok_switches_one(app):
     app.click("#layers-ok")
     app.wait_for_function("!document.getElementById('layersdialog').open")
     app.keyboard.press("Space")
-    wait_said(app, 2)
+    wait_said(app, 1)
     assert said(app)[-1] == "Kent, United Kingdom"
     assert app.evaluate("document.activeElement.id") == "map"
 
@@ -638,7 +642,7 @@ def test_space_in_the_layers_dialog_ticks_and_enter_presses_ok(app):
     app.keyboard.press("Enter")
     app.wait_for_function("!document.getElementById('layersdialog').open")
     app.keyboard.press("Space")
-    wait_said(app, 2)
+    wait_said(app, 1)
     assert said(app)[-1] == "Kent, United Kingdom"
 
 
@@ -655,7 +659,7 @@ def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refuse
     app.click("#layers-cancel")
     app.wait_for_function("!document.getElementById('layersdialog').open")
     app.keyboard.press("Space")
-    wait_said(app, 3)
+    wait_said(app, 2)
     assert said(app)[-1] == "Kent, England, United Kingdom"
 
 
@@ -674,7 +678,7 @@ def test_crossed_and_passed_is_filled_between_key_presses_and_shift_3_goes_there
     app = open_app(page, site_url, state={"lat": lat, "lon": west, "zoom_m": 5000, "step_m": 1000})
     app.keyboard.press("ArrowRight")
     app.wait_for_function("window.tobymap.earcons.includes('crossed_added')", timeout=30_000)
-    assert len(said(app)) == 1   # still Southampton: only the tick; the river is never spoken
+    assert len(said(app)) == 0   # still Southampton: only the tick; the river is never spoken
     app.keyboard.press("Shift+Digit3")
     app.wait_for_function("document.getElementById('tree').contains(document.activeElement)")
     assert app.evaluate("document.activeElement.textContent").startswith("River Itchen, crossed")
@@ -765,3 +769,105 @@ def test_the_focus_point_holds_the_map_centre_after_a_step_a_click_and_a_jump(ap
     app.keyboard.press("Enter")
     app.wait_for_function(f"window.tobymap.paints > {n} && document.activeElement.id === 'map'")
     assert holds_centre()
+
+
+# Enter on a button presses that button, and Enter on a check box presses OK (P2-T17b; web checklist 8.6, 10.6; ACC-7)
+
+def test_enter_on_a_layer_check_box_presses_ok_and_never_ticks_it(app):
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    # NVDA stays in focus mode here, so Enter reaches the page rather than clicking the box
+    assert app.evaluate("!!document.querySelector('[data-layer=regions]').closest('[role=application]')")
+    app.focus("[data-layer=regions]")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
+    app.keyboard.press("Space")
+    wait_said(app, 1)
+    assert said(app)[-1] == "Kent, England, United Kingdom"   # Regions is still on
+
+
+def test_enter_on_each_button_in_the_layers_list_presses_that_button(app):
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    app.focus("[data-layer=counties]")
+    app.focus("#layers-settings")
+    app.keyboard.press("Enter")                         # opens that layer's settings
+    app.wait_for_function("!!document.getElementById('layer-settings-cancel')")
+    assert app.evaluate("!!document.activeElement.closest('[role=application]')")
+    app.select_option("#layersdialog select >> nth=0", label="250 kilometres")
+    app.focus("#layer-settings-cancel")
+    app.keyboard.press("Enter")                         # back to the list, with nothing refused or kept
+    app.wait_for_function("document.activeElement.dataset.layer === 'counties'")
+    assert app.evaluate("!document.getElementById('layer-settings-message')")
+    app.uncheck("[data-layer=regions]")
+    app.focus("#layers-cancel")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
+    app.keyboard.press("Space")
+    wait_said(app, 1)
+    assert said(app)[-1] == "Kent, England, United Kingdom"   # Cancel kept nothing
+
+
+def test_enter_on_a_settings_check_box_presses_ok_and_on_cancel_cancels(app):
+    app.keyboard.press("Control+,")
+    app.wait_for_function("document.getElementById('settings').open")
+    assert app.evaluate("!!document.querySelector('#settings-ok').closest('[role=application]')")
+    app.click("#settings-tab-movement")
+    app.focus("#settings [data-field=link]")
+    app.keyboard.press("Enter")                         # OK, and the box is not ticked
+    app.wait_for_function("!document.getElementById('settings').open")
+    stored = json.loads(app.evaluate("localStorage.getItem('tobymap')"))
+    assert not stored["settings"]["values"].get("link")
+    app.keyboard.press("Control+,")
+    app.wait_for_function("document.getElementById('settings').open")
+    app.click("#settings-tab-movement")
+    app.check("#settings [data-field=link]")
+    app.focus("#settings-cancel")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('settings').open")
+    stored = json.loads(app.evaluate("localStorage.getItem('tobymap')"))
+    assert not stored["settings"]["values"].get("link")
+
+
+def test_enter_on_cancel_closes_the_bearing_box_without_reading_it(app):
+    app.keyboard.press("Control+b")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.keyboard.type("hello")
+    app.focus("#input-cancel")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    assert not any(t.startswith("That is not a bearing") for t in said(app))
+
+
+# The place said once as a dialog closes (P2-T17c; web checklist 5.2, 8.6) ------------------------
+
+def test_closing_the_layers_list_names_the_map_after_the_changes(app):
+    # Web checklist 8.6: with Countries and Regions off, "United Kingdom" was still said as the list
+    # closed, because the map's name was changed only after the focus had come back.
+    app.evaluate(LABEL_ON_FOCUS)
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    for layer in ("countries", "regions", "counties"):
+        app.uncheck(f"[data-layer={layer}]")
+    app.click("#layers-ok")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
+    app.wait_for_function("window.labelsOnFocus.length > 0")
+    (name,) = app.evaluate("window.labelsOnFocus")
+    assert "United Kingdom" not in name
+    app.keyboard.press("Space")
+    wait_said(app, 1)
+    assert said(app)[-1] == name              # the same words as Space says, after the change
+    assert said(app)[:-1] == []          # and nothing spoken as the list closed
+
+
+def test_after_a_bearing_leaving_the_map_names_it_after_the_place_again(app):
+    app.keyboard.press("Control+b")
+    app.wait_for_function("document.getElementById('inputdialog').open")
+    app.fill("#input-field", "90")
+    app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('inputdialog').open")
+    assert app.get_attribute("#map", "aria-label") == "Free facing, 90 degrees."
+    assert said(app) == []
+    app.keyboard.press("F3")
+    app.wait_for_function("document.getElementById('tree').contains(document.activeElement)")
+    assert app.get_attribute("#map", "aria-label") == "Kent, England, United Kingdom"

@@ -49,10 +49,14 @@ def click_dialog(window, cls):
     return dialog
 
 
-def test_start_is_announced_and_map_has_focus(window):
-    assert window.announcer.texts == ["TobyMap. Kent, England, United Kingdom. Press F1 for keys."]
+def test_start_is_the_map_name_as_focus_arrives_and_map_has_focus(window):
+    # Spoken, the start was cut off by NVDA reading the window's title and the map's name as the
+    # window appeared, so "Press F1 for keys" was never heard (P2-T17d, desktop checklist 1.2).
+    assert window.announcer.texts == []
     assert region(window) == "map"
-    assert window.map.accessibleName() == "Kent, England, United Kingdom"
+    assert window.map.accessibleName() == "Kent, England, United Kingdom. Press F1 for keys."
+    assert window.windowTitle() == "TobyMap"
+    assert window.session.history[0] == "TobyMap. Kent, England, United Kingdom. Press F1 for keys."
     assert window.tree.accessibleName() == "Information panel"
     assert window.details.accessibleName() == "Details"
 
@@ -511,7 +515,7 @@ def test_a_missing_pack_is_explained(qtbot, tmp_path, monkeypatch):
     monkeypatch.setenv("TOBYMAP_PACKS", str(tmp_path / "nothing-here"))
     w = MainWindow(announcer=RecordingAnnouncer(), sounds=RecordingSounds(), data_folder=tmp_path)
     qtbot.addWidget(w)
-    assert w.announcer.texts[0].startswith("No map pack is installed")
+    assert w.map.accessibleName().startswith("No map pack is installed")
 
 
 def test_mute_stops_the_earcons(window, qtbot):
@@ -655,7 +659,7 @@ def test_the_bearing_box_takes_a_bearing_and_refuses_what_it_cannot_read(window,
     box.field.setText("NE")
     box.ok_button.click()
     QApplication.processEvents()
-    assert not box.isVisible() and window.announcer.texts[-1] == "Free facing, 45 degrees."
+    assert not box.isVisible() and window.map.accessibleName() == "Free facing, 45 degrees."   # said as focus returns
     assert window.session.world.heading == 45.0
 
 
@@ -819,3 +823,184 @@ def test_crossed_and_passed_is_filled_in_the_background_and_shift_3_goes_there(q
     qtbot.keyClick(w.map, Qt.Key.Key_3, Qt.KeyboardModifier.ShiftModifier)
     assert region(w) == "panel"
     assert w.tree.currentItem().text(0).startswith("River Itchen, crossed")
+
+
+# Enter on a button presses that button (P2-T17b; desktop checklist 3.5, 5.3, 8.2, 8.6; ACC-7) -------------
+
+def enter(qtbot, widget):
+    qtbot.keyClick(widget, Qt.Key.Key_Return)
+    QApplication.processEvents()
+
+
+@pytest.mark.parametrize("key", [Qt.Key.Key_B, Qt.Key.Key_G], ids=["bearing", "go to"])
+def test_enter_on_cancel_cancels_the_bearing_and_go_to_boxes(window, qtbot, key):
+    press(qtbot, window.map, key, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    box.field.setText("hello")
+    enter(qtbot, box.cancel_button)
+    assert not box.isVisible() and box.result() == 0 and box.response is None
+    assert box.message.text() == ""        # OK was not pressed: nothing was read
+    assert window.session.world.lat == 51.2
+
+
+def test_enter_on_ok_and_in_the_field_still_presses_ok(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_B, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    box.field.setText("hello")
+    enter(qtbot, box.ok_button)
+    assert box.isVisible() and box.message.text().startswith("That is not a bearing")
+    box.field.setText("NE")
+    enter(qtbot, box.field)
+    assert not box.isVisible() and window.session.world.heading == 45.0
+
+
+def test_enter_on_cancel_in_the_layers_list_changes_nothing(window, qtbot):
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    layer_item(dialog, "regions").setCheckState(0, Qt.CheckState.Unchecked)
+    enter(qtbot, dialog.cancel_button)
+    assert not dialog.isVisible() and dialog.result() == 0
+    assert window.session.layers.is_on("regions")
+
+
+def test_enter_on_settings_for_this_layer_opens_it(window, qtbot, monkeypatch):
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    opened = []
+    monkeypatch.setattr(LayerSettingsDialog, "exec", lambda self: opened.append(self.windowTitle()))
+    dialog.tree.setCurrentItem(layer_item(dialog, "counties"))
+    enter(qtbot, dialog.settings_button)
+    assert len(opened) == 1 and dialog.isVisible()
+    enter(qtbot, dialog.tree)               # elsewhere in the list, Enter is still OK, not Settings
+    assert len(opened) == 1 and not dialog.isVisible() and dialog.result() == 1
+
+
+def test_enter_on_cancel_in_a_layers_settings_goes_back_unchanged(window, qtbot):
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    box = LayerSettingsDialog(dialog, dialog.layers["counties"], dialog.dialog, dialog._check)
+    qtbot.addWidget(box)
+    box.show()
+    box.closest.setCurrentIndex(box.closest.findData(250000))
+    enter(qtbot, box.cancel_button)
+    assert not box.isVisible() and box.result() == 0
+    box = LayerSettingsDialog(dialog, dialog.layers["counties"], dialog.dialog, dialog._check)
+    qtbot.addWidget(box)
+    box.show()
+    enter(qtbot, box.closest)               # Enter in a field presses OK
+    assert not box.isVisible() and box.result() == 1
+
+
+def test_enter_on_each_button_in_settings_presses_that_button(window, qtbot):
+    window.dispatch("settings.open")
+    dialog = click_dialog(window, SettingsDialog)
+    dialog.controls["units"].setCurrentIndex(dialog.controls["units"].findData("imperial"))
+    enter(qtbot, dialog.cancel_button)
+    assert not dialog.isVisible() and window.session.settings["units"] == "metric"
+    window.dispatch("settings.open")
+    dialog = click_dialog(window, SettingsDialog)
+    dialog.controls["units"].setCurrentIndex(dialog.controls["units"].findData("imperial"))
+    enter(qtbot, dialog.controls["units"])  # Enter in a field presses OK
+    assert not dialog.isVisible() and window.session.settings["units"] == "imperial"
+
+
+def test_enter_on_no_key_and_cancel_in_the_key_box(window, qtbot):
+    window.dispatch("settings.open")
+    dialog = click_dialog(window, SettingsDialog)
+    capture = KeyCaptureDialog(dialog, window.session, dialog._commands[0], window.words)
+    qtbot.addWidget(capture)
+    capture.show()
+    enter(qtbot, capture.clear_button)
+    assert capture.isVisible() and capture.key == ""
+    enter(qtbot, capture.cancel_button)
+    assert not capture.isVisible() and capture.result() == 0
+    assert window.session.settings.keys == {}
+    dialog.cancel_button.click()
+
+
+def test_every_button_in_a_row_takes_enter_and_only_ok_is_the_default(window, qtbot):
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    rows = [dialog.settings_button, dialog.ok_button, dialog.cancel_button]
+    assert all(b.autoDefault() for b in rows)
+    assert [b.isDefault() for b in rows] == [False, True, False]
+    dialog.cancel_button.click()
+
+
+# The place said once as a dialog closes (P2-T17c; desktop checklist 5.2, 5.4, 7.4; web 8.2) -------------
+# NVDA reads the map's name as the focus comes back from a dialog. So what the dialog's answer says
+# becomes that name, and is not spoken as well; with nothing to say, the name is the place after the
+# dialog's changes, never the place before them.
+
+def said_once(window, before, text):
+    spoken = window.announcer.texts[before:]
+    assert text not in spoken, spoken
+    assert window.map.accessibleName() == text
+
+
+def test_go_to_says_the_new_place_once(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    before = len(window.announcer.texts)
+    box.field.setText("52.1 N 1.3 W")
+    enter(qtbot, box.field)
+    assert not box.isVisible()
+    place = window.session.map_label()
+    assert place != "Kent, England, United Kingdom"
+    said_once(window, before, place)
+    assert window.announcer.texts[before:] == []
+    assert place in window.session.run("speech.history").dialog["lines"]   # still in the announcement history
+
+
+def test_enter_in_the_announcement_history_says_the_place_once(window, qtbot):
+    window.dispatch("goto.set", text="52.1, -1.3")
+    press(qtbot, window.map, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+    box = click_dialog(window, HistoryDialog)
+    before = len(window.announcer.texts)
+    box.list.setCurrentRow(box.list.count() - 1)          # the oldest: the start, in Kent
+    enter(qtbot, box.list)
+    assert not box.isVisible() and window.session.world.lat == pytest.approx(51.2)
+    said_once(window, before, "Kent, England, United Kingdom")
+
+
+def test_closing_the_layers_list_names_the_map_after_the_changes(window, qtbot):
+    # Web checklist 8.6: with every layer here switched off, the old place was said as the list closed.
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    for layer in ("countries", "regions", "counties"):
+        layer_item(dialog, layer).setCheckState(0, Qt.CheckState.Unchecked)
+    before = len(window.announcer.texts)
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    after = window.session.map_label()
+    assert "United Kingdom" not in after
+    said_once(window, before, after)
+
+
+def test_cancel_names_the_map_after_the_place_unchanged(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    before = len(window.announcer.texts)
+    enter(qtbot, box.cancel_button)
+    said_once(window, before, "Kent, England, United Kingdom")
+    assert window.announcer.texts[before:] == []
+
+
+def test_after_a_bearing_leaving_the_map_names_it_after_the_place_again(window, qtbot):
+    press(qtbot, window.map, Qt.Key.Key_B, Qt.KeyboardModifier.ControlModifier)
+    box = click_dialog(window, InputDialog)
+    box.field.setText("90")
+    enter(qtbot, box.field)
+    assert window.map.accessibleName() == "Free facing, 90 degrees."
+    window.activateWindow()   # offscreen: the window is not given back the keyboard when a box closes
+    qtbot.waitUntil(lambda: QApplication.activeWindow() is window)
+    window.map.setFocus()
+    window.tree.setFocus()
+    QApplication.processEvents()
+    assert window.map.accessibleName() == "Kent, England, United Kingdom"
+    window.map.setFocus()
+    press(qtbot, window.map, Qt.Key.Key_B, Qt.KeyboardModifier.ControlModifier)   # a later answer, named afresh
+    box = click_dialog(window, InputDialog)
+    box.field.setText("180")
+    enter(qtbot, box.field)
+    assert window.map.accessibleName() == "Facing 180 degrees."

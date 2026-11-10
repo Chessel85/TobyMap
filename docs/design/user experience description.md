@@ -1,12 +1,19 @@
 # User Experience Description
 
-Version 0.11, 6 November 2026. Section 3.1 now has the verbosity presets, and section 11 the themes, the map display setting, Isolate, names on the map, heading-up and magnifiers.
+Version 0.12, 9 November 2026. Section 2 now says what is heard as a dialog closes, and at the start.
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.12
+
+Made in P2-T17c and P2-T17d.
+
+* Section 2: as a dialog closes, the screen reader says once what the dialog's answer said, such as the new place after Go to, or else the place after the dialog's changes.
+* Section 2: at the start, the screen reader says the window's title, TobyMap, then the place and "Press F1 for keys", as the map's name.
 
 ## Changes in version 0.11
 
@@ -107,6 +114,10 @@ The window has four regions. Tab and Shift+Tab move between the first three, wra
 2. Information panel. A tree view of information about the current location, grouped by relationship. Section 6 describes it.
 3. Details. A read-only text panel with the full details of the current feature, or of the item selected in the Information panel. It can be read line by line with the screen reader's normal reading keys.
 4. Menu bar. Contains every command, so nothing depends on remembering keys.
+
+When a dialog closes, the focus comes back to the map, and the screen reader says the map's name as it arrives. That name is what the dialog's answer said, such as "Ile-de-France, France" after Go to, or "Facing 90 degrees." after a bearing. If the answer said nothing, as after Cancel or the layers list, the name is the place as it is now, after the dialog's changes. Either way it is said once, and it still goes into the announcement history (P2-T17c). Leaving the map names it after the place again.
+
+At the start, the same is true. The screen reader says the window's title, TobyMap, as the window appears, then the map's name as the focus arrives on it. That name is the place, then "Press F1 for keys", such as "Kent, England, United Kingdom. Press F1 for keys." It is not spoken as well, as speaking it was cut off by that reading. It goes into the announcement history as "TobyMap. Kent, England, United Kingdom. Press F1 for keys." (P2-T17d). Leaving the map names it after the place.
 
 Lessons from RecallScore apply here: tree items take real focus rather than aria-activedescendant, Escape is never relied on, and all speech goes through one announcement queue.
 

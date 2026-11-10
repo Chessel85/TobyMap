@@ -214,6 +214,8 @@ class MainWindow(QMainWindow):
         self._told: set[str] = set()   # sound problems already told, each said once
         self._registry = self.session.registry()
         self._dialogs: list[QDialog] = []
+        self._answer_words: list[str] | None = None   # while a dialog's answer is carried out (P2-T17c)
+        self._said_on_return: list[str] = []          # what it said, for the map's name as focus comes back
         self._held_key: str | None = None
         self._held_seen = 0.0              # when the system last said the held key is down
         self._hold_clock = _HoldClock(self)
@@ -264,7 +266,13 @@ class MainWindow(QMainWindow):
             QApplication.instance().installEventFilter(self._key_filter)
 
         self.preload_sounds()
-        self.handle(self.session.start())
+        # The start is not spoken: as the window appears, NVDA reads its title and then the map's
+        # name, which cut the start off, so "Press F1 for keys" was never heard. The map is named
+        # with the rest of the start instead, so it is heard once, in full (P2-T17d, checklist 1.2).
+        # It still goes into the announcement history.
+        self._carry_out_answer([self.session.start()])
+        self._said_on_return = []
+        self.map.name_at_start()
         self.map.setFocus()
 
     def preload_sounds(self) -> None:
@@ -451,6 +459,9 @@ class MainWindow(QMainWindow):
             if a["channel"] == "braille":
                 if not self.announcer.braille(a["text"]) and a.get("fallback"):
                     self.announcer.speak(a["fallback"], "polite")
+            elif self._answer_words is not None:
+                self._answer_words.append(a["text"])   # said once, by the map's name, as the dialog closes
+                self.spoken_times.append(time.time())
             else:
                 self.announcer.speak(a["text"], a["priority"])
                 self.spoken_times.append(time.time())
@@ -557,7 +568,7 @@ class MainWindow(QMainWindow):
         if kind == "settings":
             box = SettingsDialog(self, self.session, self.words, export_cb=self._export_settings,
                                  import_cb=self._import_settings)
-            box.finished.connect(lambda _r, b=box: [self.handle(r) for r in b.responses])
+            box.finished.connect(lambda _r, b=box: [self.handle(r) for r in b.responses])   # never moves you
         elif kind == "sounds":
             box = SoundsDialog(self, dialog["title"], dialog["items"], dialog["play"], self.words["close"],
                                play=lambda event: self.dispatch("sound.preview", event=event))
@@ -565,25 +576,41 @@ class MainWindow(QMainWindow):
             box = HistoryDialog(self, dialog["title"], dialog["lines"], self.words["close"], dialog["help"],
                                 go=lambda index: self.session.run(dialog["go"], index=index),
                                 speak=lambda text: self.announcer.speak(text, "assertive"))
-            box.accepted.connect(lambda b=box: self.handle(b.response))
+            box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
         elif kind == "layers":
             box = LayersDialog(self, dialog, check=lambda low, high: self.session.run(dialog["check"], low=low, high=high),
                                speak=lambda text: self.announcer.speak(text, "assertive"))
-            box.accepted.connect(lambda b=box: [self.handle(self.session.run(dialog["set"], layer=i, values=v))
-                                                for i, v in b.changes()])
+            box.accepted.connect(lambda b=box: self._carry_out_answer(
+                self.session.run(dialog["set"], layer=i, values=v) for i, v in b.changes()))
         elif kind == "input":
             box = InputDialog(self, dialog, submit=lambda text: self.session.run(dialog["submit"], text=text),
                               speak=lambda text: self.announcer.speak(text, "assertive"))
-            box.accepted.connect(lambda b=box: self.handle(b.response))
+            box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
         else:
             box = TextDialog(self, dialog["title"], dialog["text"], self.words["close"])
         self._dialogs.append(box)
         box.finished.connect(lambda _r, b=box: self._dialog_closed(b))
         box.open()
 
+    def _carry_out_answer(self, responses) -> None:
+        """A dialog's answer, such as Go to's place or the layers changed. What it says is kept, not
+        spoken: the dialog closes into the map, and NVDA reads the map's name as the focus arrives,
+        so speaking it too said the place twice (P2-T17c, desktop checklist 5.2, 5.4, 7.4)."""
+        self._answer_words = []
+        try:
+            for r in responses:
+                self.handle(r)
+        finally:
+            self._said_on_return.extend(self._answer_words)
+            self._answer_words = None
+
     def _dialog_closed(self, box):
+        """The focus comes back to the map, named with what the dialog's answer said, or else with
+        the place as it is now, after the dialog's changes: said once, and never the old place."""
         if box in self._dialogs:
             self._dialogs.remove(box)
+        said, self._said_on_return = self._said_on_return, []
+        self.map.name_on_return(" ".join(said) or None)
         self.map.setFocus()
 
     def _export_settings(self):

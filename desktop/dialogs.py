@@ -17,19 +17,22 @@ from desktop.keys import key_name
 from mapcore.commands.registry import key_text
 
 
-def button_row(parent_layout, labels: list[str]) -> list[QPushButton]:
-    """Buttons in a row, in the order given, which is also their Tab order. The
-    first is the default, so Enter presses it. (QDialogButtonBox put Cancel
-    before OK in the Tab order: PO feedback on checklist 11, second pass.)"""
+def button_row(parent_layout, labels: list[str], default: bool = True) -> list[QPushButton]:
+    """Buttons in a row, in the order given, which is also their Tab order. A
+    button with the focus takes Enter, as Space does: Cancel cancels (P2-T17b,
+    ACC-7). Anywhere else in the dialog, Enter presses the first button, OK,
+    unless `default` is False, as for a row with no OK. (QDialogButtonBox put
+    Cancel before OK in the Tab order: PO feedback on checklist 11, second pass.)"""
     row = QHBoxLayout()
     row.addStretch(1)
     buttons = []
     for label in labels:
         b = QPushButton(label)
-        b.setAutoDefault(False)
+        b.setAutoDefault(True)   # Qt's word for "takes Enter while it has the focus"
         row.addWidget(b)
         buttons.append(b)
-    buttons[0].setDefault(True)
+    if default:
+        buttons[0].setDefault(True)
     for a, b in zip(buttons, buttons[1:]):
         QWidget.setTabOrder(a, b)
     parent_layout.addLayout(row)
@@ -355,7 +358,7 @@ class LayersDialog(QDialog):
                 self.items[layer["id"]] = child
             top.setExpanded(True)
         layout.addWidget(self.tree)
-        (self.settings_button,) = button_row(layout, [words["settings_button"]])
+        (self.settings_button,) = button_row(layout, [words["settings_button"]], default=False)
         self.settings_button.clicked.connect(self.open_settings)
         self.ok_button, self.cancel_button = button_row(layout, [words["ok"], words["cancel"]])
         self.ok_button.clicked.connect(self.accept)

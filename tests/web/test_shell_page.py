@@ -915,14 +915,14 @@ def test_after_a_bearing_leaving_the_map_names_it_after_the_place_again(app):
 
 def test_page_up_with_the_step_linked_says_the_zoom_and_the_step(app):
     """Web checklist 16.2 (P2-T17j, NAV-2, NAV-13): S links the step, and Page Up then says both.
-    From 25 to 50 kilometres the step stays at 5 kilometres, the nearest to a quarter of the zoom;
-    from 50 to 100 kilometres it changes to 25 kilometres."""
+    The step is the nearest to a quarter of the zoom: from 25 to 50 kilometres it changes from
+    5 to 10 kilometres, a step size since P3-T0f (DP166); from 50 to 100 kilometres, to 25."""
     app.keyboard.press("s")
     wait_said(app, 1)
     assert said(app)[-1].startswith("Step linked to zoom.")
     app.keyboard.press("PageUp")
     wait_said(app, 2)
-    assert said(app)[-1] == "Zoom 50 kilometres, step 5 kilometres."
+    assert said(app)[-1] == "Zoom 50 kilometres, step 10 kilometres."
     app.keyboard.press("PageUp")
     wait_said(app, 3)
     assert said(app)[-1] == "Zoom 100 kilometres, step 25 kilometres."

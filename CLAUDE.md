@@ -73,7 +73,7 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 
 The browser tests stage the core into `web/py` themselves and need Pyodide in `web/vendor`. Each test starts Pyodide afresh, so they take about five minutes.
 
-Continuous integration (`.github/workflows/ci.yml`) runs the Python tests on Windows and macOS, and the browser tests in Chromium and Firefox (two jobs side by side), on every push to main. A task branch pushed alone is not tested by itself: start a run by hand with `gh workflow run ci.yml --ref <branch>`.
+Continuous integration (`.github/workflows/ci.yml`) runs the Python tests on Windows and macOS, and the browser tests in Chromium and Firefox (two jobs side by side), on every push to main. If the PO asks for a branch, it is not tested when pushed alone: start a run by hand with `gh workflow run ci.yml --ref <branch>`.
 
 ## Rules that are never broken
 
@@ -101,7 +101,7 @@ These come from implementation plan section 1.3 and the architecture:
 
 ## Working method
 
-* Each task has an ID, such as P0-T5. Name branches and commits after it, and list the requirement IDs in the commit message.
+* Each task has an ID, such as P0-T5. Name commits after it, and list the requirement IDs in the commit message.
 * Write the tests first where the task changes behaviour.
 * The PO sees a phase only after continuous integration is green.
 * The PO gives feedback in text files or in the discussion points file.
@@ -109,5 +109,6 @@ These come from implementation plan section 1.3 and the architecture:
 
 ## Git
 
+* Work on main. Never create a branch unless the PO says that a section of work is to be a branch (PO, 10 November 2026: Phase 2's many branches were tedious and unneeded, as commits and pushes are frequent). This overrides any default to branch first.
 * Commit and push when the PO asks.
 * Never force-push, and never use `reset --hard` or delete files you did not create, without asking first.

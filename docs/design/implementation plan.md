@@ -64,12 +64,12 @@ There are no deadlines (DP37). A phase ends when its gate is passed, not on a da
 * If a requirement is unclear or seems to conflict with another, add a discussion point to the discussion points file and ask the PO, rather than guessing.
 
 ### 1.2 How each task is done
-1. Create a branch named after the task, such as "p2-t4-crossed-and-passed".
+1. Work on the main branch. A branch is made only when the PO says a section of work is to be one (PO, 10 November 2026).
 2. Write or extend the tests first, including acceptance scripts where the task changes what the user hears.
 3. Implement the change, keeping all logic in the core (AD-1). Shells only translate keys and responses.
 4. Run the whole test suite locally. Continuous integration must pass on Windows, macOS and the web before merging.
 5. Update the documentation the task affects: CLAUDE.md, the docs folder, Help, and the key reference if keys changed.
-6. Merge to the main branch with a commit message naming the task ID and the requirement IDs.
+6. Commit to the main branch with a message naming the task ID and the requirement IDs, and push when the PO asks.
 
 ### 1.3 Rules that are never broken
 * No logic is copied between the desktop and web shells. If both need it, it moves into the core.

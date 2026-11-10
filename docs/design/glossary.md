@@ -30,6 +30,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Ellipsoid: the shape the application uses for the Earth, a ball slightly flattened at the poles, called WGS 84. Every distance, bearing and step is worked out on it (AD-7). A perfect ball, the sphere, is wrong by up to about half a percent.
 * Move path: the line a step follows, as a list of positions no more than 10 km apart, so it bends with the Earth. Phase 2 uses it to find what a step crossed and passed.
 * Counties record: the list, in mapdata/config/county_levels.yaml, of which levels make up each country's Counties layer (DP101). The build writes it once per country; a corrected entry is never overwritten.
+* Tier: where an area sits in its own country's government, such as country, constituent country, county or district. It is set by the counties record, not by the OSM level alone, because the same level means different things in different countries: England and the French region Brittany are both level 4, but England is a constituent country of the United Kingdom (DP165).
+* Continent dividing line: a line set in the pipeline's settings along which a country is split between two continents, such as the Ural Mountains through Russia (DAT-12).
 
 ## OpenStreetMap data
 
@@ -81,6 +83,10 @@ Older documents written before this glossary, such as architecture section 6 and
 * Base detail: how far the base pack lite's shapes are simplified, about 100 metres (DP112). No point of a border or coast moves further than that. Lookups and distances use the shapes at base detail; the drawing levels are simplified further from them.
 * Base pack lite: the Phase 1 world pack, with countries, first-level divisions, oceans and seas, cut to the coast. The full base pack replaces it in Phase 3.
 * Test pack: a small pack built from samples kept in the repository, so the automatic tests never need the data folder (architecture 11.1).
+* Base pack: the complete world pack from Phase 3, which replaces the base pack lite. It adds continents, named seas, mountain ranges, major rivers, lakes, roads and railways, towns and cities, facts from Wikidata, the relationships and the search index (DAT-1).
+* Relationship: something the pipeline works out between two features and stores in the pack, so the application never has to: which areas contain a feature, its neighbours and the length of each shared border, how much of an area another overlaps, and which lines cross an area, in order (AD-8, architecture 6.5). Not to be confused with an OSM relation.
+* Search index: the records in a pack that let the application find a feature by name, with accents, case and small misspellings ignored (SRB-1, architecture 7.9).
+* Fact: a piece of information about a feature with its source and date, such as "Population 67 million (Wikidata, 2024)" (DAT-7).
 
 ## Building packs
 
@@ -151,6 +157,10 @@ Older documents written before this glossary, such as architecture section 6 and
 * Isolate: showing only the area you are in, and its outline, on the map (VIS-2).
 * Names on the map: the areas' names drawn on the map for sighted users, placed by the core.
 * Text cursor: the small rectangle a Windows program says its typing point is at, also called the system caret. Magnifiers can follow it. The desktop map holds an invisible one at its centre (ACC-8).
+* Current feature: what you are on. When stepping, the smallest area where you are; in hierarchy mode, the feature you last moved to (LOC-4). The Information panel's Contains, Bordering, Overlapping and Crossing groups are about it.
+* Hierarchy mode: moving between features instead of by distance: up to the area that contains the current feature, down into what it contains, and across to its neighbours (NAV-4). Key 2; key 1 goes back to stepping.
+* Item actions: the things you can do with any item in the Information panel: go there, details, its own groups, hear its direction, measure, and later bookmark (INF-10).
+* Look around: hearing the Nearby group as sound, one item after another clockwise from ahead, each from its own direction (SON-4).
 * Focus point: in the web version, the small invisible element at the map centre that has the keyboard focus when the map does, so a magnifier that follows the focus looks there (ACC-8).
 
 ## Planning

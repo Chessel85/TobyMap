@@ -1,0 +1,49 @@
+# Phase 3 task list
+
+Phase 3 is information, hierarchy and search, with the complete base pack. The tasks are described in "implementation plan.md", section 6, and in detail in phase-3-plan.md, which also raises DP167 to DP174 and splits each task into work items, each labelled Opus or Sonnet. This list shows what is done.
+
+Not started yet. Planned on 10 November 2026, after you accepted Phase 2.
+
+## Start of the phase
+
+* [ ] P3-T0a Versions: check for newer PySide6 and Pyodide, and upgrade if every test passes.
+* [ ] P3-T0b The questions left from Phase 2: publishing 0.1.1 (DP110), and DP150. DP167 to DP174 were added to the discussion points file with the plan.
+* [ ] P3-T0c The key list for Phase 3: docs/plan/phase-3-keys.csv, with the clashes marked (T, O).
+* [ ] P3-T0d Samples for the test pack: Hampshire, the New Forest, Switzerland and its neighbours, the Rhine, the Bay of Biscay, and places with shared names.
+* [ ] P3-T0e The implementation plan, version 0.6.
+* [ ] P3-T0f Four more step sizes, 2.5, 10, 50 and 500 km (DP166).
+
+## Carried from Phase 2
+
+* [ ] P2-T17n The spatial voice stops at a key press.
+* [ ] P2-T17q Always say the place (DP162).
+* [ ] P2-T17u The listening test for sound in space and the voice (DP164). You run it.
+* [ ] P2-T17v The map for sighted users: the special lines, and the lines across France and from Sweden to Shetland.
+
+## Tasks
+
+* [ ] P3-T1 The complete base pack: the size trial, named seas, counties, islands, continents, mountains, rivers, lakes, roads, railways, towns, a faster writing stage, and the world build.
+* [ ] P3-T17 Tiers, and constituent countries (DP165).
+* [ ] P3-T2 Facts from Wikidata, Wikipedia links, and disputed areas.
+* [ ] P3-T3 Relationships in the pipeline: containment, neighbours, overlaps, crossings, and the water hierarchy.
+* [ ] P3-T4 The Information panel: all eight groups, sorting, typing to jump, and the item actions.
+* [ ] P3-T5 Details and Wikipedia.
+* [ ] P3-T6 Hierarchy mode.
+* [ ] P3-T7 Measuring.
+* [ ] P3-T8 Search.
+* [ ] P3-T9 The world tree and browsing by category.
+* [ ] P3-T16 Lists of disputed and unclaimed areas.
+* [ ] P3-T10 The query builder.
+* [ ] P3-T11 Look around.
+* [ ] P3-T12 Languages of names.
+* [ ] P3-T13 The pack manager, first version.
+* [ ] P3-T14 Quality reports and publishing.
+* [ ] P3-T18 Controls for sighted users (DP165).
+* [ ] P3-T15 Help.
+
+## Closing the phase
+
+* [ ] The checklists for the desktop, the web and a sighted helper.
+* [ ] The phase report, docs/plan/phase-3-report.md.
+* [ ] Your acceptance.
+* [ ] The question about publishing (DP110).

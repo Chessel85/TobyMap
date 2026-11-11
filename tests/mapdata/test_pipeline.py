@@ -141,7 +141,8 @@ def test_adding_a_group_of_lines_does_not_make_the_areas_again(tmp_path):
     without = load_pack("world", config)
     with_lines = load_pack("world", CONFIG_DIR)
     assert "graticule" in with_lines.layers and "graticule" not in without.layers
-    prints = {"planet": "p", "land-polygons": "l", "vliz-oceans": "v", "naturalearth-geographic-lines": "n"}
+    prints = {"planet": "p", "land-polygons": "l", "vliz-oceans": "v", "naturalearth-geographic-lines": "n",
+              "naturalearth-marine-areas": "m"}
     for name in ("osm-areas", "squares", "join"):
         stage = next(s for s in with_lines.stages if s["stage"] == name)
         assert fingerprint(without, stage, "x", prints) == fingerprint(with_lines, stage, "x", prints)
@@ -326,7 +327,8 @@ def test_inspect_gives_the_manifest_and_a_feature(test_pack, capsys):
     assert main(["inspect", str(test_pack), "manifest"]) == 0
     out = capsys.readouterr().out
     assert "Pack test, version 0.1.0, format 3" in out
-    assert "Layers: Countries, Oceans and seas, Regions, Counties, Rivers, Lakes, Railway stations." in out
+    assert ("Layers: Countries, Oceans and seas, Seas, bays and straits, Regions, Counties, Rivers, Lakes, "
+            "Railway stations.") in out
     assert main(["inspect", str(test_pack), "feature", "osm:r154350"]) == 0
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "Isle of Wight: osm:r154350."
@@ -391,7 +393,7 @@ def test_continue_txt_saying_no_pauses_the_build_and_keeps_finished_stages(tmp_p
     code, lines = run_build(tmp_path, switch=SwitchAfter(1))  # stage 1 runs, then the switch says no
     assert code == PAUSED_EXIT
     assert lines[-1].startswith("Paused before stage 2 of 3, taking the land out of the water layers, as "
-                                "continue.txt says no.")
+                                "the first line of continue.txt is not yes.")
     assert "run the same command again" in lines[-1]
     assert not (tmp_path / "tobymap" / "output" / "test" / "test.pack").exists()
     code, lines = run_build(tmp_path)
@@ -408,6 +410,16 @@ def test_the_switch_reads_the_first_line_only(tmp_path):
     assert Switch(f).says_no()
     f.write_text("yes\nno\n", encoding="utf-8")
     assert not Switch(f).says_no()
+    f.write_text(" Yes \n", encoding="utf-8")
+    assert not Switch(f).says_no()
+
+
+def test_the_switch_pauses_on_anything_but_yes(tmp_path):
+    # The data manager, 10 November 2026: anything except yes pauses the build.
+    f = tmp_path / "continue.txt"
+    for first in ("wait", "", "stop for now", "yess"):
+        f.write_text(first + "\nnotes\n", encoding="utf-8")
+        assert Switch(f).says_no(), first
 
 
 def test_wait_for_yes_starts_the_build_again_when_the_switch_says_yes():
@@ -420,4 +432,4 @@ def test_wait_for_yes_starts_the_build_again_when_the_switch_says_yes():
     code = build_waiting([], switch, say=said.append, sleep=sleeps.append,
                          run=lambda: runs.append(1) or next(results))
     assert code == 0 and len(runs) == 2 and len(sleeps) == 1
-    assert said[0].startswith("Waiting, as continue.txt says no.")
+    assert said[0].startswith("Waiting, as the first line of continue.txt is not yes.")

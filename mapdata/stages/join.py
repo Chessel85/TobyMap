@@ -13,7 +13,8 @@ From the grid squares built by the stage before:
    from the list of named waters in the settings (DP114). If it is not on the
    list, it is given to the nearest ocean, and the report says so.
 4. The layers are made: Countries (with country units, condominiums and
-   unclaimed land), Regions, and Oceans and seas.
+   unclaimed land), Regions, Counties when the stage before named them
+   (DP101, P3-T1a), and Oceans and seas.
 5. Each area gets a colour number different from every neighbour in its
    layer (AD-19), from the neighbours each grid square found.
 6. Every quarter of a degree over the area built is checked to be in a
@@ -35,6 +36,7 @@ import json
 import math
 import pickle
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 import shapely
@@ -138,6 +140,7 @@ def run(ctx) -> None:
     pairs: set[tuple[tuple, tuple]] = set()
     overlaps: dict[tuple, float] = defaultdict(float)
     fills: dict[tuple, float] = defaultdict(float)
+    county_rows: dict[tuple, float] = defaultdict(float)
     before = after = 0
     for n, p in enumerate(paths, 1):
         r = pickle.loads(p.read_bytes())
@@ -150,6 +153,8 @@ def run(ctx) -> None:
             overlaps[(o[0], tuple(o[1]))] += o[2]
         for f in r["fills"]:
             fills[tuple(f[:3])] += f[3]
+        for c in r.get("counties", []):
+            county_rows[(c[0], c[1])] += c[2]
         before += r["points_before"]
         after += r["points_after"]
         if n % 2000 == 0:
@@ -160,7 +165,7 @@ def run(ctx) -> None:
     # among those small parts, never among whole areas: measuring the shared coast against the whole
     # North Atlantic for each of thousands of bits of water took far too long.
     land_labels = sorted((k for k in parts if k[0] == "land" and k != grid.WAITING_LAND), key=str)
-    water_labels = sorted((k for k in parts if k[0] == "water" and k != grid.WAITING_WATER), key=str)
+    water_labels = sorted((k for k in parts if k[0] == "water" and k[1] is not None), key=str)
     shapes: dict[tuple, list] = {k: list(parts[k]) for k in land_labels + water_labels}
     report: list[str] = []
 
@@ -251,13 +256,27 @@ def run(ctx) -> None:
 
     # Water in no ocean.
     named = s.get("named_waters") or []
-    waiting = parts.get(grid.WAITING_WATER, [])
+    # With named seas (P3-T1b), water in no ocean may still be in a sea: each part keeps its own sea, and takes
+    # only the ocean of its neighbour, or its neighbour's sea too where its own is still waiting.
+    waiting_labels = sorted((k for k in parts if k[0] == "water" and k[1] is None), key=str)
+    waiting = [g for k in waiting_labels for g in parts[k]]
+    sea_of = {id(g): (k[3] if len(k) == 4 else None) for k in waiting_labels for g in parts[k]}
     w_keys, w_tree, w_geoms = part_tree(water_labels)
     given = 0
     given_km2 = 0.0
     comps = clusters(waiting)
     ctx.progress.line(f"Water in no VLIZ ocean: {len(waiting)} parts in {len(comps)} groups, each group to be given "
                       "to the ocean beside it.")
+
+    def with_sea(lab, g):
+        """The ocean's label lab for the part g, with g's own sea where it has one (P3-T1b)."""
+        own = sea_of.get(id(g))
+        if len(lab) == 3 and own is None:
+            return lab
+        if own is None or own == grid.SEA_WAITING:
+            return lab if len(lab) == 4 else lab + (own,)
+        return lab[:3] + (own,)
+
     for comp in comps:
         km2 = sum(area_km2(g) for g in comp)
         p = shapely.point_on_surface(max(comp, key=lambda g: g.area))
@@ -265,7 +284,7 @@ def run(ctx) -> None:
                       if any(shapely.intersects(g, shapely.Point(w["point"])) for g in comp)), None)
         best = None if known else best_neighbour(comp, w_keys, w_tree, w_geoms)
         if known:
-            lab = ("water", known["id"], None)
+            lab = ("water", known["id"], None) + ((None,) if any(len(k) == 4 for k in waiting_labels) else ())
             new_records[known["id"]] = {"id": known["id"], "name": known["name"], "kind": "sea"}
             report.append(f"Water in no VLIZ ocean, named from the settings: {known['name']}, {km2:,.0f} km2.")
         elif best is not None:
@@ -279,21 +298,39 @@ def run(ctx) -> None:
             report.append(f"Water in no ocean and not beside one, {km2:,.1f} km2 at {p.y:.3f} north, {p.x:.3f} east, "
                           f"is given to the nearest, {by_id[lab[1]]['name']}. Add it to the named waters in the "
                           "settings if it has its own name.")
-        shapes.setdefault(lab, []).extend(comp)
+        for g in comp:
+            shapes.setdefault(with_sea(lab, g), []).append(g)
     ctx.progress.line(f"Water in no VLIZ ocean given to the ocean beside it: {given} parts, {given_km2:,.0f} km2.")
+
+    settle_seas(ctx, shapes)
+    sliver_counties(ctx, shapes, by_id)
 
     # The layers: each area joined once, from all its parts.
     layer_parts: dict[tuple[str, str], list] = defaultdict(list)
     region_country: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    county_parent: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    sea_parent: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     label_layers: dict[tuple, list[tuple[str, str]]] = {}
     for lab, gs in shapes.items():
-        kind, a, b = lab
+        kind, a, b, *rest = lab
+        c = rest[0] if rest else None   # the county, when the stage before named counties
         if kind == "water":
-            label_layers[lab] = [("oceans", a)]
+            sea = c if c and c != grid.SEA_WAITING else None
+            # A sea with the same name as the water it is in, such as Natural Earth's Caspian Sea inside the
+            # Caspian Sea from the named waters, is the same place, so it is not listed twice.
+            name_of = lambda i: (by_id.get(i) or new_records.get(i) or {}).get("name")  # noqa: E731
+            if sea and name_of(sea) == name_of(a):
+                sea = None
+            label_layers[lab] = [("oceans", a)] + ([("seas", sea)] if sea else [])
+            if sea:
+                sea_parent[sea][a] += sum(g.area for g in gs)
         else:
-            label_layers[lab] = [("countries", a)] + ([("regions", b)] if b else [])
+            label_layers[lab] = ([("countries", a)] + ([("regions", b)] if b else [])
+                                 + ([("counties", c)] if c else []))
             if b:
                 region_country[b][a] += sum(g.area for g in gs)
+            if c:
+                county_parent[c][b or a] += sum(g.area for g in gs)
         for layer_key in label_layers[lab]:
             layer_parts[layer_key].extend(gs)
     records, geoms = [], []
@@ -332,6 +369,20 @@ def run(ctx) -> None:
             for k in ("disputed", "also_held_as", "iso2"):
                 if src.get(k):
                     rec[k] = src[k]
+        elif layer == "counties":
+            own = fid.endswith(grid.COUNTY_SUFFIX)   # a region used as its own county (DP101)
+            src = by_id.get(fid.removesuffix(grid.COUNTY_SUFFIX), {})
+            owners = county_parent[fid]
+            rec.update(name=src["name"], local_name=src.get("local_name"),
+                       type="region used as county" if own else "county", level=src.get("level"),
+                       parent=max(sorted(owners), key=lambda k: owners[k]))
+            for k in ("disputed", "also_held_as"):
+                if src.get(k):
+                    rec[k] = src[k]
+        elif layer == "seas":
+            owners = sea_parent[fid]
+            rec.update(name=src["name"], local_name=src.get("local_name"), type=src.get("type", "sea"),
+                       parent=max(sorted(owners), key=lambda k: owners[k]))
         else:
             rec.update(name=src["name"], type=src.get("kind", "ocean"))
         if src.get("wikidata"):
@@ -358,6 +409,9 @@ def run(ctx) -> None:
     colour = {layer: colours(ids, layer_pairs[layer]) for layer, ids in layer_ids.items()}
     for r in records:
         r["colour"] = colour[r["layer"]][r["id"]]
+    # A real county that is also a region elsewhere, such as a department used as a region in one place and as a
+    # county in another, keeps its own id in the counties layer, with a suffix, as ids are unique in a pack.
+    keep_ids_unique(records)
     for layer, ids in sorted(layer_ids.items()):
         n = max(colour[layer].values()) if ids else 0
         ctx.progress.line(f"{layer}: {len(ids)} areas, {len(layer_pairs[layer])} pairs of neighbours, "
@@ -376,6 +430,8 @@ def run(ctx) -> None:
         n = len({r for (c, r, lv) in fills if c == country and lv == level})
         ctx.progress.log(f"Regions filled from level {level} in {by_id.get(country, {}).get('name', country)}: "
                          f"{n} areas, {km2:,.0f} km2.")
+    if county_rows:
+        county_report(ctx, county_rows, by_id, report, shapes, areas)
     countries_filled = sorted({c for (c, _lv) in filled})
     ctx.progress.line(f"Countries with regions filled from level 3 or 5 where level 4 has none: "
                       f"{len(countries_filled)}. The log lists them.")
@@ -387,6 +443,182 @@ def run(ctx) -> None:
                "report": report}
     ctx.claim(ctx.folder / "join.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False),
                                                    encoding="utf-8", newline="\n")
+
+
+def settle_seas(ctx, shapes: dict[tuple, list]) -> None:
+    """Water in an ocean whose sea still waits (P3-T1b): no sea was beside it in its grid square, as where a long
+    fjord runs beyond Natural Earth's coast. Each part takes the sea of the water part it shares the longest edge
+    with, repeated so a chain is settled from its end; a part with none has no sea."""
+    waiting = sorted((k for k in shapes if k[0] == "water" and len(k) == 4 and k[3] == grid.SEA_WAITING), key=str)
+    if not waiting:
+        return
+    todo = [(k, g) for k in waiting for g in shapes.pop(k)]
+    total = len(todo)
+    settled = 0
+    while todo:
+        keys, geoms_ = [], []
+        for k, gs in shapes.items():
+            if k[0] == "water" and len(k) == 4:
+                keys.extend([k] * len(gs))
+                geoms_.extend(gs)
+        tree = shapely.STRtree(geoms_) if geoms_ else None
+        left = []
+        for k, g in todo:
+            shared: dict = defaultdict(float)
+            if tree is not None:
+                for i in tree.query(g, predicate="intersects").tolist():
+                    shared[keys[i][3]] += shapely.intersection(g.boundary, geoms_[i].boundary).length
+            shared = {s: v for s, v in shared.items() if v > 0}
+            if shared:
+                best = max(sorted(shared, key=str), key=lambda s: shared[s])
+                shapes.setdefault(k[:3] + (best,), []).append(g)
+                settled += 1
+            else:
+                left.append((k, g))
+        if len(left) == len(todo):
+            for k, g in left:
+                shapes.setdefault(k[:3] + (None,), []).append(g)
+            break
+        todo = left
+    ctx.progress.line(f"Seas: {total} parts of water between a sea's rough coast and the real coast; {settled} are "
+                      f"given the sea beside them, and {total - settled} have no sea beside them.")
+
+
+COUNTY_SLIVER_KM2 = 1.0   # DP101: a gap in the counties smaller than this is a sliver, not a missing county
+
+
+def keep_ids_unique(records: list[dict]) -> None:
+    """A county with the same id as a region gets an ending, as every id in a pack is different."""
+    region_ids = {r["id"] for r in records if r["layer"] == "regions"}
+    for r in records:
+        if r["layer"] == "counties" and r["id"] in region_ids:
+            r["id"] += grid.COUNTY_ALSO_REGION_SUFFIX
+
+
+def sliver_counties(ctx, shapes: dict[tuple, list], by_id: dict) -> None:
+    """A region used as its own county over less than COUNTY_SLIVER_KM2 in all is a sliver along a coast or
+    a border, where the county levels do not quite reach (DP101). Each of its parts goes to the county of
+    the same region that it shares the longest edge with; a part with none keeps the region."""
+    totals: dict[str, float] = defaultdict(float)
+    for lab, gs in shapes.items():
+        if len(lab) == 4 and lab[3] and lab[3].endswith(grid.COUNTY_SUFFIX):
+            totals[lab[3]] += sum(area_km2(g) for g in gs)
+    small = {c for c, km2 in totals.items() if km2 < COUNTY_SLIVER_KM2}
+    if not small:
+        return
+    # The real counties' parts, by country and region, to find each sliver's neighbour among them.
+    near: dict[tuple, tuple[list, list]] = defaultdict(lambda: ([], []))
+    for lab, gs in shapes.items():
+        if len(lab) == 4 and lab[3] and lab[3] not in small:
+            keys, geoms_ = near[lab[1:3]]
+            keys.extend([lab] * len(gs))
+            geoms_.extend(gs)
+    trees = {k: (keys, shapely.STRtree(geoms_), geoms_) for k, (keys, geoms_) in near.items()}
+    moved = kept = 0
+    for lab in sorted((k for k in shapes if len(k) == 4 and k[3] in small), key=str):
+        found = trees.get(lab[1:3])
+        stay = []
+        for g in shapes[lab]:
+            best = None
+            if found is not None:
+                keys, tree, geoms_ = found
+                shared: dict[tuple, float] = defaultdict(float)
+                for i in tree.query(g, predicate="intersects").tolist():
+                    shared[keys[i]] += shapely.intersection(g.boundary, geoms_[i].boundary).length
+                shared = {k: v for k, v in shared.items() if v > 0}
+                if shared:
+                    best = max(sorted(shared, key=str), key=lambda k: shared[k])
+                else:   # an islet off the coast: the nearest county of the same region
+                    best = keys[int(tree.query_nearest(g)[0])]
+            if best is None:
+                stay.append(g)
+                kept += 1
+            else:
+                shapes[best].append(g)
+                moved += 1
+        if stay:
+            shapes[lab] = stay
+        else:
+            del shapes[lab]
+    ctx.progress.line(f"Counties: {len(small)} regions used as their own county over less than "
+                      f"{COUNTY_SLIVER_KM2:g} km2 in all are slivers; {moved} of their parts are given to the "
+                      f"county beside them or nearest, and {kept} in a region with no county keep the region.")
+
+
+def county_report(ctx, rows: dict[tuple, float], by_id: dict, report: list, shapes: dict | None = None,
+                  areas: dict | None = None) -> None:
+    """Which levels make up each country's counties, and how much land each holds (DP101), and every gap
+    filled, by a later level or by the region itself, for the quality report; then what was found is written
+    into the counties record, for each country the build read whole (P3-T1c)."""
+    from mapdata.stages import counties as countiesmod
+
+    per: dict[str, dict[int, float]] = defaultdict(dict)
+    for (country, level), km2 in rows.items():
+        per[country][level] = km2
+    index = (areas or {}).get("counties") or {}
+    # Each county's land, after the slivers have gone to their neighbours.
+    # Keyed by the county's own country, as the land of a country unit, such as metropolitan France, is
+    # labelled with the unit.
+    county_km2: dict[tuple[str, str], float] = defaultdict(float)
+    for lab, gs in (shapes or {}).items():
+        if lab[0] == "land" and len(lab) == 4 and lab[3]:
+            own = by_id.get(lab[3].removesuffix(grid.COUNTY_SUFFIX), {}).get("country") or lab[1]
+            county_km2[(own, lab[3])] += sum(area_km2(g) for g in gs)
+    name = lambda i: by_id.get(i, {}).get("name", i)  # noqa: E731
+    ctx.progress.line(f"Counties: {len(per)} countries have counties. The log lists the levels each uses, and "
+                      "every gap filled.")
+    found = {}
+    for country in sorted(per, key=name):
+        e = index.get(country, {})
+        tried = e.get("levels") or []
+        # The first level that holds land is the country's county level; the later ones fill its gaps.
+        first = next((lv for lv in tried if per[country].get(lv, 0) > 0), None)
+        parts = []
+        for level, km2 in sorted(per[country].items(), key=lambda kv: (kv[0] == grid.REGION_AS_COUNTY,
+                                                                       tried.index(kv[0]) if kv[0] in tried else 99)):
+            if level == grid.REGION_AS_COUNTY:
+                continue
+            n = sum(1 for (c, k) in county_km2 if c == country and by_id.get(k, {}).get("level") == level)
+            what = f"level {level}" if level == first else f"gaps filled by level {level}"
+            parts.append(f"{what}, {n:,} areas, {km2:,.0f} km2")
+        regions = sorted(((k, km2) for (c, k), km2 in county_km2.items()
+                          if c == country and k.endswith(grid.COUNTY_SUFFIX)), key=lambda kv: -kv[1])
+        if regions:
+            parts.append("the region itself, " + ", ".join(
+                f"{name(k.removesuffix(grid.COUNTY_SUFFIX))} {km2:,.0f} km2" for k, km2 in regions))
+        how = {"corrected": " Levels as corrected in the counties record.",
+               "worked out": " Levels as worked out in the counties record.",
+               "the rule": " Levels by the rule, as the counties record does not have this country yet."
+               }.get(e.get("how"), "")
+        line = f"Counties in {name(country)}: " + "; ".join(parts) + "." + how
+        ctx.progress.log(line)
+        report.append(line)
+        for (c, k), km2 in sorted(county_km2.items(), key=lambda kv: name(kv[0][1])):
+            level = by_id.get(k, {}).get("level")
+            if c == country and not k.endswith(grid.COUNTY_SUFFIX) and level != first:
+                ctx.progress.log(f"Gap in the counties of {name(country)} filled by level {level}: {name(k)}, "
+                                 f"{km2:,.1f} km2.")
+        for k, km2 in regions:
+            report.append(f"No county covers {km2:,.0f} km2 of {name(k.removesuffix(grid.COUNTY_SUFFIX))}, "
+                          f"{name(country)}, so the region itself is used there.")
+        if e.get("whole", True):
+            used = [lv for lv in tried if per[country].get(lv, 0) > 0]
+            found[country] = (name(country), used,
+                              [name(k.removesuffix(grid.COUNTY_SUFFIX)) for k, km2 in regions
+                               if km2 >= COUNTY_SLIVER_KM2])
+    path = (areas or {}).get("counties_record")
+    if not path or not index:
+        return
+    left = sorted(name(c) for c in per if not index.get(c, {}).get("whole", True))
+    done = countiesmod.write_record(Path(path), found, f"the build of {ctx.pack.data.get('name', 'a pack')}")
+    ctx.progress.line(f"The counties record: {len(done['written'])} countries written, as worked out; "
+                      f"{len(done['unchanged'])} unchanged; {len(done['corrected'])} left as corrected; "
+                      f"{len(left)} not written, as the build has only part of them.")
+    for key, words in (("written", "written, as worked out"), ("corrected", "left as corrected")):
+        if done[key]:
+            ctx.progress.log(f"The counties record, {words}: {', '.join(done[key])}.")
+    if left:
+        ctx.progress.log(f"The counties record, not written as the build has only part of them: {', '.join(left)}.")
 
 
 def no_gaps(ctx, paths, records, geoms) -> None:

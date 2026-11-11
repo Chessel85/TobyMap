@@ -1,0 +1,35 @@
+# A sample region for the size trial (P3-T1a): South Asia, from 68 to 98 degrees east and 8 to 33 north: India, Nepal, Bangladesh and their neighbours.
+# Built exactly as trial-western-europe, only to measure: the eight regions of
+# the trial give the estimate of the world pack's size and build time
+# (docs/plan/p3-t1-size-report.md). The reference for each setting is
+# docs/data-manager/configuration.md.
+
+name: trial-sample-south-asia
+title: "Trial: a sample region for the size estimate, south asia."
+version: 0.0.1
+app_versions: {from: 0.0.1}
+coverage: {kind: region}
+layer_groups: [base, graticule]
+space_needed_mb: 8000
+
+stages:
+  - stage: osm-areas
+    source: planet
+    levels: [3, 4, 5]
+    # The county areas too, a country at a time, at each country's levels in the counties record (P3-T1c).
+    counties: true
+    box: [68.0, 8.0, 98.0, 33.0]
+  - stage: squares
+    sources: [land-polygons, vliz-oceans]
+    box: [68.0, 8.0, 98.0, 33.0]
+    tolerance_m: 100
+    counties: true
+  - stage: join
+  - stage: graticule
+    year: 2026
+    source: naturalearth-geographic-lines
+  - stage: write
+    drawing_levels:
+      - {tolerance_m: 40000, min_km2: 20000, tile_level: 1, view_km: 4000}
+      - {tolerance_m: 8000, min_km2: 1000, tile_level: 3, view_km: 1000}
+      - {tolerance_m: 1500, min_km2: 40, tile_level: 5, view_km: 150}

@@ -1,0 +1,25 @@
+# Sea check places (P3-T1b, DP168, DAT-4, LOC-6): named seas, bays, gulfs and straits
+# from Natural Earth's marine areas, below the VLIZ oceans. The format is as in
+# coastline_places.yaml: each place's "includes" must all be among the areas
+# containing it. The PO may add places.
+
+places:
+  - {name: The Bay of Biscay north of Santander, lat: 44.5, lon: -3.5, includes: [Bay of Biscay, North Atlantic Ocean]}
+  - {name: The Bay of Biscay off Bilbao, near the coast, lat: 43.45, lon: -2.95, includes: [Bay of Biscay]}
+  - {name: 2 km off the Pointe du Raz in Brittany, lat: 48.0395, lon: -4.7660, includes: [Bay of Biscay]}
+  - {name: The North Sea off the Netherlands, lat: 52.0, lon: 4.0, includes: [North Sea]}
+  - {name: The middle of the North Sea, lat: 55.0, lon: 3.0, includes: [North Sea]}
+  - {name: The English Channel south of the Isle of Wight, lat: 50.2, lon: -1.5, includes: [English Channel]}
+  - {name: The English Channel at Dover, lat: 51.0, lon: 1.45, includes: [English Channel]}
+  - {name: The Irish Sea, lat: 53.8, lon: -5.0, includes: [Irish Sea]}
+  - {name: The Sea of the Hebrides, lat: 56.5, lon: -6.2, includes: [Sea of the Hebrides]}
+  - {name: The Gulf of Lion, lat: 43.0, lon: 4.0, includes: [Gulf of Lion]}
+  - {name: The Balearic Sea, lat: 40.0, lon: 2.0, includes: [Balearic Sea]}
+  - {name: The Ligurian Sea, lat: 43.8, lon: 9.0, includes: [Ligurian Sea]}
+  - {name: The Tyrrhenian Sea, lat: 40.0, lon: 12.0, includes: [Tyrrhenian Sea]}
+  - {name: The Adriatic Sea, lat: 43.0, lon: 15.0, includes: [Adriatic Sea]}
+  - {name: The Alboran Sea in the Strait of Gibraltar, lat: 36.02, lon: -5.34, includes: [Alboran Sea]}
+  - {name: The Skagerrak, lat: 58.0, lon: 9.0, includes: [Skagerrak]}
+  - {name: The Gulf of Bothnia, lat: 60.5, lon: 20.0, includes: [Gulf of Bothnia]}
+  - {name: The Aegean Sea, lat: 38.0, lon: 25.0, includes: [Aegean Sea]}
+  - {name: The Ionian side of the Mediterranean, lat: 35.0, lon: 18.0, includes: [Mediterranean Sea]}

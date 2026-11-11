@@ -1,6 +1,13 @@
 # Phase 3 detailed plan: information, hierarchy and search
 
-Version 0.2, 10 November 2026. Written by Claude Code for the product owner (PO).
+Version 0.3, 11 November 2026. Written by Claude Code for the product owner (PO).
+
+## Changes in version 0.3
+
+These changes come from the size trial (P3-T1a) and your answer to DP175, 11 November 2026, and from P3-T1b.
+
+* DP175: counties go into the world pack, and the base pack's soft limit is about 400 MB (PCK-1, requirements catalogue version 0.16). P3-T1c is now part of the world build. The sizes in P3-T1l, the exit checks and the risks are measured against 400 MB. The proposals below are kept as they were asked, with 250 MB.
+* DP168: the IHO Sea Areas are still non-commercial (CC BY-NC-SA 4.0, checked on 11 November 2026), so the named seas come from Natural Earth's marine areas, as DP168 said for that case. P3-T1b says how.
 
 ## Changes in version 0.2
 
@@ -172,7 +179,7 @@ You accepted Phase 2 on 10 November. As agreed, I ask whether to publish 0.1.1 a
 9. P3-T18 (controls for sighted users) and P3-T15 (Help).
 10. The installer, the checklists, the phase report, and your acceptance.
 
-Every question is answered. Two decisions are still to make with you, after the size report (P3-T1a) and before the world build: whether counties go in (DP167), and the thresholds for the world (DP169).
+Every question is answered. Counties go in (DP175). One decision is still to make with you, before the world build: the thresholds for the world (DP169).
 
 ## Heavy runs
 
@@ -267,8 +274,8 @@ Every new layer follows the same pattern as the graticule: its layer file in map
 Work items:
 
 * P3-T1a The size trial (Opus). A trial pack, mapdata/config/packs/trial-western-europe.yaml, covering Western Europe and the Alps, with counties (DP167), built with each new layer as it is added. For each layer: its features, points, and its share of the pack in MB, scaled by area to the whole world, and the time each stage took. Then the estimated size of the world pack, and how far it is from 250 MB. Then what a larger pack means for you, measured on the trial pack and a padded copy of the world's estimated size, on the desktop and in Chromium and Firefox: the start-up time, the time to the first place said, the memory used, the download time at 10 and 50 megabits a second, and the browser storage it needs. Written as docs/plan/p3-t1-size-report.md. You decide with me, from it, whether counties go in and the thresholds for the world build.
-* P3-T1b Named seas, bays and straits (Opus). As DP168 decides. The new sea areas are cut to the land, as the oceans are. A sea that is only a point is a place in the Seas layer, findable by search and Nearby, but not said as where you are (DAT-4). The VLIZ ocean regions stay the top of the water hierarchy.
-* P3-T1c Counties for the whole world (Opus). In the trial first (DP167), then in the world build if you agree after the size report. The counties stage runs for every country, writing the counties record as it goes, with "worked out" against each country, and listing every gap it filled in the quality report (DP101). A corrected entry is never overwritten. The trial countries' records from Phase 1 are kept.
+* P3-T1b Named seas, bays and straits (Opus). As DP168 decides: Natural Earth's marine areas, as the IHO Sea Areas are still non-commercial. A new layer, "Seas, bays and straits", below the oceans. The new sea areas are cut to the land, as the oceans are. A sea that is only a point is a place in the Seas layer, findable by search and Nearby, but not said as where you are (DAT-4). The VLIZ ocean regions stay the top of the water hierarchy.
+* P3-T1c Counties for the whole world (Opus). In the trial first (DP167), then in the world build, as you agreed in DP175. The counties record names level 5 where a country's real counties are there, such as Argentina's departments and Tunisia's delegations (size report, "What the trial found about counties"). The counties stage runs for every country, writing the counties record as it goes, with "worked out" against each country, and listing every gap it filled in the quality report (DP101). A corrected entry is never overwritten. The trial countries' records from Phase 1 are kept.
 * P3-T1d Islands (Opus). Named islands from OSM, as areas cut to the land polygons, in an Islands layer. Unnamed islands of 1 square kilometre or more (DP169), called "Unnamed island". An island shared by two countries, such as Märket, is one island in both. Small islands are left out of the wide drawing levels, as now (architecture 6.9).
 * P3-T1e Continents (Opus). As DP174: seven continents, Cyprus in Europe. A stage builds each continent from its countries' land, split along the continent dividing lines in mapdata/config/continents.yaml, with distant parts placed by where they are (DP88). Tested: Russia west of the Urals is in Europe and east in Asia; Istanbul's European side is in Europe; Tenerife is in Africa; there is no land in no continent, and no land in two.
 * P3-T1f Mountain ranges, physical regions and peaks (Sonnet). GMBA Mountain Inventory version 2, with its own hierarchy of ranges kept as containment; Natural Earth's physical regions; and peaks as places with their elevation. Tested: a point in the Alps has the Alps in Within (DAT-5).
@@ -277,7 +284,7 @@ Work items:
 * P3-T1i Roads and railways (Sonnet). Motorways and trunk roads, and main railway lines, as lines with their names and numbers, such as "M3". Ways of one road are joined into one feature per road and country, so the road's record is not thousands of short lines.
 * P3-T1j Towns and cities (Sonnet). OSM cities and towns as places, with population from OSM, later replaced by Wikidata's with its date (P3-T2). Each has the areas it is in, for search's descriptions.
 * P3-T1k The writing stage made faster (Opus). In the Phase 2 rebuild, about 11 of the writing's 26 minutes ran on one core with no progress line. Try at least two approaches, such as spreading the drawing levels over the workers and writing pack tiles as they are made, and keep the fastest that gives the same pack, byte for byte. A progress line at least every minute (DMT-2). Results written in the size report.
-* P3-T1l The world build (Opus). A heavy run, announced first. Then: the build twice check (DMT-1), the no gaps check (LOC-6), the coverage check of sample places worldwide (DAT-1), the 180 degree line checks, and the size against 250 MB (PCK-1). The pack's report written for you. The base pack lite is kept until the new pack passes.
+* P3-T1l The world build (Opus). A heavy run, announced first. Then: the build twice check (DMT-1), the no gaps check (LOC-6), the coverage check of sample places worldwide (DAT-1), the 180 degree line checks, and the size against about 400 MB (PCK-1, DP175). The pack's report written for you. The base pack lite is kept until the new pack passes.
 
 Tests first:
 
@@ -537,7 +544,7 @@ Tests first: every command in the registry is in the key reference; every source
 From the implementation plan, section 6, and how each is met:
 
 * The Phase 3 acceptance scripts pass on Windows, macOS and the web, including the coverage check of sample places worldwide (DAT-1), Switzerland's five neighbours (INF-2), "Sao Paulo" (SRB-1) and the Bay of Biscay's hierarchy (DAT-4). Also new: Hampshire up to the World, the New Forest's ambiguous up, Contains for Wales, Paris's ranking, London to Paris, Russia and Turkey across two continents, the Alps, the Rhine's countries in order, and France's details.
-* The base pack's size is reported against 250 MB.
+* The base pack's size is reported against about 400 MB (DP175).
 * The base pack is published to the test release and installed from it by the pack manager (DP171).
 * Also checked, though not new exit checks: step timing still meets 150 ms for 95% of steps on the base pack (NFR-1); search within 1 second on the desktop; the base pack built twice is identical (DMT-1); the installer installs, starts and uninstalls cleanly in continuous integration.
 
@@ -571,7 +578,7 @@ A short checklist for a sighted helper covers the special lines, the selected it
 
 ## Risks
 
-* The base pack may not fit 250 MB with counties, roads and towns. The size trial shows this before the world build, and you decide with me what goes in (DP167, DP169). 250 MB is a soft limit, so I ask you before cutting anything you asked for.
+* The base pack may not fit about 400 MB with counties, roads and towns (DP175). The size trial shows this before the world build, and you decide with me what goes in (DP169). It is a soft limit, so I ask you before cutting anything you asked for.
 * The world build reads much more of the planet file and does far more work than before. Each new stage is tried on the trial region first, the build can stop and carry on with the run switch, and a stall watch runs throughout.
 * Joining OSM rivers worldwide is hard: names change, rivers branch and parts are missing. The fall-back is Natural Earth's rivers.
 * Wikidata's query service limits how much each client asks for. The stage asks in small batches, waits when told to, and keeps what it has, so a stopped fetch carries on.

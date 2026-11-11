@@ -257,10 +257,12 @@ def load_pack(name: str, config_dir: Path = CONFIG_DIR) -> PackSettings:
 
 
 def stage_sources(stage: dict) -> list[str]:
-    """The source keys a stage's settings name: "source", "sources", and "source" inside "samples"."""
+    """The source keys a stage's settings name: "source", "sources", "seas", and "source" inside "samples"."""
     keys = []
     if stage.get("source"):
         keys.append(stage["source"])
     keys += list(stage.get("sources") or [])
+    if isinstance(stage.get("seas"), str):
+        keys.append(stage["seas"])
     keys += [s["source"] for s in stage.get("samples") or [] if isinstance(s, dict) and s.get("source")]
     return keys

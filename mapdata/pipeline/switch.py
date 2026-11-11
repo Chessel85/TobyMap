@@ -12,8 +12,11 @@ With --wait-for-yes, mapdata waits instead, in a small process that uses
 almost no memory or processor, and starts the build again when the file
 says "yes".
 
-A missing file, or any first line other than "no", means carry on. Only the
-data manager edits the file; mapdata only reads it. The MAPDATA_SWITCH
+Only a first line of "yes" means carry on: "no", or anything else, such as
+"wait" or an empty line, pauses the build (the data manager, 10 November
+2026). A missing file means carry on, so the automatic tests and a new copy
+of the repository need none. Only the data manager edits the file; mapdata
+only reads it. The MAPDATA_SWITCH
 environment variable can name another file.
 """
 from __future__ import annotations
@@ -42,12 +45,14 @@ class Switch:
         try:
             with open(self.path, encoding="utf-8-sig") as f:
                 first = f.readline()
-        except OSError:
+        except FileNotFoundError:
             return False
-        return first.strip().lower() == "no"
+        except OSError:
+            return True   # there, but cannot be read just now: wait rather than guess
+        return first.strip().lower() != "yes"
 
     def check(self, where: str) -> None:
         """Stop the build, cleanly, if the switch says no."""
         if self.says_no():
-            raise Paused(f"Paused {where}, as {self.path.name} says no. Everything finished so far is kept. "
+            raise Paused(f"Paused {where}, as the first line of {self.path.name} is not yes. Everything finished so far is kept. "
                          f"To carry on, change its first line to yes and run the same command again.")

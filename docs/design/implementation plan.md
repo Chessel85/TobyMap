@@ -297,7 +297,7 @@ LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, AN
 
 ### Automatic exit checks
 * The Phase 3 acceptance scripts pass, including the coverage test of sample places worldwide (DAT-1), Switzerland's five neighbours (INF-2), "Sao Paulo" (SRB-1), and the Bay of Biscay hierarchy (DAT-4).
-* The base pack's size is reported against 250 MB.
+* The base pack's size is reported against about 400 MB (PCK-1; 250 MB until DP175).
 * The base pack is published to a test release and installed from it by the pack manager.
 
 ### PO acceptance gate

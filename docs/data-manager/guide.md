@@ -59,7 +59,7 @@ Each stage keeps its results in the working folder, under a fingerprint of every
 
 continue.txt, in the repository's top folder, is the switch for long builds. Its first line is yes or no.
 
-* Change the first line to no to have the laptop back. The build finishes the job in hand, keeps everything finished so far, and stops with a line saying it is paused.
+* Change the first line to no, or to anything other than yes, to have the laptop back. The build finishes the job in hand, keeps everything finished so far, and stops with a line saying it is paused.
 * To carry on, change the first line back to yes and run the same command again. The finished stages are skipped.
 * With `--wait-for-yes`, the build does not stop for good: it waits, in a small process that uses almost no memory or processor, and carries on by itself when the file says yes again. It checks the file every 30 seconds.
 

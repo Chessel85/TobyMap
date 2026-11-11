@@ -7,22 +7,1845 @@
 # the reason. A corrected record is used as it is and never overwritten.
 
 countries:
+  osm:r108089:
+    name: Ecuador
+    levels:
+    - 6
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r1124039:
+    name: Monaco
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r114686:
+    name: Mexico
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Baja California
+    how: worked out by the build of world on 11 November 2026
+  osm:r1155955:
+    name: Liechtenstein
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r120027:
+    name: Colombia
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Cesar
+    - Cauca
+    - Archipelago of San Andrés, Providencia and Santa Catalina
+    - Atlántico
+    - Bolívar
+    how: worked out by the build of world on 11 November 2026
+  osm:r1311341:
+    name: Spain
+    levels:
+    - 6
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r1428125:
+    name: Canada
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Nunavut
+    - Northwest Territories
+    - Yukon
+    - Newfoundland and Labrador
+    - Ontario
+    - Alberta
+    - Saskatchewan
+    - Manitoba
+    - British Columbia
+    - Quebec
+    - Prince Edward Island
+    - New Brunswick
+    how: worked out by the build of world on 11 November 2026
+  osm:r14296:
+    name: Slovakia
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r1473946:
+    name: Israel
+    levels:
+    - 8
+    regions_used:
+    - South District
+    - North District
+    - Haifa District
+    - Center District
+    - Tel-Aviv District
+    how: worked out by the build of world on 11 November 2026
+  osm:r1473947:
+    name: Egypt
+    levels:
+    - 7
+    - 8
+    regions_used:
+    - New Valley
+    - Matruh
+    - Red Sea
+    - Aswan
+    - Aj Jiza
+    - Al Minya
+    - South Sinai
+    - North Sinai
+    - Asyut
+    - Bani Sweif
+    - Lake
+    - Suhaj
+    - Qena
+    - Suez
+    - Faiyum
+    - Al Sharqia Governorate
+    - Al Ismailiya
+    - Luxor
+    - Dakahlia Governorate
+    - Kafr El Sheikh
+    - Cairo
+    - Alexandria
+    - Monufia Governorate
+    - Gharbiyya Governorate
+    - Port Said
+    - Al Qalyubiya
+    - Damietta
+    how: worked out by the build of world on 11 November 2026
   osm:r148838:
     name: United States
     levels:
     - 6
     regions_used:
+    - Michigan
+    - Minnesota
+    - District of Columbia
     - Alaska
-    how: worked out by spike S2 stage 3 on 2 November 2026
+    - Puerto Rico
+    - South Carolina
+    how: worked out by the build of world on 11 November 2026
+  osm:r1520612:
+    name: El Salvador
+    levels:
+    - 6
+    regions_used:
+    - Chalatenango
+    how: worked out by the build of world on 11 November 2026
+  osm:r1521463:
+    name: Guatemala
+    levels:
+    - 6
+    regions_used:
+    - Huehuetenango
+    - Sololá
+    how: worked out by the build of world on 11 November 2026
+  osm:r1558556:
+    name: Niue
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r161033:
+    name: Mongolia
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r16239:
+    name: Austria
+    levels:
+    - 6
+    regions_used:
+    - Vienna
+    how: worked out by the build of world on 11 November 2026
+  osm:r1656678:
+    name: South Sudan
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its counties are level 5 (P3-T1c, size report)'
+  osm:r167454:
+    name: Chile
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Coquimbo Region
+    - Atacama Region
+    how: worked out by the build of world on 11 November 2026
+  osm:r171496:
+    name: Rwanda
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r1741311:
+    name: Serbia
+    levels:
+    - 6
+    regions_used:
+    - Central Serbia
+    how: worked out by the build of world on 11 November 2026
+  osm:r174737:
+    name: Turkey
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Izmir
+    - Muğla
+    - Antalya
+    - Balıkesir
+    how: worked out by the build of world on 11 November 2026
+  osm:r178009:
+    name: Kyrgyzstan
+    levels:
+    - 6
+    regions_used:
+    - Issyk-Kul Region
+    - Osh City
+    how: worked out by the build of world on 11 November 2026
+  osm:r184629:
+    name: Bhutan
+    levels:
+    - 6
+    regions_used:
+    - Dagana District
+    how: worked out by the build of world on 11 November 2026
+  osm:r184633:
+    name: Nepal
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r184640:
+    name: Bangladesh
+    levels:
+    - 6
+    regions_used:
+    - Rajshahi Division
+    - Chattogram Division
+    how: worked out by the build of world on 11 November 2026
+  osm:r184818:
+    name: Jordan
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r184840:
+    name: Syria
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r184843:
+    name: Lebanon
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 25 level 5 areas cover 68% of it as read, levels 6 to 8 only 43% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r1857436:
+    name: Solomon Islands
+    levels: []
+    regions_used:
+    - Western
+    - Guadalcanal
+    - Malaita
+    - Isabel
+    - Choiseul
+    - Makira-Ulawa
+    - Temotu
+    - Rennell and Bellona
+    - Central Province
+    - Honiara
+    how: worked out by the build of world on 11 November 2026
+  osm:r186382:
+    name: Bulgaria
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 265 level 5 areas cover 95% of it as read, levels 6 to 8 only 44% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r1872673:
+    name: Samoa
+    levels:
+    - 8
+    regions_used:
+    - Palauli
+    - Tuamasaga
+    - Ātua
+    - Gagaʻifomauga
+    - Faʻasaleleaga
+    - Vaisigano
+    - Gagaʻemauga
+    - Aʻana
+    - Satupaʻitea
+    - Vaʻa-o-Fonoti
+    - Aiga-i-le-Tai
+    how: worked out by the build of world on 11 November 2026
+  osm:r1889339:
+    name: Botswana
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Central District
+    - Ghanzi District
+    - North-West District
+    - Kweneng District
+    - Southern District
+    - Chobe District
+    - Kgatleng District
+    - North-East District
+    - South-East District
+    - Gaborone
+    - Sowa Town
+    - Jwaneng Town
+    - Selebi Phikwe
+    - Francistown
+    - Lobatse
+    how: worked out by the build of world on 11 November 2026
+  osm:r192307:
+    name: Greece
+    levels:
+    - 6
+    regions_used:
+    - Autonomous Monastic State of the Holy Mountain
+    how: worked out by the build of world on 11 November 2026
+  osm:r192734:
+    name: North Korea
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Kaesong
+    how: worked out by the build of world on 11 November 2026
+  osm:r192756:
+    name: Algeria
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r192757:
+    name: Tunisia
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its delegations are level 5; level 6 holds its 1,526 sectors (P3-T1c, size report)'
+  osm:r192758:
+    name: Libya
+    levels: []
+    regions_used:
+    - Kufra
+    - Murzuq
+    - Al Wahat
+    - District of Al-Jufra
+    - Wadi al Shatii
+    - Butnan
+    - Nafusa Mountains
+    - Sirte
+    - Nalut
+    - Ghat
+    - Wadi al Hayaa
+    - Bani Walid
+    - Derna
+    - Sabha
+    - Benghazi
+    - Marj
+    - Jabal al Akhdar
+    - Nuqat al Khams
+    - Murqub
+    - Jafara
+    - Az Zawiya District
+    - Baladiyah Surman
+    - Tripoli
+    how: worked out by the build of world on 11 November 2026
+  osm:r192763:
+    name: Mauritania
+    levels:
+    - 6
+    regions_used:
+    - Tiris Zemmour
+    - Adrar
+    - Hodh Ech Chargui
+    - Tagant
+    - Trarza
+    - Hodh El Gharbi
+    - Inchiri
+    - Assaba
+    - Brakna
+    - Dakhlet Nouadhibou
+    - Gorgol
+    - Guidimaka
+    how: worked out by the build of world on 11 November 2026
+  osm:r192774:
+    name: The Gambia
+    levels:
+    - 6
+    regions_used:
+    - Kanifing Municipal Council
+    - Banjul
+    how: worked out by the build of world on 11 November 2026
+  osm:r192775:
+    name: Senegal
+    levels:
+    - 7
+    - 8
+    regions_used:
+    - Sédhiou Region
+    - Saint-Louis Region
+    how: worked out by the build of world on 11 November 2026
+  osm:r192776:
+    name: Guinea-Bissau
+    levels:
+    - 6
+    regions_used:
+    - Bissau Autonomous Sector
+    how: worked out by the build of world on 11 November 2026
+  osm:r192777:
+    name: Sierra Leone
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 15 level 5 areas cover 87% of it as read, levels 6 to 8 only 12% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r192778:
+    name: Guinea
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Conakry
+    how: worked out by the build of world on 11 November 2026
+  osm:r192779:
+    name: Ivory Coast
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 31 level 5 areas cover 95% of it as read, levels 6 to 8 only 16% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r192780:
+    name: Liberia
+    levels:
+    - 6
+    regions_used:
+    - Grand Cape Mount County
+    - Nimba County
+    how: worked out by the build of world on 11 November 2026
+  osm:r192781:
+    name: Ghana
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r192782:
+    name: Togo
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Plateaux Region
+    - Maritime Region
+    how: worked out by the build of world on 11 November 2026
+  osm:r192783:
+    name: Burkina Faso
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Boucle du Mouhoun
+    - Upper-Basins
+    - Central-North
+    - East
+    - North
+    - Central-Plateau
+    - Central-East
+    how: worked out by the build of world on 11 November 2026
+  osm:r192784:
+    name: Benin
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r192785:
+    name: Mali
+    levels:
+    - 6
+    regions_used:
+    - Taoudénit Region
+    - Ménaka
+    how: worked out by the build of world on 11 November 2026
+  osm:r192786:
+    name: Niger
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r192787:
+    name: Nigeria
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r192789:
+    name: Sudan
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Kassala State
+    - Al Jazirah
+    - Al Khartum State
+    - South Darfur
+    - River Nile State
+    how: worked out by the build of world on 11 November 2026
+  osm:r192790:
+    name: Central African Republic
+    levels:
+    - 8
+    regions_used:
+    - Haute-Kotto
+    - Mbomou
+    - Bamingui-Bangoran
+    - Haut-Mbomou
+    - Ouham
+    - Ouaka
+    - Vakaga
+    - Ombella-M'Poko
+    - Ouham-Pendé
+    - Mambéré-Kadéï
+    - Nana-Mambéré
+    - Nana-Grébizi
+    - Lobaye
+    - Sangha-Mbaéré
+    - Basse-Kotto
+    - Kémo
+    - Bangui
+    how: worked out by the build of world on 11 November 2026
+  osm:r192791:
+    name: Equatorial Guinea
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Bioko Sur
+    - Bioko Norte
+    - Annobón
+    - Litoral
+    how: worked out by the build of world on 11 November 2026
+  osm:r192793:
+    name: Gabon
+    levels:
+    - 6
+    regions_used:
+    - Estuaire Province
+    - Ogooué-Maritime Province
+    - Nyanga Province
+    how: worked out by the build of world on 11 November 2026
+  osm:r192794:
+    name: Congo-Brazzaville
+    levels:
+    - 6
+    regions_used:
+    - Pool Department
+    - Niari Department
+    how: worked out by the build of world on 11 November 2026
+  osm:r192795:
+    name: Democratic Republic of the Congo
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Tshopo
+    - Tshuapa
+    - Tanganyika
+    - Lower Uele
+    - Sankuru
+    - Équateur
+    - Kasai
+    - Upper Uele
+    - Kwango
+    - Haut-Katanga
+    - Haut-Lomami
+    - Nord-Ubangi
+    - Sud-Ubangi
+    - Mongala
+    - North Kivu
+    - Kinshasa
+    how: worked out by the build of world on 11 November 2026
+  osm:r192796:
+    name: Uganda
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Buvuma
+    - Lamwo
+    - Napak
+    - Kaabong
+    - Nwoya
+    - Namayingo
+    - Mukono
+    - Kitgum
+    - Amuru
+    - Kiryandongo
+    - Kotido
+    - Moroto
+    - Nakasongola
+    - Agago
+    - Nakaseke
+    - Mayuge
+    - Pader
+    - Buliisa
+    - Kasese
+    - Adjumani
+    - Kiruhura
+    - Kikuube
+    - Mubende
+    - Masindi
+    - Karenga
+    - Kyankwanzi
+    - Kyotera
+    - Hoima
+    - Katakwi
+    - Nakapiripirit
+    - Kyenjojo
+    - Yumbe
+    - Luweero
+    - Oyam
+    - Ntungamo
+    - Serere
+    - Masaka
+    - Isingiro
+    - Kassanda
+    - Buyende
+    - Nabilatuk
+    - Amolatar
+    - Apac
+    - Kyegegwa
+    - Gulu
+    - Kayunga
+    - Kamwenge
+    - Gomba
+    - Kakumiro
+    - Amudat
+    - Rakai
+    - Kiboga
+    - Mityana
+    - Kagadi
+    - Kazo
+    - Kamuli
+    - Alebtong
+    - Otuke
+    - Mpigi
+    - Rukungiri
+    - Omoro
+    - Buikwe
+    - Entebbe City
+    - Kwania
+    - Ntoroko
+    - Amuria
+    - Wakiso
+    - Kanungu
+    - Rubirizi
+    - Kapelebyong
+    - Tororo
+    - Kabarole
+    - Soroti
+    - Kibaale
+    - Dokolo
+    - Kole
+    - Kumi
+    - Bukedea
+    - Bugiri
+    - Pakwach
+    - Nebbi
+    - Moyo
+    - Lwengo
+    - Ibanda
+    - Bushenyi
+    - Zombo
+    - Kaberamaido
+    - Lyantonde
+    - Kaliro
+    - Kween
+    - Pallisa
+    - Obongi
+    - Kalungu
+    - Namutumba
+    - Mbarara
+    - Buhweju
+    - Busia
+    - Koboko
+    - Kalaki
+    - Kisoro
+    - Kitagwenda
+    - Ngora
+    - Sheema
+    - Rubanda
+    - Luuka
+    - Butaleja
+    - Iganga
+    - Kabale
+    - Bukomansimbi
+    - Rwampara
+    - Mitooma
+    - Jinja
+    - Bukwo
+    - Bunyangabu
+    - Kibuku
+    - Lira
+    - Maracha
+    - Rukiga
+    - Mbarara City
+    - Budaka
+    - Butambala
+    - Bugweri
+    - Kapchorwa
+    - Masaka City
+    - Soroti City
+    - Butebo
+    - Gulu City
+    - Hoima City
+    - Jinja City
+    - Fort Portal City
+    how: worked out by the build of world on 11 November 2026
+  osm:r192798:
+    name: Kenya
+    levels:
+    - 6
+    regions_used:
+    - Marsabit County
+    - Turkana County
+    - Homa Bay County
+    - Siaya County
+    - Kisumu County
+    - Migori County
+    - Lamu
+    - Busia County
+    - Kwale
+    - Mombasa County
+    how: worked out by the build of world on 11 November 2026
+  osm:r192799:
+    name: Somalia
+    levels:
+    - 6
+    regions_used:
+    - Jubaland
+    how: worked out by the build of world on 11 November 2026
+  osm:r192800:
+    name: Ethiopia
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 91 level 5 areas cover 100% of it as read, levels 6 to 8 only 13% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r192801:
+    name: Djibouti
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Ali Sabieh
+    - Arta
+    - Djibouti
+    how: worked out by the build of world on 11 November 2026
+  osm:r192830:
+    name: Cameroon
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r195266:
+    name: Namibia
+    levels:
+    - 8
+    regions_used:
+    - Karas
+    - Kunene Region
+    - Hardap
+    - Otjozondjupa
+    - Omaheke
+    - Erongo Region
+    - Oshikoto
+    - Khomas
+    - Omusati
+    - Kavango West
+    - Kavango East
+    - Zambezi
+    - Ohangwena
+    - Oshana
+    how: worked out by the build of world on 11 November 2026
+  osm:r195267:
+    name: Angola
+    levels:
+    - 6
+    regions_used:
+    - Moxico Province
+    - Cuando Cubango Province
+    - Lunda Norte Province
+    - Lunda Sul Province
+    - Cunene Province
+    - Malanje Province
+    - Bié Province
+    - Uíge Province
+    - Namibe Province
+    - Cuanza Sul Province
+    - Benguela Province
+    - Zaire Province
+    - Huambo Province
+    - Cuanza Norte Province
+    - Bengo Province
+    - Cabinda Province
+    - Luanda Province
+    how: worked out by the build of world on 11 November 2026
+  osm:r195269:
+    name: Burundi
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Ruyigi
+    - Makamba
+    - Rutana
+    - Gitega
+    - Bururi
+    - Cibitoke
+    - Karuzi
+    - Kayanza
+    - Rumonge
+    - Bubanza
+    - Bujumbura Rural Province
+    - Mwaro
+    - Muramvya
+    - Bujumbura Mairie
+    how: worked out by the build of world on 11 November 2026
+  osm:r195270:
+    name: Tanzania
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 195 level 5 areas cover 90% of it as read, levels 6 to 8 only 0% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r195271:
+    name: Zambia
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 116 level 5 areas cover 100% of it as read, levels 6 to 8 only 0% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r195272:
+    name: Zimbabwe
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r195273:
+    name: Mozambique
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 161 level 5 areas cover 91% of it as read, levels 6 to 8 only 32% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r195290:
+    name: Malawi
+    levels: []
+    regions_used:
+    - Mzimba
+    - Kasungu
+    - Mangochi
+    - Lilongwe
+    - Chikwawa
+    - Rumphi
+    - Nkhata Bay
+    - Nkhotakota
+    - Chitipa
+    - Machinga
+    - Dedza
+    - Karonga
+    - Ntcheu
+    - Mchinji
+    - Zomba
+    - Dowa
+    - Southern Region, Malawi
+    - Balaka
+    - Salima
+    - Mulanje
+    - Blantyre
+    - Ntchisi
+    - Nsanje
+    - Thyolo
+    - Neno
+    - Phalombe
+    - Chiradzulu
+    - Mwanza
+    - Likoma
+    how: worked out by the build of world on 11 November 2026
+  osm:r196240:
+    name: Uzbekistan
+    levels:
+    - 6
+    regions_used:
+    - Jizzakh Region
+    - Namangan Region
+    how: worked out by the build of world on 11 November 2026
+  osm:r1964272:
+    name: Saint Helena, Ascension and Tristan da Cunha
+    levels: []
+    regions_used:
+    - Saint Helena
+    - Ascension Island
+    - Tristan da Cunha
+    - Gough Island
+    - Inaccessible Island
+    - Nightingale Islands
+    how: worked out by the build of world on 11 November 2026
+  osm:r1983628:
+    name: South Georgia and the South Sandwich Islands
+    levels:
+    - 6
+    regions_used:
+    - South Georgia
+    - South Sandwich Islands
+    how: worked out by the build of world on 11 November 2026
+  osm:r1993208:
+    name: Bermuda
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r2067731:
+    name: Thailand
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Surat Thani Province
+    - Ubon Ratchathani Province
+    - Phichit Province
+    - Ranong Province
+    - Phang-nga Province
+    - Phuket Province
+    - Krabi Province
+    - Chon Buri Province
+    - Trang Province
+    how: worked out by the build of world on 11 November 2026
+  osm:r2088990:
+    name: Kosovo
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r2093234:
+    name: Lesotho
+    levels: []
+    regions_used:
+    - Thaba-Tseka District
+    - Mokhotlong District
+    - Maseru District
+    - Mohale's Hoek District
+    - Quthing District
+    - Leribe District
+    - Mafeteng District
+    - Qacha's Nek District
+    - Berea District
+    - Butha-Buthe District
+    how: worked out by the build of world on 11 November 2026
+  osm:r2103120:
+    name: Brunei
+    levels:
+    - 6
+    regions_used:
+    - Belait District
+    - Temburong District
+    - Tutong District
+    - Brunei-Muara District
+    how: worked out by the build of world on 11 November 2026
+  osm:r2108121:
+    name: Malaysia
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Perlis
+    - Kuala Lumpur
+    - Labuan
+    - Putrajaya
+    - Selangor
+    - Sabah
+    - Johor
+    - Malacca
+    how: worked out by the build of world on 11 November 2026
+  osm:r21335:
+    name: Hungary
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r214626:
+    name: Tajikistan
+    levels:
+    - 6
+    - 7
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r214665:
+    name: Kazakhstan
+    levels:
+    - 6
+    regions_used:
+    - Mangystau Region
+    - Atyrau Region
+    - Astana
+    - Almaty
+    how: worked out by the build of world on 11 November 2026
+  osm:r214885:
+    name: Croatia
+    levels:
+    - 7
+    - 8
+    regions_used:
+    - Šibenik-Knin County
+    - City of Zagreb
+    how: worked out by the build of world on 11 November 2026
+  osm:r2171347:
+    name: Luxembourg
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r2177246:
+    name: Vanuatu
+    levels: []
+    regions_used:
+    - Sanma
+    - Malampa
+    - Tafea
+    - Shefa Province
+    - Penama
+    - Torba
+    how: worked out by the build of world on 11 November 2026
+  osm:r2177266:
+    name: Tuvalu
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r2184073:
+    name: Greenland
+    levels: []
+    regions_used:
+    - Sermersooq
+    - Avannaata
+    - Qeqqata
+    - Qeqertalik
+    - Kujalleq
+    - Pituffik
+    how: worked out by the build of world on 11 November 2026
+  osm:r2184233:
+    name: Cook Islands
+    levels:
+    - 8
+    regions_used:
+    - Mangaia
+    - Atiu
+    - Aitutaki
+    - Mitiaro
+    - Mauke
+    - Penrhyn
+    - Pukapuka
+    - Manihiki
+    - Rakahanga
+    - Palmerston
+    how: worked out by the build of world on 11 November 2026
+  osm:r2185366:
+    name: Cayman Islands
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r218657:
+    name: Slovenia
+    levels:
+    - 7
+    - 8
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r2186600:
+    name: Tokelau
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r2186665:
+    name: Tonga
+    levels:
+    - 7
+    regions_used:
+    - Tongatapu
+    - Vavaʻu
+    - Haʻapai
+    - ʻEua
+    - Ongo Niua
+    how: worked out by the build of world on 11 November 2026
+  osm:r2202162:
+    name: France
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - New Caledonia
+    - Wallis and Futuna
+    - French Polynesia
+    how: worked out by the build of world on 11 November 2026
+  osm:r223026:
+    name: Turkmenistan
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 49 level 5 areas cover 100% of it as read, levels 6 to 8 only 0% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r2323309:
+    name: Netherlands
+    levels:
+    - 8
+    regions_used:
+    - Curacao
+    - Aruba
+    - Sint Maarten
+    how: worked out by the build of world on 11 November 2026
+  osm:r2361304:
+    name: Chad
+    levels:
+    - 6
+    regions_used:
+    - Tibesti
+    - Borkou
+    - Ennedi-Ouest
+    - Batha
+    - East Ennedi
+    - Salamat
+    - Kanem
+    - Guéra
+    - Bahr el Gazel
+    - Wadi Fira
+    - Chari-Baguirmi
+    - Moyen-Chari
+    - Sila
+    - Hadjer-Lamis
+    - Logone Oriental
+    - Ouaddaï
+    - Lac
+    - Mayo-Kebbi Est
+    - Tandjilé
+    - Mandoul
+    - Mayo-Kebbi Ouest
+    - Logone Occidental
+    - N'Djamena
+    how: worked out by the build of world on 11 November 2026
+  osm:r252645:
+    name: Bolivia
+    levels:
+    - 6
+    regions_used:
+    - Oruro
+    - La Paz
+    how: worked out by the build of world on 11 November 2026
+  osm:r2528142:
+    name: Bosnia and Herzegovina
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Brčko District
+    how: worked out by the build of world on 11 November 2026
+  osm:r270009:
+    name: Guernsey
+    levels:
+    - 8
+    regions_used:
+    - Alderney
+    - Sark
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r270056:
+    name: China
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Xinjiang
+    - Guangdong
+    - Liaoning
+    - Macau
+    - Hubei
+    - Hong Kong
+    how: worked out by the build of world on 11 November 2026
+  osm:r272644:
+    name: Venezuela
+    levels:
+    - 6
+    regions_used:
+    - Delta Amacuro State
+    - Falcon State
+    how: worked out by the build of world on 11 November 2026
+  osm:r285454:
+    name: British Virgin Islands
+    levels: []
+    regions_used:
+    - Tortola
+    - Anegada
+    - Other British Virgin Islands
+    - Virgin Gorda
+    - Jost Van Dyke
+    how: worked out by the build of world on 11 November 2026
+  osm:r286393:
+    name: Argentina
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its departments and partidos are level 5, which the rule does not look at (P3-T1c, size report)'
+  osm:r28699:
+    name: Georgia
+    levels:
+    - 6
+    regions_used:
+    - Tbilisi
+    how: worked out by the build of world on 11 November 2026
+  osm:r287072:
+    name: Uruguay
+    levels:
+    - 8
+    regions_used:
+    - Tacuarembó
+    - Salto
+    - Paysandú
+    - Cerro Largo
+    - Durazno
+    - Artigas
+    - Rocha
+    - Florida
+    - Lavalleja
+    - Río Negro
+    - Rivera
+    - Treinta y Tres
+    - Soriano
+    - Colonia
+    - Flores
+    - San José
+    - Maldonado
+    - Canelones
+    how: worked out by the build of world on 11 November 2026
+  osm:r287077:
+    name: Paraguay
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - San Pedro
+    - Concepción
+    - Caaguazú
+    - Ñeembucú
+    - Itapúa
+    - Department of Paraguari
+    - Cordillera Department
+    - Guairá
+    - Misiones
+    how: worked out by the build of trial-south-america on 11 November 2026
+  osm:r287082:
+    name: Suriname
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r287083:
+    name: Guyana
+    levels:
+    - 6
+    regions_used:
+    - Essequibo Islands
+    - Upper Demerara-Berbice
+    - Demerara-Mahaica
+    - East Berbice-Corentyne
+    how: worked out by the build of world on 11 November 2026
+  osm:r287666:
+    name: Nicaragua
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r287667:
+    name: Costa Rica
+    levels:
+    - 6
+    regions_used:
+    - Puntarenas Province
+    how: worked out by the build of world on 11 November 2026
+  osm:r287668:
+    name: Panama
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Los Santos
+    - Veraguas
+    - Guna Yala
+    - Darién
+    - Bocas del Toro
+    - Panamá Province
+    - Panamá Oeste
+    how: worked out by the build of world on 11 November 2026
+  osm:r287670:
+    name: Honduras
+    levels:
+    - 6
+    regions_used:
+    - Bay Islands
+    - Gracias a Dios
+    - Colón
+    - Atlántida
+    how: worked out by the build of world on 11 November 2026
+  osm:r287827:
+    name: Belize
+    levels:
+    - 7
+    - 8
+    regions_used:
+    - Cayo
+    - Toledo
+    - Orange Walk
+    - Belize District
+    - Stann Creek
+    - Corozal
+    how: worked out by the build of world on 11 November 2026
+  osm:r288247:
+    name: Peru
+    levels:
+    - 6
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r295480:
+    name: Portugal
+    levels:
+    - 6
+    - 7
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r296961:
+    name: Eritrea
+    levels: []
+    regions_used:
+    - Northern Red Sea Region
+    - Gash-Barka
+    - Southern Red Sea Region
+    - Anseba
+    - Debub Region
+    - Maekel Region
+    how: worked out by the build of world on 11 November 2026
   osm:r2978650:
     name: Norway
     levels:
     - 7
     regions_used:
-    - Bouvet Island
-    - Jan Mayen
     - Svalbard
-    how: worked out by spike S2 stage 2 on 2 November 2026
+    - Jan Mayen
+    - Bouvet Island
+    how: worked out by the build of world on 11 November 2026
+  osm:r299133:
+    name: Iceland
+    levels:
+    - 6
+    regions_used:
+    - Western Region
+    - Westfjords Region
+    - Northwestern Region
+    how: worked out by the build of world on 11 November 2026
+  osm:r303427:
+    name: Afghanistan
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 397 level 5 areas cover 100% of it as read, levels 6 to 8 only 0% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r304716:
+    name: India
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Ladakh
+    - Gujarat
+    - Jammu and Kashmir
+    - Maharashtra
+    - Andhra Pradesh
+    - Andaman and Nicobar Islands
+    - Manipur
+    - West Bengal
+    - Bihar
+    - Odisha
+    - Tamil Nadu
+    - Karnataka
+    how: worked out by the build of world on 11 November 2026
+  osm:r304751:
+    name: Indonesia
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 514 level 5 areas cover 39% of it as read, levels 6 to 8 only 11% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r304934:
+    name: Iraq
+    levels:
+    - 6
+    - 7
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r304938:
+    name: Iran
+    levels:
+    - 6
+    - 7
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r305092:
+    name: Yemen
+    levels:
+    - 6
+    regions_used:
+    - Marib Governorate
+    how: worked out by the build of world on 11 November 2026
+  osm:r305095:
+    name: Qatar
+    levels: []
+    regions_used:
+    - Al Shahaniya
+    - Al Wakrah
+    - Al Rayyan
+    - Al Khor and Al Thakhira
+    - Ash Shamal
+    - Umm Salal
+    - Al-Daayen
+    - Doha
+    how: worked out by the build of world on 11 November 2026
+  osm:r305099:
+    name: Kuwait
+    levels:
+    - 6
+    regions_used:
+    - Ahmadi Governorate
+    - Jahra Governorate
+    - Capital Governorate
+    - Mubarak al-Kabir Governorate
+    how: worked out by the build of world on 11 November 2026
+  osm:r305138:
+    name: Oman
+    levels:
+    - 6
+    regions_used:
+    - Muscat Governorate
+    - Ash Sharqiyah South Governorate
+    how: worked out by the build of world on 11 November 2026
+  osm:r305142:
+    name: East Timor
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 70 level 5 areas cover 51% of it as read, levels 6 to 8 only 1% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r307573:
+    name: Pakistan
+    levels:
+    - 6
+    - 7
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r307584:
+    name: Saudi Arabia
+    levels:
+    - 6
+    regions_used:
+    - Eastern Province
+    how: worked out by the build of world on 11 November 2026
+  osm:r307756:
+    name: South Korea
+    levels:
+    - 6
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r307763:
+    name: United Arab Emirates
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Dubai Emirate
+    - Ras al-Khaimah Emirate
+    - Fujairah Emirate
+    - Umm al-Quwain Emirate
+    - Ajman Emirate
+    - Sharjah Emirate
+    how: worked out by the build of world on 11 November 2026
+  osm:r307787:
+    name: Cyprus
+    levels:
+    - 6
+    - 7
+    - 8
+    regions_used:
+    - Cyprus
+    how: worked out by the build of world on 11 November 2026
+  osm:r307823:
+    name: Dominica
+    levels:
+    - 6
+    regions_used:
+    - Saint Andrew Parish
+    - Saint David Parish
+    - Saint Joseph Parish
+    - Saint Patrick Parish
+    - Saint Paul Parish
+    - Saint John Parish
+    - Saint George Parish
+    - Saint Peter Parish
+    - Saint Mark Parish
+    - Saint Luke Parish
+    how: worked out by the build of world on 11 November 2026
+  osm:r307828:
+    name: Dominican Republic
+    levels:
+    - 6
+    regions_used:
+    - La Altagracia
+    how: worked out by the build of world on 11 November 2026
+  osm:r307829:
+    name: Haiti
+    levels:
+    - 8
+    regions_used:
+    - Sud Department
+    - Département des Nippes
+    how: worked out by the build of world on 11 November 2026
+  osm:r307833:
+    name: Cuba
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Isle of Youth
+    - Matanzas
+    - Ciego de Avila
+    - Villa Clara
+    - Camagüey
+    - Artemisa
+    - Pinar del Rio
+    - Sancti Spiritus
+    - Granma
+    - Mayabeque
+    - Las Tunas
+    how: worked out by the build of world on 11 November 2026
+  osm:r307866:
+    name: Papua New Guinea
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 87 level 5 areas cover 39% of it as read, levels 6 to 8 only 0% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r3263728:
+    name: Akrotiri and Dhekelia
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r3630439:
+    name: Morocco
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Dakhla-Oued Ed-Dahab
+    how: worked out by the build of world on 11 November 2026
+  osm:r364066:
+    name: Armenia
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 81 level 5 areas cover 96% of it as read, levels 6 to 8 only 6% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r364110:
+    name: Azerbaijan
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Nakhchivan Autonomous Republic
+    how: worked out by the build of world on 11 November 2026
+  osm:r365307:
+    name: Malta
+    levels:
+    - 7
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r365331:
+    name: Italy
+    levels:
+    - 6
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r367988:
+    name: Jersey
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r378734:
+    name: Bahrain
+    levels: []
+    regions_used:
+    - Southern Governorate
+    - Northern Governorate
+    - Capital Governorate
+    - Muharraq Governorate
+    how: worked out by the build of world on 11 November 2026
+  osm:r382313:
+    name: Japan
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Tokyo
+    - Aichi Prefecture
+    how: worked out by the build of world on 11 November 2026
+  osm:r443174:
+    name: Philippines
+    levels:
+    - 6
+    regions_used:
+    - Isabela
+    - Palawan
+    - Cagayan
+    - Nueva Vizcaya
+    - Eastern Samar
+    - Abra
+    - Surigao del Sur
+    - Lanao del Sur
+    - Cebu
+    - Sultan Kudarat
+    - Masbate
+    - Oriental Mindoro
+    - Zamboanga del Sur
+    - Apayao
+    - Ilocos Norte
+    - Bohol
+    - Davao de Oro
+    - Quirino
+    - Kalinga
+    - Northern Samar
+    - Benguet
+    - Iloilo
+    - Zambales
+    - Samar
+    - Aurora
+    - Zamboanga Sibugay
+    - Ilocos Sur
+    - Ifugao
+    - Camarines Sur
+    - Misamis Oriental
+    - Lanao del Norte
+    - Maguindanao del Norte
+    - Pangasinan
+    - Negros Oriental
+    - Camarines Norte
+    - Sarangani
+    - Mountain Province
+    - Agusan del Norte
+    - Maguindanao del Sur
+    - Albay
+    - Southern Leyte
+    - Misamis Occidental
+    - Surigao del Norte
+    - Sorsogon
+    - Sulu
+    - Dinagat Islands
+    - La Union
+    - Biliran
+    - Quezon
+    - Nueva Ecija
+    - Cotabato
+    how: worked out by the build of world on 11 November 2026
+  osm:r447325:
+    name: Madagascar
+    levels:
+    - 6
+    regions_used:
+    - Analamanga
+    - Sofia Region
+    - Province de Mahajanga
+    - Boeny
+    - Ambatosoa
+    - Antsiranana Province
+    - Diana Region
+    how: worked out by the build of world on 11 November 2026
+  osm:r449220:
+    name: Taiwan
+    levels:
+    - 7
+    - 8
+    regions_used:
+    - Kinmen
+    - New Taipei
+    how: worked out by the build of world on 11 November 2026
+  osm:r49715:
+    name: Poland
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r49898:
+    name: Cambodia
+    levels:
+    - 6
+    regions_used:
+    - Koh Kong
+    - Kampong Thom
+    - Pursat
+    - Kampong Chhnang
+    - Battambang
+    - Khaet Preah Sihanouk
+    - Kampot
+    how: worked out by the build of world on 11 November 2026
+  osm:r49903:
+    name: Laos
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r49915:
+    name: Vietnam
+    levels:
+    - 6
+    regions_used:
+    - Huế
+    - Ho Chi Minh City
+    - Khánh Hòa Province
+    how: worked out by the build of world on 11 November 2026
+  osm:r50046:
+    name: Denmark
+    levels:
+    - 7
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r50371:
+    name: Myanmar
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Shan State
+    - Yangon
+    how: worked out by the build of world on 11 November 2026
+  osm:r51477:
+    name: Germany
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Berlin
+    - Hamburg
+    - Baden-Württemberg
+    - Schleswig-Holstein
+    - Lower Saxony
+    - Bavaria
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r51684:
+    name: Czechia
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r51701:
+    name: Switzerland
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Thurgau
+    - Zurich
+    - St. Gallen
+    how: worked out by the build of trial-western-europe on 11 November 2026
   osm:r52411:
     name: Belgium
     levels:
@@ -36,6 +1859,234 @@ countries:
     - 7
     regions_used: []
     how: worked out by spike S2 stage 2 on 2 November 2026
+  osm:r52939:
+    name: Faroe Islands
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r53292:
+    name: Albania
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r53293:
+    name: North Macedonia
+    levels:
+    - 6
+    - 7
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r53296:
+    name: Montenegro
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r535774:
+    name: Cape Verde
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r535790:
+    name: Comoros
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r535828:
+    name: Mauritius
+    levels:
+    - 8
+    regions_used:
+    - Port Louis
+    - Agaléga
+    - Moka
+    - Black River
+    - Rivière du Rempart District
+    - Saint Brandon
+    - Plaines Wilhems
+    how: worked out by the build of world on 11 November 2026
+  osm:r535880:
+    name: São Tomé and Príncipe
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r536765:
+    name: Seychelles
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Outer Islands
+    how: worked out by the build of world on 11 November 2026
+  osm:r536773:
+    name: Maldives
+    levels:
+    - 8
+    regions_used:
+    - Malé Atoll
+    - South Huvadhu Atoll
+    - South Thiladhunmathi
+    - Hadhdhunmathi
+    - North Thiladhunmathi
+    - South Miladhunmadulu
+    - Addu Atoll
+    - North Miladhunmadulu
+    - North Maalhosmadulu
+    - North Huvadhu Atoll
+    - South Nilandhe Atoll
+    - Kolhumadulu
+    - South Maalhosmadulu
+    - Faadhippolhu
+    - South Ari Atoll
+    - Mulaku Atoll
+    - Fuvahmulah
+    - North Ari Atoll
+    - North Nilandhe Atoll
+    - Malé
+    - Felidhu Atoll
+    how: worked out by the build of world on 11 November 2026
+  osm:r536780:
+    name: Singapore
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r536807:
+    name: Sri Lanka
+    levels:
+    - 5
+    - 6
+    - 7
+    - 8
+    regions_used: []
+    how: 'corrected: its 25 level 5 areas cover 100% of it as read, levels 6 to 8 only 0% (world reading, 11 November 2026,
+      P3-T1c)'
+  osm:r536899:
+    name: Saint Kitts and Nevis
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r536900:
+    name: Antigua and Barbuda
+    levels:
+    - 6
+    regions_used:
+    - Barbuda
+    how: worked out by the build of world on 11 November 2026
+  osm:r537257:
+    name: Montserrat
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r54224:
+    name: Finland
+    levels:
+    - 7
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r5441968:
+    name: Sahrawi Arab Democratic Republic
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Laâyoune-Sakia El Hamra
+    how: worked out by the build of world on 11 November 2026
+  osm:r54624:
+    name: San Marino
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r547469:
+    name: Bahamas
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r547479:
+    name: Turks and Caicos Islands
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r547511:
+    name: Barbados
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r550725:
+    name: Saint Vincent and the Grenadines
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r550727:
+    name: Grenada
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r550728:
+    name: Saint Lucia
+    levels: []
+    regions_used:
+    - Micoud
+    - Gros Islet
+    - Castries
+    - Dennery
+    - Soufrière
+    - Vieux Fort
+    - Laborie
+    - Anse La Raye
+    - Choiseul
+    - Canaries
+    how: worked out by the build of world on 11 November 2026
+  osm:r555017:
+    name: Jamaica
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r555717:
+    name: Trinidad and Tobago
+    levels: []
+    regions_used:
+    - Sangre Grande
+    - Mayaro-Rio Claro
+    - Couva-Tabaquite-Talparo
+    - Princes Town
+    - Tunapuna-Piarco
+    - Siparia
+    - Tobago
+    - Penal-Debe
+    - San Juan-Laventille
+    - Diego Martin
+    - Chaguanas
+    - Point Fortin
+    - San Fernando
+    - Port of Spain
+    - Arima
+    how: worked out by the build of world on 11 November 2026
+  osm:r556706:
+    name: New Zealand
+    levels:
+    - 6
+    regions_used:
+    - Southland
+    - Bay of Plenty
+    - Northland
+    - Waikato
+    - Hawke's Bay
+    how: worked out by the build of world on 11 November 2026
   osm:r571178:
     name: Kiribati
     levels:
@@ -51,15 +2102,113 @@ countries:
     regions_used:
     - Rotuma
     how: worked out by spike S2 stage 3 on 2 November 2026
+  osm:r571771:
+    name: Marshall Islands
+    levels:
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r571802:
+    name: Federated States of Micronesia
+    levels:
+    - 8
+    regions_used:
+    - Chuuk
+    how: worked out by the build of world on 11 November 2026
+  osm:r571804:
+    name: Nauru
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r571805:
+    name: Palau
+    levels: []
+    regions_used:
+    - Ngeremlengui
+    - Koror
+    - Airai
+    - Aimeliik
+    - Ngchesar
+    - Ngatpang
+    - Ngardmau
+    - Ngaraard
+    - Melekeok
+    - Peleliu
+    - Ngiwal
+    - Ngarchelong
+    - Angaur
+    - Sonsorol
+    - Kayangel
+    how: worked out by the build of world on 11 November 2026
+  osm:r58974:
+    name: Moldova
+    levels:
+    - 7
+    - 8
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r59065:
+    name: Belarus
+    levels:
+    - 6
+    regions_used:
+    - Minsk
+    how: worked out by the build of world on 11 November 2026
+  osm:r59470:
+    name: Brazil
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Rio Grande do Sul
+    - Pará
+    - Amapá
+    - Maranhão
+    - Paraíba
+    - Rio de Janeiro
+    - Santa Catarina
+    - Ceará
+    - Bahia
+    - Rio Grande do Norte
+    - São Paulo
+    - Pernambuco
+    - Alagoas
+    - Sergipe
+    - Paraná
+    how: worked out by the build of world on 11 November 2026
   osm:r60189:
     name: Russia
     levels:
     - 6
     regions_used:
-    - Kamchatka Krai
+    - Primorsky Krai
+    - Moscow
+    - Saint Petersburg
     - Sakha Republic
+    - Astrakhan Oblast
+    - Dagestan
+    - Kamchatka Krai
+    - Sakhalin Oblast
+    - Orenburg Oblast
+    - Krasnodar Krai
+    - Rostov Oblast
+    - Murmansk Oblast
+    - Kaliningrad
     - Chukotka Autonomous Okrug
-    how: worked out by spike S2 stage 3 on 2 November 2026
+    how: worked out by the build of world on 11 November 2026
+  osm:r60199:
+    name: Ukraine
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Kyiv
+    - Kherson Oblast
+    - Odesa Oblast
+    - Autonomous Republic of Crimea
+    - Zaporizhia Oblast
+    how: worked out by the build of world on 11 November 2026
   osm:r62149:
     name: United Kingdom
     levels:
@@ -70,3 +2219,90 @@ countries:
     - Scotland
     - England
     how: worked out by spike S2 stage 1 on 2 November 2026
+  osm:r62269:
+    name: Isle of Man
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026
+  osm:r62273:
+    name: Ireland
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r72594:
+    name: Latvia
+    levels:
+    - 7
+    - 8
+    regions_used:
+    - Riga
+    - Jūrmala
+    - Daugavpils
+    - Liepāja
+    - Jelgava
+    - Ventspils
+    - Rēzekne
+    how: worked out by the build of world on 11 November 2026
+  osm:r72596:
+    name: Lithuania
+    levels:
+    - 6
+    - 8
+    regions_used:
+    - Utena County
+    - Kaunas County
+    - Klaipėda County
+    how: worked out by the build of world on 11 November 2026
+  osm:r79510:
+    name: Estonia
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r80500:
+    name: Australia
+    levels:
+    - 6
+    - 7
+    regions_used:
+    - Northern Territory
+    - South Australia
+    - Heard Island and McDonald Islands
+    - Queensland
+    - Jervis Bay Territory
+    - New South Wales
+    - Victoria
+    - Norfolk Island
+    - Western Australia
+    - Tasmania
+    - Coral Sea Islands
+    how: worked out by the build of world on 11 November 2026
+  osm:r87565:
+    name: South Africa
+    levels:
+    - 6
+    regions_used:
+    - Western Cape
+    how: worked out by the build of world on 11 November 2026
+  osm:r88210:
+    name: Eswatini
+    levels:
+    - 6
+    regions_used: []
+    how: worked out by the build of world on 11 November 2026
+  osm:r90689:
+    name: Romania
+    levels:
+    - 7
+    - 8
+    regions_used:
+    - Bucharest
+    how: worked out by the build of world on 11 November 2026
+  osm:r9407:
+    name: Andorra
+    levels:
+    - 7
+    regions_used: []
+    how: worked out by the build of trial-western-europe on 11 November 2026

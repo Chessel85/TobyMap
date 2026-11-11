@@ -511,16 +511,88 @@ def levels_for(record: dict, country_id: str) -> tuple[list[int], bool]:
 
 
 def update_record(path: Path, country_id: str, name: str, result: Result, region_names: dict, source: str) -> None:
+    write_record(path, {country_id: (name, result.levels_used,
+                                     [region_names.get(r, r) for r in result.regions_used])}, source)
+
+
+def is_corrected(entry: dict | None) -> bool:
+    return bool(entry) and str(entry.get("how", "")).startswith("corrected")
+
+
+def how_of(entry: dict | None) -> str:
+    """How a country's levels were chosen, in a word for the build log: corrected, worked out, or the rule."""
+    if is_corrected(entry):
+        return "corrected"
+    return "worked out" if entry and entry.get("levels") else "the rule"
+
+
+def write_record(path: Path, found: dict[str, tuple[str, list[int], list[str]]], source: str,
+                 today: str | None = None) -> dict[str, list[str]]:
+    """Write what a build found for each country into the record (P3-T1c): {id: (name, levels, regions used)}.
+
+    A corrected entry is never overwritten. An entry that says the same as what was found keeps its date, so
+    the record changes only when OSM does. Returns the country names written, left as corrected, and
+    unchanged."""
     record = load_record(path)
-    entry = record.get(country_id)
-    if entry and str(entry.get("how", "")).startswith("corrected"):
-        return
-    record[country_id] = {
-        "name": name,
-        "levels": result.levels_used,
-        "regions_used": [region_names.get(r, r) for r in result.regions_used],
-        "how": f"worked out by {source} on {time.strftime('%d %B %Y').lstrip('0')}",
-    }
-    text = HEADER + "\n" + yaml.safe_dump({"countries": dict(sorted(record.items()))}, allow_unicode=True,
-                                          sort_keys=False, width=120)
-    path.write_text(text, encoding="utf-8", newline="\n")
+    today = today or time.strftime('%d %B %Y').lstrip('0')
+    out: dict[str, list[str]] = {"written": [], "corrected": [], "unchanged": []}
+    for cid, (name, levels, regions) in sorted(found.items()):
+        entry = record.get(cid)
+        if is_corrected(entry):
+            out["corrected"].append(name)
+            continue
+        if entry and list(entry.get("levels") or []) == list(levels) and \
+                list(entry.get("regions_used") or []) == list(regions):
+            out["unchanged"].append(name)
+            continue
+        record[cid] = {"name": name, "levels": list(levels), "regions_used": list(regions),
+                       "how": f"worked out by {source} on {today}"}
+        out["written"].append(name)
+    if out["written"]:
+        text = HEADER + "\n" + yaml.safe_dump({"countries": dict(sorted(record.items()))}, allow_unicode=True,
+                                              sort_keys=False, width=120)
+        path.write_text(text, encoding="utf-8", newline="\n")
+    return out
+
+
+def record_path(settings: dict | None = None) -> Path:
+    """The counties record a stage uses: its setting counties_record, a path from the repository's top
+    folder, or mapdata/config/county_levels.yaml."""
+    from mapdata.paths import CONFIG_DIR
+
+    given = (settings or {}).get("counties_record")
+    if given:
+        return Path(given) if Path(given).is_absolute() else CONFIG_DIR.parent.parent / given
+    return CONFIG_DIR / "county_levels.yaml"
+
+
+def record_levels(path: Path) -> dict[str, list[int]]:
+    """Each country's levels in the record, as the planet reading uses them: what goes in its fingerprint."""
+    return {cid: list(e["levels"]) for cid, e in sorted(load_record(path).items()) if e and e.get("levels")}
+
+
+def cannot_fill_a_gap(here: list, earlier: list) -> set[int]:
+    """Of the areas `here` (shapes as read) at one county level, the positions of those with less than GAP_KM2
+    outside the areas `earlier`, of the levels tried before: they can fill no gap, so they are left out
+    (P3-T1a). Each is measured only against the earlier areas it touches, cut to its own bounds."""
+    if not here or not earlier:
+        return set()
+    arr = np.array(earlier, dtype=object)
+    tree = shapely.STRtree(arr)
+    drop = set()
+    for n, g in enumerate(here):
+        rest = g
+        for j in tree.query(g, predicate="intersects").tolist():
+            if rest.is_empty:
+                break
+            w, s, e, nn = rest.bounds
+            local = shapely.clip_by_rect(arr[j], w - 1e-6, s - 1e-6, e + 1e-6, nn + 1e-6)
+            try:
+                rest = shapely.difference(rest, local)
+            except shapely.errors.GEOSException:
+                rest = shapely.difference(shapely.make_valid(rest), shapely.make_valid(local))
+        from mapdata.stages.grid import polygonal
+
+        if rest.is_empty or area_km2(polygonal(rest) or shapely.Polygon()) < GAP_KM2:
+            drop.add(n)
+    return drop

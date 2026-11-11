@@ -58,6 +58,15 @@ sources:
     attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
     refresh_days: 365
 
+  naturalearth-marine-areas:
+    name: Natural Earth, marine areas, 1:10 million
+    about: Named seas, gulfs, bays, straits, sounds, channels, fjords and lagoons, for the Seas layer (P3-T1b, DP168).
+    url: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_geography_marine_polys.geojson
+    file: naturalearth/ne_10m_geography_marine_polys.geojson
+    licence: Public domain
+    attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
+    refresh_days: 365
+
   # The test pack's samples, kept in the repository (architecture 11.1).
   # tests/samples/README.md says how each was made.
   sample-world:

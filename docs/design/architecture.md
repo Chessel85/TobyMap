@@ -603,6 +603,13 @@ OSM does not use the same level for counties everywhere. Spike S2 found that lev
 
 Spike S2 used this rule for all its countries. Norway and Sweden have nothing at level 6, so their counties come from level 7; Kiribati's come from level 8.
 
+For the whole world (P3-T1c):
+
+* The planet file is read once. Each county area is set aside on disk, in a file for its country, and the countries are then sorted one at a time in the worker processes, leaving out the areas that can fill no gap. So the world's level 7 and 8 areas are never all in memory at once.
+* A country is read only at the levels in its record, once it has one.
+* Some countries' real counties are at level 5, which the rule does not look at, such as Argentina's departments and Tunisia's delegations. Their records are corrected to start at level 5. A county is never the same area as its region.
+* The build writes the record for each country it read whole, as "worked out". A trial with a reading box does not write the countries the box cuts.
+
 #### Areas held twice in one layer
 OSM sometimes holds two areas with exactly the same outline in one layer, one for each side of a dispute. Spike S2 found this for Sevastopol: Ukraine's city and Russia's federal city. As you agreed (DP104):
 

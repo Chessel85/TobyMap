@@ -15,9 +15,15 @@ stages:
   - stage: osm-areas
     source: planet
     levels: [3, 4, 5]
+    # The county areas too, a country at a time, at each country's levels in the counties record (P3-T1c, DP175).
+    counties: true
   - stage: squares
     sources: [land-polygons, vliz-oceans]
+    # Named seas, bays and straits below the oceans (P3-T1b, DP168).
+    seas: naturalearth-marine-areas
     tolerance_m: 100
+    # The counties layer, by the rule of DP101: level 6, gaps filled by 7 then 8, then the region itself.
+    counties: true
     condominiums:
       - {id: "condominium:de-lu", name: Moselle condominium, countries: [osm:r51477, osm:r2171347]}
   - stage: join
@@ -28,6 +34,18 @@ stages:
       - {name: Ilemi Triangle, point: [35.22, 4.81], disputed: true, note: "Land that South Sudan and Kenya both claim; Ethiopia has also claimed part of it."}
     named_waters:
       - {id: "water:caspian-sea", name: Caspian Sea, point: [50.5, 41.5]}
+  - stage: osm-places
+    source: planet
+    # Named seas, bays and straits that Natural Earth's marine areas do not name, as places (P3-T1b, DP168).
+    layer: sea-places
+    same_as: seas
+    queries:
+      - {query: "n[place=sea][name]", type: sea}
+      - {query: "a[place=sea][name]", type: sea}
+      - {query: "n[natural=bay][name]", type: bay}
+      - {query: "a[natural=bay][name]", type: bay}
+      - {query: "n[natural=strait][name]", type: strait}
+      - {query: "a[natural=strait][name]", type: strait}
   - stage: graticule
     # The tropics and polar circles are worked out for this year (the tilt of the Earth's axis changes slowly).
     year: 2026
@@ -48,6 +66,7 @@ stages:
       - tests/acceptance/coastline_places_stage2.yaml
       - tests/acceptance/coastline_places_stage3.yaml
       - tests/acceptance/coastline_places_stage4.yaml
+      - tests/acceptance/sea_places.yaml
     line_180: true
     area_checks:
       # Wikidata's figures for area (P2046), the preferred one first. Wikidata's areas include inland

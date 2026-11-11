@@ -1,6 +1,12 @@
 # Requirements Catalogue
 
-Version 0.15, 10 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.16, 11 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.16
+
+This change comes from your answer to DP175, 11 November 2026, after the size trial (P3-T1a).
+
+* PCK-1: the base pack's soft limit is about 400 MB, raised from 250 MB, so counties for the whole world go into it.
 
 ## Changes in version 0.15
 
@@ -161,7 +167,7 @@ These changes come from your answers to DP40 to DP55.
 * SON-2, SON-5: what counts as "ahead", and the sweep direction, follow the orientation mode.
 * SON-3: spatial labels use the application's own voice. I have chosen the default for the screen reader copy (DP46).
 * New SON-8: earcons are sound files that can be replaced, starting with the ones you will supply.
-* PCK-1: the base pack has a soft limit of 250 MB, and other packs aim for 1 GB or less (DP50).
+* PCK-1: the base pack has a soft limit of about 400 MB, and other packs aim for 1 GB or less (DP50, DP175).
 * PCK-4: packs are hosted on GitHub Releases (DP48). Now Agreed.
 * DAT-7: facts show their source and date (DP51).
 * New DAT-12: continents are built from groups of countries (DP55).
@@ -1244,10 +1250,10 @@ The high level requirements document stays the product owner's own statement of 
 
 ### PCK-1 Pack sizes
 * Outcome: A user can get started with a modest download, and add detail without very large downloads.
-* Source: HLR, DP24, DP50
+* Source: HLR, DP24, DP50, DP175
 * Priority: Must. Status: Agreed (the cutting of regions and the separate grid packs are Proposed, see DP59).
 * Acceptance criteria:
-  * The base pack is 250 MB or less. This is a soft limit. If the base pack turns out too coarse or too thin at this size, the limit is reviewed with the PO.
+  * The base pack is about 400 MB or less. This is a soft limit. It was 250 MB until DP175, when the size trial showed counties for the whole world add about 170 MB, and the PO judged them worth the larger first download. If the base pack turns out too coarse or too thin at this size, the limit is reviewed with the PO.
   * Regional packs aim to be 1 GB or less each. This is also a soft limit.
   * Proposed: regional packs follow Geofabrik's extract boundaries, which are countries split into sub-regions for large countries. A region that would exceed 1 GB is split further.
   * Proposed: the detailed grid layers, such as climate and higher-resolution elevation, are separate optional grid packs. The base pack carries only coarse elevation and depth.

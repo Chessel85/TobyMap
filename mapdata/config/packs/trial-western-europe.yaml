@@ -1,0 +1,63 @@
+# The size trial (P3-T1a, DP167, DP169): Western Europe and the Alps, from
+# 11 degrees west to 17 east and 35 to 61 north. It is built as the world
+# pack is, with counties added (DP167), and with each new layer of Phase 3
+# as it is added, so its size, scaled to the whole world, estimates the
+# world pack's (docs/plan/p3-t1-size-report.md). The reference for each
+# setting is docs/data-manager/configuration.md.
+
+name: trial-western-europe
+title: "Trial: the complete base pack's size, in Western Europe and the Alps."
+version: 0.0.1
+app_versions: {from: 0.0.1}
+coverage: {kind: region}
+layer_groups: [base, graticule]
+space_needed_mb: 8000
+
+stages:
+  - stage: osm-areas
+    source: planet
+    # 3 to 5 for the regions (DP114, DP116).
+    levels: [3, 4, 5]
+    # The county areas too, a country at a time, at each country's levels in the counties record (P3-T1c).
+    counties: true
+    box: [-11.0, 35.0, 17.0, 61.0]
+  - stage: squares
+    sources: [land-polygons, vliz-oceans]
+    # Named seas, bays and straits below the oceans (P3-T1b, DP168).
+    seas: naturalearth-marine-areas
+    box: [-11.0, 35.0, 17.0, 61.0]
+    tolerance_m: 100
+    # The counties layer, by the rule of DP101: level 6, gaps filled by 7 then 8, then the region itself.
+    counties: true
+    condominiums:
+      - {id: "condominium:de-lu", name: Moselle condominium, countries: [osm:r51477, osm:r2171347]}
+  - stage: join
+  - stage: osm-places
+    source: planet
+    # Named seas, bays and straits that Natural Earth's marine areas do not name, as places (P3-T1b, DP168).
+    layer: sea-places
+    same_as: seas
+    queries:
+      - {query: "n[place=sea][name]", type: sea}
+      - {query: "a[place=sea][name]", type: sea}
+      - {query: "n[natural=bay][name]", type: bay}
+      - {query: "a[natural=bay][name]", type: bay}
+      - {query: "n[natural=strait][name]", type: strait}
+      - {query: "a[natural=strait][name]", type: strait}
+    box: [-11.0, 35.0, 17.0, 61.0]
+  - stage: graticule
+    year: 2026
+    source: naturalearth-geographic-lines
+  - stage: write
+    drawing_levels:
+      # As the world pack's, so the sizes compare.
+      - {tolerance_m: 40000, min_km2: 20000, tile_level: 1, view_km: 4000}
+      - {tolerance_m: 8000, min_km2: 1000, tile_level: 3, view_km: 1000}
+      - {tolerance_m: 1500, min_km2: 40, tile_level: 5, view_km: 150}
+  - stage: checks
+    box: [-11.0, 35.0, 17.0, 61.0]
+    places:
+      - tests/acceptance/coastline_places.yaml
+      - tests/acceptance/coastline_places_belgium.yaml
+      - tests/acceptance/coastline_places_stage2.yaml
+      - tests/acceptance/sea_places.yaml

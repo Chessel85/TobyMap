@@ -111,7 +111,8 @@ def box_centre(bbox) -> tuple[float, float]:
 # are the top of the water hierarchy (the VLIZ ocean regions, P3-T1b); seas, bays and straits
 # are below them. A record's type is set by the pack build.
 OCEAN_TYPES = frozenset({"ocean"})
-SEA_TYPES = OCEAN_TYPES | {"sea", "bay", "strait"}
+# Natural Earth's classes of named water (mapdata/stages/seas.py).
+SEA_TYPES = OCEAN_TYPES | {"sea", "gulf", "bay", "strait", "sound", "channel", "fjord", "lagoon", "inlet"}
 
 
 def outlined(record: dict, setting: str) -> bool:

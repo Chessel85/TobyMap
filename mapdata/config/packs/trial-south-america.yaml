@@ -1,0 +1,36 @@
+# The check of the size trial (P3-T1a): a region not used to make the
+# estimate, as agreed for speed trials. Southern South America, from 75 to 45
+# degrees west and 35 to 10 south: parts of Brazil, Argentina, Chile, Bolivia,
+# Paraguay, Uruguay and Peru. Built exactly as trial-western-europe, so the
+# world estimate made from Western Europe can be checked against what this
+# region really holds (docs/plan/p3-t1-size-report.md).
+
+name: trial-south-america
+title: "Trial: checking the size estimate, in southern South America."
+version: 0.0.1
+app_versions: {from: 0.0.1}
+coverage: {kind: region}
+layer_groups: [base, graticule]
+space_needed_mb: 8000
+
+stages:
+  - stage: osm-areas
+    source: planet
+    levels: [3, 4, 5]
+    # The county areas too, a country at a time, at each country's levels in the counties record (P3-T1c).
+    counties: true
+    box: [-75.0, -35.0, -45.0, -10.0]
+  - stage: squares
+    sources: [land-polygons, vliz-oceans]
+    box: [-75.0, -35.0, -45.0, -10.0]
+    tolerance_m: 100
+    counties: true
+  - stage: join
+  - stage: graticule
+    year: 2026
+    source: naturalearth-geographic-lines
+  - stage: write
+    drawing_levels:
+      - {tolerance_m: 40000, min_km2: 20000, tile_level: 1, view_km: 4000}
+      - {tolerance_m: 8000, min_km2: 1000, tile_level: 3, view_km: 1000}
+      - {tolerance_m: 1500, min_km2: 40, tile_level: 5, view_km: 150}

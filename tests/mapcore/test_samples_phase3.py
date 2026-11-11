@@ -1,9 +1,9 @@
 """The Phase 3 samples in the test pack (P3-T0d; LOC-2, NAV-4, INF-5).
 
 Made by tools/make_phase3_samples.py from the planet file. Hampshire and Wiltshire,
-Switzerland and its neighbours, and the Rhine are in the test pack now. The New Forest,
-the Bay of Biscay and the places with shared names wait for the work items that add their
-layers: national parks, seas and places.
+Switzerland and its neighbours, the Rhine, and the Bay of Biscay (P3-T1b) are in the
+test pack now. The New Forest and the places with shared names wait for the work items
+that add their layers: national parks and places.
 """
 import json
 from pathlib import Path
@@ -82,3 +82,12 @@ def test_a_step_north_across_the_rhine_at_rheinfelden_crosses_it(store):
     assert [c.area.name for c in store.crossed_lines(path, layers={"rivers"})] == ["Rhine"]
     assert names(store.at(47.545, 7.79))[-1] == "Switzerland"
     assert names(store.at(47.563, 7.79))[-1] == "Germany"
+
+
+def test_where_am_i_in_the_bay_of_biscay_says_the_bay_then_the_ocean(store):
+    # P3-T1b, DAT-4, LOC-6: the Seas layer is below the ocean, so Within lists the bay, then the ocean.
+    assert names(store.at(44.5, -3.5)) == ["Bay of Biscay", "North Atlantic Ocean"]
+    bay = next(a for a in store.at(44.5, -3.5) if a.layer == "seas")
+    assert bay.record["type"] == "bay"
+    assert names(store.at(43.45, -2.95))[0] == "Bay of Biscay"     # off Bilbao, near the coast
+    assert names(store.at(49.5, -12.0)) == ["North Atlantic Ocean"]   # open ocean has no sea

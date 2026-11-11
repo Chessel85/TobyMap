@@ -40,7 +40,7 @@ from mapdata.pipeline.build import pack_file_name
 from mapdata.pipeline.errors import BuildStopped
 from mapdata.pipeline.settings import REPO
 
-WATER_LAYERS = ("oceans",)
+WATER_LAYERS = ("oceans", "seas")
 
 
 def run(ctx) -> None:

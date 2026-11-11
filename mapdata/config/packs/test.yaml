@@ -27,6 +27,7 @@ stages:
       - {source: sample-osm, file: switzerland-neighbours.geojson}
       - {source: sample-osm, file: southampton-itchen.geojson}
       - {source: sample-osm, file: rhine.geojson}
+      - {source: sample-osm, file: bay-of-biscay.geojson}
   - stage: water
     land_layer: countries
   - stage: write

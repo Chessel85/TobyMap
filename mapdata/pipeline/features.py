@@ -32,3 +32,19 @@ def load(folder: Path) -> tuple[list[dict], list]:
     raw = (Path(folder) / "shapes.wkb").read_bytes()
     geoms = [shapely.from_wkb(raw[a:a + n]) for a, n in data["shapes"]]
     return data["records"], geoms
+
+
+def append(folder: Path, records: list[dict], blobs: list[bytes]) -> None:
+    """Add records and their shapes, already in well-known binary, to a folder's areas, without reading the
+    shapes already there."""
+    path = Path(folder) / "features.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    shapes = Path(folder) / "shapes.wkb"
+    at = shapes.stat().st_size
+    with open(shapes, "ab") as out:
+        for b in blobs:
+            data["shapes"].append([at, len(b)])
+            out.write(b)
+            at += len(b)
+    data["records"].extend(records)
+    path.write_text(json.dumps(data, ensure_ascii=False, sort_keys=True, indent=0), encoding="utf-8", newline="\n")

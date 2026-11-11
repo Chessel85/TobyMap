@@ -29,8 +29,12 @@ Older documents written before this glossary, such as architecture section 6 and
 * Artificial edge: an edge of a shape that is only there because the shape was split, along the 180 degree line or at the South Pole. It is never a border or coast, never announced and never outlined (AD-17).
 * Ellipsoid: the shape the application uses for the Earth, a ball slightly flattened at the poles, called WGS 84. Every distance, bearing and step is worked out on it (AD-7). A perfect ball, the sphere, is wrong by up to about half a percent.
 * Move path: the line a step follows, as a list of positions no more than 10 km apart, so it bends with the Earth. Phase 2 uses it to find what a step crossed and passed.
-* Counties record: the list, in mapdata/config/county_levels.yaml, of which levels make up each country's Counties layer (DP101). The build writes it once per country; a corrected entry is never overwritten.
+* Counties record: the list, in mapdata/config/county_levels.yaml, of which levels make up each country's Counties layer (DP101). The build writes it for each country it read whole, marked "worked out"; a corrected entry is never overwritten.
+* County areas set aside: the areas at each country's county levels, which the reading stage saves to disk in a file for each country, so that the countries can then be sorted one at a time (P3-T1c).
 * Tier: where an area sits in its own country's government, such as country, constituent country, county or district. It is set by the counties record, not by the OSM level alone, because the same level means different things in different countries: England and the French region Brittany are both level 4, but England is a constituent country of the United Kingdom (DP165).
+* Ocean: one of the VLIZ ocean regions, such as the North Atlantic Ocean, the top of the water hierarchy. The Oceans and seas layer holds them, with the Caspian Sea.
+* Sea: a named sea, gulf, bay, strait, sound, channel, fjord, lagoon or inlet below the oceans, in the Seas, bays and straits layer (P3-T1b). Its type says which.
+* Marine area: one of Natural Earth's areas of water, the source of the seas. Some name a sea; Natural Earth's own oceans and its unnamed areas name none.
 * Continent dividing line: a line set in the pipeline's settings along which a country is split between two continents, such as the Ural Mountains through Russia (DAT-12).
 
 ## OpenStreetMap data
@@ -95,7 +99,11 @@ Older documents written before this glossary, such as architecture section 6 and
 * Fingerprint: a long number worked out from everything a stage uses: its settings, its sources, the stage before it and its code. If the fingerprint is the same as last time, the stage's kept results are used and the stage is skipped.
 * Working folder: the folder in the data folder, tobymap\working, where stages keep their results between builds.
 * Created files list: the list, in tobymap\created files.txt, of every file mapdata has made. mapdata overwrites only files on the list, and never deletes any.
-* Run switch: continue.txt, in the repository's top folder. Its first line, yes or no, says whether a long build may carry on. On no, the build stops cleanly and keeps its finished work.
+* Run switch: continue.txt, in the repository's top folder. Its first line says whether a long build may carry on: only yes lets it; on no, or anything else, the build stops cleanly and keeps its finished work.
+* Size trial: a pack built for one region, only to measure what each layer costs, so the size of the world pack can be estimated before it is built (P3-T1a).
+* Sample region: a reading box elsewhere in the world, built in the same way as a size trial's pack, only to check and improve the estimate. Not to be confused with a sample in tests/samples.
+* Padded copy: a copy of a pack made larger with records the application never reads, so a pack of a size not yet built can be tried for start-up, memory, download and storage.
+* Region used as county: where no county level covers some land, the region itself stands in as its county there (DP101).
 * Sample: a small file of areas kept in the repository, in tests/samples, that the test pack is built from.
 
 ## Testing

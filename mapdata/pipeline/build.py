@@ -49,9 +49,11 @@ STAGES = {
                            ("mapdata.stages.osm_areas", "mapdata.stages.boundaries", "mapdata.stages.held_twice",
                             "mapdata.stages.overlaps"), areas_only=True),
     "squares": StageKind("building the grid squares", "mapdata.stages.squares",
-                         ("mapdata.stages.squares", "mapdata.stages.grid"), areas_only=True),
+                         ("mapdata.stages.squares", "mapdata.stages.grid", "mapdata.stages.seas"), areas_only=True),
     "join": StageKind("joining the grid squares into areas", "mapdata.stages.join",
                       ("mapdata.stages.join", "mapdata.stages.grid", "mapdata.stages.geodesy"), areas_only=True),
+    "osm-places": StageKind("reading the named places from the planet file", "mapdata.stages.osm_places",
+                            ("mapdata.stages.osm_places",)),
     "graticule": StageKind("writing the graticule and special lines", "mapdata.stages.graticule",
                            ("mapdata.stages.graticule",)),
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
@@ -130,6 +132,10 @@ def fingerprint(pack: PackSettings, stage: dict, previous: str, source_prints: d
         "sources": {k: source_prints[k] for k in stage_sources(stage)},
         "code": code_version(kind.code),
     }
+    extra = getattr(import_module(kind.module), "fingerprint_extra", None)
+    extra = extra(stage) if extra is not None else None
+    if extra is not None:   # what a stage reads besides its settings and sources, such as the counties record
+        parts["extra"] = extra
     if stage["stage"] == "write":   # only the pack's writing uses how layers are shown and sounded (SCP-7)
         parts["layer_definitions"] = [v.definition() for v in pack.layers.values()]
     return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()
@@ -282,7 +288,7 @@ def build_waiting(argv: list[str], switch: Switch | None = None, say=print, poll
     run = run or (lambda: subprocess.run([sys.executable, "-m", "mapdata", *argv]).returncode)
     while True:
         if switch.says_no():
-            say(f"Waiting, as {switch.path.name} says no. The build starts when its first line is yes.")
+            say(f"Waiting, as the first line of {switch.path.name} is not yes. The build starts when its first line is yes.")
             while switch.says_no():
                 sleep(poll_s)
             say(f"{switch.path.name} says yes, so the build starts.")

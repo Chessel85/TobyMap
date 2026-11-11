@@ -38,6 +38,8 @@ import shapely
 GRID = 1e-7            # ten-millionths of a degree, as compact coordinates
 METRES_PER_DEGREE = 111_320.0
 LEVEL_ORDER = (4, 3, 5)  # the regions: level 4, gaps filled by level 3, then level 5 (DP114, DP116)
+COUNTY_LEVELS = (6, 7, 8)  # the counties: level 6, gaps filled by level 7, then level 8 (DP101)
+REGION_AS_COUNTY = 0     # the "level" of a county where no county level covers the land: the region itself
 
 WAITING_LAND = ("land", None, None)
 WAITING_WATER = ("water", None, None)
@@ -140,6 +142,11 @@ def polygonal(g):
 class Rules:
     """The settings that decide names where areas overlap."""
     condominiums: dict[frozenset, str] = field(default_factory=dict)  # pair of country ids: condominium id
+    # The counties layer (DP101, P3-T1a): None for no counties. Otherwise the levels to try for each country,
+    # in order, from the counties record; a country not in it uses COUNTY_LEVELS.
+    county_levels: dict[str, tuple[int, ...]] | None = None
+    # Named seas (P3-T1b, DP168): water is named with its sea, bay or strait as well as its ocean.
+    seas: bool = False
 
 
 @dataclass
@@ -152,6 +159,7 @@ class SquareResult:
     faces: int = 0
     overlaps: list[tuple] = field(default_factory=list)   # (layer, ids, km2)
     fills: list[tuple] = field(default_factory=list)      # (country, region, level, km2) regions from level 3 or 5
+    counties: list[tuple] = field(default_factory=list)   # (country, level, km2): the land each county level holds
     pairs: list[tuple[int, int]] = field(default_factory=list)  # labels that share a border or coast here
 
 
@@ -161,8 +169,10 @@ def km2_of(face) -> float:
     return face.area * (METRES_PER_DEGREE / 1000) ** 2 * math.cos(math.radians(lat))
 
 
-def label_land(hits: list[int], meta: list[Meta], rules: Rules, overlaps: list, fills: list, km2: float):
-    """The names of a face of land, from the areas it is inside."""
+def label_land(hits: list[int], meta: list[Meta], rules: Rules, overlaps: list, fills: list, km2: float,
+               counties: list | None = None):
+    """The names of a face of land, from the areas it is inside: ("land", country, region), and the county
+    after them when the rules ask for counties."""
     countries = sorted((i for i in hits if meta[i].kind == "country"), key=lambda i: (meta[i].size, meta[i].id))
     base = None
     country = None
@@ -193,12 +203,83 @@ def label_land(hits: list[int], meta: list[Meta], rules: Rules, overlaps: list, 
                 if level != LEVEL_ORDER[0]:
                     fills.append((base, region, level, km2))
                 break
-    return ("land", country, region)
+    if rules.county_levels is None:
+        return ("land", country, region)
+    return ("land", country, region, county_of(hits, meta, rules, base, country, region, km2, counties))
 
 
-def label_water(hits: list[int], meta: list[Meta]):
+def county_of(hits, meta, rules, base, country, region, km2, rows):
+    """The county of a face of land (DP101): the smallest area at the country's first county level that
+    holds it, or the next level's where the first leaves a gap, or the region itself where none does."""
+    if base is None or country is None or country.startswith("condominium:"):
+        return None
+    # A county level may also be a region level, such as level 5 for Argentina's departments (P3-T1c); where
+    # the region came from that level itself, it is not its own county.
+    own = [i for i in hits if meta[i].kind == "division" and meta[i].country == base and meta[i].id != region]
+    for level in rules.county_levels.get(base, COUNTY_LEVELS):
+        at = sorted((i for i in own if meta[i].level == level), key=lambda i: (meta[i].size, meta[i].id))
+        if at:
+            if rows is not None:
+                rows.append((base, level, km2))
+            return meta[at[0]].id
+    if region is None:
+        return None
+    if rows is not None:
+        rows.append((base, REGION_AS_COUNTY, km2))
+    return region + COUNTY_SUFFIX
+
+
+COUNTY_SUFFIX = "#county"   # a region used as its own county, as in spike S2
+COUNTY_ALSO_REGION_SUFFIX = "#as-county"   # a county that has the same id as a region, so its id stays unique
+
+
+SEA_WAITING = "?"   # water in no marine area, between a sea's rough coast and the real one: its sea is found next
+
+
+def label_water(hits: list[int], meta: list[Meta], rules: Rules | None = None):
+    """The names of a face of water: ("water", ocean, None), and its sea after them when the rules ask for
+    seas (P3-T1b): the smallest sea it is in, or None in a marine area that names no sea, such as Natural
+    Earth's own oceans, or SEA_WAITING in no marine area at all."""
     oceans = sorted(meta[i].id for i in hits if meta[i].kind == "ocean")
-    return ("water", oceans[0] if oceans else None, None)
+    ocean = oceans[0] if oceans else None
+    if rules is None or not rules.seas:
+        return ("water", ocean, None)
+    seas = sorted((i for i in hits if meta[i].kind == "sea"), key=lambda i: (meta[i].size, meta[i].id))
+    if seas:
+        return ("water", ocean, None, meta[seas[0]].id)
+    if any(meta[i].kind == "nosea" for i in hits):
+        return ("water", ocean, None, None)
+    return ("water", ocean, None, SEA_WAITING)
+
+
+def settle_waiting_seas(faces, labels: list[tuple]) -> None:
+    """Each face of water whose sea waits takes the sea of the water face it shares the longest edge with,
+    in this grid square; repeated, so a chain of such faces is settled from its end. A face with no such
+    neighbour here keeps waiting, for the join stage."""
+    waiting = [f for f, lab in enumerate(labels) if lab[0] == "water" and len(lab) == 4 and lab[3] == SEA_WAITING]
+    if not waiting:
+        return
+    water = np.array([f for f, lab in enumerate(labels) if lab[0] == "water"], dtype=np.intp)
+    tree = shapely.STRtree(faces[water])
+    while waiting:
+        left = []
+        for f in waiting:
+            shared: dict = defaultdict(float)
+            for j in tree.query(faces[f], predicate="intersects").tolist():
+                g = int(water[j])
+                other = labels[g]
+                if g == f or other[3] == SEA_WAITING:
+                    continue
+                shared[other[3]] += shapely.intersection(faces[f].boundary, faces[g].boundary).length
+            shared = {k: v for k, v in shared.items() if v > 0}
+            if shared:
+                best = max(sorted(shared, key=str), key=lambda k: shared[k])
+                labels[f] = labels[f][:3] + (best,)
+            else:
+                left.append(f)
+        if len(left) == len(waiting):
+            break
+        waiting = left
 
 
 def build_square(bounds, land, pieces: list[tuple[int, object]], meta: list[Meta], rules: Rules,
@@ -232,14 +313,19 @@ def build_square(bounds, land, pieces: list[tuple[int, object]], meta: list[Meta
         f_idx, p_idx = tree.query(points, predicate="within")
         for f, p in zip(f_idx.tolist(), p_idx.tolist()):
             hits[f].append(pieces[p][0])
-    groups: dict[tuple, list] = defaultdict(list)
+    face_labels = []
     for f, face in enumerate(faces):
         if on_land[f]:
-            lab = label_land(hits[f], meta, rules, result.overlaps, result.fills, km2_of(face))
+            lab = label_land(hits[f], meta, rules, result.overlaps, result.fills, km2_of(face), result.counties)
             if lab[1] is None:
                 lab = WAITING_LAND
         else:
-            lab = label_water(hits[f], meta)
+            lab = label_water(hits[f], meta, rules)
+        face_labels.append(lab)
+    if rules.seas:
+        settle_waiting_seas(faces, face_labels)
+    groups: dict[tuple, list] = defaultdict(list)
+    for face, lab in zip(faces, face_labels):
         groups[lab].append(face)
     labels = sorted(groups, key=lambda k: tuple("" if v is None else str(v) for v in k))
     joined = [shapely.coverage_union_all(groups[k]) for k in labels]
@@ -252,6 +338,7 @@ def build_square(bounds, land, pieces: list[tuple[int, object]], meta: list[Meta
     result.pairs = sharing(result.shapes)
     result.overlaps = merge_rows(result.overlaps)
     result.fills = merge_rows(result.fills)
+    result.counties = merge_rows(result.counties)
     return result
 
 

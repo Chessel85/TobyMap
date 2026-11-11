@@ -56,6 +56,8 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe tools\make_key_list.py                                  # make docs/plan/phase-3-keys.csv from the command registry, with clashes noted (--phase 2)
 .venv\Scripts\python.exe tools\time_drawing.py                         # time each part of a drawing on a held key walk (--one-by-one for before P2-T14c, --trial)
 .venv\Scripts\python.exe tools\time_drawing_web.py                     # the same walk in Chromium and Firefox (--one-by-one, --browser)
+.venv\Scripts\python.exe tools\pack_layers.py <pack>                   # each layer's share of a pack: features, points, MB (P3-T1a)
+.venv\Scripts\python.exe tools\time_pack_start.py desktop <pack>...     # start-up, first place said, memory; also: web <pack>..., pad <pack> --mb N --out F
 .venv\Scripts\python.exe tools\make_voice_samples.py                  # spatial voice samples at each speed and behind, into voices/samples
 .venv\Scripts\python.exe tools\make_beacon_samples.py                 # three lower beacon sounds to choose from, into sounds/samples
 .venv\Scripts\python.exe -m desktop                                    # run the desktop application

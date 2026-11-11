@@ -545,6 +545,12 @@ Each feature record holds:
 * Collections export to and import from GeoJSON (USR-5).
 * The folder where packs are installed is a setting (AD-18). Packs can be large, so the pack manager says how much space is free in that folder and lets the user move it, for example to another drive.
 
+### 6.11a Islands (P3-T1d)
+* The osm-areas stage, with islands: true, reads each named island and islet (place=island or place=islet) as an area, and those mapped only as a point as a point.
+* Land in a grid square carries a fifth part in its label: the island, after the country, region and county. The island is the smallest island area that covers the land. Land waiting for its country keeps its island.
+* The join stage finds landmasses: all the land parts that touch, joined with union-find. A landmass over 3,000,000 km2 is a continent and gets no island. Where at least half of a landmass's area is in named islands, the largest named island fills the rest. Otherwise an island point inside it names it. Otherwise it is an "Unnamed island", with id island:unnamed:lat:lon, if it is at least 1 km2.
+* The Islands layer has rank 5, between regions (4) and counties (6). Neighbouring islands get different colour numbers, as other areas do.
+
 ### 6.12 Countries, coastlines and islands
 This section answers "architecture thoughts.txt". You found this the hardest part of AtlasDL, so it is the first thing spike S2 tests.
 

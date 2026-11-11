@@ -232,9 +232,16 @@ def run(ctx) -> None:
             raise BuildStopped(f"The condominium {c['name']} names {', '.join(missing)}, which the planet file does "
                                "not have as a country. Correct the pack's settings.")
         condos[frozenset(c["countries"])] = c["id"]
-    rules = grid.Rules(condominiums=condos, county_levels=levels_by_country, seas=bool(s.get("seas")))
+    # Named islands (P3-T1d) when the stage before read them: its setting islands: true.
+    islands = any(r["kind"] in ("island", "island point") for r in records)
+    rules = grid.Rules(condominiums=condos, county_levels=levels_by_country, seas=bool(s.get("seas")),
+                       islands=islands)
+    if islands:
+        ctx.progress.line(f"Islands: {sum(r['kind'] == 'island' for r in records):,} named island areas, each land "
+                          "face named with the smallest it is in.")
     ctx.claim(ctx.folder / AREAS).write_text(
         json.dumps({"records": records, "condominiums": s.get("condominiums") or [], "counties": c_index,
+                    "square_degrees": size, "islands": islands,
                     "counties_record": county_record(ctx.previous) if c_index is not None else None},
                    ensure_ascii=False,
                    indent=0, sort_keys=True), encoding="utf-8", newline="\n")

@@ -36,6 +36,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Sea: a named sea, gulf, bay, strait, sound, channel, fjord, lagoon or inlet below the oceans, in the Seas, bays and straits layer (P3-T1b). Its type says which.
 * Marine area: one of Natural Earth's areas of water, the source of the seas. Some name a sea; Natural Earth's own oceans and its unnamed areas name none.
 * Continent dividing line: a line set in the pipeline's settings along which a country is split between two continents, such as the Ural Mountains through Russia (DAT-12).
+* Landmass: all the land parts that touch each other, however many countries or regions they are in. Britain is one landmass; so is Eurasia.
+* Unnamed island: a landmass of at least 1 km2 that no island area or island point in OpenStreetMap names. TobyMap says "Unnamed island".
 
 ## OpenStreetMap data
 

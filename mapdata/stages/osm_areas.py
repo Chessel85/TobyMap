@@ -32,6 +32,12 @@ Settings:
   whole world's level 7 and 8 areas are never in memory at once.
 * counties_record: optional, another counties record, as a path from the
   repository's top folder; used by the tests.
+* islands: true to read the named islands and islets as well (P3-T1d,
+  DP169): each OSM area tagged place=island or place=islet with a name, as
+  an area of kind "island", which the squares stage cuts to the land; and
+  each such island that OSM has only as a point, as a record of kind
+  "island point" with its point and no shape, which the join stage uses to
+  name a landmass that no island area covers.
 """
 from __future__ import annotations
 
@@ -50,6 +56,7 @@ from mapdata.pipeline import features
 from mapdata.pipeline.errors import BuildStopped
 
 READ_VERSION = "osm-areas-2"
+ISLAND_PLACES = ("island", "islet")
 REQUEST = "request.json"
 SET_ASIDE = "county areas"       # the folder of county areas set aside, one file for each country
 SET_ASIDE_INDEX = "index.json"
@@ -92,12 +99,66 @@ def fingerprint_extra(stage: dict) -> dict | None:
     return {"county_levels": countiesmod.record_levels(countiesmod.record_path(stage))}
 
 
+def osm_id(feature) -> str:
+    """The canonical identifier of any OSM feature (AD-13): osm:n, osm:w or osm:r and its number."""
+    kind = "r" if feature.is_relation else ("w" if feature.is_way else "n")
+    return f"osm:{kind}{feature.id}"
+
+
+def island_record(fid: str, tags: dict, place: str) -> dict:
+    """The record of a named island or islet (P3-T1d), from its OSM tags."""
+    local = str(tags.get("name") or "")
+    r = {"id": fid, "name": str(tags.get("name:en") or local), "local_name": local, "kind": "island",
+         "type": place, "level": None, "country": None}
+    if tags.get("wikidata"):
+        r["wikidata"] = str(tags["wikidata"])
+    return r
+
+
+def read_islands(world, gbox, say=print) -> tuple[list[dict], list]:
+    """The named islands and islets (P3-T1d): the areas with their shapes, then the ones OSM has only as a
+    point, kind "island point", with the point in the record and an empty shape."""
+    import geodesk
+
+    from mapdata.stages.grid import polygonal
+
+    records, geoms, repairs = [], [], 0
+    t = time.perf_counter()
+    for place in ISLAND_PLACES:
+        q = world(f"a[place={place}][name]")
+        for f in (q(gbox) if gbox is not None else q):
+            g = geodesk.from_mercator(f.shape)
+            if not g.is_valid:
+                g = shapely.make_valid(g, method="structure")
+                repairs += 1
+            g = polygonal(g)
+            if g is None or g.is_empty:
+                continue
+            tags = {k: f.tags[k] for k in ("name", "name:en", "wikidata") if f.tags[k]}
+            records.append(island_record(osm_id(f), tags, place))
+            geoms.append(g)
+    areas = len(records)
+    for place in ISLAND_PLACES:
+        q = world(f"n[place={place}][name]")
+        for f in (q(gbox) if gbox is not None else q):
+            tags = {k: f.tags[k] for k in ("name", "name:en", "wikidata") if f.tags[k]}
+            r = island_record(osm_id(f), tags, place)
+            r["kind"] = "island point"
+            r["point"] = [round(float(f.lon), 7), round(float(f.lat), 7)]
+            records.append(r)
+            geoms.append(shapely.Polygon())
+    order = sorted(range(len(records)), key=lambda i: records[i]["id"])
+    say(f"Read {areas} named islands and islets as areas ({repairs} repaired), and {len(records) - areas} as "
+        f"points only, in {time.perf_counter() - t:.0f} seconds.")
+    return [records[i] for i in order], [geoms[i] for i in order]
+
+
 def set_aside_name(country_id: str) -> str:
     return country_id.replace(":", "_") + ".pkl"
 
 
 def read(gol: Path, levels: list[int], box: list[float] | None, say=print, counties: dict | None = None,
-         folder: Path | None = None, claim=lambda p: p) -> tuple[list[dict], list]:
+         folder: Path | None = None, claim=lambda p: p, islands: bool = False) -> tuple[list[dict], list]:
     """Everything the stage reads, as feature records and shapes. Runs in the short-lived process.
 
     counties: {"levels": {country id: levels}, "how": {country id: how}} from the counties record, to read
@@ -258,6 +319,10 @@ def read(gol: Path, levels: list[int], box: list[float] | None, say=print, count
     for line in repairs:
         say(f"Repair: {line}")
     say(f"Repairs: {len(repairs)}.")
+    if islands:
+        i_records, i_geoms = read_islands(world, gbox, say)
+        records += i_records
+        geoms += i_geoms
     return records, geoms
 
 
@@ -277,7 +342,8 @@ def main(folder: Path) -> int:
 
         claim = ledgermod.Ledger(Path(request["counties"]["own"])).claim
     records, geoms = read(Path(request["gol"]), request["levels"], request.get("box"), say,
-                          counties=request.get("counties"), folder=folder, claim=claim)
+                          counties=request.get("counties"), folder=folder, claim=claim,
+                          islands=bool(request.get("islands")))
     # Written by the stage's own process, so the files are claimed there as well (see run).
     features.save(folder, records, geoms)
     (folder / "read log.txt").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
@@ -288,6 +354,8 @@ def run(ctx) -> None:
     _source, gol = ctx.source(ctx.settings.get("source", "planet"))
     request = {"gol": str(gol), "levels": list(ctx.settings.get("levels") or [4]), "box": ctx.settings.get("box"),
                "version": READ_VERSION}
+    if ctx.settings.get("islands"):
+        request["islands"] = True
     if ctx.settings.get("counties"):
         from mapdata.stages import counties as countiesmod
 
@@ -320,7 +388,9 @@ def run(ctx) -> None:
     for r in records:
         kinds[r["kind"]] = kinds.get(r["kind"], 0) + 1
     ctx.progress.line(f"Read {kinds.get('country', 0)} countries, {kinds.get('unit', 0)} country units and "
-                      f"{kinds.get('division', 0)} divisions.")
+                      f"{kinds.get('division', 0)} divisions."
+                      + (f" Named islands: {kinds.get('island', 0)} as areas and {kinds.get('island point', 0)} as "
+                         "points only." if ctx.settings.get("islands") else ""))
 
 
 def sort_country(job):

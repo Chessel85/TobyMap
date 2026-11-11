@@ -2,6 +2,32 @@
 
 The size trial, run on the night of 10 to 11 November 2026. This first report covers counties. Each new layer of P3-T1 is added to the trial as it is built, and this report gains a section for it: the named seas (P3-T1b) were added on 11 November. You decided from it that counties go into the world build (DP175). The thresholds for the world are still to decide (DP169).
 
+## Islands (P3-T1d), 11 November 2026
+
+### What was added
+
+* A layer of areas, "Islands", at rank 5, between regions and counties. Land is named with the smallest named island (place=island or place=islet) that covers it.
+* Islands that OpenStreetMap has only as a point name the landmass they are on. A landmass with no name at all, of 1 km2 or more, is an "Unnamed island".
+
+### Its share of the trial pack (Western Europe)
+
+The trial pack grew from 23.7 MB to 30.79 MB.
+
+* Islands: 36,160 features, 7.54 MB, 24.5% of the pack. Feature records 2.33 MB, pack tiles 2.78 MB, and drawing levels 0 to 2 together 2.44 MB.
+* The planet read found 36,512 named islands and islets as areas, 2 of them repaired, and 2,670 as points only. It took 11 seconds inside the osm-areas stage, which took 6 minutes 27 seconds in all.
+* The join stage found 93,113 separate landmasses. 280 had land outside the named island areas and took the largest named island there; 204 were named from island points; 18 are "Unnamed island"; 67,615 smaller ones have no island.
+* The join stage took 46 seconds. The whole build took 27 minutes 34 seconds.
+* Checks: all 49 check places pass, and the no-gaps check passes (LOC-6). Majorca, and the Isle of Wight inside England's Isle of Wight county, come out as expected with `mapdata inspect`. Tenerife is outside this trial's box, so the world build will show it.
+
+### The estimate for the world
+
+Western Europe has many islands (Norway, Greece, Scotland), so the world's share will be larger than a plain share by area, but not by the same ratio. Taking the same 30% growth on the trial would add about 80 MB to the 273.93 MB world pack, which is an upper guide. The world build gives the real figure. The soft limit is about 400 MB (DP175).
+
+### Found on the way
+
+* One island of 0.10 km2 in no country, at 51.528 north, 2.498 east, is named Unclaimed. It is not on the list of unclaimed land yet.
+* The test of the visible rule on the world pack (under 5 ms a frame) fails with or without this task, on timing. It is not caused by islands.
+
 ## Counties for the whole world (P3-T1c), 11 November 2026
 
 ### What changed

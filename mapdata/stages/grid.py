@@ -147,6 +147,8 @@ class Rules:
     county_levels: dict[str, tuple[int, ...]] | None = None
     # Named seas (P3-T1b, DP168): water is named with its sea, bay or strait as well as its ocean.
     seas: bool = False
+    # Named islands (P3-T1d, DP169): land is named with the smallest island area it is in, after the county.
+    islands: bool = False
 
 
 @dataclass
@@ -203,9 +205,34 @@ def label_land(hits: list[int], meta: list[Meta], rules: Rules, overlaps: list, 
                 if level != LEVEL_ORDER[0]:
                     fills.append((base, region, level, km2))
                 break
-    if rules.county_levels is None:
+    if rules.county_levels is None and not rules.islands:
         return ("land", country, region)
-    return ("land", country, region, county_of(hits, meta, rules, base, country, region, km2, counties))
+    county = (county_of(hits, meta, rules, base, country, region, km2, counties)
+              if rules.county_levels is not None else None)
+    if not rules.islands:
+        return ("land", country, region, county)
+    return ("land", country, region, county, island_of(hits, meta))
+
+
+def island_of(hits: list[int], meta: list[Meta]) -> str | None:
+    """The island of a face of land (P3-T1d): the smallest named island area that holds it, so an island in a
+    lake on an island is said, not the island around it. None where no island area holds it: the join stage
+    names that land from the landmass it is part of (join.name_islands)."""
+    at = sorted((i for i in hits if meta[i].kind == "island"), key=lambda i: (meta[i].size, meta[i].id))
+    return meta[at[0]].id if at else None
+
+
+def with_island(label: tuple, island: str | None) -> tuple:
+    """A land label with its island (P3-T1d): the island is the fifth value, after the county, which is None
+    when there are no counties."""
+    if island is None and len(label) <= 4:
+        return label
+    return tuple(label[:4]) + (None,) * (4 - len(label)) + (island,)
+
+
+def island_in(label: tuple) -> str | None:
+    """The island in a land label, or None."""
+    return label[4] if label[0] == "land" and len(label) > 4 else None
 
 
 def county_of(hits, meta, rules, base, country, region, km2, rows):
@@ -231,6 +258,7 @@ def county_of(hits, meta, rules, base, country, region, km2, rows):
 
 COUNTY_SUFFIX = "#county"   # a region used as its own county, as in spike S2
 COUNTY_ALSO_REGION_SUFFIX = "#as-county"   # a county that has the same id as a region, so its id stays unique
+ISLAND_ALSO_AREA_SUFFIX = "#as-island"   # an island that has the same id as a country, region or county
 
 
 SEA_WAITING = "?"   # water in no marine area, between a sea's rough coast and the real one: its sea is found next
@@ -318,7 +346,8 @@ def build_square(bounds, land, pieces: list[tuple[int, object]], meta: list[Meta
         if on_land[f]:
             lab = label_land(hits[f], meta, rules, result.overlaps, result.fills, km2_of(face), result.counties)
             if lab[1] is None:
-                lab = WAITING_LAND
+                # Land in no country keeps its island, so an island beside no country is still that island.
+                lab = with_island(WAITING_LAND, island_in(lab))
         else:
             lab = label_water(hits[f], meta, rules)
         face_labels.append(lab)

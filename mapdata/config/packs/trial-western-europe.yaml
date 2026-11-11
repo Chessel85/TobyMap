@@ -20,6 +20,8 @@ stages:
     levels: [3, 4, 5]
     # The county areas too, a country at a time, at each country's levels in the counties record (P3-T1c).
     counties: true
+    # Named islands and islets too, as areas, with a point for those mapped as a point (P3-T1d).
+    islands: true
     box: [-11.0, 35.0, 17.0, 61.0]
   - stage: squares
     sources: [land-polygons, vliz-oceans]

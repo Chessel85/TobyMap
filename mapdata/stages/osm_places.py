@@ -22,7 +22,14 @@ Settings:
 * layer: the layer of places, such as sea-places.
 * queries: a list, each with query (GeoDesk's query language, such as
   "n[natural=bay][name]") and type (such as bay); with elevation: true, the
-  place keeps its height in metres from OSM's ele tag, as for peaks (P3-T1f).
+  place keeps its height in metres from OSM's ele tag, as for peaks (P3-T1f);
+  with population: true, its population from OSM's population tag, as for
+  towns and cities (P3-T1j), until Wikidata's replaces it (P3-T2).
+* within: optional, a list of area layers, such as [countries, regions,
+  counties]. Each place keeps the areas of those layers it is in, in that
+  order, for search's descriptions (P3-T1j). In the stage's records each is
+  its layer and id; the writing stage makes them ids, after any id is changed
+  to keep every id different.
 * same_as: optional, a layer whose names the places must not repeat.
 * box: optional, [west, south, east, north].
 """
@@ -34,6 +41,7 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
 import shapely
 
 from mapdata.pipeline import features
@@ -70,6 +78,49 @@ def elevation_m(text) -> float | None:
     return round(v, 1) if -500 < v < 9000 else None
 
 
+def population(text) -> int | None:
+    """A population from OSM's population tag, such as "12345", "12 345", "12,345" or "1.234.567"; None when it
+    is not a whole number."""
+    t = "".join(c for c in str(text or "").strip() if c not in " ,.'  ")
+    return int(t) if t.isdigit() and 0 < int(t) < 100_000_000 else None
+
+
+COAST_M = 1000   # a place no more than this off the land, such as a harbour town, has the areas nearest it
+
+
+def areas_within(points: list, areas: list[tuple[str, str, object]], order: list[str]) -> list[list[dict]]:
+    """For each point, the areas it is in, as layer and id, in the order of the layers given, then by id. Each
+    area is tested once, prepared, against the points in its bounds. A place in none, such as a harbour town
+    whose point is in the harbour (Looe, Porthleven), has the nearest area of each layer within COAST_M."""
+    if not areas or not points:
+        return [[] for _ in points]
+    pts = np.array(points, dtype=object)
+    xy = shapely.get_coordinates(pts)
+    ptree = shapely.STRtree(pts)
+    found: list[list[int]] = [[] for _ in points]
+    for a, (_l, _i, g) in enumerate(areas):
+        near = ptree.query(shapely.box(*g.bounds))
+        if not len(near):
+            continue
+        shapely.prepare(g)
+        for p in near[shapely.intersects_xy(g, xy[near, 0], xy[near, 1])].tolist():
+            found[p].append(a)
+    empty = [p for p, f in enumerate(found) if not f]
+    if empty:
+        atree = shapely.STRtree([g for _l, _i, g in areas])
+        reach = COAST_M / 111_320.0
+        for p in empty:
+            best: dict[str, tuple[float, int]] = {}
+            for a in sorted(atree.query(pts[p], predicate="dwithin", distance=reach).tolist()):
+                d = shapely.distance(areas[a][2], pts[p])
+                if areas[a][0] not in best or d < best[areas[a][0]][0]:
+                    best[areas[a][0]] = (d, a)
+            found[p] = [a for _d, a in best.values()]
+    rank = {k: n for n, k in enumerate(order)}
+    return [[{"layer": areas[a][0], "id": areas[a][1]}
+             for a in sorted(set(f), key=lambda a: (rank.get(areas[a][0], 99), areas[a][1]))] for f in found]
+
+
 def osm_id(f) -> str:
     return f"osm:{'n' if f.is_node else 'w' if f.is_way else 'r'}{f.id}"
 
@@ -99,6 +150,11 @@ def read(gol: Path, queries: list[dict], layer: str, box, say=print) -> tuple[li
                 ele = elevation_m(f.tags["ele"])
                 if ele is not None:
                     rec["elevation_m"] = ele
+            if q.get("population"):
+                pop = population(f.tags["population"])
+                if pop is not None:
+                    rec["population"] = pop
+                    rec["population_source"] = "OpenStreetMap"
             if f.is_node:
                 point = shapely.Point(f.lon, f.lat)
             else:
@@ -174,6 +230,13 @@ def run(ctx) -> None:
     if same:
         names = {v for r in records if r.get("layer") == same for v in (r.get("name"), r.get("local_name")) if v}
         p_records, p_geoms, left = leave_out_repeats(p_records, p_geoms, names)
+    if s.get("within"):
+        order = list(s["within"])
+        areas = [(r["layer"], r["id"], g) for r, g in zip(records, geoms) if r.get("layer") in order]
+        for r, w in zip(p_records, areas_within(p_geoms, areas, order)):
+            r["within"] = w
+        ctx.progress.line(f"Each place has the areas of {', '.join(order)} it is in: "
+                          f"{sum(1 for r in p_records if not r['within']):,} places are in none of them.")
     features.save(ctx.folder, records + p_records, geoms + p_geoms, ctx.claim)
     kinds: dict[str, int] = {}
     for r in p_records:

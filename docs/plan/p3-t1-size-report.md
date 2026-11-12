@@ -2,6 +2,46 @@
 
 The size trial, run on the night of 10 to 11 November 2026. This first report covers counties. Each new layer of P3-T1 is added to the trial as it is built, and this report gains a section for it: the named seas (P3-T1b) were added on 11 November. You decided from it that counties go into the world build (DP175). The thresholds for the world are still to decide (DP169).
 
+## Roads, railways, towns and cities (P3-T1i, P3-T1j), 12 November 2026
+
+Built in the Western Europe trial only, as you asked. You said not to worry about the soft limit of about 400 MB until all the data is in, so the estimate below is for your assessment then.
+
+### What was added
+
+* Motorways and trunk roads (P3-T1i): a new stage, osm-lines, reads the planet file's motorway and trunk road ways and joins them into one feature per road number and country: 6,206 roads in the trial, 1,190 of them motorways. The M3 is one feature; the A 7 in Germany and the A 7 in Austria are two. A road is named by its number, with its name added when at least half of its ways carry it, such as "A-8, Autovia del Cantabrico". A road with no number is named by its name, such as the Boulevard Peripherique.
+* Main railway lines (P3-T1i): railways tagged as main lines, and high-speed lines, as you chose: 5,153 lines, joined by name, such as the East Coast Main Line, and per country. A line with only a number, as many are in Germany, is "Railway line" and the number.
+* A short way with neither number nor name, such as a slip road, joins the road or railway it meets: 10,159 of 13,749 such road ways, and 16,096 of 24,747 railway ways. The rest are one "Unnamed road" or "Unnamed railway line" per country.
+* Towns and cities (P3-T1j): 11,415 places, 790 cities and 10,625 towns, from OpenStreetMap's place nodes, each with its population from OpenStreetMap where it has one, and the areas it is in: its continent, country, region, island and county. Winchester has 37,501 people and is in Europe, the United Kingdom, England, Great Britain and Hampshire. Wikidata's population, with its date, replaces OpenStreetMap's in P3-T2. A town whose point is in its harbour, such as Looe, Porthleven, Brevik, Seixal and Pasaia, has the areas nearest it, within a kilometre of the land.
+* Roads and railways are in a new group, Transport, and towns in a new group, Places, in the layers list. Crossing a road or a railway plays the line crossed sound, as crossing a river does. All three are seen to 250 km, as rivers are.
+
+### The trial pack
+
+46.47 MB, from 38.39 MB. All 60 check places pass. The build took 10 minutes 20 seconds; with only the roads and railways stage changed, 6 minutes 54 seconds.
+
+* Motorways and trunk roads: 3.42 MB, 347,800 points.
+* Main railway lines: 1.90 MB, 171,257 points.
+* Cities and towns: 1.47 MB, of which 0.94 MB is feature records.
+
+### The estimate for the world
+
+Counted in the planet file: the world has 5.4 times the trial's motorway and trunk road ways, 3.3 times its main railway ways, and 10 times its towns and cities. Scaled so:
+
+* Motorways and trunk roads: about 18 MB.
+* Main railway lines: about 6 MB.
+* Cities and towns: about 15 MB.
+
+So about 39 MB more, and the world pack about 445 MB, against the soft limit of about 400 MB, before your choices in DP176 (peaks) and DP179 (continents). Rough, perhaps 20% either way.
+
+### Found on the way, and put right
+
+* Finding each way's country tested each way's middle against the whole outline of every country: 104 seconds for the trial's railways alone. Each country is now tested once, against all the ways in its bounds together: 3 seconds. Finding where unnamed ways meet their neighbours is also done for all the ways at once. Joining the railways took 167 seconds and now takes 27, with the same result.
+* Simplifying a closed line to 100 metres, such as a roundabout or a ring road with a number of its own, shrank 641 roads to a single point, which stopped the writing stage. A closed line now keeps its ring.
+
+### Not done
+
+* Motorways are mapped as two carriageways, and many railways as one way per track, so a road is often two lines side by side, and its length in the log counts both: the A 7 in Germany is 1,925 km of line, for a road of about 960 km. Joining the carriageways into one line would halve the roads' share, but is slow and hard to get right; it is not needed for crossing a road or finding it.
+* The world has not been read with the new stage; the world build will be its first run on the whole planet.
+
 ## Continents, mountains, rivers and lakes (P3-T1e to P3-T1h), night of 11 to 12 November 2026
 
 Built together, in the Western Europe trial, as you asked, with no world build. Each new stage was also rehearsed on the whole world's data already on disk, to find its time and its problems before the world build does.

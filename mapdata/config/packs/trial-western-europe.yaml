@@ -115,6 +115,35 @@ stages:
       - {query: "n[natural=peak][name][ele>=1000]", type: peak, elevation: true}
       - {query: "n[natural=volcano][name][ele>=1000]", type: volcano, elevation: true}
     box: [-11.0, 35.0, 17.0, 61.0]
+  # Cities and towns, as places, with their population from OSM and the areas each is in (P3-T1j).
+  - stage: osm-places
+    source: planet
+    layer: towns
+    queries:
+      - {query: "n[place=city][name]", type: city, population: true}
+      - {query: "n[place=town][name]", type: town, population: true}
+    within: [continents, countries, regions, islands, counties]
+    box: [-11.0, 35.0, 17.0, 61.0]
+  # Motorways and trunk roads, and main railway lines, joined into one feature per road and country (P3-T1i).
+  - stage: osm-lines
+    source: planet
+    tolerance_m: 100
+    layers:
+      - layer: roads
+        key: ref
+        unnamed: Unnamed road
+        queries:
+          - {query: "w[highway=motorway]", type: motorway}
+          - {query: "w[highway=trunk]", type: trunk road}
+      - layer: railways
+        key: name
+        unnamed: Unnamed railway line
+        number_name: Railway line
+        queries:
+          # High-speed lines first, so a way that is both is of type high-speed railway.
+          - {query: "w[railway=rail][highspeed=yes][!service]", type: high-speed railway}
+          - {query: "w[railway=rail][usage=main][!service]", type: railway}
+    box: [-11.0, 35.0, 17.0, 61.0]
   - stage: write
     drawing_levels:
       # As the world pack's, so the sizes compare.

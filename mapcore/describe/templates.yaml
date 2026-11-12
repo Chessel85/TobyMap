@@ -73,6 +73,9 @@ details:
     oceans: ocean or sea
     rivers: river
     lakes: lake
+    roads: road
+    railways: railway line
+    towns: city or town
     stations: railway station
   part_of: "Part of: {value}"
   disputed: "This land is disputed."

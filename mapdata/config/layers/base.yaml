@@ -38,6 +38,12 @@ layers:
   # Rivers of 50 km or more with a Wikidata link, joined into whole rivers (P3-T1g, DP169). Crossing one plays the
   # line crossed sound (ANN-2).
   - {id: rivers, name: Rivers, rank: 8, kind: land, made_by: osm-rivers, group: Water, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000}
+  # Motorways and trunk roads, and main railway lines, each road one feature per number and country (P3-T1i).
+  # Crossing one plays the line crossed sound (ANN-2).
+  - {id: roads, name: Motorways and trunk roads, rank: 8, kind: land, made_by: osm-lines, group: Transport, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000}
+  - {id: railways, name: Main railway lines, rank: 8, kind: land, made_by: osm-lines, group: Transport, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000}
+  # Cities and towns, as places, with their population from OSM and the areas each is in (P3-T1j).
+  - {id: towns, name: Cities and towns, rank: 8, kind: land, group: Places, geometry: point, switched_on: true, max_zoom_m: 250000}
   # Lakes of 10 km2 or more (P3-T1h, DP169), above the counties, so on Lake Geneva you hear the lake first.
   # Of kind land, as nothing is taken out of a lake: it lies on the land. It is painted as water.
   - {id: lakes, name: Lakes, rank: 7, kind: land, made_by: osm-layer, group: Water, geometry: area, switched_on: true, fill: water}

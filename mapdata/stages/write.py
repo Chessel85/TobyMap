@@ -21,13 +21,14 @@ def attribution_text(sources: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def keep_ids_unique(records: list[dict], say) -> int:
+def keep_ids_unique(records: list[dict], say, renamed: dict | None = None) -> int:
     """Every id in a pack is different. Two layers can take an area from one OSM object, such as an island
     that is also a region (the world build of P3-T1d stopped at its last step on osm:r1814783), so an id
     already used by a feature of another layer gets the ending "#as-" and the layer's id, and one used
     twice in the same layer gets "#2", "#3" and so on. Each change is listed in the log. Done here, at the
     start of the last stage that every feature passes through, so no layer, now or later, can stop a
-    build at its end with a feature given twice. Returns how many ids were changed."""
+    build at its end with a feature given twice. Returns how many ids were changed; each change is also put in
+    renamed, by the old id and the layer, if it is given."""
     seen: set[str] = {r["id"] for r in records}
     first: dict[str, str] = {}
     changed = 0
@@ -44,9 +45,19 @@ def keep_ids_unique(records: list[dict], say) -> int:
         say(f"The id {fid} is used by the layer {first[fid]} and again by the layer {layer}, "
             f"for {r.get('name', 'a feature')}. The second is written as {new}.")
         r["id"] = new
+        if renamed is not None:
+            renamed[(fid, layer)] = new
         seen.add(new)
         changed += 1
     return changed
+
+
+def resolve_within(records: list[dict], renamed: dict) -> None:
+    """A place's areas it is in (P3-T1j), held by the stages as layer and id, made plain ids: the id the area is
+    written with, after keep_ids_unique."""
+    for r in records:
+        if "within" in r:
+            r["within"] = [renamed.get((w["id"], w["layer"]), w["id"]) for w in r["within"]]
 
 
 def held_layers(levels: list[dict], max_zoom_km: dict[str, float | None]) -> dict[int, set[str]]:
@@ -95,7 +106,9 @@ def drawing_shapes(records, geoms, levels, say, apart=frozenset(), held=None) ->
 
 def run(ctx) -> None:
     records, geoms = features.load(ctx.previous)
-    changed = keep_ids_unique(records, ctx.progress.log)
+    renamed: dict = {}
+    changed = keep_ids_unique(records, ctx.progress.log, renamed)
+    resolve_within(records, renamed)
     if changed:
         ctx.progress.line(f"Ids used twice, written with an ending so every id is different: {changed}. "
                           "The log lists them.")

@@ -62,6 +62,8 @@ STAGES = {
                            ("mapdata.stages.osm_layer", "mapdata.stages.osm_places")),
     "osm-rivers": StageKind("reading the rivers from the planet file", "mapdata.stages.osm_rivers",
                             ("mapdata.stages.osm_rivers",)),
+    "osm-lines": StageKind("reading the roads and railways from the planet file", "mapdata.stages.osm_lines",
+                           ("mapdata.stages.osm_lines", "mapdata.stages.osm_rivers")),
     "physical": StageKind("building the mountain ranges and physical regions", "mapdata.stages.physical",
                           ("mapdata.stages.physical", "mapdata.stages.land")),
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",

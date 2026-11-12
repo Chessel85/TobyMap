@@ -120,15 +120,18 @@ These change what we can use, so please read them even if you skip the rest.
 ### Continents
 * No authoritative continent polygon dataset exists. Agreed (DP55): build continents by merging land polygons grouped by Natural Earth's CONTINENT attribute for each country.
 * Transcontinental countries, such as Russia, Turkey, Egypt and Kazakhstan, are split along conventional dividing lines, such as the Urals and the Bosphorus. These lines are set in configuration and explained in Help (DAT-12).
+* Decided for the base pack (DP174, P3-T1e, 11 November 2026): no source is needed. The continents are built from the base pack's own Countries layer, with rough continent areas and dividing lines in mapdata/config/continents.yaml. The Ural River's line is taken from Natural Earth's rivers (public domain), source key naturalearth-rivers.
 
 ### Physical regions
 * Mountain ranges: the GMBA Mountain Inventory v2 (CC-BY 4.0). It is a hierarchical inventory of 8,600 ranges, which fits the hierarchy mode well.
 * Deserts, plateaus, plains, peninsulas and similar: the Natural Earth geography regions polygons (public domain). They are coarse, but their names are clean.
 * Peaks, volcanoes and passes: OSM natural=peak, volcano and saddle points, ranked by elevation and Wikidata prominence for the base pack.
+* Decided for the base pack (DP169, P3-T1f, 11 November 2026): the GMBA Mountain Inventory version 2.0, standard, source key gmba-mountains, GMBA_Inventory_v2.0_standard.zip from data.earthenv.org, CC-BY 4.0, DOI 10.48601/earthenv-t9k2-1407: 8,327 areas, of which 6,055 are named ranges, highlands, single-peak massifs and escarpments at levels 3 to 7 of its hierarchy. Natural Earth's physical regions at 1:10 million, source key naturalearth-physical-regions, ne_10m_geography_regions_polys.geojson, public domain: its deserts, plateaus, plains, peninsulas, basins, deltas and similar; its islands, ranges, continents and lakes are left out. Both are cut to the OSM land polygons. Peaks and volcanoes: OSM natural=peak and natural=volcano nodes with a name and an ele of 1,000 metres or more: 207,477 peaks and 2,169 volcanoes in the planet file of 26 October 2026. Passes wait.
 
 ### Water
 * Rivers: Natural Earth rivers and lake centrelines for the base pack, and OSM waterways for regions. Rivers in OSM are split into many pieces. The pipeline must join them into whole rivers using OSM's waterway relations and Wikidata IDs, so that "follow the Rhine" works in network mode (NAV-5).
 * Lakes: HydroLAKES (CC-BY 4.0, 1.4 million lakes, with area and depth attributes) or Natural Earth for the base pack, and OSM water areas for regions.
+* Decided for the base pack (DP169, P3-T1g and P3-T1h, 11 November 2026): both from OpenStreetMap, as the plan says. Rivers: OSM river relations and ways joined into whole rivers by their Wikidata link, 50 km or more; Natural Earth's rivers and lake centre lines at 1:10 million, source key naturalearth-rivers, public domain, are used only to check that no river of 500 km or more is missing. Lakes: OSM named lakes, reservoirs, lagoons and large ponds of 10 km2 or more; HydroLAKES version 1.0 lake points, source key hydrolakes-points, HydroLAKES_points_v10_shp.zip from data.hydrosheds.org, CC-BY 4.0, is used only to check that no lake of 100 km2 or more is missing. HydroRIVERS is not used.
 
 ### Transport networks
 * Base pack: Natural Earth roads and railways (major routes only).

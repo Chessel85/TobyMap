@@ -1,0 +1,16 @@
+# Continent check places (P3-T1e, DAT-12, DP174, DP88). The format is as in
+# coastline_places.yaml: each place's "includes" must all be among the areas
+# containing it. The PO may add places.
+
+places:
+  - {name: Paris, lat: 48.8566, lon: 2.3522, includes: [Europe, France]}
+  - {name: Madrid, lat: 40.4168, lon: -3.7038, includes: [Europe, Spain]}
+  - {name: Majorca, lat: 39.6, lon: 2.9, includes: [Europe, Spain]}
+  - {name: Corsica, lat: 42.15, lon: 9.1, includes: [Europe, France]}
+  - {name: Valletta, Malta, lat: 35.8989, lon: 14.5146, includes: [Europe, Malta]}
+  - {name: Lampedusa, lat: 35.508, lon: 12.598, includes: [Europe, Italy]}
+  - {name: Tangier, lat: 35.7595, lon: -5.834, includes: [Africa, Morocco]}
+  - {name: Algiers, lat: 36.7538, lon: 3.0588, includes: [Africa, Algeria]}
+  - {name: Tunis, lat: 36.8065, lon: 10.1815, includes: [Africa, Tunisia]}
+  - {name: Oslo, lat: 59.9139, lon: 10.7522, includes: [Europe, Norway]}
+  - {name: The Shetland Islands, lat: 60.3, lon: -1.25, includes: [Europe, United Kingdom]}

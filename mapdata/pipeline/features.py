@@ -34,6 +34,20 @@ def load(folder: Path) -> tuple[list[dict], list]:
     return data["records"], geoms
 
 
+def load_layers(folder: Path, layers: set[str]) -> tuple[list[dict], list]:
+    """The records and shapes of the named layers only, so a stage that needs only the countries does not decode
+    the world's 1.4 GB of shapes."""
+    data = json.loads((Path(folder) / "features.json").read_text(encoding="utf-8"))
+    records, geoms = [], []
+    with open(Path(folder) / "shapes.wkb", "rb") as f:
+        for r, (a, n) in zip(data["records"], data["shapes"]):
+            if r.get("layer") in layers:
+                f.seek(a)
+                records.append(r)
+                geoms.append(shapely.from_wkb(f.read(n)))
+    return records, geoms
+
+
 def append(folder: Path, records: list[dict], blobs: list[bytes]) -> None:
     """Add records and their shapes, already in well-known binary, to a folder's areas, without reading the
     shapes already there."""

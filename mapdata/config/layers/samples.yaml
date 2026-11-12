@@ -1,9 +1,7 @@
-# The sample layers (P2-T10c): a river, a lake and a railway station, for the test pack
-# only. They are for the tests of Crossed and passed (ANN-2). The world pack gets rivers
-# and railways in Phase 3 and does not use this file. The reference for each setting is
-# docs/data-manager/configuration.md.
+# The sample layers (P2-T10c): a railway station, for the test pack only. It is for the
+# tests of Crossed and passed (ANN-2). The sample river and lake are in the base layers'
+# rivers and lakes since P3-T1g and P3-T1h. The world pack gets railways in Phase 3 and
+# does not use this file. The reference for each setting is docs/data-manager/configuration.md.
 
 layers:
-  - {id: rivers, name: Rivers, rank: 8, kind: land, group: Water, geometry: line, switched_on: true, crossing_earcon: line_crossing}
-  - {id: lakes, name: Lakes, rank: 8, kind: land, group: Water, geometry: area, switched_on: true}
   - {id: stations, name: Railway stations, rank: 8, kind: land, group: Transport, geometry: point, switched_on: true}

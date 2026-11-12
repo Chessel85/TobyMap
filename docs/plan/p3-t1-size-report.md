@@ -2,6 +2,76 @@
 
 The size trial, run on the night of 10 to 11 November 2026. This first report covers counties. Each new layer of P3-T1 is added to the trial as it is built, and this report gains a section for it: the named seas (P3-T1b) were added on 11 November. You decided from it that counties go into the world build (DP175). The thresholds for the world are still to decide (DP169).
 
+## Continents, mountains, rivers and lakes (P3-T1e to P3-T1h), night of 11 to 12 November 2026
+
+Built together, in the Western Europe trial, as you asked, with no world build. Each new stage was also rehearsed on the whole world's data already on disk, to find its time and its problems before the world build does.
+
+### What was added
+
+* Continents (P3-T1e): the seven continents, built from the countries, split along the dividing lines for Russia, Kazakhstan, Turkey, Egypt, Georgia, Azerbaijan and Indonesia, with distant parts by where they are (DP174, DP88). Cyprus is in Europe.
+* Mountain ranges and physical regions (P3-T1f): 758 GMBA ranges in the trial, in GMBA's own hierarchy, and 14 of Natural Earth's physical regions, both cut to the land. Peaks and volcanoes of 1,000 metres or more: 73,821 places, each with its height.
+* Rivers (P3-T1g): 1,668 whole rivers of 50 km or more in the trial, with the direction of flow kept.
+* Lakes (P3-T1h): 550 lakes, reservoirs and lagoons of 10 km2 or more. The Szczecin Lagoon is left out, as the Seas layer has it, and for the world, the Caspian Sea, as the Oceans and seas layer has it.
+
+### The trial pack
+
+The trial pack grew from 30.79 MB to 38.39 MB, in the fifth and last build of the night. All 60 check places pass, 11 of them new continent places, such as Tangier in Africa and Lampedusa in Europe. Each layer's share, in the third build, which differs from the last only by the lakes and islands put right after it:
+
+* Counties: 9.29 MB.
+* Peaks: 6.39 MB, of which 4.40 MB is feature records: 73,821 places.
+* Islands: 4.98 MB, down from 7.59 MB, as the drawing levels now leave out what cannot be seen (below).
+* Regions: 3.51 MB.
+* Countries: 2.39 MB.
+* Oceans and seas: 2.14 MB.
+* Rivers: 2.14 MB, 351,952 points.
+* Continents: 2.03 MB, 785,645 points: they repeat the coast of every country.
+* Bays and straits, as places: 1.73 MB, down from 2.40 MB.
+* Seas, bays and straits: 1.66 MB.
+* Mountain ranges: 1.14 MB, 201,689 points.
+* Lakes: 0.62 MB, 125,488 points.
+* Lines of latitude and longitude: 0.49 MB.
+* Deserts, plateaus, plains and other regions: 0.24 MB.
+
+The third build took 8 minutes 14 seconds, as the stages that read the planet's countries, build the grid squares and join them were all skipped: the new layers no longer change their fingerprints. The writing stage took 6 minutes 23 seconds; the first build of the night, before the changes below, took 21 minutes 50 seconds.
+
+### The rehearsals on the whole world
+
+* Continents: from the 260 countries and other land of the world join output of 11 November, in 12 minutes. Seven valid shapes, none overlapping another, with 9.5 million points. Europe 10.1 million km2, Asia 45.6 million, Africa 31.4 million, North America 24.9 million, South America 18.4 million, Antarctica 14.0 million, Oceania 9.0 million, measured roughly. Russia has 3.9 million km2 in Europe; Kazakhstan 145,280 km2; Turkey 24,027 km2, Thrace; Egypt 59,827 km2 in Asia, Sinai; Indonesia 413,683 km2 in Oceania, its part of New Guinea. Spain's Canary Islands and Portugal's Madeira are in Africa, Hawaii in Oceania, Norway's Bouvet Island in Antarctica, and Colombia's San Andres in North America.
+* Mountain ranges: GMBA's 6,055 ranges of levels 3 to 7 cut to the land in 13 minutes, with 4.2 million points; Natural Earth's 482 physical regions in 2.5 minutes, with 0.9 million points.
+* Rivers: read and joined in about 2 minutes, 12,993 rivers with 4.3 million points; 549 of them are river relations with no Wikidata link, of 200 km or more (DP177). Of Natural Earth's 390 rivers of 500 km or more, 381 are matched. The 9 that are not: the Irrawaddy Delta, which is not a river, and the Jamanxim, Guainia, San Miguel, Jiparana, Tshuapa, Shabeelle, Gurupi and Mearim, which OpenStreetMap has only as loose ways with no link, or under another name. The plan's fall-back, Natural Earth's rivers, is not needed.
+* Lakes: read in 3 to 4 minutes, 13,149 lakes with 4.1 million points. Of HydroLAKES's 1,708 lakes of 100 km2 or more, 1,479 are found. Most of the rest are not lakes in OpenStreetMap's tags: salt flats such as the Salar de Uyuni, the dried Aral Sea, inlets of the sea such as Bras d'Or and Lake Melville, and reservoirs mapped as part of their river, such as the Volgograd Reservoir. A few have another name in OpenStreetMap, such as Lake Takiyuak, now Napaktulik Lake. The build log lists them all, for the data manager.
+* Peaks: 207,477 named peaks of 1,000 metres or more, and 2,169 volcanoes, in the planet file (DP176).
+
+### The estimate for the world pack
+
+From the rehearsals' points, at the trial's bytes per point for each layer. These are rough, perhaps 20% either way:
+
+* Continents: about 25 MB.
+* Mountain ranges: about 24 MB. Physical regions: about 4 MB.
+* Rivers: about 26 MB.
+* Lakes: about 20 MB.
+* Peaks: about 18 MB, or about 5 MB with only those that have a Wikidata link (DP176).
+* Islands, from P3-T1d: about 27 MB.
+* Leaving out of the drawing levels what cannot be seen saves about 12 MB in the layers already in the world pack.
+
+So the world pack would be about 274 - 12 + 144, about 406 MB: just over the soft limit of about 400 MB (DP175). DP176 (peaks) and DP179 (continents) are the two largest choices that bring it under.
+
+### Found on the way, and put right
+
+* The cause of the failed world build. An island and a region were both OSM relation 1814783, and the pack must have each id once; P3-T1c had met the same with a county and a region. Both fixes were for one pair of layers each. Now the writing stage, which every feature passes through, gives any id already used by another layer an ending, and lists it in the log. So no layer, now or later, can stop a build at its end in this way.
+* Why the world build had to start again from the beginning. Each stage's fingerprint includes its code, and the island fix had added one line to the grid squares' code, so all 3 hours of grid squares would have been built again. That line is now in the join's code. The next world build keeps the world's finished grid squares. The world join was then run on its own, as a rehearsal of the islands put right below, in 27 minutes, and is kept too: 833,712 landmasses, 5 of them continents; 3,791 islands named from island points, 5,352 Unnamed islands. So the world build now starts at the places stage, about 2 hours in all.
+* Adding any new layer of areas would also have rebuilt the grid squares, as the stages that make them put every area layer in their fingerprints. A layer now says which stage makes it (made_by), and only the layers the grid squares make are in their fingerprints.
+* The map at a wide zoom was slow on the world pack: 4 to 8 seconds to draw one map at 2,500 km, against 100 ms. Every drawing level held the 98,000 bays and straits that are places, visible only to 100 km, and every map decoded them all. A drawing level now leaves out the layers that cannot be seen at its zooms, and says which it holds, so a layer the user widens is read from a level that has it. In the trial, a map at 2,500 km now takes 10 ms instead of 72.
+* The visible rule tested each layer by comparing the layer name of all 265,000 features as text: about 100 ms a map on the world pack. It now numbers the layers once. Lines were also looked for in the exact pack tiles at wide zooms, which took 6 seconds at 0 degrees north, 0 east and 2,500 km; every drawing level keeps every line, so they are not.
+* Simplifying a layer whose areas overlap, such as the continents, while keeping each shape valid, took 222 seconds for the trial's continents; simplifying plainly, then repairing, takes 0.1 seconds. For the world it would have taken hours.
+* In the trial, the islands of P3-T1d named the whole European mainland "Bieberinsel", an islet in a lake, and Morocco's part of Africa "Al-Munastir Peninsula". The reading box cuts the mainland to 2.1 million km2, under the 3 million at which land is a continent, so an island point inside it named it; and lakes are land in the land polygons, so an islet in a lake is on the mainland. Now a landmass the reading box cuts is never an island, and an island point names a landmass of no more than 1,000 km2. The world's continents are larger than 3 million km2, but a large island that OpenStreetMap has no island area for could have been named after an islet in one of its lakes in the same way.
+* Cutting mountain ranges to the land read the same land tiles again for each range inside another, at full detail. Each land tile is now read once and simplified once, which took the trial's physical stage from 2.5 minutes to 1 minute.
+
+### Still to do
+
+* The visible rule's speed test on the world pack fails, as it reads the world pack written before tonight's changes. It should pass once the world pack is written again.
+* At 100 km over the Alps, a map still takes about 150 ms, as places such as peaks are decoded one at a time. Narrowing the peaks to 50 km, as Shortbread does, helps; decoding places faster is a change to the application, for later.
+
 ## Islands (P3-T1d), 11 November 2026
 
 ### What was added

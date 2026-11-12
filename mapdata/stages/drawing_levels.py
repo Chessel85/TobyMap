@@ -33,11 +33,19 @@ METRES_PER_DEGREE = 111_320.0
 COVERED, SHAPE = tiles.COVERED, tiles.COMPACT
 
 
-def simplify_layer(geoms: list, tolerance_m: float, min_km2: float) -> list:
+def simplify_layer(geoms: list, tolerance_m: float, min_km2: float, together: bool = True) -> list:
     """One layer's shapes simplified together as a coverage, with small parts left out.
-    Lines are simplified one by one, and points are kept as they are (P2-T10a)."""
+    Lines are simplified one by one, and points are kept as they are (P2-T10a). With together
+    false, as for a layer whose areas overlap, such as the mountain ranges and the ranges
+    inside them, each area is simplified on its own (P3-T1e): a coverage must not overlap. That
+    is done the plain way, then repaired: simplifying that keeps the shape valid as it goes took
+    222 seconds for the trial's 0.9 million points of continents, and the plain way 0.1 seconds."""
     if not geoms:
         return []
+    if not together:
+        return [g if g is None or shapely.get_type_id(g) not in (3, 6) else
+                drop_small(polygonal(shapely.simplify(g, tolerance_m / METRES_PER_DEGREE, preserve_topology=False)),
+                           min_km2) for g in geoms]
     if not all(shapely.get_type_id(g) in (3, 6) for g in geoms if g is not None):
         return [g if g is None or shapely.get_type_id(g) not in (1, 2, 5)
                 else shapely.simplify(g, tolerance_m / METRES_PER_DEGREE, preserve_topology=False) for g in geoms]
@@ -45,6 +53,17 @@ def simplify_layer(geoms: list, tolerance_m: float, min_km2: float) -> list:
     arr[:] = geoms
     out = shapely.coverage_simplify(arr, tolerance_m / METRES_PER_DEGREE, simplify_boundary=True)
     return [drop_small(g, min_km2) for g in out]
+
+
+def polygonal(g):
+    """The areas of a shape made valid, as one Polygon or MultiPolygon: simplifying can leave lines behind."""
+    g = shapely.make_valid(g)
+    if g.geom_type in ("Polygon", "MultiPolygon"):
+        return g
+    parts = [q for p in shapely.get_parts(g) for q in shapely.get_parts(p) if q.geom_type == "Polygon"]
+    if not parts:
+        return shapely.Polygon()
+    return parts[0] if len(parts) == 1 else shapely.MultiPolygon(parts)
 
 
 def drop_small(g, min_km2: float):

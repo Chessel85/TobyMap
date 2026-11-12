@@ -56,6 +56,14 @@ STAGES = {
                             ("mapdata.stages.osm_places",)),
     "graticule": StageKind("writing the graticule and special lines", "mapdata.stages.graticule",
                            ("mapdata.stages.graticule",)),
+    "continents": StageKind("building the continents from the countries", "mapdata.stages.continents",
+                            ("mapdata.stages.continents",)),
+    "osm-layer": StageKind("reading a layer of named areas from the planet file", "mapdata.stages.osm_layer",
+                           ("mapdata.stages.osm_layer", "mapdata.stages.osm_places")),
+    "osm-rivers": StageKind("reading the rivers from the planet file", "mapdata.stages.osm_rivers",
+                            ("mapdata.stages.osm_rivers",)),
+    "physical": StageKind("building the mountain ranges and physical regions", "mapdata.stages.physical",
+                          ("mapdata.stages.physical", "mapdata.stages.land")),
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
                         ("mapdata.stages.checks", "mapdata.stages.lookup")),
     "write": StageKind("writing the pack", "mapdata.stages.write",
@@ -121,7 +129,9 @@ def fingerprint(pack: PackSettings, stage: dict, previous: str, source_prints: d
     if kind.areas_only:
         # Adding a layer of lines or points, such as the graticule (P2-T10), must not
         # make the countries and divisions again: hours of reading the planet file.
-        layers = {k: v for k, v in layers.items() if v.geometry == "area"}
+        # Nor must a layer of areas that a stage of its own makes, such as the continents (P3-T1e): only the
+        # layers the grid squares and the join make are in these stages' fingerprints.
+        layers = {k: v for k, v in layers.items() if v.geometry == "area" and not v.made_by}
         groups = {v.group_file for v in layers.values()}
         settings["layer_groups"] = [g for g in settings.get("layer_groups") or [] if g in groups]
     parts = {

@@ -44,6 +44,15 @@ HIGHLIGHT_STYLE = 8
 LINE_STYLE, HIGHLIGHT_LINE_STYLE, SPECIAL_LINE_STYLE = 0, 1, 2   # the line styles (P2-T17v)
 LINE_DRAW_ORDER = {LINE_STYLE: 0, SPECIAL_LINE_STYLE: 1, HIGHLIGHT_LINE_STYLE: 2}
 MIN_RING = 3
+WATER_LAST = 100   # added to a land layer's order, so all water is painted first
+
+
+def fill_of(feature: tuple, fills: dict | None) -> str:
+    """How a feature's area is painted: its layer's fill, or water for the oceans and land for the rest."""
+    got = (fills or {}).get(feature[3])
+    if got in ("land", "water", "none"):
+        return got
+    return "water" if feature[1] == 0 else "land"
 
 
 # How far from the centre the zoom distance is drawn, in Qt's scaled pixels (DP138).
@@ -103,6 +112,42 @@ def drawing_source(index, zoom_km: float):
     return "draw", levels[-1]
 
 
+def holds(level: dict, layer_id: str) -> bool:
+    """Whether a drawing level holds a layer's shapes. A pack written since P3-T1e lists the layers each level
+    holds, leaving out those that cannot be seen at its zooms; an older pack's levels hold every layer."""
+    return "layers" not in level or layer_id in level["layers"]
+
+
+def finest_holding(index, layer_id: str) -> dict | None:
+    """The finest drawing level that holds a layer, or None for the exact pack tiles. Used for a layer whose
+    zoom range the user has widened beyond the zooms the chosen level serves (SCP-7)."""
+    for d in sorted(index.pack.drawing_levels.values(), key=lambda d: d.get("view_km", 0)):
+        if holds(d, layer_id):
+            return d
+    return None
+
+
+def plan_for(index, kind: str, d: dict | None, wanted) -> list[tuple]:
+    """The tiles to read, as (kind, level id, tile level, the layers to take from them or None for all): the
+    chosen drawing level's, then, for each wanted layer it does not hold, the finest level that holds it."""
+    if kind != "draw":
+        return [("tile", level, level, None) for level in index.pack.tile_levels]
+    plan = [("draw", d["id"], d["tile_level"], None)]
+    if "layers" not in d:
+        return plan
+    extra: dict = {}
+    for layer_id in sorted(set(wanted) - set(d["layers"])):
+        alt = finest_holding(index, layer_id)
+        key = ("tile", None) if alt is None else ("draw", alt["id"])
+        extra.setdefault(key, (alt, set()))[1].add(layer_id)
+    for (k, _ident), (alt, ids) in sorted(extra.items(), key=lambda kv: str(kv[0])):
+        if k == "draw":
+            plan.append(("draw", alt["id"], alt["tile_level"], frozenset(ids)))
+        else:
+            plan += [("tile", level, level, frozenset(ids)) for level in index.pack.tile_levels]
+    return plan
+
+
 class SceneBuilder:
     def __init__(self, store, theme: dict | None = None):
         self.store = store
@@ -137,11 +182,10 @@ class SceneBuilder:
         for p in self.store._covering(lat, lon)[:1]:
             index = self.store._indexes[p]
             kind, d = self._source(zoom_km, index)
-            if kind == "draw":
-                plan = [("draw", d["id"], d["tile_level"])]
-            else:
-                plan = [("tile", level, level) for level in index.pack.tile_levels]
-            for tkind, ident, level in plan:
+            # The layers asked for; isolating a feature may need any layer (VIS-2).
+            every = [x["id"] for x in index.pack.layers]
+            wanted = every if layers is None or isolate is not None else [x for x in every if x in layers]
+            for tkind, ident, level, allowed in plan_for(index, kind, d, wanted):
                 n = 2 ** level
                 y0, y1 = tiles.tile_of(0.0, south, level)[1], tiles.tile_of(0.0, north, level)[1]
                 spans = []
@@ -156,6 +200,12 @@ class SceneBuilder:
                         box = tiles.tile_box(level, x, y)
                         shapes, numbers = data.drawing_shapes(box)
                         found = [self._feature(p, n) for n in numbers.tolist()]
+                        if allowed is not None:   # a level read only for layers the chosen level leaves out
+                            keep = np.fromiter((f[3] in allowed for f in found), bool, len(found))
+                            if not keep.any():
+                                continue
+                            shapes = shapes[keep]
+                            found = [f for f, k in zip(found, keep) if k]
                         if isolate is not None:
                             keep = np.fromiter((f[0] == isolate for f in found), bool, len(found))
                             shapes = shapes[keep]
@@ -184,11 +234,15 @@ class SceneBuilder:
     def build(self, world, width: int, height: int, current: str | None = None, highlight: str | None = None,
               centre_cross: bool = True, layers=None, min_widths=None, interval=None, theme: dict | None = None,
               isolate: str | None = None, names: bool = False, label_scale: float = 1.0,
-              heading_up: bool = False, special_layers=frozenset()) -> dict:
+              heading_up: bool = False, special_layers=frozenset(), fills: dict | None = None) -> dict:
         """One frame. theme is the theme to draw with (themes.effective), the builder's own when
         None. isolate keeps only that feature (VIS-2). names places the areas' names, at
         label_scale times their size (VIS-3, P2-T12d). heading_up turns the map (VIS-5).
-        special_layers are the line layers drawn in the special line style (P2-T17v, DAT-13)."""
+        special_layers are the line layers drawn in the special line style (P2-T17v, DAT-13).
+        fills is {layer id: land, water or none}, from the layers' definitions: water is painted in
+        the ocean's colour, under the land; none is not painted, for a layer whose areas lie over
+        the others, such as continents or mountain ranges (P3-T1e). A layer it leaves out is land,
+        except the oceans."""
         import shapely
 
         if theme is not None:
@@ -226,7 +280,14 @@ class SceneBuilder:
         else:
             parts, idx = np.empty(0, object), empty
         if len(parts):
-            order = np.argsort(np.array([feats[i][1] for i in idx], np.intp), kind="stable")  # oceans first
+            fill = [fill_of(feats[i], fills) for i in idx.tolist()]
+            painted = np.array([f != "none" for f in fill], bool)
+            if not painted.all():
+                parts, idx = parts[painted], idx[painted]
+                fill = [f for f, k in zip(fill, painted) if k]
+            # Water first, the oceans before the seas and lakes, then the land, each in its layer order.
+            order = np.argsort(np.array([(0 if f == "water" else WATER_LAST) + feats[i][1]
+                                         for f, i in zip(fill, idx.tolist())], np.intp), kind="stable")
             parts, idx = parts[order], idx[order]
             _t, xy, (ring_off, poly_off) = shapely.to_ragged_array(parts)
             ring_off = np.asarray(ring_off, np.intp)
@@ -235,7 +296,7 @@ class SceneBuilder:
             xy, ring_off, poly_off = np.zeros((0, 2)), np.zeros(1, np.intp), np.zeros(1, np.intp)
         chosen = time.perf_counter()
         frame = self._frame(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
-                            current, highlight)
+                            current, highlight, fills)
         frame.update(self._lines(view, cx, cy, r, lines, line_idx, feats, highlight, special_layers))
         frame.update(self._markers(view, width, height, cx, cy, r, dots, dot_idx, feats, highlight))
         frame["points"] += int(len(frame["line_coords"]) // 2)
@@ -320,7 +381,8 @@ class SceneBuilder:
         return {"marker_coords": coords, "marker_area": area, "marker_styles": styles,
                 "marker_style": np.array([1 if highlight and a == highlight else 0 for a in area], np.int32)}
 
-    def _frame(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current, highlight):
+    def _frame(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current, highlight,
+               fills=None):
         theme = self.theme
         n_pts = len(xy)
         lon, lat = (xy[:, 0], xy[:, 1]) if n_pts else (np.zeros(0), np.zeros(0))
@@ -405,7 +467,8 @@ class SceneBuilder:
             ident, layer, colour = feats[tile_of_poly[j]][:3]
             shape_area.append(ident)
             shape_name.append(feats[tile_of_poly[j]][6])
-            shape_style.append(OCEAN_STYLE if layer == 0 else (colour - 1) % len(land))
+            water = fill_of(feats[tile_of_poly[j]], fills) == "water"
+            shape_style.append(OCEAN_STYLE if water else (colour - 1) % len(land))
         hi = [i for i, a in enumerate(shape_area) if highlight and a == highlight]
         for i in hi:
             shape_style[i] = HIGHLIGHT_STYLE

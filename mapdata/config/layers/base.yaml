@@ -3,22 +3,41 @@
 #
 # rank orders what is at a point, lowest first, then smallest first (LOC-2).
 # kind is land or water. The land is taken out of water layers.
+# made_by names the stage that makes a layer, when it is not the grid squares and join, so adding the
+# layer does not make those stages run again (P3-T1e).
 
 #
 # The rest is written into the pack for the application's layers list (SCP-7):
 # group, geometry (area, line or point), switched_on (true or false at first), the zoom
-# range min_zoom_m to max_zoom_m (left out for no limit), min_size (an area's
+# range min_zoom_m to max_zoom_m (left out for no limit), fill (how the map paints an area:
+# land, water, or none for a layer over the others), min_size (an area's
 # width against the zoom distance, DP80), crossing_earcon and sound (sound
 # events from mapcore/describe/earcons.yaml). Changing these makes the build
 # write the pack again, but does not build the areas again.
 
 layers:
+  # The continents, built from the countries (P3-T1e, DP174). Not painted on the map: the countries are.
+  - {id: continents, name: Continents, rank: 1, kind: land, made_by: continents, group: Boundaries, geometry: area, switched_on: true, fill: none}
   - {id: countries, name: Countries, rank: 2, kind: land, group: Boundaries, geometry: area, switched_on: true}
-  - {id: oceans, name: Oceans and seas, rank: 2, kind: water, group: Water, geometry: area, switched_on: true}
-  - {id: seas, name: "Seas, bays and straits", rank: 4, kind: water, group: Water, geometry: area, switched_on: true}
+  - {id: oceans, name: Oceans and seas, rank: 2, kind: water, group: Water, geometry: area, switched_on: true, fill: water}
+  - {id: seas, name: "Seas, bays and straits", rank: 4, kind: water, group: Water, geometry: area, switched_on: true, fill: water}
   # Seas, bays and straits that OSM has only as a point, found by search and Nearby, never said as where you are (DP168).
   - {id: sea-places, name: "Bays and straits, as places", rank: 8, kind: water, group: Water, geometry: point, switched_on: true, max_zoom_m: 100000}
+  # Mountain ranges from GMBA, in GMBA's own hierarchy, and Natural Earth's physical regions, such as deserts and
+  # plateaus (P3-T1f, DAT-5). Between countries and regions, so a county is still said first. Their areas overlap,
+  # so they are not painted on the map.
+  - {id: mountain-ranges, name: Mountain ranges, rank: 3, kind: land, made_by: physical, group: Physical features, geometry: area, switched_on: true, fill: none}
+  - {id: physical-regions, name: "Deserts, plateaus, plains and other regions", rank: 3, kind: land, made_by: physical, group: Physical features, geometry: area, switched_on: true, fill: none}
+  # Named peaks of 1,000 metres or more, as places, with their height (P3-T1f, DP169).
+  - {id: peaks, name: Peaks, rank: 8, kind: land, group: Physical features, geometry: point, switched_on: true, max_zoom_m: 50000}
   - {id: regions, name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000}
   # Islands, between regions and counties, so Tenerife is inside the Canary Islands region (P3-T1d).
-  - {id: islands, name: Islands, rank: 5, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000}
+  # Not painted: the counties under them are (P3-T1e).
+  - {id: islands, name: Islands, rank: 5, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000, fill: none}
   - {id: counties, name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 100000}
+  # Rivers of 50 km or more with a Wikidata link, joined into whole rivers (P3-T1g, DP169). Crossing one plays the
+  # line crossed sound (ANN-2).
+  - {id: rivers, name: Rivers, rank: 8, kind: land, made_by: osm-rivers, group: Water, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000}
+  # Lakes of 10 km2 or more (P3-T1h, DP169), above the counties, so on Lake Geneva you hear the lake first.
+  # Of kind land, as nothing is taken out of a lake: it lies on the land. It is painted as water.
+  - {id: lakes, name: Lakes, rank: 7, kind: land, made_by: osm-layer, group: Water, geometry: area, switched_on: true, fill: water}

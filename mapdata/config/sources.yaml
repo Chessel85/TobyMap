@@ -69,6 +69,42 @@ sources:
 
   # The test pack's samples, kept in the repository (architecture 11.1).
   # tests/samples/README.md says how each was made.
+  naturalearth-physical-regions:
+    name: Natural Earth, physical regions, 1:10 million
+    about: Named physical regions, such as deserts, plateaus, plains, peninsulas and mountain ranges, for the Physical regions layer (P3-T1f, DAT-5).
+    url: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_geography_regions_polys.geojson
+    file: naturalearth/ne_10m_geography_regions_polys.geojson
+    licence: Public domain
+    attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
+    refresh_days: 365
+
+  naturalearth-rivers:
+    name: Natural Earth, rivers and lake centre lines, 1:10 million
+    about: The world's main rivers, used only to check that the rivers read from OpenStreetMap miss none (P3-T1g).
+    url: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_rivers_lake_centerlines.geojson
+    file: naturalearth/ne_10m_rivers_lake_centerlines.geojson
+    licence: Public domain
+    attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
+    refresh_days: 365
+
+  gmba-mountains:
+    name: GMBA Mountain Inventory, version 2.0, standard
+    about: The world's mountain ranges, with their own hierarchy of ranges, for the Mountain ranges layer (P3-T1f, DAT-5). DOI 10.48601/earthenv-t9k2-1407.
+    url: https://data.earthenv.org/mountains/standard/GMBA_Inventory_v2.0_standard.zip
+    file: gmba/GMBA_Inventory_v2.0_standard.zip
+    licence: CC-BY 4.0
+    attribution: "Snethlage, M.A., Geschke, J., Spehn, E.M., Ranipeta, A., Yoccoz, N.G., Körner, Ch., Jetz, W., Fischer, M. & Urbach, D. GMBA Mountain Inventory v2. GMBA-EarthEnv. https://doi.org/10.48601/earthenv-t9k2-1407"
+    refresh_days: 730
+
+  hydrolakes-points:
+    name: HydroLAKES, version 1.0, lake points
+    about: A point and an area for every lake of 10 hectares or more, used only to check that the lakes read from OpenStreetMap miss no large lake (P3-T1h).
+    url: https://data.hydrosheds.org/file/hydrolakes/HydroLAKES_points_v10_shp.zip
+    file: hydrolakes/HydroLAKES_points_v10_shp.zip
+    licence: CC-BY 4.0
+    attribution: "Messager, M.L., Lehner, B., Grill, G., Nedeva, I., Schmitt, O. (2016). Estimating the volume and age of water stored in global lakes using a geo-statistical approach. Nature Communications 7: 13603. HydroLAKES, www.hydrosheds.org."
+    refresh_days: 730
+
   sample-world:
     name: Natural Earth, admin 0 countries, 1:110 million, test sample
     repo: tests/samples/world-naturalearth-110m.geojson

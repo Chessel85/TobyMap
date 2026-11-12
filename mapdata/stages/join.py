@@ -56,8 +56,13 @@ GRID_STEP = 0.25  # the no-gaps check, every quarter of a degree (LOC-6)
 # 2.2 million km2, is the largest island, and Australia, about 7.7 million, the smallest continent.
 CONTINENT_KM2 = 3_000_000.0
 UNNAMED_ISLAND_KM2 = 1.0   # an island with no name is kept from this size (DP169)
+# An island OSM has only as a point names a landmass of at most this size. OSM maps larger islands as areas, so a
+# larger landmass with only a point in it is not that island: in the Western Europe trial, an islet in a lake named
+# the whole mainland, as lakes are land in the land polygons.
+POINT_ISLAND_MAX_KM2 = 1000.0
 NAMED_SHARE = 0.5          # land in one part this much covered by named islands takes the largest for the rest
 UNNAMED_ISLAND = "Unnamed island"
+ISLAND_ALSO_AREA_SUFFIX = "#as-island"   # an island that has the same id as a country, region or county
 
 
 UNJOINED: list[str] = []  # the areas whose parts could not be dissolved into one shape, for the report
@@ -321,7 +326,9 @@ def run(ctx) -> None:
     sliver_counties(ctx, shapes, by_id)
     island_pairs: set = set()
     if areas.get("islands"):
-        island_records, island_pairs = name_islands(shapes, by_id, ctx.progress.line)
+        # A trial's reading box, from the grid squares stage, so a mainland it cuts is not taken for an island.
+        box = next((st.get("box") for st in ctx.pack.stages if st.get("stage") == "squares"), None)
+        island_records, island_pairs = name_islands(shapes, by_id, ctx.progress.line, box)
         new_records.update(island_records)
 
     # The layers: each area joined once, from all its parts.
@@ -507,7 +514,7 @@ def settle_seas(ctx, shapes: dict[tuple, list]) -> None:
                       f"given the sea beside them, and {total - settled} have no sea beside them.")
 
 
-def name_islands(shapes: dict[tuple, list], by_id: dict, say=print) -> tuple[dict[str, dict], set]:
+def name_islands(shapes: dict[tuple, list], by_id: dict, say=print, box=None) -> tuple[dict[str, dict], set]:
     """The islands of land that no named island area covers (P3-T1d, DP169).
 
     Every part of land is grouped with the parts it touches, across grid squares and borders, so each group is
@@ -516,11 +523,13 @@ def name_islands(shapes: dict[tuple, list], by_id: dict, say=print) -> tuple[dic
 
     * takes the largest named island on it, where named islands cover at least NAMED_SHARE of it, as where
       OSM's island outline stops short of the coast;
-    * otherwise takes the name of an island that OSM has only as a point, inside that land;
+    * otherwise takes the name of an island that OSM has only as a point, inside that land, if the island is no
+      more than POINT_ISLAND_MAX_KM2;
     * otherwise is an "Unnamed island", if the whole island is UNNAMED_ISLAND_KM2 or more;
     * otherwise has no island.
 
-    On a continent, land outside a named island has no island. An island that crosses a border, such as
+    On a continent, land outside a named island has no island. In a trial, a landmass the reading box (box) cuts
+    is taken as a continent, as its size is not known. An island that crosses a border, such as
     Märket, is one island in both countries, as its land carries the same island in each.
 
     shapes is changed in place: its land is split into single polygons and relabelled. Returns the records of
@@ -575,13 +584,18 @@ def name_islands(shapes: dict[tuple, list], by_id: dict, say=print) -> tuple[dic
     island = [grid.island_in(k) for k in labels]
     records: dict[str, dict] = {}
     counts = {"largest": 0, "point": 0, "unnamed": 0, "none": 0, "continent": 0}
+    cut = np.zeros(len(polys), bool)   # parts that reach the reading box's edge
+    if box is not None:
+        w, s, e, n = box
+        eps = 1e-6
+        cut = (b[:, 0] <= w + eps) | (b[:, 1] <= s + eps) | (b[:, 2] >= e - eps) | (b[:, 3] >= n - eps)
     for root in sorted(groups):
         members = groups[root]
         total = float(km2[members].sum())
         free = [i for i in members if island[i] is None]
         if not free:
             continue
-        if total > CONTINENT_KM2:
+        if total > CONTINENT_KM2 or cut[members].any():
             counts["continent"] += 1
             continue
         named: dict[str, float] = defaultdict(float)
@@ -593,7 +607,7 @@ def name_islands(shapes: dict[tuple, list], by_id: dict, say=print) -> tuple[dic
         if named and sum(named.values()) >= NAMED_SHARE * total:
             iid = max(sorted(named), key=lambda k: named[k])
             counts["largest"] += 1
-        elif found:
+        elif found and total <= POINT_ISLAND_MAX_KM2:
             iid = found[0]["id"]
             records[iid] = {k: v for k, v in found[0].items() if k != "point"}
             counts["point"] += 1
@@ -616,7 +630,7 @@ def name_islands(shapes: dict[tuple, list], by_id: dict, say=print) -> tuple[dic
         f"{counts['largest']:,} islands, given the largest named island there; {counts['point']:,} islands named "
         f"from OSM's island points; {counts['unnamed']:,} named {UNNAMED_ISLAND}, each {UNNAMED_ISLAND_KM2:g} km2 or "
         f"more; {counts['none']:,} smaller ones left with no island; and on {counts['continent']} continents, "
-        f"no island.")
+        f"or landmasses cut by the reading box, no island.")
     return records, pairs
 
 
@@ -634,7 +648,7 @@ def keep_ids_unique(records: list[dict]) -> None:
     taken = {r["id"] for r in records if r["layer"] != "islands"}
     for r in records:
         if r["layer"] == "islands" and r["id"] in taken:
-            r["id"] += grid.ISLAND_ALSO_AREA_SUFFIX
+            r["id"] += ISLAND_ALSO_AREA_SUFFIX
 
 
 def sliver_counties(ctx, shapes: dict[tuple, list], by_id: dict) -> None:

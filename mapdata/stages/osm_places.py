@@ -21,7 +21,8 @@ Settings:
 * source: the planet file's source key, planet.
 * layer: the layer of places, such as sea-places.
 * queries: a list, each with query (GeoDesk's query language, such as
-  "n[natural=bay][name]") and type (such as bay).
+  "n[natural=bay][name]") and type (such as bay); with elevation: true, the
+  place keeps its height in metres from OSM's ele tag, as for peaks (P3-T1f).
 * same_as: optional, a layer whose names the places must not repeat.
 * box: optional, [west, south, east, north].
 """
@@ -57,6 +58,18 @@ def place_record(osm_id: str, tags: dict, layer: str, kind: str) -> dict | None:
     return r
 
 
+def elevation_m(text) -> float | None:
+    """A height from OSM's ele tag, such as "4808", "4808.7" or "4808 m"; None when it is not a number."""
+    t = str(text or "").strip().lower().removesuffix("m").strip()
+    if "," in t:   # "4,808": a decimal comma or a thousands comma, so not known
+        return None
+    try:
+        v = float(t)
+    except ValueError:
+        return None
+    return round(v, 1) if -500 < v < 9000 else None
+
+
 def osm_id(f) -> str:
     return f"osm:{'n' if f.is_node else 'w' if f.is_way else 'r'}{f.id}"
 
@@ -82,6 +95,10 @@ def read(gol: Path, queries: list[dict], layer: str, box, say=print) -> tuple[li
             rec = place_record(fid, tags, layer, q["type"])
             if rec is None:
                 continue
+            if q.get("elevation"):
+                ele = elevation_m(f.tags["ele"])
+                if ele is not None:
+                    rec["elevation_m"] = ele
             if f.is_node:
                 point = shapely.Point(f.lon, f.lat)
             else:

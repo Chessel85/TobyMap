@@ -258,7 +258,6 @@ def county_of(hits, meta, rules, base, country, region, km2, rows):
 
 COUNTY_SUFFIX = "#county"   # a region used as its own county, as in spike S2
 COUNTY_ALSO_REGION_SUFFIX = "#as-county"   # a county that has the same id as a region, so its id stays unique
-ISLAND_ALSO_AREA_SUFFIX = "#as-island"   # an island that has the same id as a country, region or county
 
 
 SEA_WAITING = "?"   # water in no marine area, between a sea's rough coast and the real one: its sea is found next

@@ -85,6 +85,29 @@ def test_an_island_point_names_the_landmass_whatever_its_size():
     assert ("land", "c", None, None, "osm:n1") in shapes
 
 
+def test_an_island_point_does_not_name_a_landmass_larger_than_osm_maps_islands_as_points():
+    """In the Western Europe trial an islet in a lake, Bieberinsel, named the mainland, as lakes are land in the
+    land polygons. A landmass over POINT_ISLAND_MAX_KM2 is not named from a point: it is an Unnamed island."""
+    d = _deg_km2(2000)
+    by_id = {"osm:n1": {**island_record("osm:n1", {"name": "Bieberinsel"}, "islet"), "kind": "island point",
+                        "point": [10 + d / 2, d / 2]}}
+    shapes = {("land", "c", None, None, None): [shapely.box(10, 0, 10 + d, d)]}
+    records, _ = join.name_islands(shapes, by_id, say=lambda _t: None)
+    assert "osm:n1" not in records
+    assert [r["name"] for r in records.values()] == [join.UNNAMED_ISLAND]
+
+
+def test_a_landmass_cut_by_the_reading_box_is_no_island():
+    """A trial's reading box cuts the mainland, so its size is not known: it is taken as a continent."""
+    d = _deg_km2(50)
+    shapes = {("land", "c", None, None, None): [shapely.box(10, 0, 10 + d, d)],
+              ("land", "c", "r", None, None): [shapely.box(20, 0, 20 + d, d)]}
+    records, _ = join.name_islands(shapes, {}, say=lambda _t: None, box=[10, -1, 30, 1])
+    assert list(records.values()) == [{"id": records and next(iter(records)), "name": join.UNNAMED_ISLAND,
+                                       "kind": "island", "type": "unnamed island"}]
+    assert ("land", "c", None, None, None) in shapes   # the one at the box's west edge has no island
+
+
 def test_land_left_by_a_short_island_outline_takes_that_island():
     d = _deg_km2(100)
     shapes = {("land", "c", None, None, "osm:w1"): [shapely.box(0, 0, d * 0.9, d)],
@@ -132,6 +155,6 @@ def test_an_island_with_the_id_of_a_region_gets_an_ending_so_every_id_is_differe
     ]
     join.keep_ids_unique(records)
     ids = [r["id"] for r in records]
-    assert ids == ["osm:r1", "osm:r1" + grid.ISLAND_ALSO_AREA_SUFFIX, "osm:r2", "osm:r3",
-                   "osm:r3" + grid.ISLAND_ALSO_AREA_SUFFIX]
+    assert ids == ["osm:r1", "osm:r1" + join.ISLAND_ALSO_AREA_SUFFIX, "osm:r2", "osm:r3",
+                   "osm:r3" + join.ISLAND_ALSO_AREA_SUFFIX]
     assert len(set(ids)) == len(ids)

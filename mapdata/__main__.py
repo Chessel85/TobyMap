@@ -59,6 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
     rp.add_argument("folder", help="the osm-areas stage's folder, holding its request")
     rpl = sub.add_parser("read-places", help="used by build: read the planet file in its own process (osm-places)")
     rpl.add_argument("folder", help="the osm-places stage's folder, holding its request")
+    rip = sub.add_parser("read-in-process", help="used by build: a stage's reading in its own process")
+    rip.add_argument("module", choices=["osm_layer", "osm_rivers"], help="the stage module in mapdata/stages")
+    rip.add_argument("folder", help="the stage's folder, holding its request")
     wx = sub.add_parser("spike-s2-water", help="used by spike-s2: read the inland water in its own process")
     wx.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
     ins = sub.add_parser("inspect", help="ask a pack about itself: its manifest, one feature, or what is at a point",
@@ -329,6 +332,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "read-places":
         from mapdata.stages import osm_places
         return osm_places.main(Path(args.folder))
+    if args.command == "read-in-process":
+        from importlib import import_module
+        return import_module(f"mapdata.stages.{args.module}").main(Path(args.folder))
     if args.command == "inspect":
         return cmd_inspect(args)
     return 1

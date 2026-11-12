@@ -20,6 +20,7 @@ from dataclasses import dataclass, replace
 
 GEOMETRIES = ("area", "line", "point")
 LINE_STYLES = ("plain", "special")   # how a line layer is drawn (P2-T17v, DAT-13)
+FILLS = ("land", "water", "none")    # how an area layer is painted (P3-T1e)
 DEFAULT_MIN_SIZE = 0.02   # an area must be at least 2% of the zoom distance across (DP80)
 
 # What a layer definition may hold, with the value used when a pack leaves it out.
@@ -34,6 +35,7 @@ DEFAULTS = {
     "crossing_earcons": None,  # {line type: earcon event}: a line of that type plays its own instead
     "sound": None,             # the sound of its features in "hear its direction" and look around
     "line_style": "plain",     # plain, or special: drawn thicker and in the theme's colour for special lines
+    "fill": None,              # land, water or none: how the map paints an area (P3-T1e); None: as before
 }
 # What the user can change in the layers list (SCP-7).
 USER_FIELDS = ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound")
@@ -53,6 +55,7 @@ class Layer:
     crossing_earcons: tuple = ()   # (line type, earcon event) pairs, from the layer file
     sound: str | None = None
     line_style: str = "plain"
+    fill: str | None = None
     changed: tuple = ()        # the fields the user has changed from the pack's definition
 
     def in_zoom(self, zoom_m: float) -> bool:
@@ -112,6 +115,8 @@ def from_definition(d: dict) -> Layer:
         values["geometry"] = "area"
     if values["line_style"] not in LINE_STYLES:
         values["line_style"] = "plain"   # a style from a newer pack is drawn plain
+    if values["fill"] not in FILLS:
+        values["fill"] = None   # a fill from a newer pack is painted as before
     values["min_zoom_m"] = float(values["min_zoom_m"] or 0.0)
     if values["max_zoom_m"] is not None:
         values["max_zoom_m"] = float(values["max_zoom_m"])

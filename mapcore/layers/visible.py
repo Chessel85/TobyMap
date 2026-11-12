@@ -185,21 +185,36 @@ class VisibleRule:
         widths, layer_of = index.sizes
         return numbers, boxes, widths, layer_of
 
+    def _layer_codes(self, p: int):
+        """Each feature's layer as a number, and the layer ids in that order, worked out once a pack: comparing
+        the layer id of every feature as text, for each layer, took about 100 ms a frame on the world pack."""
+        codes = getattr(self, "_codes", None)
+        if codes is None:
+            codes = self._codes = {}
+        layer_of = self._table(p)[3]
+        got = codes.get(p)
+        if got is None or got[0] is not layer_of:
+            ids, inverse = np.unique(np.asarray(layer_of), return_inverse=True)
+            got = codes[p] = (layer_of, [str(i) for i in ids.tolist()], inverse.astype(np.intp).ravel())
+        return got[1], got[2]
+
     def _candidates(self, p: int, zoom_m: float) -> np.ndarray:
         """The rows of the pack's feature table that pass the first three tests."""
         numbers, boxes, widths, layer_of = self._table(p)
-        keep = np.zeros(len(numbers), bool)
-        for layer_id in set(layer_of.tolist()):
-            rows = layer_of == layer_id
+        ids, code = self._layer_codes(p)
+        shown = np.zeros(len(ids), bool)
+        least = np.zeros(len(ids), float)   # the least width in metres, for an area layer
+        for k, layer_id in enumerate(ids):
             layer = self.layers.get(layer_id)
             if layer is None:
-                keep |= rows
+                shown[k] = True
                 continue
             if not (layer.on and layer.in_zoom(zoom_m)):
                 continue
+            shown[k] = True
             if layer.geometry == "area":
-                rows = rows & (widths * 1000.0 >= layer.min_size * zoom_m)
-            keep |= rows
+                least[k] = layer.min_size * zoom_m
+        keep = shown[code] & (widths * 1000.0 >= least[code])
         return np.nonzero(keep)[0]
 
     # The view -----------------------------------------------------------------------
@@ -234,7 +249,7 @@ class VisibleRule:
         The tiles are the map's own at this zoom (P1-T9), so they are usually read
         already. A feature that drawing level leaves out as small is looked for in
         the coarsest drawing level that holds it, or the exact pack tiles."""
-        from mapcore.render.scene import drawing_source
+        from mapcore.render.scene import drawing_source, holds
 
         index = self.store._indexes[p]
         kind, d = drawing_source(index, zoom_m / 1000.0)
@@ -246,10 +261,16 @@ class VisibleRule:
         by_plan: dict = {}
         for n in undecided - found:
             area = self.store._area(p, n)
-            size = math.inf if area is None else area.area_km2
-            if size >= d.get("min_km2", 0.0):
+            if area is None:
+                continue
+            size = area.area_km2
+            layer = self.layers.get(area.layer)
+            # A drawing level keeps every line and place of the layers it holds, and an area's largest part.
+            whole = layer is not None and layer.geometry != "area"
+            if holds(d, area.layer) and (whole or size >= d.get("min_km2", 0.0)):
                 continue   # it is in this drawing level, so it was looked for
-            holder = next((level for level in levels if level.get("min_km2", 0.0) <= size), None)
+            holder = next((level for level in levels if holds(level, area.layer)
+                           and (whole or level.get("min_km2", 0.0) <= size)), None)
             key = ("tile", None, None) if holder is None else ("draw", holder["id"], holder["tile_level"])
             by_plan.setdefault(key, set()).add(n)
         for key, small in by_plan.items():

@@ -548,8 +548,40 @@ Each feature record holds:
 ### 6.11a Islands (P3-T1d)
 * The osm-areas stage, with islands: true, reads each named island and islet (place=island or place=islet) as an area, and those mapped only as a point as a point.
 * Land in a grid square carries a fifth part in its label: the island, after the country, region and county. The island is the smallest island area that covers the land. Land waiting for its country keeps its island.
-* The join stage finds landmasses: all the land parts that touch, joined with union-find. A landmass over 3,000,000 km2 is a continent and gets no island. Where at least half of a landmass's area is in named islands, the largest named island fills the rest. Otherwise an island point inside it names it. Otherwise it is an "Unnamed island", with id island:unnamed:lat:lon, if it is at least 1 km2.
+* The join stage finds landmasses: all the land parts that touch, joined with union-find. A landmass over 3,000,000 km2 is a continent and gets no island; so is one a trial's reading box cuts, as its size is not known. Where at least half of a landmass's area is in named islands, the largest named island fills the rest. Otherwise an island point inside it names it, if the landmass is no more than 1,000 km2: OSM maps larger islands as areas, and an islet in a lake lies on the land of the land polygons. Otherwise it is an "Unnamed island", with id island:unnamed:lat:lon, if it is at least 1 km2.
 * The Islands layer has rank 5, between regions (4) and counties (6). Neighbouring islands get different colour numbers, as other areas do.
+
+### 6.11b Layers made by stages of their own (P3-T1e)
+* The countries, regions, counties, islands, oceans and seas are made by the grid squares and the join, from one partition of the world. The layers of Phase 3 that lie over them, the continents, mountain ranges, physical regions, lakes, rivers and peaks, are each made by a stage of their own, after the join, which keeps every feature of the stage before and adds its own.
+* Such a layer says so in its layer file, with made_by. It is left out of the fingerprints of the planet reading, the grid squares and the join, so adding one, or changing one, never runs those stages again. Before this, adding any area layer would have made the world build read the planet file again and build every grid square again, about 3 hours.
+* Every id in a pack is different. Two layers can take features from the same OSM object: the world build of P3-T1d stopped at its last step because an island and a region were both osm:r1814783. The writing stage, which every feature passes through, now gives any id already used by another layer the ending "#as-" and the layer's id, and lists it in the log, so no layer, now or later, can stop a build at its end in this way.
+* A layer's fill says how the map paints it: land, water, or none for a layer over the others. Lakes are painted as water. The continents, mountain ranges, physical regions and islands are not painted, so the countries and counties under them stay visible. Water is painted first, then the land, each in its layer order. The areas of a layer that is not painted may overlap, so at each drawing level they are simplified one at a time, not as a coverage.
+
+### 6.11c Continents (P3-T1e, DAT-12, DP174, DP88)
+* The continents stage builds the seven continents from the Countries layer, with the settings in mapdata/config/continents.yaml.
+* Each continent has rough areas, taken in order; the last, Asia, has every place the others do not hold, so together they cover the world once, and no land is in no continent or in two.
+* A country goes whole to the continent whose area holds most of its land. Its parts are put in groups, where parts within 300 km of each other, through the parts between, are one group, marked on cells of half a degree. A group other than the main one goes to the continent whose area holds most of it, so the Canary Islands are in Africa, Hawaii in Oceania and Bouvet Island in Antarctica, but Corsica stays with France and Kastellorizo with Greece (DP88).
+* The countries in DP174 that span two continents, Russia, Kazakhstan, Turkey, Egypt, Georgia, Azerbaijan and Indonesia, are cut along the edges of the areas, which for them are the dividing lines: the Urals, the Ural River from Natural Earth's rivers, the Caspian Sea, the main ridge of the Greater Caucasus to Russia's border with Abkhazia, the Bosphorus, the Sea of Marmara and the Dardanelles, the Suez Canal, and the sea between New Guinea and the rest of Indonesia. Cyprus is in Europe, as you chose.
+* Each continent's shape is the union of its countries' land, so it follows the coast. The rehearsal on the world's countries took 12 minutes and gave seven valid shapes, none overlapping another.
+
+### 6.11d Mountain ranges, physical regions and peaks (P3-T1f, DAT-5)
+* The physical stage reads the GMBA Mountain Inventory version 2 and Natural Earth's physical regions, and cuts each area to the land with the OSM land polygons, so at sea you are never in a mountain range.
+* GMBA's ranges keep GMBA's hierarchy, from its level 3 to 7: each range names the nearest range above it as its parent, so Within lists the Bernese Alps, the Western Alps and the Alps. The ranges overlap each other, so the layer is not painted.
+* Natural Earth's physical regions keep the classes the settings name, such as deserts, plateaus, plains and peninsulas; its islands, mountain ranges, continents and lakes are left out, as other layers hold them.
+* Both are rank 3, between countries and regions, so a county is still said first, and the Alps are said when you enter them (DAT-5).
+* Peaks and volcanoes of 1,000 metres or more with a name are places in the layer peaks, read by the osm-places stage, each with its height (DP169).
+
+### 6.11e Rivers (P3-T1g)
+* The osm-rivers stage joins OpenStreetMap's river ways into whole rivers by their Wikidata link: a waterway relation's ways, and the ways in no relation that carry the same link. Each way keeps the direction it is drawn in, which is the way the water flows, and the ways are joined end to end where they meet, so the line runs from source to mouth for Phase 5. A river with branches, such as a delta, is one feature with several lines.
+* A relation for a section of a river, such as the Upper Rhine, is left out, as its ways are the river's.
+* Rivers of 50 km or more are kept (DP169). A river relation with no Wikidata link, on it or on most of its ways, is kept from 200 km, as the relation shows it is a whole river; this found Brazil's Rio Verde and the Kotto, which have none.
+* They are checked against Natural Earth's rivers of 500 km or more, by Wikidata link, by name nearby, ignoring accents and words such as River, or by place. The rehearsal on the whole world matched 381 of Natural Earth's 390; the rest are rivers OpenStreetMap has only as loose ways with no link, or under another name.
+* The fall-back in the plan, Natural Earth's rivers, was not needed: the rehearsal read and joined the world's rivers in about 2 minutes: 12,993 rivers, 4.3 million points.
+
+### 6.11f Lakes (P3-T1h)
+* The osm-layer stage reads OpenStreetMap's named lakes, reservoirs and lagoons of 10 km2 or more (DP169), simplified to 100 m, into the layer lakes, each one feature: Lake Geneva is one lake on both sides of the border, and its record will list both countries when the relationships are worked out (P3-T3).
+* The lakes are rank 7, above counties, so on Lake Geneva you hear the lake first (LOC-2). They are painted as water.
+* They are checked against HydroLAKES: each HydroLAKES lake of 100 km2 or more should have a lake of the layer near its point, or one with its name nearby.
 
 ### 6.12 Countries, coastlines and islands
 This section answers "architecture thoughts.txt". You found this the hardest part of AtlasDL, so it is the first thing spike S2 tests.

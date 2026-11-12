@@ -38,6 +38,16 @@ Older documents written before this glossary, such as architecture section 6 and
 * Continent dividing line: a line set in the pipeline's settings along which a country is split between two continents, such as the Ural Mountains through Russia (DAT-12).
 * Landmass: all the land parts that touch each other, however many countries or regions they are in. Britain is one landmass; so is Eurasia.
 * Unnamed island: a landmass of at least 1 km2 that no island area or island point in OpenStreetMap names. TobyMap says "Unnamed island".
+* Continent area: one of the rough areas, in mapdata/config/continents.yaml, that say where each continent is. A country goes to the continent whose area holds most of its land. For the few countries split between two continents, such as Russia, the edges of the areas are the continent dividing lines (P3-T1e).
+* Distant parts: a group of a country's parts more than 300 km from the rest of it, such as the Canary Islands for Spain or Hawaii for the United States. They go to the continent they are in, not the country's (DP88).
+* Mountain range: an area in the Mountain ranges layer, from the GMBA Mountain Inventory, cut to the land. Ranges sit inside other ranges, such as the Bernese Alps in the Western Alps in the Alps, and each names the one above it.
+* Physical region: an area in the layer of deserts, plateaus, plains and other regions, from Natural Earth, cut to the land, such as the Sahara or the Iberian Peninsula.
+* Peak: a named mountain top of 1,000 metres or more from OpenStreetMap, a place in the Peaks layer, with its height.
+* River: a feature in the Rivers layer: all the OpenStreetMap ways of one river, found by its Wikidata link, joined end to end in the direction the water flows. A river with branches, such as a delta, has several lines.
+* Section of a river: an OpenStreetMap relation for part of a river, such as the Upper Rhine, whose ways are the river's. It is left out, as the river has them.
+* Lake: a feature in the Lakes layer: a named lake, reservoir or lagoon of 10 km2 or more from OpenStreetMap, as one area, even where it crosses a border.
+* Outlet point: the point HydroLAKES gives for each lake, where the lake flows out. It can be kilometres down the lake's river, so the lakes check also looks for the lake by its name.
+* Rehearsal: running one new stage on the world's data already on disk, such as the countries from the last world build's join, without a world build, to find its time and its problems before the world build does.
 
 ## OpenStreetMap data
 

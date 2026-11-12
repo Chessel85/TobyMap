@@ -450,7 +450,8 @@ class MapSession:
                                   names=v["map_names"] and self.holding is None,
                                   label_scale=v["label_size"] / 100.0, heading_up=v["heading_up"],
                                   special_layers=frozenset(layer.id for layer in self.layers.layers()
-                                                           if layer.line_style == "special"))
+                                                           if layer.line_style == "special"),
+                                  fills={layer.id: layer.fill for layer in self.layers.layers()})
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
 

@@ -133,7 +133,8 @@ def load_sources(config_dir: Path = CONFIG_DIR) -> dict[str, Source]:
 # layer (SCP-7, mapcore/layers/catalogue.py). These are written into the pack, and
 # only the write stage depends on them, so changing them does not build the areas again.
 SHOWN_FIELDS = ("group", "geometry", "switched_on", "min_zoom_m", "max_zoom_m", "min_size", "crossing_earcon",
-                "crossing_earcons", "sound", "line_style")
+                "crossing_earcons", "sound", "line_style", "fill")
+FILLS = ("land", "water", "none")
 GEOMETRIES = ("area", "line", "point")
 
 
@@ -145,6 +146,7 @@ class Layer:
     kind: str  # land or water
     shown: tuple = ()   # (field, value) pairs from SHOWN_FIELDS, as the layer file gives them
     group_file: str = ""   # the layer file it came from, such as base for mapdata/config/layers/base.yaml
+    made_by: str = ""   # the stage that makes the layer, when it is not the grid squares and join (P3-T1e)
 
     @property
     def geometry(self) -> str:
@@ -161,7 +163,7 @@ class Layer:
 
 def _check_shown(item: dict, path: Path) -> tuple:
     name = f"The layer {item['id']} in {path.name}"
-    unknown = sorted(set(item) - {"id", "name", "rank", "kind", *SHOWN_FIELDS})
+    unknown = sorted(set(item) - {"id", "name", "rank", "kind", "made_by", *SHOWN_FIELDS})
     if unknown:
         raise BuildStopped(f"{name} has a setting mapdata does not know: {', '.join(unknown)}. "
                            "Check the spelling against docs/data-manager/configuration.md.")
@@ -177,6 +179,8 @@ def _check_shown(item: dict, path: Path) -> tuple:
         raise BuildStopped(f"{name} has min_zoom_m larger than max_zoom_m. The minimum zoom, the closest, comes first.")
     from mapcore.describe import earcon_list
 
+    if item.get("fill", "land") not in FILLS:
+        raise BuildStopped(f"{name} has fill: {item['fill']}; use land, water or none.")
     if item.get("line_style", "plain") not in ("plain", "special"):
         raise BuildStopped(f"{name} has line_style: {item['line_style']}; use plain or special.")
     events = [e["event"] for e in earcon_list()]
@@ -206,7 +210,7 @@ def load_layers(groups: list[str], config_dir: Path = CONFIG_DIR) -> dict[str, L
             if item["id"] in out:
                 raise BuildStopped(f"The layer {item['id']} is defined twice. Keep one, then build again.")
             out[item["id"]] = Layer(item["id"], item["name"], int(item["rank"]), item["kind"],
-                                    _check_shown(item, path), group)
+                                    _check_shown(item, path), group, str(item.get("made_by") or ""))
     return out
 
 
@@ -257,10 +261,13 @@ def load_pack(name: str, config_dir: Path = CONFIG_DIR) -> PackSettings:
 
 
 def stage_sources(stage: dict) -> list[str]:
-    """The source keys a stage's settings name: "source", "sources", "seas", and "source" inside "samples"."""
+    """The source keys a stage's settings name: "source", "sources", "seas", "check" (a source used only to
+    check the layer, P3-T1h), and "source" inside "samples"."""
     keys = []
     if stage.get("source"):
         keys.append(stage["source"])
+    if isinstance(stage.get("check"), str):
+        keys.append(stage["check"])
     keys += list(stage.get("sources") or [])
     if isinstance(stage.get("seas"), str):
         keys.append(stage["seas"])

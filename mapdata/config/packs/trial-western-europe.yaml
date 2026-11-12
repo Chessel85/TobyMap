@@ -50,6 +50,71 @@ stages:
   - stage: graticule
     year: 2026
     source: naturalearth-geographic-lines
+  # The continents, from the countries, split along the lines in mapdata/config/continents.yaml (P3-T1e, DP174).
+  - stage: continents
+  # Lakes, reservoirs and lagoons of 10 km2 or more, from OpenStreetMap, checked against HydroLAKES (P3-T1h, DP169).
+  - stage: osm-layer
+    source: planet
+    layer: lakes
+    queries:
+      - {query: "a[natural=water][water=lake][name]", type: lake}
+      - {query: "a[natural=water][water=reservoir][name]", type: reservoir}
+      - {query: "a[natural=water][water=lagoon][name]", type: lagoon}
+      # Some large lakes are tagged as ponds, such as the Etang de Berre.
+      - {query: "a[natural=water][water=pond][name]", type: lake}
+      - {query: "a[natural=water][!water][name]", type: lake}
+      - {query: "a[landuse=reservoir][name]", type: reservoir}
+    min_km2: 10
+    tolerance_m: 100
+    # The Caspian Sea is a lake in OpenStreetMap, but already in the Oceans and seas layer.
+    same_as: [oceans, seas]
+    check: hydrolakes-points
+    check_km2: 100
+    check_within_km: 2
+    box: [-11.0, 35.0, 17.0, 61.0]
+  # Whole rivers of 50 km or more with a Wikidata link, from OpenStreetMap, checked against Natural Earth (P3-T1g, DP169).
+  - stage: osm-rivers
+    source: planet
+    layer: rivers
+    min_km: 50
+    # A river relation with no Wikidata link, on it or on most of its ways, is kept from this length.
+    min_km_unlinked: 200
+    tolerance_m: 100
+    check: naturalearth-rivers
+    check_km: 500
+    check_within_km: 5
+    box: [-11.0, 35.0, 17.0, 61.0]
+  # Mountain ranges (GMBA) and physical regions (Natural Earth), cut to the land (P3-T1f, DAT-5, DP169).
+  - stage: physical
+    sources: [gmba-mountains, naturalearth-physical-regions, land-polygons]
+    ranges:
+      source: gmba-mountains
+      layer: mountain-ranges
+      # GMBA's levels 1 and 2 are continents and parts of them; below 7 the ranges are small and many.
+      min_level: 3
+      max_level: 7
+      # GMBA's grouped sub-ranges, such as "Southeast Europe", only from this level down.
+      sub_range_min_level: 4
+      tolerance_m: 300
+    regions:
+      source: naturalearth-physical-regions
+      layer: physical-regions
+      tolerance_m: 300
+      # Natural Earth's classes kept, and what each is called. Its islands, mountain ranges, continents and lakes
+      # are left out, as the islands, mountain ranges, continents and lakes layers hold them.
+      classes: {Plateau: plateau, Desert: desert, Plain: plain, Peninsula: peninsula, Pen/cape: peninsula,
+                Basin: basin, Delta: delta, Valley: valley, Lowland: lowland, Tundra: tundra, Isthmus: isthmus,
+                Wetlands: wetland, Gorge: gorge, Foothills: foothills, Depression: depression, Geoarea: region,
+                Island group: group of islands}
+    box: [-11.0, 35.0, 17.0, 61.0]
+  # Named peaks and volcanoes of 1,000 metres or more, as places, with their height (P3-T1f, DP169).
+  - stage: osm-places
+    source: planet
+    layer: peaks
+    queries:
+      - {query: "n[natural=peak][name][ele>=1000]", type: peak, elevation: true}
+      - {query: "n[natural=volcano][name][ele>=1000]", type: volcano, elevation: true}
+    box: [-11.0, 35.0, 17.0, 61.0]
   - stage: write
     drawing_levels:
       # As the world pack's, so the sizes compare.
@@ -63,3 +128,4 @@ stages:
       - tests/acceptance/coastline_places_belgium.yaml
       - tests/acceptance/coastline_places_stage2.yaml
       - tests/acceptance/sea_places.yaml
+      - tests/acceptance/continent_places.yaml

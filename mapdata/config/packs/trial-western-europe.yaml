@@ -107,12 +107,13 @@ stages:
                 Wetlands: wetland, Gorge: gorge, Foothills: foothills, Depression: depression, Geoarea: region,
                 Island group: group of islands}
     box: [-11.0, 35.0, 17.0, 61.0]
-  # Named peaks and volcanoes of 1,000 metres or more, as places, with their height (P3-T1f, DP169).
+  # Named peaks and volcanoes of 1,000 metres or more, as places, with their height (P3-T1f, DP169). Peaks only
+  # with a Wikidata link, the notable ones (DP176, option 2).
   - stage: osm-places
     source: planet
     layer: peaks
     queries:
-      - {query: "n[natural=peak][name][ele>=1000]", type: peak, elevation: true}
+      - {query: "n[natural=peak][name][wikidata][ele>=1000]", type: peak, elevation: true}
       - {query: "n[natural=volcano][name][ele>=1000]", type: volcano, elevation: true}
     box: [-11.0, 35.0, 17.0, 61.0]
   # Cities and towns, as places, with their population from OSM and the areas each is in (P3-T1j).

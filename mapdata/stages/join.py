@@ -70,15 +70,63 @@ UNJOINED: list[str] = []  # the areas whose parts could not be dissolved into on
 
 def union_parts(geoms, what: str = "an area"):
     """The parts joined into one shape. Parts from neighbouring grid squares meet exactly, so the quick coverage
-    union is tried first. Where a vertex on a shared edge is missing on one side it refuses ("incorrectly noded"),
-    and joining on a fixed grid instead took hours on the world's coasts, so the parts are kept side by side in one
-    multi-part shape, which holds the same land or water, and the area is listed in the report."""
+    union is used. Where a point on a shared edge is missing on one side, it refuses ("incorrectly noded"), or on a
+    small shape quietly leaves the two sides apart, so the missing points are always added first
+    (mend_shared_edges), which takes under a second for the North Atlantic. In the world build, 105 areas had
+    refused, among them the North Atlantic, Russia and Canada; the North Atlantic took 2 minutes once mended, and
+    the plain union had not finished it after 30 (P3-T1m). If it still refuses, the parts are kept side by side in
+    one multi-part shape, which holds the same land or water, and the area is listed for the report. Parts with no
+    area, flat rings left along a grid square's edge, as in Afuá along the equator, are left out: they hold no land
+    or water, and the quick join refuses them."""
+    parts = np.asarray([p for g in geoms for p in shapely.get_parts(g) if not p.is_empty], dtype=object)
+    if len(parts):
+        parts = parts[shapely.area(parts) > 0]
     try:
-        return shapely.coverage_union_all(geoms)
+        return shapely.coverage_union_all(mend_shared_edges(parts))
     except shapely.errors.GEOSException:
         UNJOINED.append(what)
-        flat = [p for g in geoms for p in shapely.get_parts(g) if not p.is_empty]
-        return shapely.MultiPolygon(flat) if len(flat) > 1 else (flat[0] if flat else shapely.Polygon())
+        return shapely.MultiPolygon(list(parts)) if len(parts) > 1 else (parts[0] if len(parts) else shapely.Polygon())
+
+
+def mend_shared_edges(parts: np.ndarray) -> np.ndarray:
+    """The parts, each given the points on its edges that a neighbour has there and it lacks (P3-T1m).
+
+    Parts meet along grid lines, and every grid line is an edge of the bounding box of the parts that end at it.
+    So only the edges along such lines, and the points on them, are looked at; a part already joined from
+    several grid squares, such as an ocean's water given to it earlier in the stage, has its edges on those lines
+    looked at too. A point of one part inside such an edge of another part, not at its ends, is missing from
+    that part, which gets it by snapping. Nothing moves: the point is already on that edge. Testing the points
+    against the short edges, not the whole parts, keeps this quick: against the parts, Chile took 3 minutes."""
+    bounds = shapely.bounds(parts)
+    lines_x = np.unique(np.concatenate([bounds[:, 0], bounds[:, 2]]))
+    lines_y = np.unique(np.concatenate([bounds[:, 1], bounds[:, 3]]))
+    rings, ring_part = shapely.get_rings(parts, return_index=True)
+    xy, ring_of = shapely.get_coordinates(rings, return_index=True)
+    # The edges: each point to the next in the same ring. Those along a grid line, and their parts.
+    same = ring_of[1:] == ring_of[:-1]
+    a, b = xy[:-1][same], xy[1:][same]
+    edge_part = ring_part[ring_of[:-1][same]]
+    along = (((a[:, 0] == b[:, 0]) & np.isin(a[:, 0], lines_x)) | ((a[:, 1] == b[:, 1]) & np.isin(a[:, 1], lines_y)))
+    a, b, edge_part = a[along], b[along], edge_part[along]
+    if not len(a):
+        return parts
+    # The points: the ends of those edges, once for each part.
+    ends = np.unique(np.column_stack([np.concatenate([a, b]), np.concatenate([edge_part, edge_part])]), axis=0)
+    pts, owner = ends[:, :2], ends[:, 2].astype(np.intp)
+    tree = shapely.STRtree(shapely.linestrings(np.stack([a, b], axis=1)))
+    point_i, edge_j = tree.query(shapely.points(pts), predicate="intersects")
+    p, e = pts[point_i], edge_j
+    inside = ((edge_part[e] != owner[point_i])
+              & ~((p[:, 0] == a[e, 0]) & (p[:, 1] == a[e, 1])) & ~((p[:, 0] == b[e, 0]) & (p[:, 1] == b[e, 1])))
+    if not inside.any():
+        return parts
+    missing: dict[int, set] = defaultdict(set)
+    for (x, y), j in zip(p[inside].tolist(), edge_part[e[inside]].tolist()):
+        missing[j].add((x, y))
+    mended = parts.copy()
+    for j, pts in missing.items():
+        mended[j] = shapely.snap(parts[j], shapely.MultiPoint(sorted(pts)), 1e-9)
+    return mended
 
 
 def clusters(parts: list) -> list[list]:
@@ -422,9 +470,12 @@ def run(ctx) -> None:
 
     if UNJOINED:
         ctx.progress.line(f"Areas kept as touching parts, as the parts could not be dissolved into one shape: "
-                          f"{len(UNJOINED)}. The log lists them.")
+                          f"{len(UNJOINED)}. The log and the report list them.")
         for what in UNJOINED:
             ctx.progress.log(f"Kept as touching parts: {what}.")
+            # In the report too (P3-T1m): an area kept as grid squares is drawn as one grid square at the wide
+            # zooms, as the North Atlantic, Russia and Canada were in the world build of 12 November 2026.
+            report.append(f"Kept as touching parts, not joined into one shape: {what}.")
 
     # Colour numbers (AD-19).
     layer_pairs: dict[str, set] = defaultdict(set)

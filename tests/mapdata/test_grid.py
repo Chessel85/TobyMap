@@ -115,10 +115,93 @@ def test_union_parts_joins_neighbours_that_share_an_edge():
 
     from mapdata.stages.join import union_parts
 
+    from mapdata.stages import join
+
     a = shapely.Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
     b = shapely.Polygon([(1, 0), (2, 0), (2, 1), (1, 1), (1, 0.5)])  # a vertex on the shared edge, a has none
-    u = union_parts([a, b])
+    join.UNJOINED.clear()
+    u = union_parts([a, b], "test area")
     assert abs(u.area - 2.0) < 1e-9
+    # Joined into one shape, not kept side by side: kept side by side, the world's North Atlantic was 100,180
+    # grid squares, and a drawing level kept one of them as the whole ocean (P3-T1m).
+    assert u.geom_type == "Polygon" and u.is_valid
+    assert join.UNJOINED == []
+
+
+def test_union_parts_mends_many_grid_squares_with_points_missing_on_one_side():
+    # P3-T1m: a coast meets a grid line at a point the square across the line lacks, in several places, in
+    # squares of any size, and in a part that is itself several polygons.
+    import shapely
+
+    from mapdata.stages import join
+
+    size = 0.5
+    parts = []
+    for i in range(4):
+        for j in range(3):
+            w, s = i * size, j * size
+            ring = [(w, s), (w + size, s), (w + size, s + size), (w, s + size)]
+            if (i + j) % 2:   # every other square has an extra point on its west and south edges
+                ring = [(w, s), (w + 0.3 * size, s), (w + size, s), (w + size, s + size), (w, s + size),
+                        (w, s + 0.7 * size)]
+            parts.append(shapely.Polygon(ring))
+    island = shapely.box(5, 5, 5.2, 5.2)
+    parts[0] = shapely.MultiPolygon([parts[0], island])
+    join.UNJOINED.clear()
+    u = join.union_parts(parts, "test area")
+    assert join.UNJOINED == []
+    assert u.is_valid and u.geom_type == "MultiPolygon" and len(u.geoms) == 2
+    assert abs(u.area - (4 * 3 * size * size + island.area)) < 1e-9
+
+
+def test_union_parts_leaves_out_parts_with_no_area():
+    # P3-T1m: in the world build, Afuá in Brazil had four flat rings along the equator, a grid square's edge, with
+    # no area, and the quick join refused them.
+    import shapely
+
+    from mapdata.stages import join
+
+    a = shapely.box(-51, -1, -50, 0)
+    b = shapely.box(-51, 0, -50, 1)
+    flat = shapely.Polygon([(-50.9, 0), (-50.8, 0), (-50.85, 0)])
+    join.UNJOINED.clear()
+    u = join.union_parts([a, b, flat], "test area")
+    assert join.UNJOINED == []
+    assert u.geom_type == "Polygon" and u.is_valid and abs(u.area - 2.0) < 1e-9
+
+
+def test_union_parts_that_still_cannot_join_are_listed():
+    # P3-T1m: the fall-back is kept, and the area is listed for the build report, not only for the log.
+    import shapely
+
+    from mapdata.stages import join
+
+    # Two triangles sharing a diagonal edge with points on one side only: the edge is on no grid line, as no edge
+    # between grid squares can be, so the mending does not look there, and the quick join refuses.
+    a = shapely.Polygon([(0, 0), (4, 0), (0, 4)])
+    b = shapely.Polygon([(4, 0), (4, 4), (0, 4), (1, 3), (2, 2), (3.3, 0.7)])
+    join.UNJOINED.clear()
+    u = join.union_parts([a, b], "test area")
+    assert join.UNJOINED == ["test area"]
+    assert abs(u.area - 16.0) < 1e-9
+
+
+def test_union_parts_mends_a_part_already_joined_from_several_grid_squares():
+    # P3-T1m: the South Pacific's water had a part already joined across many grid squares, whose edge with the
+    # next grid square is not on its own bounding box.
+    import shapely
+
+    from mapdata.stages import join
+
+    # Four grid squares joined into an L, with a point on its inner edge, not on its bounding box, that the
+    # grid square in its corner lacks.
+    big = shapely.Polygon([(0, 0), (3, 0), (3, 1), (1, 1), (1, 1.5), (1, 2), (0, 2)])
+    corner = shapely.box(1, 1, 2, 2)
+    other = shapely.Polygon([(2, 1), (3, 1), (3, 2), (2, 2), (2, 1.6)])
+    join.UNJOINED.clear()
+    u = join.union_parts([big, corner, other], "test area")
+    assert join.UNJOINED == []
+    assert u.geom_type == "Polygon" and u.is_valid and abs(u.area - 6.0) < 1e-9
 
 
 def test_counties_level_6_then_gaps_filled_by_7_then_8_then_the_region():

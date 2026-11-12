@@ -2,6 +2,30 @@
 
 The size trial, run on the night of 10 to 11 November 2026. This first report covers counties. Each new layer of P3-T1 is added to the trial as it is built, and this report gains a section for it: the named seas (P3-T1b) were added on 11 November. You decided from it that counties go into the world build (DP175). The thresholds for the world are still to decide (DP169).
 
+## The writing stage made faster (P3-T1k), under way, 12 November 2026
+
+Every change is checked by writing the trial pack again with tools/time_write.py and comparing it with the build's, byte for byte. All are the same.
+
+### The trial, with 6 workers
+
+* Before: 339 seconds. 55 seconds before the drawing levels, 54 simplifying them one layer at a time, and the rest in the pack writer, where splitting full pack tiles took 140 seconds of one core.
+* Approach B, the slow loops made to work on whole arrays: 286 seconds. A place is sent straight to its pack tile, instead of being tried in all four smaller pack tiles, level after level: the 73,821 peaks made 2.1 million tries. All the areas are measured in a few calls, not one per feature.
+* Approach A added, the steps that ran on one core moved into the workers: about 240 seconds. The measuring, the drawing levels (one job per layer and level), splitting full pack tiles (one job per pack tile), and the feature records. A feature with a very large outline, such as an ocean, has its cutting shared among the workers, as its smaller pack tiles are handed back to the pool.
+* A progress line now follows each step, with the time so far, so the stage is never silent for minutes (DMT-2).
+
+### The world's data
+
+The writing stage was run alone on the input of the world build of 11 November.
+
+* Measuring every feature took about 1,170 seconds of one core, 979 of them for the oceans. The Indian Ocean took 714 seconds, the South Pacific 194 and the South Atlantic 53. Each has a large part whose outline is invalid, such as the Indian Ocean's part of 575,739 points with 22,037 holes, and GEOS repairs such a part as it measures it. This is the long silent stretch on one core that the plan names.
+* The repair must stay for the pack to be the same, so the large invalid parts are now measured in the background from the start, while the drawing levels and the cutting go on in the other workers. The areas are added just before the feature records are made.
+* Measured without the repair, the Indian Ocean's part has the same area to the square metre: 70,935,852.143 km2, and the South Pacific's differs by 0.001 km2. So leaving the repair out would save the 12 minutes, but the pack would no longer be byte for byte the same as before. A question for you later; the invalid outlines themselves come from the join, and belong with the data manager's error log.
+* The first run on the world ran out of memory while simplifying the drawing levels, as six layers, the world's counties among them, were simplified at once. The layers simplified together now hold no more points than the largest layer, so the counties are simplified alone, as before, and each job's copy of its shapes is made only when it starts.
+
+### Still to do
+
+* Time the whole writing stage on the world's data, the new code against the old, and finish this report.
+
 ## Roads, railways, towns and cities (P3-T1i, P3-T1j), 12 November 2026
 
 Built in the Western Europe trial only, as you asked. You said not to worry about the soft limit of about 400 MB until all the data is in, so the estimate below is for your assessment then.

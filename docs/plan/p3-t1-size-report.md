@@ -2,7 +2,58 @@
 
 The size trial, run on the night of 10 to 11 November 2026. This first report covers counties. Each new layer of P3-T1 is added to the trial as it is built, and this report gains a section for it: the named seas (P3-T1b) were added on 11 November. You decided from it that counties go into the world build (DP175). The thresholds for the world are still to decide (DP169).
 
-## The writing stage made faster (P3-T1k), under way, 12 November 2026
+## The world build (P3-T1l), 12 November 2026
+
+The whole world, with every layer of P3-T1 in it, built for the first time. The grid squares and the join, already finished on 11 November, were kept, so the build took about 1 hour 45 minutes, not 4 hours. Roads, railways and towns were read from the whole planet file for the first time.
+
+### The pack
+
+* world.pack: 450.6 MB, 767,985 features in 18 layers. You said not to worry about the soft limit of about 400 MB (PCK-1, DP175) until all the data is in; this is about 50 MB over it, close to the estimate of 445 MB.
+* The base pack lite of 10 November, 127 MB, is kept in the working folder until you accept the new pack.
+
+### The checks
+
+* Build twice (DMT-1): the writing stage run a second time from the kept stages gives the same pack, byte for byte, with the checksum 9bcf244d. It took 51 minutes the second time.
+* No gaps (LOC-6): every quarter of a degree of the Earth is in a country or a sea. This check is made in the join, which passed on 11 November and was kept.
+* Check places worldwide (DAT-1): 119 of 119 pass, from London and the Isle of Skye to Tierra del Fuego, Kiribati and the South Pole.
+* The 180 degree line: both sides of the line are named at every quarter of a degree, and none of the 442,019 edges beside the line jumps across the globe. Fiji, Wrangel Island, the Diomedes, the Aleutians and the Ross Ice Shelf all pass on both sides.
+* Areas against Wikidata: Antarctica, Fiji, Russia, the United States and Kiribati all pass, Kiribati as explained in DP118.
+
+### What is in it
+
+The layers, largest first:
+
+* Counties: 61,942 areas, 122.3 MB, 27% of the pack.
+* Regions: 3,207 areas, 42.1 MB.
+* Islands: 199,278 areas, 36.2 MB.
+* Countries: 260 areas, 27.9 MB.
+* Oceans and seas: 11 areas, 27.7 MB.
+* Mountain ranges: 6,055 areas, 24.8 MB.
+* Rivers: 12,993 lines, 23.6 MB.
+* Continents: 7 areas, 22.9 MB.
+* Lakes: 13,144 areas, 21.6 MB.
+* Motorways and trunk roads: 33,498 lines, 21.0 MB.
+* Peaks: 209,646 places, 20.8 MB.
+* Seas, bays and straits: 275 areas, 20.2 MB.
+* Cities and towns: 114,581 places, 16.2 MB.
+* Bays and straits, as places: 98,327 places, 9.4 MB.
+* Main railway lines: 13,735 lines, 7.1 MB.
+* Deserts, plateaus, plains and other regions: 482 areas, 4.5 MB.
+* Lines of latitude and longitude, and the special lines: 2.1 MB.
+
+### The stages' times
+
+* Continents: 12 minutes. Lakes, rivers, and the mountain ranges and physical regions: 22 minutes together, 16 of them the mountain ranges and physical regions. Peaks: 1 minute. Towns: 2 minutes.
+* Roads and railways: 11 minutes, reading 1.4 million motorway ways and 2.0 million trunk road ways.
+* Writing the pack: 52 minutes (P3-T1k, below). The checks: 40 seconds.
+* The first try was stopped by Claude Code, not by the build, while reading the roads from the planet file: the planet file fills the laptop's free memory while it is read, though the build's own memory was under 6 GB. It was started again, and skipped the 11 stages already finished.
+
+### Still to look at
+
+* At 0 degrees north, 0 east, the small square of the North Atlantic seen in P2-T17v: the ocean data's line between the North and South Atlantic runs a few thousandths of a degree north of the equator, so the North Atlantic has a strip about 400 metres wide along the equator, kept in 1 degree grid squares. It is still there in this build. Whether it is outlined in the application is for you to check, or for me to look at with the outlines.
+* Start-up time and memory of the application with this pack are not measured yet.
+
+## The writing stage made faster (P3-T1k), 12 November 2026
 
 Every change is checked by writing the trial pack again with tools/time_write.py and comparing it with the build's, byte for byte. All are the same.
 
@@ -22,9 +73,27 @@ The writing stage was run alone on the input of the world build of 11 November.
 * Measured without the repair, the Indian Ocean's part has the same area to the square metre: 70,935,852.143 km2, and the South Pacific's differs by 0.001 km2. So leaving the repair out would save the 12 minutes, but the pack would no longer be byte for byte the same as before. A question for you later; the invalid outlines themselves come from the join, and belong with the data manager's error log.
 * The first run on the world ran out of memory while simplifying the drawing levels, as six layers, the world's counties among them, were simplified at once. The layers simplified together now hold no more points than the largest layer, so the counties are simplified alone, as before, and each job's copy of its shapes is made only when it starts.
 
-### Still to do
+### The world build, with 6 workers
 
-* Time the whole writing stage on the world's data, the new code against the old, and finish this report.
+You asked for the world's times to be taken from the world build (P3-T1l), using the fastest code, rather than from a separate run of the old code. So there is no run of the old and new code on the same input. The nearest comparison is the last finished world writing stage, on 11 November, with the old code and fewer layers.
+
+* Old code, 11 November: 2,847 seconds for a pack of 274 MB, about 10.4 seconds for each MB.
+* New code, this build: 3,149 seconds, 52 minutes, for a pack of 450.6 MB, about 7.0 seconds for each MB. About a third less time for each MB written.
+* The memory budget held: the build used at most about 11 GB of its own, with 11 GB still free on the laptop.
+
+The steps of the world's writing stage:
+
+* Measuring 767,985 features: 542 seconds. The 10 large invalid parts, the Indian Ocean among them, were measured in the background and were ready when needed: the wait for them was 1 second.
+* Simplifying the 3 drawing levels: 903 seconds. This is now the longest step. To stay within memory, the world's counties are simplified alone, as before, so the other workers wait for them.
+* Cutting the features into 10,612 pack tiles: 676 seconds from the start of the pack writer.
+* Splitting 2,728 full pack tiles: 284 seconds.
+* Encoding 14,834 pack tiles: 130 seconds.
+* Cutting the drawing tiles, 4, 64 and 1,024 of them: 321 seconds.
+* The feature records: 81 seconds. Writing the file: 167 seconds.
+
+Progress: a line followed each step, and between steps the build's own heartbeat wrote a "still running" line every 30 seconds with its memory, so the stage was never silent for a minute (DMT-2).
+
+A further saving, for later: simplifying the counties in parts, a country at a time, would let the other workers go on beside it, and could shorten the longest step. It is not tried yet.
 
 ## Roads, railways, towns and cities (P3-T1i, P3-T1j), 12 November 2026
 

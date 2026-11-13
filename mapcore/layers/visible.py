@@ -41,6 +41,7 @@ from mapcore.packs import tiles
 
 HALF_PI = math.pi / 2
 MARGIN = 1.02            # the shapes are cut a little wider than the view, so nothing at its edge is lost
+SLACK = 1e-3             # degrees added to the cheap tests of the box edges kept in single precision
 
 
 def _angles(lat1: float, lon1: float, lat2, lon2) -> np.ndarray:
@@ -50,6 +51,14 @@ def _angles(lat1: float, lon1: float, lat2, lon2) -> np.ndarray:
     half_dl = np.radians((np.asarray(lon2, dtype=np.float64) - lon1) % 360.0) / 2
     h = np.sin(half_dp) ** 2 + math.cos(p1) * np.cos(p2) * np.sin(half_dl) ** 2
     return 2 * np.arcsin(np.sqrt(np.clip(h, 0.0, 1.0)))
+
+
+def _within(lat: float, lon: float, lats: np.ndarray, lons: np.ndarray, rho: float) -> np.ndarray:
+    """Whether each point is within the angle rho of a point: _angles, without its square
+    root and arcsine, compared with the haversine of rho instead."""
+    p1, p2 = math.radians(lat), np.radians(lats)
+    h = np.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * np.cos(p2) * np.sin(np.radians(lons - lon) / 2) ** 2
+    return h <= math.sin(min(rho, math.pi) / 2) ** 2
 
 
 def box_reach(boxes: np.ndarray, lat: float, lon: float) -> tuple[np.ndarray, np.ndarray]:
@@ -69,9 +78,17 @@ def box_reach(boxes: np.ndarray, lat: float, lon: float) -> tuple[np.ndarray, np
     """
     boxes = np.asarray(boxes, dtype=np.float64).reshape(-1, 4)
     west, south, east, north = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
-    span = (east - west) % 360.0
-    span = np.where((span == 0.0) & (east != west), 360.0, span)
-    span = np.where((west <= -180.0) & (east >= 180.0), 360.0, span)
+    point = (west == east) & (south == north)
+    if point.all():
+        # A place's box is a single point: nearest and farthest are its distance.
+        d = _angles(lat, lon, south, west)
+        return d, d.copy()
+    if point.any():
+        near, far = np.empty(len(boxes)), np.empty(len(boxes))
+        near[point] = far[point] = _angles(lat, lon, south[point], west[point])
+        near[~point], far[~point] = box_reach(boxes[~point], lat, lon)
+        return near, far
+    span = _spans(west, east)
 
     def within(lons) -> np.ndarray:
         return ((lons - west) % 360.0) <= span
@@ -125,6 +142,25 @@ def _cap_boxes(lat: float, lon: float, rho: float) -> list[tuple[float, float, f
     if east > 180.0:
         return [(west, south, 180.0, north), (-180.0, south, east - 360.0, north)]
     return [(west, south, east, north)]
+
+
+def _spans(west: np.ndarray, east: np.ndarray) -> np.ndarray:
+    """The degrees of longitude each box spans eastward from its west edge, as box_reach reads them."""
+    span = (east - west) % 360.0
+    span = np.where((span == 0.0) & (east != west), 360.0, span)
+    return np.where((west <= -180.0) & (east >= 180.0), 360.0, span)
+
+
+def _meets_longitudes(west: np.ndarray, east: np.ndarray, cut) -> np.ndarray:
+    """Whether each box shares any longitude with the boxes of _cap_boxes, none of which
+    crosses the 180 degree line: a cheap test before box_reach, which costs far more. The
+    box's west edge is from -180 to 180 and its east edge is west plus its span, so up to
+    540; the part beyond 180 is the same longitudes less 360."""
+    meets = np.zeros(len(west), bool)
+    for c_west, _s, c_east, _n in cut:
+        c_west, c_east = c_west - SLACK, c_east + SLACK
+        meets |= ((west <= c_east) & (east >= c_west)) | (east - 360.0 >= c_west)
+    return meets
 
 
 class _Azimuthal:
@@ -194,54 +230,117 @@ class VisibleRule:
         layer_of = self._table(p)[3]
         got = codes.get(p)
         if got is None or got[0] is not layer_of:
-            ids, inverse = np.unique(np.asarray(layer_of), return_inverse=True)
-            got = codes[p] = (layer_of, [str(i) for i in ids.tolist()], inverse.astype(np.intp).ravel())
+            # A dictionary, not np.unique: sorting the text of every layer id took about 0.7 s.
+            seen: dict = {}
+            inverse = np.fromiter((seen.setdefault(i, len(seen)) for i in layer_of), np.intp, len(layer_of))
+            got = codes[p] = (layer_of, [str(i) for i in seen], inverse)
         return got[1], got[2]
 
-    def _candidates(self, p: int, zoom_m: float) -> np.ndarray:
-        """The rows of the pack's feature table that pass the first three tests."""
+    def _by_layer(self, p: int) -> list:
+        """For each layer, in the order of _layer_codes, its rows of the feature table in order
+        of each box's south edge, with their south and north edges in that order; worked out
+        once a pack. A view then takes the features of the layers shown, in its band of
+        latitude, without testing every row of the table: that cost about 12 ms a frame."""
+        layers = getattr(self, "_layer_rows", None)
+        if layers is None:
+            layers = self._layer_rows = {}
+        boxes = self._table(p)[1]
+        got = layers.get(p)
+        if got is None or got[0] is not boxes:
+            ids, code = self._layer_codes(p)
+            order = np.argsort(boxes[:, 1], kind="stable").astype(np.intp)
+            by_code = code[order]
+            # The edges are kept in single precision, rounded outward, to save about 10 MB on the
+            # world pack: they only choose the rows box_reach then tests exactly.
+            def outward(values, way):
+                return np.nextafter(values.astype(np.float32), np.float32(way))
+
+            per_layer = []
+            for k in range(len(ids)):
+                rows = np.ascontiguousarray(order[by_code == k])
+                west = boxes[rows, 0]
+                per_layer.append((rows, outward(boxes[rows, 1], -np.inf), outward(boxes[rows, 3], np.inf),
+                                  outward(west, -np.inf), outward(west + _spans(west, boxes[rows, 2]), np.inf)))
+            got = layers[p] = (boxes, per_layer)
+        return got[1]
+
+    def _candidates(self, p: int, zoom_m: float, lat: float | None = None, reach: float = 180.0,
+                    lon: float | None = None, rho: float = math.pi) -> np.ndarray:
+        """The rows of the pack's feature table that pass the first three tests and, when lat
+        is given, whose box reaches within `reach` degrees of latitude of it and, when lon is
+        given too, shares a longitude with the cap of angular radius rho round the point."""
         numbers, boxes, widths, layer_of = self._table(p)
-        ids, code = self._layer_codes(p)
-        shown = np.zeros(len(ids), bool)
-        least = np.zeros(len(ids), float)   # the least width in metres, for an area layer
-        for k, layer_id in enumerate(ids):
-            layer = self.layers.get(layer_id)
-            if layer is None:
-                shown[k] = True
+        ids, _code = self._layer_codes(p)
+        cut = None
+        if lat is not None and lon is not None:
+            cut = _cap_boxes(lat, lon, min(math.pi, rho))
+            if len(cut) == 1 and cut[0][0] <= -180.0 and cut[0][2] >= 180.0:
+                cut = None    # every longitude
+        found = []
+        for k, (rows, south, north, west, east) in enumerate(self._by_layer(p)):
+            layer = self.layers.get(ids[k])
+            if layer is not None and not (layer.on and layer.in_zoom(zoom_m)):
                 continue
-            if not (layer.on and layer.in_zoom(zoom_m)):
-                continue
-            shown[k] = True
-            if layer.geometry == "area":
-                least[k] = layer.min_size * zoom_m
-        keep = shown[code] & (widths * 1000.0 >= least[code])
-        return np.nonzero(keep)[0]
+            if lat is not None:
+                end = int(np.searchsorted(south, lat + reach + SLACK, side="right"))
+                keep = np.nonzero(north[:end] >= lat - reach - SLACK)[0]
+                if cut is not None:
+                    keep = keep[_meets_longitudes(west[keep], east[keep], cut)]
+                rows = rows[keep]
+            if layer is not None and layer.geometry == "area":
+                rows = rows[widths[rows] * 1000.0 >= layer.min_size * zoom_m]
+            found.append(rows)
+        return np.concatenate(found) if found else np.zeros(0, np.intp)
 
     # The view -----------------------------------------------------------------------
 
     def features(self, lat: float, lon: float, zoom_m: float) -> frozenset:
         """The ids of every visible feature with the location and zoom given."""
-        return frozenset(self.store._area(p, n).id for p, n in self.numbers(lat, lon, zoom_m))
+        out: set = set()
+        for p, rows, by_shape in self._visible(lat, lon, zoom_m):
+            out.update(self.store._indexes[p].ids[rows].tolist())
+            out.update(self.store._area(p, n).id for n in by_shape)
+        return frozenset(out)
 
     def numbers(self, lat: float, lon: float, zoom_m: float) -> set:
         """Every visible feature as (pack, feature number)."""
+        out: set = set()
+        for p, rows, by_shape in self._visible(lat, lon, zoom_m):
+            out.update((p, n) for n in self._table(p)[0][rows].tolist())
+            out.update((p, n) for n in by_shape)
+        return out
+
+    def _visible(self, lat: float, lon: float, zoom_m: float) -> list:
+        """For each pack, the rows of its feature table decided visible by their boxes, and the
+        feature numbers decided visible by their shapes."""
         lon = geodesy.wrap_lon(lon)
         rho = zoom_m / geodesy.R_MEAN_M
-        out: set = set()
+        out = []
         for p in self.store._covering(lat, lon)[:1]:
             numbers, boxes, _w, _l = self._table(p)
-            rows = self._candidates(p, zoom_m)
             # The difference in latitude alone is never more than the distance.
-            reach = math.degrees(rho)
-            rows = rows[(boxes[rows, 1] - lat <= reach) & (lat - boxes[rows, 3] <= reach)]
+            rows = self._candidates(p, zoom_m, lat, math.degrees(rho), lon, rho * MARGIN)
             if not len(rows):
                 continue
             near, far = box_reach(boxes[rows], lat, lon)
-            out.update((p, int(n)) for n in numbers[rows[far <= rho]].tolist())
-            edge = numbers[rows[(near <= rho) & (far > rho)]]
-            if len(edge):
-                out.update((p, n) for n in self._by_shape(p, set(edge.tolist()), lat, lon, rho, zoom_m))
+            across = (near <= rho) & (far > rho)
+            # A box across the edge of the view that is no deeper than the drawing's own
+            # tolerance is in: looking at its shapes could not be more exact than the map.
+            shallow = across & (far - near <= self._tolerance(p, zoom_m))
+            edge = numbers[rows[across & ~shallow]]
+            by_shape = self._by_shape(p, set(edge.tolist()), lat, lon, rho, zoom_m) if len(edge) else set()
+            out.append((p, rows[(far <= rho) | shallow], by_shape))
         return out
+
+    def _tolerance(self, p: int, zoom_m: float) -> float:
+        """How far, as an angle in radians, the drawing level for this zoom may put an edge
+        from its exact place; 0 where the map is drawn from the exact pack tiles."""
+        from mapcore.render.scene import drawing_source
+
+        kind, d = drawing_source(self.store._indexes[p], zoom_m / 1000.0)
+        if kind != "draw":
+            return 0.0
+        return float(d.get("tolerance_m", 0.0)) / geodesy.R_MEAN_M
 
     def _by_shape(self, p: int, undecided: set, lat: float, lon: float, rho: float, zoom_m: float) -> set:
         """Which of the undecided features have part of a shape within rho of the point.
@@ -256,7 +355,8 @@ class VisibleRule:
         tile_plan = [("tile", level, level) for level in index.pack.tile_levels]
         if kind != "draw":
             return self._look(p, tile_plan, undecided, lat, lon, rho)
-        found = self._look(p, [("draw", d["id"], d["tile_level"])], undecided, lat, lon, rho)
+        tolerance = float(d.get("tolerance_m", 0.0)) / geodesy.R_MEAN_M
+        found = self._look(p, [("draw", d["id"], d["tile_level"])], undecided, lat, lon, rho, tolerance)
         levels = sorted(index.pack.drawing_levels.values(), key=lambda level: -level.get("view_km", 0))
         by_plan: dict = {}
         for n in undecided - found:
@@ -274,11 +374,13 @@ class VisibleRule:
             key = ("tile", None, None) if holder is None else ("draw", holder["id"], holder["tile_level"])
             by_plan.setdefault(key, set()).add(n)
         for key, small in by_plan.items():
-            found |= self._look(p, tile_plan if key[0] == "tile" else [key], small, lat, lon, rho)
+            found |= self._look(p, tile_plan if key[0] == "tile" else [key], small, lat, lon, rho, tolerance)
         return found
 
-    def _look(self, p: int, plan, undecided: set, lat: float, lon: float, rho: float) -> set:
-        """Which of the undecided features reach within rho of the point, in the tiles of the plan."""
+    def _look(self, p: int, plan, undecided: set, lat: float, lon: float, rho: float,
+              tolerance: float = 0.0) -> set:
+        """Which of the undecided features reach within rho of the point, in the tiles of the plan.
+        A shape across the edge of the view no deeper than the tolerance, an angle, counts as in."""
         import shapely
 
         index = self.store._indexes[p]
@@ -299,13 +401,18 @@ class VisibleRule:
             if t_near > rho:
                 continue
             data = self.store._tile(p, kind, ident, x, y)
-            here = [n for n in data.by_feature if n in undecided and n not in found]
+            # Whichever is fewer is gone through: a tile may hold thousands of roads.
+            if len(undecided) < len(data.by_feature):
+                here = [n for n in undecided if n in data.by_feature and n not in found]
+            else:
+                here = [n for n in data.by_feature if n in undecided and n not in found]
             if not here:
                 continue
             if t_far <= rho:
                 found.update(here)        # the whole tile is in view
                 continue
-            geoms, _numbers = data.drawing_shapes(tuple(box))
+            wanted = [i for n in here for i in data.by_feature[n]]
+            geoms = data.shapes_of(wanted, tuple(box))
             for n in here:
                 for i in data.by_feature[n]:
                     shapes.append(geoms[i])
@@ -319,6 +426,25 @@ class VisibleRule:
         is_area = np.array(is_area, dtype=bool)
         cut_of = np.array(cut_of, dtype=np.intp)
         open_ = ~np.isin(owners, np.fromiter(found, np.intp, len(found)))
+        # Each shape's own box first, as for the features' boxes: wholly in view, or across its
+        # edge but no deeper than the drawing's tolerance, it is in; wholly outside, that shape is.
+        bounds = shapely.bounds(shapes)
+        known = open_ & ~np.isnan(bounds).any(axis=1)
+        s_near, s_far = np.zeros(len(shapes)), np.full(len(shapes), np.inf)   # a shape with no box is undecided
+        if known.any():
+            s_near[known], s_far[known] = box_reach(bounds[known], lat, lon)
+        shown = known & ((s_far <= rho) | ((s_near <= rho) & (s_far - s_near <= tolerance)))
+        found.update(owners[shown].tolist())
+        open_ &= ~np.isin(owners, owners[shown]) & ~(known & (s_near > rho))
+        # A shape with a point within the view is in: this settles most roads, railways and
+        # rivers across its edge without cutting and projecting them.
+        rows = np.nonzero(open_)[0]
+        if len(rows):
+            xy, which = shapely.get_coordinates(shapes[rows], return_index=True)
+            if len(xy):
+                hit = rows[np.unique(which[_within(lat, lon, xy[:, 1], xy[:, 0], rho)])]
+                found.update(owners[hit].tolist())
+                open_ &= ~np.isin(owners, owners[hit])
         # The location inside an area.
         inside = open_ & is_area & shapely.intersects_xy(shapes, lon, lat)
         found.update(owners[inside].tolist())

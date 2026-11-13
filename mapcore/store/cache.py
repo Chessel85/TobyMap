@@ -24,7 +24,7 @@ class TileData:
     """The tile entries of one pack tile or drawing tile, with their shapes
     decoded when first asked for."""
 
-    __slots__ = ("entries", "by_feature", "shapes", "cost", "owner", "drawing")
+    __slots__ = ("entries", "by_feature", "shapes", "cost", "owner", "drawing", "some")
 
     def __init__(self, entries: list[tiles.TileEntry]):
         self.entries = entries
@@ -35,6 +35,36 @@ class TileData:
         self.cost = TILE_OVERHEAD + sum(len(e.data) + 16 for e in entries)
         self.owner = None  # the cache that holds this tile, told when shapes are decoded
         self.drawing = None  # every shape of the tile, decoded at once, for the map scene (P2-T14c)
+        self.some = None  # shapes of single entries decoded by shapes_of, unprepared
+
+    def shapes_of(self, indices, box) -> dict:
+        """The shapes of some entries, by entry index, unprepared, as drawing_shapes
+        would give them. A tile the map has not drawn decodes only these: the visible
+        rule needs a few small areas from a tile that may also hold every road."""
+        if self.drawing is not None:
+            geoms = self.drawing[0]
+            return {i: geoms[i] for i in indices}
+        import shapely
+
+        some = self.some
+        if some is None:
+            some = self.some = {}
+        missing = [i for i in indices if i not in some and i not in self.shapes]
+        for kind, decode in ((tiles.COMPACT, coords.to_shapes), (tiles.LINES, coords.to_line_shapes),
+                             (tiles.POINTS, coords.to_point_shapes)):
+            these = [i for i in missing if self.entries[i].kind == kind]
+            if these:
+                for i, shape in zip(these, decode([self.entries[i].data for i in these])):
+                    some[i] = shape
+        for i in missing:
+            if self.entries[i].kind == tiles.COVERED:
+                some[i] = shapely.box(*box)
+        grown = sum(len(self.entries[i].data) for i in missing) * DECODED_FACTOR
+        if grown:
+            self.cost += grown
+            if self.owner is not None:
+                self.owner.grew(grown)
+        return {i: self.shapes[i] if i in self.shapes else some[i] for i in indices}
 
     def drawing_shapes(self, box) -> tuple:
         """Every entry as a Shapely shape, decoded in one go, in entry order: an
@@ -47,9 +77,12 @@ class TileData:
 
             geoms = np.empty(len(self.entries), object)
             # Shapes a lookup has already decoded, such as for "where am I", are used as they are.
-            for i, shape in list(self.shapes.items()):
+            # So are those the visible rule decoded on their own.
+            done = dict(self.some or {})
+            done.update(self.shapes)
+            for i, shape in done.items():
                 geoms[i] = shape
-            compact = [i for i, e in enumerate(self.entries) if e.kind != tiles.COVERED and i not in self.shapes]
+            compact = [i for i, e in enumerate(self.entries) if e.kind != tiles.COVERED and i not in done]
             for kind, decode in ((tiles.COMPACT, coords.to_shapes), (tiles.LINES, coords.to_line_shapes),
                                  (tiles.POINTS, coords.to_point_shapes)):
                 these = [i for i in compact if self.entries[i].kind == kind]

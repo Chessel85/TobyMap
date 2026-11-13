@@ -206,6 +206,7 @@ class _PackIndex:
         self.problems = problems
         self._boxes = None
         self._sizes = None
+        self._ids = None
         self._tile_index: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
         by_kind: dict[tuple[str, int], list[tuple[int, int]]] = {}
         for key in pack.keys():
@@ -242,8 +243,15 @@ class _PackIndex:
             self._read_table()
         return self._sizes
 
+    @property
+    def ids(self):
+        """In the order of `boxes`: each feature's identifier."""
+        if self._boxes is None:
+            self._read_table()
+        return self._ids
+
     def _read_table(self) -> None:
-        numbers, box, widths, layer_of = [], [], [], []
+        numbers, box, widths, layer_of, ids = [], [], [], [], []
         for g, start in enumerate(self.pack.group_starts):
             try:
                 group = self.pack._group(g)
@@ -256,6 +264,8 @@ class _PackIndex:
                 width = record.get("width_km")
                 widths.append(math.inf if width is None else float(width))
                 layer_of.append(record.get("layer", ""))
+                ids.append(record.get("id"))
+        self._ids = np.array(ids, dtype=object)
         self._sizes = (np.array(widths, dtype=np.float64), np.array(layer_of, dtype=object))
         self._boxes = (np.array(numbers, dtype=np.intp), np.array(box, dtype=np.float64).reshape(-1, 4))
 

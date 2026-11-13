@@ -150,7 +150,9 @@ def test_the_nearest_and_farthest_reach_of_a_box_match_a_dense_sample():
 
 # Speed ----------------------------------------------------------------------------------
 
-def test_the_rule_takes_under_5_ms_a_frame_on_the_world_pack():
+def test_the_rule_takes_under_10_ms_a_frame_on_the_world_pack():
+    # 5 ms when the world pack held mainly countries (P2-T4a); 10 ms since the towns, roads,
+    # railways and rivers of P3-T1, about 8.5 ms measured (the product owner, 13 November 2026).
     pack = world_pack_path()
     if pack is None:
         pytest.skip("the world pack is not built on this computer")
@@ -171,4 +173,4 @@ def test_the_rule_takes_under_5_ms_a_frame_on_the_world_pack():
     times.sort()
     print(f"the visible rule on the world pack: median {times[len(times) // 2]:.2f} ms, slowest {times[-1]:.2f} ms, "
           f"after reading the feature table once in {table_ms:.0f} ms")
-    assert times[len(times) // 2] < 5.0
+    assert times[len(times) // 2] < 10.0

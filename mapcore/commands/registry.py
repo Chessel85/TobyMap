@@ -136,7 +136,7 @@ def key_of(command: Command, overrides: dict | None = None) -> str:
 
 def keymap(platform: str, overrides: dict | None = None) -> dict[str, dict[str, str]]:
     """{region: {key: command name}} for one platform."""
-    out: dict[str, dict[str, str]] = {"map": {}, "panel": {}, "global": {}}
+    out: dict[str, dict[str, str]] = {"map": {}, "panel": {}, "details": {}, "global": {}}
     for c in for_platform(platform):
         key = key_of(c, overrides)
         if key:

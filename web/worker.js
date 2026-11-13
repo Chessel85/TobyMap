@@ -137,7 +137,7 @@ function finish(result) {
 
 self.onmessage = async (event) => {
   const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs,
-          problem, samples, rate, factor, pitch } = event.data;
+          problem, samples, rate, factor, pitch, open } = event.data;
   try {
     await ready;
     let out;
@@ -148,6 +148,7 @@ self.onmessage = async (event) => {
     else if (type === "crossed") out = finish(bridge.crossed(width, height));
     else if (type === "scene") out = finish(bridge.scene(width, height));
     else if (type === "hold") out = { result: bridge.hold(), transfer: [] };
+    else if (type === "panel") out = { result: bridge.panel_open(JSON.stringify(open || [])), transfer: [] };
     else if (type === "schema") out = { result: bridge.settings_schema(), transfer: [] };
     else if (type === "key_text") out = { result: bridge.key_text(key), transfer: [] };
     else if (type === "earcon_failed") out = finish(bridge.earcon_failed(earcon, width, height));

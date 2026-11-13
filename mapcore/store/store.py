@@ -388,6 +388,21 @@ class Store:
                 self._note(exc)
         return None
 
+    def relationships(self, identifier: str) -> dict:
+        """A feature's stored relationships (P3-T3e, architecture 6.5), from the first pack that has the
+        feature: in, same, overlaps, partly, next, near, crosses, crossed_by, along, water_in and counts, by
+        the other features' identifiers. docs/developer/pack-format.md, relations/G, says what each holds.
+        Empty for a feature with none, one not found, or a pack written before format 4."""
+        for p in range(len(self._indexes)):
+            pack = self._indexes[p].pack
+            try:
+                if pack.feature_number(identifier) is not None:
+                    return pack.relationships(identifier)
+            except DamagedRecord as exc:
+                self._note(exc)
+                return {}
+        return {}
+
     def _area(self, p: int, number: int) -> Area | None:
         try:
             return Area(p, number, self._indexes[p].pack.feature(number))

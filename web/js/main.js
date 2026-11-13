@@ -109,6 +109,7 @@ function handle(result, keyAt, held = false, named = false) {
     }
   }
   beaconUpdate(r.beacon);
+  if (r.open_url) openUrl(r.open_url);
   if (r.action === "reset") ownSounds.clear().catch(() => {});   // your own sound files go too (P2-T18h)
   if (spoke && keyAt !== undefined) {
     const now = performance.now();
@@ -138,6 +139,12 @@ function handle(result, keyAt, held = false, named = false) {
     const { width, height } = mapSize();
     client.idle({ type: "crossed", width, height }).then((b) => handle(b)).catch(showError);
   }
+}
+
+// The address the core asked for (P3-T5b), in a new tab. Tests read window.tobymap.opened, and no tab opens.
+function openUrl(url) {
+  (window.tobymap.opened = window.tobymap.opened || []).push(url);
+  if (!window.tobymap.noOpen) window.open(url, "_blank", "noopener");
 }
 
 function refreshRegions(result) {
@@ -1163,7 +1170,10 @@ async function boot() {
   words = result.words;
   client.latestOnly = new Set(registry.latest_only);
   applyWords();
-  tree = new Tree(treeEl, (id, group) => run("panel.select", { item: id, group }));
+  // A group opened or closed: the core fills only the open groups (P3-T4a, NFR-1).
+  tree = new Tree(treeEl, (id, group) => run("panel.select", { item: id, group }), null, (open) => {
+    client.send({ type: "panel", open }).then((r) => r && tree.fill(r.panel)).catch(showError);
+  });
   menubar = new MenuBar($("menubar"), registry.menus, (name) => { mapEl.focus(); run(name, name === "help.keys" ? { region: "map" } : {}); },
     moveRegion, () => mapEl.focus());
   $("loading").remove();

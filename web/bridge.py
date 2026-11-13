@@ -152,6 +152,12 @@ def crossed(width: int, height: int):
     return _js(_extras(_session.crossed_now(), {}, width, height))
 
 
+def panel_open(open_json: str):
+    """The groups the page has open in the Information panel (P3-T4a): the core fills those, and keeps
+    the list for the panels it makes after each command, so a group not open is never filled by a step."""
+    return _js({"panel": _session.panel(open=json.loads(open_json))})
+
+
 def hold():
     """The held key's timing, when the press's own answer was joined to a later one."""
     return _js({"hold": _session.hold_info()})

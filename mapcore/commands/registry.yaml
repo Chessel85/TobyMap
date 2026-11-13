@@ -26,8 +26,10 @@ menus:
   - {label: Help, access: H}
 
 # The Information panel's groups, in order (UX section 6). The session makes them in this order,
-# and each has its Shift and number key from it. A new group is added here.
-panel_groups: [within, nearby, crossed]
+# and each has its Shift and number key from it. A new group is added here, and in the group table,
+# mapcore/panel.py. The groups of Phase 3 go after the three of Phase 2, so Shift+1 to Shift+3 stay
+# as they were (DP156, P3-T4a).
+panel_groups: [within, nearby, crossed, contains, bordering, overlapping, crossing, search]
 
 commands:
   # Moving (NAV-1). Arrow keys step north, south, west and east.
@@ -82,11 +84,19 @@ commands:
   # The Information panel's groups (INF-10, DP109): one command for each group in panel_groups,
   # below, named panel.<group>, with Shift+1 for the first, Shift+2 for the second, and so on,
   # for as many groups as there are (the PO's answer, 8 November 2026). "{group}" is the group's name.
+  # Open the Wikipedia article of the feature Details is about, in the browser (P3-T5b, INF-1). Ctrl+W
+  # and Ctrl+Shift+W close the browser's tab or window and a page cannot stop them, so it is W, in Details.
+  - {name: details.wikipedia, label: Open the Wikipedia article, key: W, region: details, menu: ""}
   - {name: panel.group, label: "Go to {group}", key: "Shift+{number}", region: global, menu: Map, each_panel_group: true}
   # Hear its direction (DP143, SON-3): your key, from the key list. On an item of Nearby or Crossed and passed.
   - {name: panel.hear, label: Hear its direction, key: Space, region: panel, menu: ""}
   # Enter on an item goes there: to a point, or to an area's centre (P2-T17k, INF-10, DP155).
   - {name: panel.go, label: Go there, key: Enter, region: panel, menu: ""}
+  # Sort the group the focus is in: next order, and the previous (P3-T4d, INF-10; the key list).
+  - {name: panel.sort, label: Sort the group, key: Ctrl+S, region: panel, menu: ""}
+  - {name: panel.sort_back, label: Sort the group the other way round, key: Ctrl+Shift+S, region: panel, menu: ""}
+  # Ctrl+Enter on an item: a bookmark. They come in Phase 4 (P3-T4e, DP170).
+  - {name: panel.bookmark, label: Bookmark the item, key: Ctrl+Enter, region: panel, menu: ""}
   - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
   - {name: speech.repeat, label: Repeat the last announcement, key: Shift+Space, region: global, menu: Speech}

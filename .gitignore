@@ -57,6 +57,8 @@ playwright-report/
 # Fetched or staged files (tools/fetch_vendor.py, tools/stage_web.py)
 /web/vendor/
 /web/py/
+# The test pack the browser tests copy in (tests/web/conftest.py)
+/web/packs/
 /desktop/vendor/
 /tools/spikes/s1/downloads/
 /tools/spikes/s1/vendor/

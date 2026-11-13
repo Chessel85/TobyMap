@@ -5,8 +5,9 @@ NVDA, which works out a tree item's level by counting the tree items above it,
 says "level 1" for every item. This tree keeps Qt's QTreeWidget for drawing,
 keys and the mouse, but gives it its own accessibility: the groups are the
 tree's children and each group's items are that group's children. NVDA then
-says level 1 for a group and level 2 for an item in it. The level is also sent
-as an aria level, for other screen readers.
+says level 1 for a group and level 2 for an item in it, and level 3 for an item
+under a heading inside a group, such as a region under Contains' "Regions 13"
+(P3-T4a). The level is also sent as an aria level, for other screen readers.
 
 Three things found with the test window, tools/spikes/tree_level/harness.py:
 
@@ -24,7 +25,8 @@ way once a group was closed: a blank line, or silence. Its items are check boxes
 with a check box tells screen readers it is checkable and whether it is ticked, and Space
 ticking it sends that change.
 
-Items are found by position (group number, item number), not by QTreeWidgetItem.
+Items are found by their path of positions, such as (group number, item number), not by
+QTreeWidgetItem.
 The window updates the tree in place, so a position keeps its accessible object
 while its words change, and accessible objects are never thrown away while Qt
 may still hold them.
@@ -35,7 +37,7 @@ import shiboken6
 from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import (QAccessible, QAccessibleAttributesInterface, QAccessibleEvent, QAccessibleInterface,
                            QAccessibleStateChangeEvent)
-from PySide6.QtWidgets import QAccessibleWidget, QTreeWidget
+from PySide6.QtWidgets import QAccessibleWidget, QTreeWidget, QTreeWidgetItem
 
 NULL_POINTER = shiboken6.VoidPtr(0)
 
@@ -113,29 +115,33 @@ class LevelAttributes(QAccessibleAttributesInterface):
 
 
 class PanelItemAccessible(QAccessibleInterface):
-    """A group (item number -1) or an item in a group. It has no QObject of its own,
-    like the items of Qt's own tree."""
+    """An item of the tree, at a path of positions: (group,) for a group, (group, item) for an item
+    in it, and (group, heading, item) for an item under a heading inside a group, such as a region
+    under Contains' "Regions 13" (P3-T4a). Its level is the path's length. It has no QObject of its
+    own, like the items of Qt's own tree."""
 
-    def __init__(self, panel: "PanelAccessible", group: int, index: int):
+    def __init__(self, panel: "PanelAccessible", path: tuple[int, ...]):
         super().__init__()
-        self.panel, self.group, self.index = panel, group, index
-        self.attributes = LevelAttributes(1 if index < 0 else 2)
+        self.panel, self.path = panel, path
+        self.attributes = LevelAttributes(len(path))
 
     def item(self):
         tree = self.panel.tree
-        if self.group >= tree.topLevelItemCount():
+        if self.path[0] >= tree.topLevelItemCount():
             return None
-        g = tree.topLevelItem(self.group)
-        if self.index < 0:
-            return g
-        return g.child(self.index) if self.index < g.childCount() else None
+        node = tree.topLevelItem(self.path[0])
+        for i in self.path[1:]:
+            if i >= node.childCount():
+                return None
+            node = node.child(i)
+        return node
 
     def _shown_children(self) -> int:
-        """A closed group shows no items, so it has none to screen readers either."""
-        g = self.item()
-        if self.index >= 0 or g is None or not g.isExpanded():
+        """A closed item shows no items, so it has none to screen readers either."""
+        node = self.item()
+        if node is None or not node.isExpanded():
             return 0
-        return g.childCount()
+        return node.childCount()
 
     # QAccessibleInterface
     def isValid(self):
@@ -169,7 +175,7 @@ class PanelItemAccessible(QAccessibleInterface):
         if has_check_box(item):   # a layer's check box (P2-T18b)
             s.checkable = True
             s.checked = item.checkState(0) == Qt.CheckState.Checked
-        if self.index < 0 and item.childCount():
+        if can_open(item):
             s.expandable = True
             s.expanded = item.isExpanded()
             s.collapsed = not item.isExpanded()
@@ -187,25 +193,24 @@ class PanelItemAccessible(QAccessibleInterface):
         return QRect(tree.viewport().mapToGlobal(r.topLeft()), r.size())
 
     def parent(self):
-        return self.panel if self.index < 0 else self.panel.group_interface(self.group)
+        return self.panel if len(self.path) == 1 else self.panel.item_at(self.path[:-1])
 
     def childCount(self):
         return self._shown_children()
 
     def child(self, i):
-        return self.panel.item_at(self.group, i) if self.index < 0 and 0 <= i < self._shown_children() else None
+        return self.panel.item_at(self.path + (i,)) if 0 <= i < self._shown_children() else None
 
     def indexOfChild(self, child):
-        if self.index < 0 and isinstance(child, PanelItemAccessible) and child.group == self.group \
-                and 0 <= child.index < self._shown_children():
-            return child.index
+        if isinstance(child, PanelItemAccessible) and child.path[:-1] == self.path                 and 0 <= child.path[-1] < self._shown_children():
+            return child.path[-1]
         return -1
 
     def childAt(self, x, y):
         for i in range(self._shown_children()):
-            kid = self.panel.item_at(self.group, i)
-            if kid.rect().contains(x, y):
-                return kid
+            kid = self.panel.item_at(self.path + (i,))
+            if kid.rect().contains(x, y) or kid.childAt(x, y) is not None:
+                return kid   # childAt gives the direct child; Qt asks again lower down
         return None
 
     def focusChild(self):
@@ -217,31 +222,34 @@ class PanelItemAccessible(QAccessibleInterface):
         return NULL_POINTER
 
 
+def can_open(item) -> bool:
+    """An item with items under it, or a group not yet filled, which is filled when it is opened (P3-T4a)."""
+    return bool(item.childCount()) or         item.childIndicatorPolicy() == QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator
+
+
 class PanelAccessible(QAccessibleWidget):
     """The tree itself, whose children are the groups."""
 
     def __init__(self, tree: PanelTree):
         super().__init__(tree, QAccessible.Role.Tree)
         self.tree = tree
-        self._items: dict[tuple[int, int], PanelItemAccessible] = {}
+        self._items: dict[tuple[int, ...], PanelItemAccessible] = {}
 
-    def item_at(self, group: int, index: int) -> PanelItemAccessible:
-        key = (group, index)
-        iface = self._items.get(key)
+    def item_at(self, path: tuple[int, ...]) -> PanelItemAccessible:
+        iface = self._items.get(path)
         if iface is None:
-            iface = self._items[key] = PanelItemAccessible(self, group, index)
+            iface = self._items[path] = PanelItemAccessible(self, path)
         return iface
 
-    def group_interface(self, group: int) -> PanelItemAccessible:
-        return self.item_at(group, -1)
-
     def item_interface(self, item) -> PanelItemAccessible | None:
-        parent = item.parent()
-        if parent is None:
-            group = self.tree.indexOfTopLevelItem(item)
-            return self.group_interface(group) if group >= 0 else None
-        group = self.tree.indexOfTopLevelItem(parent)
-        return self.item_at(group, parent.indexOfChild(item)) if group >= 0 else None
+        path = []
+        while item.parent() is not None:
+            path.append(item.parent().indexOfChild(item))
+            item = item.parent()
+        top = self.tree.indexOfTopLevelItem(item)
+        if top < 0:
+            return None
+        return self.item_at((top, *reversed(path)))
 
     def role(self):
         return QAccessible.Role.Tree
@@ -250,11 +258,11 @@ class PanelAccessible(QAccessibleWidget):
         return self.tree.topLevelItemCount()
 
     def child(self, i):
-        return self.group_interface(i) if 0 <= i < self.childCount() else None
+        return self.item_at((i,)) if 0 <= i < self.childCount() else None
 
     def indexOfChild(self, child):
-        if isinstance(child, PanelItemAccessible) and child.index < 0 and child.group < self.childCount():
-            return child.group
+        if isinstance(child, PanelItemAccessible) and len(child.path) == 1 and child.path[0] < self.childCount():
+            return child.path[0]
         return -1
 
     def focusChild(self):
@@ -263,10 +271,8 @@ class PanelAccessible(QAccessibleWidget):
 
     def childAt(self, x, y):
         for i in range(self.childCount()):
-            group = self.group_interface(i)
-            if group.rect().contains(x, y):
-                return group
-            if group.childAt(x, y) is not None:
+            group = self.item_at((i,))
+            if group.rect().contains(x, y) or group.childAt(x, y) is not None:
                 return group   # childAt gives the direct child; Qt asks again lower down
         return None
 

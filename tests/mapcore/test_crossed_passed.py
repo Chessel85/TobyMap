@@ -176,14 +176,17 @@ def test_shift_and_a_number_goes_to_that_group_for_as_many_groups_as_there_are(s
     """The PO's answer, 8 November 2026: Shift+1 for the first group, Shift+2 for the second, and
     so on, made from the list of groups, so a new group has its key without more code."""
     groups = [g["id"] for g in session.panel()]
-    assert groups == ["within", "nearby", "crossed"]
+    # The groups of Phase 3 go after the three of Phase 2, so their keys stay (DP156, P3-T4a).
+    assert groups == ["within", "nearby", "crossed", "contains", "bordering", "overlapping", "crossing", "search"]
     for number, group in enumerate(groups, start=1):
         for region in ("map", "panel"):
             assert session.press(f"Shift+{number}", region).focus == {"region": "panel", "group": group}
-    assert session.press(f"Shift+{len(groups) + 1}", "map") is None   # no fourth group yet, so no key
+    assert session.press(f"Shift+{len(groups) + 1}", "map") is None   # no ninth group, so no key
     items = {i["name"]: (i["label"], i["key"]) for m in session.registry()["menus"] for i in m["items"]}
     assert items["panel.within"] == ("Go to Within", "Shift+1")
     assert items["panel.crossed"] == ("Go to Crossed and passed", "Shift+3")
+    assert items["panel.contains"] == ("Go to Contains", "Shift+4")
+    assert items["panel.search"] == ("Go to Search", "Shift+8")
 
 
 def test_the_announcement_does_not_wait_for_the_search(session):

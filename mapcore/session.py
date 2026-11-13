@@ -12,10 +12,12 @@ the packs through the Store. Every word comes from the templates (3.4).
 from __future__ import annotations
 
 import copy
+from collections.abc import Iterable
 import math
 import time
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
+from urllib.parse import quote
 
 import yaml
 
@@ -25,6 +27,7 @@ from mapcore.commands import registry
 from mapcore.describe import describer, say, templates, words
 from mapcore.describe.describer import HERE_M
 from mapcore.geo import formats, geodesy, parse
+from mapcore import panel as panel_table
 from mapcore.layers import LayerCatalogue
 from mapcore.layers.visible import VisibleRule
 from mapcore.world import WorldState
@@ -82,6 +85,9 @@ class Response:
     # shell repeats placed every interval_s on its own timer, from where it is now; placed is None
     # when the beacon is off, muted or silent near the North Pole.
     beacon: dict | None = None
+    # An address for the shell to open in the browser: the desktop through Qt, the web version in a new
+    # tab (P3-T5b, INF-1). Only ever a Wikipedia article; the pack holds only its title (DAT-9).
+    open_url: str | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -177,6 +183,13 @@ class MapSession:
         self.panel_group: str | None = None  # and its group, as an area can be in two groups
         self.panel_on_item = True            # False while a group heading has the focus (P2-T17f)
         self.panel_at_group: str | None = None   # the group the focus is in, on an item or its heading
+        # The groups the shell has open (P3-T4a): a lazy group is filled only when open, or when the focus
+        # is in it, so a step never waits for it (NFR-1). Each shell passes it to panel().
+        self.panel_open: frozenset = frozenset()
+        self.panel_sorts: dict[str, str] = {}   # each group's order chosen with Ctrl+S (P3-T4d)
+        # The current feature, when it is not the smallest area here (LOC-4): (identifier, lat, lon), set by
+        # hierarchy mode (P3-T6) as it moves you there. Any move away from that place ends it.
+        self._current: tuple[str, float, float] | None = None
         self._pressed_in = "map"                 # the region of the key being carried out
         self._answer_to = "map"                  # where Go to's or the bearing's box was opened (P2-T17k)
         self.held_moves = 0
@@ -221,12 +234,15 @@ class MapSession:
             "focus.panel": self._focus_panel,
             "focus.details": lambda **a: Response(focus={"region": "details"}, details_stale=True),
             "focus.menu": lambda **a: Response(focus={"region": "menu"}),
+            "details.wikipedia": self._wikipedia,
             "panel.select": self._select,
             # Shift and a number: go to that group (INF-10, DP109).
-            **{f"panel.{g}": (lambda g=g, **a: Response(focus={"region": "panel", "group": g}, panel_stale=True))
-               for g in registry.panel_groups()},
+            **{f"panel.{g}": (lambda g=g, **a: self._go_to_group(g)) for g in registry.panel_groups()},
             "panel.hear": self._hear,
             "panel.go": self._panel_go,
+            "panel.sort": lambda **a: self._sort(1, **a),
+            "panel.sort_back": lambda **a: self._sort(-1, **a),
+            "panel.bookmark": self._bookmark,
             "speech.repeat": self._repeat,
             "history.list": self._history,
             "speech.braille_test": self._braille_test,
@@ -335,6 +351,7 @@ class MapSession:
             merged.stop_voice |= r.stop_voice
             merged.label = r.label or merged.label
             merged.beacon = r.beacon or merged.beacon
+            merged.open_url = r.open_url or merged.open_url
         return merged
 
     def press(self, key: str, region: str = "map") -> Response | None:
@@ -489,24 +506,268 @@ class MapSession:
             self._theme_cache = (key, themes.effective(*key))
         return self._theme_cache[1]
 
-    def panel(self) -> list[dict]:
-        """The Information panel groups (UX section 6), as plain data."""
+    def panel(self, open: Iterable[str] | None = None) -> list[dict]:
+        """The Information panel groups (UX section 6, P3-T4a), as plain data, in the registry's order.
+
+        open is the set of groups the shell has open; it is kept until the next call that gives it.
+        A lazy group (mapcore/panel.py) is filled only when it is open or the focus is in it; otherwise
+        it comes with "filled" False, no items and a heading with no count, and the shell shows it as a
+        group that can be opened. Opening it, the shell asks again with it in open."""
+        if open is not None:
+            self.panel_open = frozenset(open)
+        wanted = self.panel_open | ({self.panel_at_group} if self.panel_at_group else set())
+        current = self.current_feature
+        base = self._panel_base()
+        out, cached = [], base["lazy"]
+        # A lazy group is made again when the place, a setting, the current feature or the way you face
+        # changes, as its bearing order is clockwise from ahead.
+        context = (base["key"], current.id if current else None, describer.facing(self.world),
+                   frozenset(layer.id for layer in self.layers.layers() if layer.on))
+        for gid in registry.panel_groups():
+            g = panel_table.GROUPS[gid]
+            if g.lazy and gid not in wanted:
+                out.append(self._closed_group(gid, current))
+                continue
+            if gid in base["groups"]:
+                out.append(base["groups"][gid])
+                continue
+            hit = cached.get(gid)
+            if hit is None or hit[0] != context:
+                hit = cached[gid] = (context, self._fill_group(gid, current, base["heading"]))
+            out.append(hit[1])
+        return [self._in_chosen_order(g) for g in out]
+
+    def _sort_cycle(self, gid: str) -> tuple[str, ...]:
+        """The orders Ctrl+S goes through for a group: name, distance, bearing, with "natural" first for a
+        group whose first order is natural (P3-T4d, UX 6.1)."""
+        return (("natural",) if panel_table.GROUPS[gid].default_sort == "natural" else ()) + panel_table.SORTS
+
+    def _sort_of(self, gid: str) -> str:
+        return self.panel_sorts.get(gid, panel_table.GROUPS[gid].default_sort)
+
+    def _in_chosen_order(self, g: dict) -> dict:
+        """The group with its items in the order chosen with Ctrl+S, as a copy, so the cache keeps the first
+        order. Items under a heading are sorted within it; the headings stay in the layers' order."""
+        how = self.panel_sorts.get(g["id"])
+        if how is None or not g["items"]:
+            return g
+        items = [dict(i, children=self._sorted(g["id"], i["children"], how)) if i.get("children") is not None else i
+                 for i in g["items"]]
+        if not any(i.get("children") is not None for i in items):
+            items = self._sorted(g["id"], items, how)
+        return dict(g, items=items)
+
+    def _sort(self, step: int, **_a) -> Response:
+        """Ctrl+S and Ctrl+Shift+S in the Information panel: the next or the previous order for the group
+        the focus is in, and say which (P3-T4d, INF-10)."""
+        gid = self.panel_at_group or "within"
+        cycle = self._sort_cycle(gid)
+        how = cycle[(cycle.index(self._sort_of(gid)) + step) % len(cycle)]
+        self.panel_sorts[gid] = how
+        return Response(panel_stale=True).speak(say(f"sort.{how}"), ASSERTIVE)
+
+    def _go_to_group(self, group: str) -> Response:
+        """Shift and a number: go to that group (INF-10, DP109). The focus is then in it, so a lazy
+        group is filled, whether or not the shell has it open yet."""
+        self.panel_at_group = group
+        return Response(focus={"region": "panel", "group": group}, panel_stale=True)
+
+    @property
+    def current_feature(self):
+        """The feature the groups about one feature are about (LOC-4): the one hierarchy mode moved you to,
+        while you are still at its place, otherwise the smallest area here. None where there is no area."""
+        if self._current is not None:
+            identifier, lat, lon = self._current
+            if (lat, lon) == (self.world.lat, self.world.lon):
+                area = self.store.feature(identifier)
+                if area is not None:
+                    return area
+            self._current = None
+        return self.areas[0] if self.areas else None
+
+    def set_current_feature(self, identifier: str) -> None:
+        """Make a feature the current one at the place you are now (LOC-4), as hierarchy mode does when
+        it moves you to it (P3-T6). A move away from this place makes the smallest area current again."""
+        self._current = (identifier, self.world.lat, self.world.lon)
+
+    def _closed_group(self, gid: str, current) -> dict:
+        """A lazy group not yet opened: its heading, with no count, and no items."""
+        return {"id": gid, "label": self._heading_name(gid, current), "items": [], "empty": None,
+                "filled": False}
+
+    def _heading_name(self, gid: str, current) -> str:
+        """The group's name, with the current feature's for a group about it: "Bordering France"."""
+        name = say(f"panel.{gid}")
+        if panel_table.GROUPS[gid].about_current and current is not None:
+            return say("panel.about", group=name, name=current.name)
+        return name
+
+    def _fill_group(self, gid: str, current, heading: float | None) -> dict:
+        """A lazy group, filled. Each filler gives its items, and keeps each item's place for Enter and
+        Space in self._spots, under (group, item id). A group about the current feature is empty where
+        there is none, as at a place in no area."""
+        name = self._heading_name(gid, current)
+        if panel_table.GROUPS[gid].about_current and current is None:
+            items, empty = [], say("place.none")
+        else:
+            items, empty = getattr(self, f"_group_{gid}")(current, heading)
+        return {"id": gid, "label": self._count_label(name, items), "items": items, "empty": empty, "filled": True}
+
+    def _spot_of(self, area) -> tuple[float, float]:
+        """Where Enter goes for a feature in a group about the current feature, and where Space hears it
+        from: an area's centre, the centre of its bounding box, as Within's (DP155); a point's own point;
+        a line's point on it, else its box's centre."""
+        rec = area.record
+        if self._geometry(area) != "area" and rec.get("point"):
+            lon, lat = rec["point"]
+            return lat, lon
+        return box_centre(rec["bbox"])
+
+    def _feature_item(self, gid: str, area, label_key: str, heading: float | None, **fields) -> dict:
+        """One item about a feature in a group about the current feature, with its direction from where
+        you are, its sort keys, and its place kept for Enter and Space. label_key is its template, which
+        gets name and direction, and any other fields given."""
+        lat, lon = self._spot_of(area)
+        distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, lat, lon)
+        self._spots[(gid, area.id)] = (area, lat, lon)
+        label = say(label_key, name=area.name, distance=words.distance_text(distance, self._units()),
+                    direction=words.direction_text(bearing, self.settings["bearing"], heading), **fields)
+        ahead = describer.facing(self.world) or 0.0
+        return panel_table.item(area.id, label, area.name, distance, bearing - ahead)
+
+    # The groups' fillers (P3-T4). Each takes the current feature and the heading directions are said
+    # from, and gives (items, the words for an empty group). ---------------------------------------
+
+    def _group_bordering(self, current, heading) -> tuple[list[dict], str]:
+        """Bordering (INF-2): the current feature's neighbours in its layer, from the stored relationships,
+        each with its shared border; then the areas that only nearly touch, with the distance across. Not
+        limited by the zoom (DP80), but only from layers that are on. Sorted by bearing at first."""
+        rel = self.store.relationships(current.id)
+        units = self._units()
+        items = []
+        for key, entries in (("bordering.item", rel.get("next", [])), ("bordering.near", rel.get("near", []))):
+            for identifier, km in entries:
+                area = self.store.feature(identifier)
+                if area is None or not self._layer_on(area):
+                    continue
+                text = words.distance_text(km * 1000.0, units)
+                field = "length" if key == "bordering.item" else "across"
+                items.append(self._feature_item("bordering", area, key, heading, **{field: text}))
+        return self._sorted("bordering", items), say("bordering.none", name=current.name)
+
+    def _group_contains(self, current, heading) -> tuple[list[dict], str]:
+        """Contains (INF-1, ANN-7, DP70): the visible features whose stored relationships put the current
+        feature in them, fully or partly (partly counts, with no label), grouped by layer under a heading
+        such as "Regions 13", in the catalogue's layer order, only for layers with something visible."""
+        lat, lon, zoom = self.world.lat, self.world.lon, self.world.zoom_m
+        by_layer: dict[str, list] = {}
+        for identifier in self.visible.features(lat, lon, zoom):
+            if identifier == current.id:
+                continue
+            area = self.store.feature(identifier)
+            if area is None:
+                continue
+            # The relationships are stored from the inside out: a feature's "in" lists what holds it, and
+            # "partly" what it is partly inside. So the current feature holds this one when it is listed.
+            rel = self.store.relationships(identifier)
+            if current.id in rel.get("in", ()) or any(p[0] == current.id for p in rel.get("partly", ())):
+                by_layer.setdefault(area.layer, []).append(area)
+        items = []
+        for layer in self.layers.layers():
+            areas = by_layer.get(layer.id)
+            if not areas:
+                continue
+            children = self._sorted("contains", [self._feature_item("contains", a, "contains.item", heading)
+                                                 for a in areas])
+            items.append(panel_table.heading(layer.id, say("contains.heading", layer=layer.name, count=len(children)),
+                                             children, name=layer.name))
+        return items, say("contains.none", name=current.name)
+
+    def _group_overlapping(self, current, heading) -> tuple[list[dict], str]:
+        """Overlapping (INF-5): for an area, the areas that overlap it, each with the share of each covered
+        ([id, share of this, share of the other]); for a line or a place, the areas it is partly inside
+        ([id, share]). Not limited by the zoom, but only from layers that are on. By name at first."""
+        rel = self.store.relationships(current.id)
+        items = []
+        if self._geometry(current) == "area":
+            for identifier, mine, theirs in rel.get("overlaps", []):
+                area = self.store.feature(identifier)
+                if area is not None and self._layer_on(area):
+                    items.append(self._feature_item("overlapping", area, "overlapping.item", heading,
+                                                    mine=self._percent(mine), theirs=self._percent(theirs),
+                                                    current=current.name))
+        else:
+            for identifier, share in rel.get("partly", []):
+                area = self.store.feature(identifier)
+                if area is not None and self._layer_on(area):
+                    items.append(self._feature_item("overlapping", area, "overlapping.partly", heading,
+                                                    share=self._percent(share), current=current.name))
+        return self._sorted("overlapping", items), say("overlapping.none", name=current.name)
+
+    def _group_crossing(self, current, heading) -> tuple[list[dict], str]:
+        """Crossing (INF-6): for a line, the areas it passes through, kept in order from its start; for an
+        area, the lines that cross it and then those along its border, each part sorted by name."""
+        rel = self.store.relationships(current.id)
+        items = []
+        if self._geometry(current) == "line":
+            for identifier in rel.get("crosses", []):
+                area = self.store.feature(identifier)
+                if area is not None and self._layer_on(area):
+                    items.append(self._feature_item("crossing", area, "crossing.item", heading))
+            return items, say("crossing.none", name=current.name)
+        for key, label in (("crossed_by", "crossing.crosses"), ("along", "crossing.along")):
+            part = []
+            for identifier in rel.get(key, []):
+                line = self.store.feature(identifier)
+                if line is not None and self._layer_on(line):
+                    part.append(self._feature_item("crossing", line, label, heading))
+            items += self._sorted("crossing", part, "name")
+        return items, say("crossing.none", name=current.name)
+
+    @staticmethod
+    def _percent(share: float) -> int:
+        """A share of land as a whole percentage, at least 1, so a small share is not said as none."""
+        return max(1, min(100, round(share * 100)))
+
+    def _group_search(self, current, heading) -> tuple[list[dict], str]:
+        return [], say("search.none")                               # P3-T8c, P3-T9b, P3-T10a
+
+    def _layer_on(self, area) -> bool:
+        layer = self.layers.get(area.layer)
+        return layer is None or layer.on
+
+    @staticmethod
+    def _sorted(gid: str, items: list[dict], how: str | None = None) -> list[dict]:
+        """Items in a sort order: name, distance, or bearing clockwise from ahead; the group's own
+        default when how is None. "natural" keeps them as made. P3-T4d adds Ctrl+S's choice."""
+        how = how or panel_table.GROUPS[gid].default_sort
+        if how == "natural":
+            return items
+        key = {"name": lambda i: (i["name"].casefold(), i["id"]),
+               "distance": lambda i: (i["distance_m"], i["id"]),
+               "bearing": lambda i: (i["bearing_deg"], i["id"])}[how]
+        return sorted(items, key=key)
+
+    def _panel_base(self) -> dict:
+        """Within, Nearby, and Crossed and passed, made as in Phase 2, at every refresh: their headings
+        keep their counts at every step. Kept until the place, the zoom or a setting they use changes."""
         zoom = self.world.zoom_m
         shown = self.visible.shown_layers(zoom)
         heading = describer.words_facing(self.world, self.settings)
         key = (self.world.lat, self.world.lon, self.settings["units"], self.settings["bearing"],
                self.settings["nearby_count"], zoom, shown, heading, self._interval(), self._crossed_gen,
                id(self.crossed))
-        if self._panel_cache and self._panel_cache[0] == key:
-            return self._panel_cache[1]
+        if self._panel_cache and self._panel_cache["key"] == key:
+            return self._panel_cache
         units = self.settings["units"]
         within = []
         for a in self.areas:   # the distance and direction to its centre, as Nearby has (P2-T17k, DP155)
             distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, *box_centre(a.record["bbox"]))
-            within.append({"id": a.id, "level": 1, "label": say(
+            within.append(panel_table.item(a.id, say(
                 "within.here" if distance < HERE_M else "within.item", name=a.name,
                 distance=words.distance_text(distance, units),
-                direction=words.direction_text(bearing, self.settings["bearing"], heading))})
+                direction=words.direction_text(bearing, self.settings["bearing"], heading)),
+                a.name, distance, bearing - (describer.facing(self.world) or 0.0)))
         inside = {a.id for a in self.areas}   # Contains is never limited by the zoom (ANN-7)
         count = self.settings["nearby_count"]
         # Nearby searches within the zoom (NAV-13), and lists only visible features.
@@ -521,34 +782,58 @@ class MapSession:
         self._spots = {("within", a.id): (a, *box_centre(a.record["bbox"])) for a in self.areas}
         self._spots.update({("nearby", n.area.id): (n.area, n.lat, n.lon) for n in near[:count]})
         self._spots.update({("crossed", c.area.id): (c.area, c.lat, c.lon) for c in self.crossed})
-        nearby = [{"id": n.area.id, "label": describer.nearby_label(n, units, self.settings["bearing"], heading),
-                   "level": 1} for n in near[:count]]
+        ahead = describer.facing(self.world) or 0.0
+        nearby = [panel_table.item(n.area.id, describer.nearby_label(n, units, self.settings["bearing"], heading),
+                                   n.area.name, n.distance_m, n.bearing_deg - ahead) for n in near[:count]]
         crossed = self._crossed_items(heading)
-        groups = {g["id"]: g for g in [
+        groups = {g["id"]: dict(g, filled=True) for g in [
             {"id": "within", "label": self._group_label("within", within), "items": within, "empty": say("place.none")},
             {"id": "nearby", "label": self._group_label("nearby", nearby), "items": nearby, "empty": say("nearby.none")},
             {"id": "crossed", "label": self._group_label("crossed", crossed), "items": crossed,
              "empty": say("crossed.none")},
         ]}
-        groups = [groups[g] for g in registry.panel_groups()]   # in the registry's order, as their keys are
-        self._panel_cache = (key, groups)
-        return groups
+        # "lazy" keeps the lazy groups once filled, by group: (what they were made from, the group).
+        self._panel_cache = {"key": key, "groups": groups, "heading": heading, "lazy": {}}
+        return self._panel_cache
 
     def _geometry(self, area) -> str:
         layer = self.layers.get(area.layer)
         return layer.geometry if layer is not None else "area"
 
-    @staticmethod
-    def _group_label(group: str, items: list) -> str:
+    @classmethod
+    def _group_label(cls, group: str, items: list) -> str:
         """A group heading with how many items it holds, such as "Nearby, 5 items" (P2-T17k,
         desktop checklist 10.4). Go to Nearby and the like keep the plain name."""
-        name, n = say(f"panel.{group}"), len(items)
+        return cls._count_label(say(f"panel.{group}"), items)
+
+    @staticmethod
+    def _count_label(name: str, items: list) -> str:
+        """A heading's name with how many items it holds: "Bordering France, 8 items". A heading inside the
+        group counts as one item, as NVDA's "1 of 3" does."""
+        n = len(items)
         return say("panel.count_none", group=name) if n == 0 else (
             say("panel.count_one", group=name) if n == 1 else say("panel.count", group=name, count=n))
 
+    def _details_feature(self):
+        """The feature Details is about: the selected item, or the smallest area here (DAT-9, DP170)."""
+        return self.store.feature(self.selected) if self.selected else (self.areas[0] if self.areas else None)
+
+    def _wikipedia(self, **a) -> Response:
+        """Open the article of the feature Details is about in the browser (P3-T5b, INF-1). Says which
+        feature (LOC-4); with no article, says so."""
+        area = self._details_feature()
+        if area is None:
+            return Response().speak(say("details.nothing"))
+        title = area.record.get("wikipedia")
+        if not title:
+            return Response().speak(say("details.wikipedia_none", name=area.name))
+        r = Response().speak(say("details.wikipedia_opening", name=area.name))
+        r.open_url = "https://en.wikipedia.org/wiki/" + quote(title.replace(" ", "_"), safe="_(),:;@$!*'~")
+        return r
+
     def details(self) -> str:
         """Details of the selected item, or of the smallest area here (DAT-9)."""
-        area = self.store.feature(self.selected) if self.selected else (self.areas[0] if self.areas else None)
+        area = self._details_feature()
         if area is None:
             return say("details.nothing")
         rec = area.record
@@ -1000,7 +1285,8 @@ class MapSession:
             kind = {"crossed": "crossed", "passed over": "passed_over", "passed": "passed"}[c.kind]
             if distance < HERE_M:   # the step ended on it: "here", not "0 metres north" (P2-T18e)
                 kind += "_here"
-            items.append({"id": c.area.id, "label": say(f"crossed.{kind}", **fields), "level": 1})
+            items.append(panel_table.item(c.area.id, say(f"crossed.{kind}", **fields), c.area.name, distance,
+                                          bearing - (describer.facing(w) or 0.0)))
         return items
 
     def _moved(self, **extra) -> Response:
@@ -1360,7 +1646,7 @@ class MapSession:
 
     def _focus_panel(self, **_a) -> Response:
         item, group = self.panel_item, self.panel_group
-        known = {(g["id"], i["id"]) for g in self.panel() for i in g["items"]}
+        known = {(g["id"], i["id"]) for g in self.panel() for i in panel_table.walk(g["items"])}
         if (group, item) not in known:
             group = next((g for g, i in known if i == item), None)
         if group is None:
@@ -1375,6 +1661,8 @@ class MapSession:
         self.panel_at_group = group or self.panel_at_group
         if item:
             self.panel_item, self.panel_group = item, group
+        if panel_table.is_heading(item):   # a heading inside a group, such as Contains' "Regions 13"
+            item = None
         if item == self.selected:
             return Response()
         self.selected = item
@@ -1391,7 +1679,7 @@ class MapSession:
         self.panel()   # the items' places are kept as the panel is made
         if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
-        groups = [group] if group else ["within", "nearby", "crossed"]
+        groups = [group] if group else registry.panel_groups()
         spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
         if spot is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
@@ -1426,7 +1714,7 @@ class MapSession:
         self.panel()   # the items' places are kept as the panel is made
         if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
-        groups = [group] if group else ["within", "nearby", "crossed"]
+        groups = [group] if group else registry.panel_groups()
         found = next(((g, self._spots[(g, item)]) for g in groups if (g, item) in self._spots), None)
         if found is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
@@ -1437,6 +1725,10 @@ class MapSession:
         r = self._land(self._jump(lat, lon))
         r.focus = {"region": "panel", "group": group, "item": None}
         return r
+
+    def _bookmark(self, **_a) -> Response:
+        """Ctrl+Enter on an item: a bookmark. They come in Phase 4 (DP170, LOC-4, INF-10)."""
+        return Response().speak(say("bookmark.later"), ASSERTIVE)
 
     def _focus_back(self, item: str | None = None) -> dict | None:
         """Where the focus goes once Go to's or the bearing's box has its answer: back to the

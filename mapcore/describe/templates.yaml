@@ -57,6 +57,14 @@ panel:
   within: Within
   nearby: Nearby
   crossed: Crossed and passed
+  contains: Contains
+  bordering: Bordering
+  overlapping: Overlapping
+  crossing: Crossing
+  search: Search
+  # A group about the current feature names it in its heading (LOC-4, P3-T4a): "Bordering France",
+  # then with its count, "Bordering France, 8 items". Before it is opened it has no count yet.
+  about: "{group} {name}"
   # A group heading with how many items it holds (P2-T17k, desktop checklist 10.4).
   count_none: "{group}, no items"
   count_one: "{group}, 1 item"
@@ -119,6 +127,8 @@ details:
   fact: "{name}: {value}, from {source}, {date}"
   fact_fetched: "{name}: {value}, from {source}, as fetched on {date}"
   wikipedia: "Wikipedia article: {value}"
+  wikipedia_opening: "Opening the Wikipedia article for {name}."
+  wikipedia_none: "No Wikipedia article for {name}."
   months: [January, February, March, April, May, June, July, August, September, October, November, December]
   centre: "The location is {value}"
   source: "Source: {value}"
@@ -434,6 +444,38 @@ crossed:
   passed_over_here: "{name}, passed over, here"
   passed_here: "{name}, passed, here"
   none: "Nothing crossed or passed on the last move."
+
+# Ctrl+S in the Information panel says the order it chose (P3-T4d); Ctrl+Enter on an item (P3-T4e, DP170).
+sort:
+  natural: "Sorted in its natural order"
+  name: "Sorted by name"
+  distance: "Sorted by distance"
+  bearing: "Sorted by direction"
+bookmark:
+  later: "Bookmarks come in Phase 4."
+
+# The groups about the current feature (P3-T4, LOC-4). {name} is the current feature.
+# Bordering (INF-2): each neighbour, its direction from where you are, and the length of the shared
+# border; or, for an area that only nearly touches, the distance across.
+bordering:
+  item: "{name}, {direction}, shared border {length}"
+  near: "{name}, {direction}, nearly touches, {across} across"
+  none: "Nothing borders {name}."
+contains:
+  heading: "{layer} {count}"
+  item: "{name}, {direction}"
+  none: "Nothing visible inside {name}."
+overlapping:
+  item: "{name}, {direction}, {mine} percent of {current} and {theirs} percent of {name} overlap"
+  partly: "{name}, {direction}, {share} percent of {current} is inside it"
+  none: "Nothing overlaps {name}."
+crossing:
+  item: "{name}, {direction}"
+  crosses: "{name}, {direction}, crosses it"
+  along: "{name}, {direction}, along its border"
+  none: "Nothing crosses {name}."
+search:
+  none: "No search yet."
 
 # Which unit system, bearing style and coordinate format is chosen (ANN-5, LOC-1).
 # Why a pack was not opened, or what is wrong with it (PCK-5, NFR-4, P1-T2).

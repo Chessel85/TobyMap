@@ -426,8 +426,8 @@ The high level requirements document stays the product owner's own statement of 
 * Source: DP12, UXReview, DP63
 * Priority: Must. Status: Agreed (replaces the earlier "focus separate from cursor", DP63).
 * Acceptance criteria:
-  * Choosing "details" or "bordering" on an Information panel item answers about that item and does not move the location.
-  * Choosing "jump" on an item moves the location there and makes it the current feature.
+  * Selecting an item in the Information panel shows its details in Details and does not move the location. There is no menu of actions on an item (DP170).
+  * Pressing Enter on an item (a jump) moves the location there and makes it the current feature.
   * Every answer states which feature it is about.
 
 ### LOC-5 Plain-language position
@@ -823,13 +823,12 @@ The high level requirements document stays the product owner's own statement of 
   * Nearby (INF-7)
   * Crossed and passed (ANN-2)
   * Search (SRB-1, INF-9)
-* The actions on every item are:
-  * jump
-  * details
-  * its own groups, such as its Bordering or Contains, without moving
-  * play its direction as sound
-  * measure from the location
-  * bookmark
+* There is no menu of actions on an item (DP170). The keys on every item are:
+  * Enter: jump there
+  * Space: play its direction as sound
+  * Ctrl+Enter: bookmark it (from Phase 4; until then it says "Bookmarks come in Phase 4.")
+  * Ctrl+S and Ctrl+Shift+S: sort the group by name, distance or bearing
+  * Its details show in Details as the item is selected, and its own groups, such as Bordering or Contains, are the groups of the current feature (LOC-4).
 * Acceptance criteria:
   * The panel is an accessible tree view, with level and position announced.
   * F3 goes to the panel from any region, back to the item last focused there, or to the first item of Within the first time (DP106).

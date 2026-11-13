@@ -484,14 +484,14 @@ In Phase 2, two actions have their own keys:
 
 Go to coordinates (Ctrl+G) and Type a bearing (Ctrl+B) work from the panel and from Details as well as from the map. After the box closes, the focus goes back where it was. In the panel, after Go to, it is on the first item of the same group; after a bearing, on the same item. The answer, such as the new place, is spoken after the item is read.
 
-The full set of actions on any item is (INF-10):
+There is no menu of actions on an item (INF-10, DP170). The keys on any item are:
 
-* jump: move there, and make it the current feature
-* details: show its details in the Details panel
-* its own groups: open Bordering, Contains and so on for this item, without moving
-* hear its direction
-* measure: distance and bearing from the location, and along a line where that makes sense
-* bookmark
+* Enter: jump there, and make it the current feature
+* Space: hear its direction
+* Ctrl+Enter: bookmark it. Bookmarks come in Phase 4, so until then it says "Bookmarks come in Phase 4."
+* Ctrl+S and Ctrl+Shift+S: sort the group by name, distance or bearing, and say which
+
+Its details show in Details as it is selected. The groups of the current feature, Bordering, Contains and the rest, are reached with Shift and a number.
 
 D speaks and shows the details of the current feature (INF-1). Facts give their source and date, for example "Population 67 million (Wikidata, 2024)".
 

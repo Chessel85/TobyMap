@@ -23,8 +23,8 @@ import threading
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QObject, Qt, Signal
-from PySide6.QtGui import QAction, QGuiApplication
+from PySide6.QtCore import QEvent, QObject, Qt, QUrl, Signal
+from PySide6.QtGui import QAction, QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, QMenu, QPlainTextEdit, QSplitter,
                                QTreeWidgetItem)
 
@@ -246,6 +246,8 @@ class MainWindow(QMainWindow):
         self.tree.setHeaderHidden(True)
         self.tree.setAccessibleName(self.words["panel"])
         self.tree.currentItemChanged.connect(self._tree_item_changed)
+        # A group not yet filled is filled when it is opened (P3-T4a, NFR-1).
+        self.tree.itemExpanded.connect(self._tree_item_expanded)
         self.details = QPlainTextEdit()
         self.details.setObjectName("details")
         self.details.setReadOnly(True)
@@ -465,6 +467,10 @@ class MainWindow(QMainWindow):
         self.handle(response)
         return True
 
+    def open_url(self, url: str) -> None:
+        """Open an address in the default browser (P3-T5b). Tests replace this method, so none opens."""
+        QDesktopServices.openUrl(QUrl(url))
+
     def dispatch(self, name: str, **args):
         self.handle(self.session.run(name, **args))
 
@@ -512,6 +518,8 @@ class MainWindow(QMainWindow):
             self._apply_focus(response.focus)
         if response.dialog:
             self._open_dialog(response.dialog)
+        if response.open_url:
+            self.open_url(response.open_url)
         if response.action == "exit":
             self.close()
         if response.background:
@@ -581,8 +589,10 @@ class MainWindow(QMainWindow):
                 group = self._group_item(focus.get("group") or "within")
                 target = group.child(0) if group is not None and group.childCount() else group
             if target is not None:
-                if target.parent() is not None:
-                    target.parent().setExpanded(True)
+                parent = target.parent()
+                while parent is not None:   # an item under a heading inside a group, as in Contains
+                    parent.setExpanded(True)
+                    parent = parent.parent()
                 self.tree.setCurrentItem(target)
             self.tree.setFocus(Qt.FocusReason.OtherFocusReason)
 
@@ -688,19 +698,37 @@ class MainWindow(QMainWindow):
         return None
 
     def _item_by_id(self, item_id: str, group_id: str | None = None):
-        """An area can be in two groups, so the item is looked for in its own group first."""
+        """An area can be in two groups, so the item is looked for in its own group first. An item
+        may be under a heading inside its group, as in Contains (P3-T4a)."""
         groups = [self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())]
         groups.sort(key=lambda g: g.data(0, ITEM_ID) != f"group:{group_id}")
+
+        def find(node):
+            for j in range(node.childCount()):
+                child = node.child(j)
+                if child.data(0, ITEM_ID) == item_id:
+                    return child
+                found = find(child)
+                if found is not None:
+                    return found
+            return None
+
         for group in groups:
-            for j in range(group.childCount()):
-                if group.child(j).data(0, ITEM_ID) == item_id:
-                    return group.child(j)
+            found = find(group)
+            if found is not None:
+                return found
         return None
+
+    def _open_groups(self) -> set[str]:
+        """The groups open in the tree, which the core fills (P3-T4a)."""
+        return {str(g.data(0, ITEM_ID)).removeprefix("group:")
+                for g in (self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount()))
+                if g.isExpanded()}
 
     def _fill_tree(self):
         """Bring the tree up to date in place: existing items keep their identity and only
         change their words, so NVDA reads the item F3 moves to without Up then Down."""
-        groups = self.session.panel()
+        groups = self.session.panel(open=self._open_groups())
         self.tree.blockSignals(True)
         try:
             while self.tree.topLevelItemCount() > len(groups):
@@ -714,26 +742,42 @@ class MainWindow(QMainWindow):
                     g.setExpanded(group["id"] == "within")
                 g.setText(0, group["label"])
                 g.setData(0, ITEM_ID, f"group:{group['id']}")
+                # A group not yet filled shows it can be opened, though it has no items yet (P3-T4a).
+                g.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator
+                                          if not group.get("filled", True)
+                                          else QTreeWidgetItem.ChildIndicatorPolicy.DontShowIndicatorWhenChildless)
                 items = group["items"] or ([{"id": None, "label": group["empty"]}] if group["empty"] else [])
-                while g.childCount() > len(items):
-                    g.takeChild(g.childCount() - 1)
-                for ii, item in enumerate(items):
-                    child = g.child(ii) if ii < g.childCount() else None
-                    if child is None:
-                        child = QTreeWidgetItem()
-                        g.addChild(child)
-                    if child.text(0) != item["label"]:
-                        child.setText(0, item["label"])
-                    child.setData(0, ITEM_ID, item["id"])
+                self._fill_children(g, items)
         finally:
             self.tree.blockSignals(False)
+
+    def _fill_children(self, node, items: list[dict]) -> None:
+        """An item's children, in place; a heading's own items under it, as in Contains (P3-T4a)."""
+        while node.childCount() > len(items):
+            node.takeChild(node.childCount() - 1)
+        for ii, item in enumerate(items):
+            child = node.child(ii) if ii < node.childCount() else None
+            if child is None:
+                child = QTreeWidgetItem()
+                node.addChild(child)
+            if child.text(0) != item["label"]:
+                child.setText(0, item["label"])
+            child.setData(0, ITEM_ID, item["id"])
+            self._fill_children(child, item.get("children") or [])
+
+    def _tree_item_expanded(self, item) -> None:
+        """A group opened: fill it if it was not. Its items appear under the focused heading."""
+        if item.parent() is None and item.childCount() == 0:
+            self._fill_tree()
 
     def _tree_item_changed(self, current, _previous):
         item_id = current.data(0, ITEM_ID) if current is not None else None
         if item_id is not None and str(item_id).startswith("group:"):
             item_id = None
-        parent = current.parent() if current is not None else None
-        # A group heading is in its own group: Go to comes back to it (P2-T17k).
-        heading = current if current is not None and parent is None else parent
+        # A group heading is in its own group: Go to comes back to it (P2-T17k). An item under a
+        # heading inside a group, as in Contains, is in the group at the top (P3-T4a).
+        heading = current
+        while heading is not None and heading.parent() is not None:
+            heading = heading.parent()
         group = str(heading.data(0, ITEM_ID)).removeprefix("group:") if heading is not None else None
         self.dispatch("panel.select", item=item_id, group=group)

@@ -323,7 +323,7 @@ def test_f3_goes_back_to_the_item_last_focused(session):
 def test_the_panel_has_within_and_nearby_with_levels(test_pack):
     s = MapSession(packs=[test_pack], saved_state={"lat": 43.08, "lon": -79.08, "zoom_m": 5000, "step_m": 100})
     s.start()
-    within, nearby, _crossed = s.panel()
+    within, nearby, _crossed = s.panel()[:3]
     assert [i["label"].split(",")[0] for i in within["items"]] == ["Niagara Region", "Ontario", "Canada"]
     assert all(", centre " in i["label"] for i in within["items"])   # its centre's distance and direction (P2-T17k)
     assert nearby["items"][0]["label"].startswith("United States, 410 metres east")

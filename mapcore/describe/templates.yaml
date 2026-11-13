@@ -425,6 +425,14 @@ history:
   # Shift+Space with nothing said yet (ANN-4).
   nothing_to_repeat: "Nothing to repeat."
 
+# Measuring (INF-3, INF-8, P3-T7a). The border is the nearest point on an area's own boundary, when you are inside it.
+measure:
+  item: "{name}, nearest point {distance} {direction}"
+  border: "{name}, its border {distance} {direction}"
+  centre: "{name}, centre {distance} {direction}"
+  here: "{name}, here"
+  none: "Cannot measure to {name}."
+
 nearby:
   item: "{name}, {distance} {direction}"
   # Under a metre away there is no direction to give, so the place is "here" (P2-T18e).

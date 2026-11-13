@@ -12,6 +12,11 @@ tabs:
         kind: choice
         default: metric
         choices: [[metric, Metric], [imperial, Imperial], [nautical, "Nautical miles at sea"]]
+      - id: measure_to
+        label: Measure to
+        kind: choice
+        default: nearest
+        choices: [[nearest, "The nearest point of the feature"], [centre, "The centre of the feature"]]
       - id: bearing
         label: Directions
         kind: choice

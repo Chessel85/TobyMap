@@ -93,6 +93,8 @@ commands:
   - {name: panel.group, label: "Go to {group}", key: "Shift+{number}", region: global, menu: Map, each_panel_group: true}
   # Hear its direction (DP143, SON-3): your key, from the key list. On an item of Nearby or Crossed and passed.
   - {name: panel.hear, label: Hear its direction, key: Space, region: panel, menu: ""}
+  # Measure from where you are to the focused item, or the current feature (INF-3, P3-T7a). DP187: Shift+M.
+  - {name: measure.to, label: Measure to the item, key: Shift+M, region: global, menu: Map}
   # Enter on an item goes there: to a point, or to an area's centre (P2-T17k, INF-10, DP155).
   - {name: panel.go, label: Go there, key: Enter, region: panel, menu: ""}
   # Sort the group the focus is in: next order, and the previous (P3-T4d, INF-10; the key list).

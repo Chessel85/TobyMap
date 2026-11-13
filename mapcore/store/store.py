@@ -663,29 +663,44 @@ class Store:
             return []
         return [(sw, s, se, n) for sw, se in both]
 
+    def measure(self, area: Area, lat: float, lon: float, border: bool = False) -> Near | None:
+        """The nearest point of one feature to the point, measured on the ellipsoid (INF-3, INF-8). With
+        border, an area the point is inside gives its nearest point on the area's own boundary, not
+        distance 0 (INF-3). A feature in no tile near it gives None."""
+        lon = geodesy.wrap_lon(lon)
+        flat = Flat(lat, lon)
+        p = area.pack
+        numbers, boxes = self._indexes[p].boxes
+        where = np.nonzero(numbers == area.number)[0]
+        if not len(where):
+            return None
+        lower = float(self._box_distance_m(boxes[where[:1]], lat, lon)[0])
+        return self._nearest(p, area, flat, lat, lon, lower, geodesy.A_M * math.pi, border)
+
     def _nearest(self, p: int, area: Area, flat: Flat, lat: float, lon: float,
-                 lower: float, radius_m: float) -> Near | None:
+                 lower: float, radius_m: float, border: bool = False) -> Near | None:
         r = max(lower * 1.25, FIRST_SEARCH_M)
         while True:
             r = min(r, radius_m)
-            best = self._search(p, area, flat, lat, lon, r, lower)
+            best = self._search(p, area, flat, lat, lon, r, lower, border)
             if best is not None and best[0] <= r:
                 break
             if r >= radius_m:
                 return None
             r *= SEARCH_GROWTH
-        _, x, y = best
+        _, x, y, on_border = best
+        inside = best[0] == 0.0 or on_border
         if best[0] == 0.0:
             n_lat, n_lon = lat, lon
         else:
             n_lat, n_lon = (float(v) for v in flat.inverse(x, y))
-        inside = best[0] == 0.0
         distance, bearing, _arrival = geodesy.inverse(lat, lon, n_lat, n_lon)
         if distance > radius_m:
             return None
-        return Near(area, distance, 0.0 if inside else bearing, n_lat, n_lon, inside)
+        return Near(area, distance, 0.0 if best[0] == 0.0 else bearing, n_lat, n_lon, inside)
 
-    def _search(self, p: int, area: Area, flat: Flat, lat: float, lon: float, r: float, lower: float):
+    def _search(self, p: int, area: Area, flat: Flat, lat: float, lon: float, r: float, lower: float,
+                border: bool = False):
         """The nearest point of the area's shapes in tiles within r metres:
         (distance in the flat view, x, y), or None if there is none."""
         import shapely
@@ -705,17 +720,20 @@ class Store:
                 for x, y in index.tiles_in(kind, ident, x0, x1, y0, y1):
                     data = self._tile(p, kind, ident, x, y)
                     for i in data.by_feature.get(area.number, ()):
-                        found = self._part_distance(data, i, (x, y, level), flat, lat, lon, origin)
+                        found = self._part_distance(data, i, (x, y, level), flat, lat, lon, origin, border)
                         if found is not None and (best is None or found[0] < best[0]):
                             best = found
         return best
 
-    def _part_distance(self, data: TileData, i: int, where, flat: Flat, lat: float, lon: float, origin):
+    def _part_distance(self, data: TileData, i: int, where, flat: Flat, lat: float, lon: float, origin,
+                       border: bool = False):
         import shapely
 
         x, y, level = where
         entry = data.entries[i]
         if entry.kind == tiles.COVERED:
+            if border:   # a tile wholly inside the area has no border in it
+                return None
             west, south, east, north = tiles.tile_box(level, x, y)
             n_lat = min(max(lat, south), north)
             if west <= lon <= east:
@@ -723,14 +741,21 @@ class Store:
             else:
                 n_lon = west if ((west - lon) % 360.0) <= ((lon - east) % 360.0) else east
             px, py = (float(v) for v in flat.forward(n_lat, n_lon))
-            return math.hypot(px, py), px, py
+            return math.hypot(px, py), px, py, False
         with self._shapes:
             shape = data.shape(i)
             inside = shapely.intersects_xy(shape, lon, lat)
-        if inside:
-            return 0.0, 0.0, 0.0
+        if inside and not border:
+            return 0.0, 0.0, 0.0, False
+        if border:   # the area's own boundary: not the cuts along the tile's edges
+            import shapely.geometry as sg
+            west, south, east, north = tiles.tile_box(level, x, y)
+            cuts = sg.box(west, south, east, north).boundary.buffer(1e-6)
+            shape = shapely.difference(shape.boundary, cuts)
+            if shape.is_empty:
+                return None
         projected = flat.transform(shape)
         distance = float(shapely.distance(origin, projected))
         line = shapely.shortest_line(origin, projected)
         x1, y1 = shapely.get_coordinates(line)[-1]
-        return distance, float(x1), float(y1)
+        return distance, float(x1), float(y1), bool(border and inside)

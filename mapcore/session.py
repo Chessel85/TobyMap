@@ -244,6 +244,7 @@ class MapSession:
             # Shift and a number: go to that group (INF-10, DP109).
             **{f"panel.{g}": (lambda g=g, **a: self._go_to_group(g)) for g in registry.panel_groups()},
             "panel.hear": self._hear,
+            "measure.to": self._measure,
             "panel.go": self._panel_go,
             "panel.sort": lambda **a: self._sort(1, **a),
             "panel.sort_back": lambda **a: self._sort(-1, **a),
@@ -1769,6 +1770,43 @@ class MapSession:
         r = self._land(self._jump(lat, lon))
         r.focus = {"region": "panel", "group": group, "item": None}
         return r
+
+    def _measure(self, item: str | None = None, group: str | None = None, **_a) -> Response:
+        """Shift+M: the distance and bearing from where you are to the item focused in the Information
+        panel, else to the current feature (INF-3, P3-T7a). To its nearest point, or to its centre if the
+        Units tab says so; inside an area, to its border. It never moves you."""
+        self.panel()
+        if not item and self.panel_on_item:
+            item, group = self.panel_item, self.panel_group
+        groups = [group] if group else registry.panel_groups()
+        spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
+        area = spot[0] if spot else (self.store.feature(item) if item and not panel_table.is_heading(item) else None)
+        if area is None:
+            area = self.current_feature
+        if area is None:
+            return Response().earcon("blocked").speak(say("place.none"), ASSERTIVE)
+        return self.measure_to(area)
+
+    def measure_to(self, area) -> Response:
+        """Say the distance and bearing from here to a feature, without moving (INF-3, INF-8). Search
+        results use this too (P3-T8b)."""
+        w = self.world
+        if self.settings["measure_to"] == "centre":
+            lat, lon = self._spot_of(area)
+            distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
+            key = "measure.centre"
+        else:
+            border = self._geometry(area) == "area"
+            found = self.store.measure(area, w.lat, w.lon, border=border)
+            if found is None:
+                return Response().earcon("blocked").speak(say("measure.none", name=area.name), ASSERTIVE)
+            distance, bearing = found.distance_m, found.bearing_deg
+            key = "measure.border" if found.inside else "measure.item"
+            if distance < 1.0:
+                key = "measure.here"
+        text = say(key, name=area.name, distance=words.distance_text(distance, self._units()),
+                   direction=words.direction_text(bearing, self.settings["bearing"], describer.words_facing(w, self.settings)))
+        return Response().speak(text, ASSERTIVE)
 
     def _bookmark(self, **_a) -> Response:
         """Ctrl+Enter on an item: a bookmark. They come in Phase 4 (DP170, LOC-4, INF-10)."""

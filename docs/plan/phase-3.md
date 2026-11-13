@@ -221,6 +221,7 @@ Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP
     * Tests: 3 new in tests/desktop/test_hierarchy_desktop.py and 1 in tests/web/test_hierarchy_page.py; 1 changed in tests/web/test_shell_page.py, as the Map menu now has 4 items with a tick. All 1,572 Python tests and all 190 browser tests in Chromium and Firefox pass. The world pack speed test passes when run alone; it failed when run beside the browser tests.
     * Still to try with NVDA, with the phase checklist: that the sound is heard before the list is read.
 * [ ] P3-T7 Measuring.
+  * [x] P3-T7a Measuring (Sonnet). Done on 13 November 2026, the part that needs no search: Shift+M (DP187) says the distance and bearing from where you are to the item focused in the panel, or to the current feature, without moving you. Inside an area it is the distance to its border (INF-3), through the new Store.measure. A new Units setting, "Measure to", chooses the nearest point or the centre. MapSession.measure_to is ready for search results. Still to do with P3-T8b: "Distance to" for a search result (INF-8), which needs its own key, as the key list gives Shift+M to both. Tests: 6 new in tests/mapcore/test_measuring.py; the Python suite passes (1595, 1 expected failure); the browser tests not run.
 * [ ] P3-T8 Search.
 * [ ] P3-T9 The world tree and browsing by category.
 * [ ] P3-T16 Lists of disputed and unclaimed areas.

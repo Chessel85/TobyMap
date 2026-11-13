@@ -2,6 +2,45 @@
 
 The size trial, run on the night of 10 to 11 November 2026. This first report covers counties. Each new layer of P3-T1 is added to the trial as it is built, and this report gains a section for it: the named seas (P3-T1b) were added on 11 November. You decided from it that counties go into the world build (DP175). The thresholds for the world are still to decide (DP169).
 
+## The world build again, with the join mended (P3-T1m), night of 12 to 13 November 2026
+
+The world pack built again with the join mended (P3-T1m) and peaks only with a Wikidata link (DP176). The join and every stage after it ran again. The planet read for the countries and the grid squares were kept.
+
+### The pack
+
+* world.pack: 426.1 MB, 616,500 features in 18 layers, 24.5 MB smaller than the build of 12 November. About 26 MB over the soft limit of about 400 MB (PCK-1).
+* Peaks: 58,161, down from 209,646, now 6.1 MB, down from 20.8 MB.
+* Oceans and seas: 22.7 MB, down from 27.7 MB, as each ocean is now one shape instead of thousands of grid squares. Seas, bays and straits: 18.2 MB, down from 20.2 MB. Countries: 26.5 MB, down from 27.9 MB.
+* Every other layer is the same size, within a few hundredths of a MB, to 0.8 MB for the regions.
+
+### The checks
+
+* Build twice (DMT-1): the writing stage run a second time from the kept stages gives the same pack, byte for byte, with the checksum 60d28de1.
+* No gaps (LOC-6): passed in the join, all 1,036,800 points, every quarter of a degree, in a country or a sea.
+* The join: no area is listed as kept as touching parts. Every area was joined into one shape.
+* Check places worldwide (DAT-1): 119 of 119 pass.
+* The 180 degree line: both checks pass. Every quarter of a degree of latitude is named on both sides, and none of the 441,820 edges beside the line jumps across the globe.
+* Areas against Wikidata: Antarctica, Fiji, Russia, the United States and Kiribati all pass, Kiribati as explained in DP118.
+
+### Drawing level 0, the widest zooms
+
+* The North Atlantic (vliz:goas:9): one shape, from 97.9 west to 11.9 east and from the equator to 68.6 north. Before, at this level, it was a single 1 degree square.
+* Russia (osm:r60189): one large shape for the mainland, from 27.4 east to the 180 degree line, and 5 smaller parts, 2% of its area, such as Kaliningrad and the large islands.
+* Canada (osm:r1428125): one large shape for the mainland, and 12 smaller parts, the large Arctic islands.
+* The North Atlantic's point is now at 33.9 north, 42.5 west, in the open ocean, no longer near Barbados.
+
+### The stages' times
+
+* The first try was stopped by Claude Code for lack of free memory, at the same place as on 12 November: reading the roads from the planet file. It was started again, as you asked, and skipped the 11 stages already finished. The whole build took about 2 hours 20 minutes, both tries together.
+* The join: 24 minutes. The continents: 3 minutes. Lakes, rivers, mountain ranges and physical regions: 19 minutes, 14 of them the mountain ranges and physical regions. Peaks and towns: 2 minutes. Roads and railways: 8 minutes.
+* Writing the pack: 1 hour 22 minutes, against 52 minutes on 12 November. The extra half hour is measuring the features, 50 minutes against 9: before measuring, each part of a large shape is checked for being valid, on one core, and that check is slow on the new joined oceans, each now one part with many holes, the islands. The Arctic Ocean is one part of 2.6 million points and 178,820 holes, the North Atlantic 1.7 million points and 153,291 holes, the Baltic Sea 865,000 points and 146,899 holes. Timed alone, the Baltic Sea's check takes 92 seconds and the Arctic Ocean's over 10 minutes. All the parts timed were valid.
+* A way to make it faster, not done: check the parts in the workers, or check only parts that may be invalid. For you to decide whether it is worth doing, as it costs about half an hour a world build.
+
+### Still to look at
+
+* The Python test test_the_rule_takes_under_5_ms_a_frame_on_the_world_pack still fails on this pack: median 45 ms a frame against 5 ms, run alone, about as before the rebuild (47 ms). The mended join did not change it. All 1,438 other Python tests pass.
+* The strip of the North Atlantic along the equator at 0 degrees east (below) was not looked at again.
+
 ## The world build (P3-T1l), 12 November 2026
 
 The whole world, with every layer of P3-T1 in it, built for the first time. The grid squares and the join, already finished on 11 November, were kept, so the build took about 1 hour 45 minutes, not 4 hours. Roads, railways and towns were read from the whole planet file for the first time.

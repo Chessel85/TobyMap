@@ -128,6 +128,11 @@ Optional fields:
 
 * disputed: true for an area that OSM holds twice in one layer, one copy for each side of a dispute, such as Sevastopol (DP104, architecture 6.12). Only one copy is in the pack.
 * also_held_as: with disputed, the other copy's details: id, name, name_en and country_code, the ISO 3166-1 code its own ISO 3166-2 code names, such as UA. The details of the area describe the dispute from these (ANN-6).
+* tier: for an area of the countries, regions and counties layers, where it sits in its country's government, one of the manifest's tiers, such as constituent_country for England (P3-T17, DP165). Given by the writing stage from mapdata/config/tiers.yaml. Details says it with the area above it, "constituent country of the United Kingdom". A pack written before P3-T17 has none, and Details then says the layer's word.
+
+The manifest may also have:
+
+* tiers: the tiers, highest first, such as `["country", "constituent_country", "region", "county"]` (P3-T17). "Where am I" orders the areas at a point by rank, then by this list, the lowest tier first, then the smallest. Optional, so the format number did not change.
 
 ### tile/L/X/Y
 

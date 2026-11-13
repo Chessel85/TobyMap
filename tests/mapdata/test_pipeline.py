@@ -106,16 +106,19 @@ def test_how_a_layer_is_shown_changes_only_the_pack_writing(tmp_path):
     assert run_build(data, config_dir=config)[0] == 0
     layers = config / "layers" / "base.yaml"
     layers.write_text(layers.read_text(encoding="utf-8").replace(
-        "name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000",
-        "name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: false, "
-        "min_zoom_m: 1000, max_zoom_m: 2500000, crossing_earcon: line_crossing"), encoding="utf-8")
+        "shown_name: Regions and constituent countries, rank: 4, kind: land, group: Boundaries, geometry: area, "
+        "switched_on: true, max_zoom_m: 1000000",
+        "shown_name: Regions and their tiers, rank: 4, kind: land, group: Boundaries, geometry: area, "
+        "switched_on: false, min_zoom_m: 1000, max_zoom_m: 2500000, crossing_earcon: line_crossing"), encoding="utf-8")
     code, lines = run_build(data, config_dir=config)
     assert code == 0
     assert "Stages skipped, as nothing they use had changed: samples, water." in lines
     pack = Pack(data / "tobymap" / "output" / "test" / "test.pack")
     regions = next(d for d in pack.layers if d["id"] == "regions")
     pack.close()
-    assert regions == {"id": "regions", "name": "Regions", "rank": 4, "group": "Boundaries", "geometry": "area",
+    # The name shown changes too (P3-T17), and still only the writing runs.
+    assert regions == {"id": "regions", "name": "Regions and their tiers", "rank": 4, "group": "Boundaries",
+                       "geometry": "area",
                        "switched_on": False, "min_zoom_m": 1000, "max_zoom_m": 2500000,
                        "crossing_earcon": "line_crossing"}
 
@@ -327,7 +330,8 @@ def test_inspect_gives_the_manifest_and_a_feature(test_pack, capsys):
     assert main(["inspect", str(test_pack), "manifest"]) == 0
     out = capsys.readouterr().out
     assert "Pack test, version 0.1.0, format 3" in out
-    assert ("Layers: Countries, Oceans and seas, Seas, bays and straits, Regions, Counties, Rivers, Lakes, "
+    assert ("Layers: Countries, Oceans and seas, Seas, bays and straits, Regions and constituent countries, "
+            "Counties, Rivers, Lakes, "
             "Railway stations.") in out
     assert main(["inspect", str(test_pack), "feature", "osm:r154350"]) == 0
     out = capsys.readouterr().out.splitlines()

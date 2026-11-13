@@ -181,6 +181,19 @@ def _closest_m(path, lat: float, lon: float) -> tuple[float, float]:
     return float(d[k]) * geodesy.R_MEAN_M, float(seg[:k].sum() + t[k] * seg[k]) * geodesy.R_MEAN_M
 
 
+def most_specific_first(areas, tiers: list[str] = ()) -> list[Area]:
+    """Areas in the order "where am I" says them (LOC-2): by rank, higher first; then by tier, lower first,
+    so where two tiers share a rank, a county comes before a region, and a region before a constituent
+    country (P3-T17); then the smallest. An area with no tier comes after those with one."""
+    place = {t: n for n, t in enumerate(tiers)}
+
+    def tier_key(a: Area) -> int:
+        n = place.get(a.record.get("tier"))
+        return 1 if n is None else -n   # the lowest tier first, then the higher, then no tier
+
+    return sorted(areas, key=lambda a: (-a.rank, tier_key(a), a.area_km2, a.id))
+
+
 def _intervals(west: float, east: float) -> list[tuple[float, float]]:
     """A span of longitude, possibly across the 180 degree line, as spans that do not."""
     if west <= east:
@@ -409,7 +422,17 @@ class Store:
                     area = self._area(p, entry.feature)
                     if area is not None and (layers is None or area.layer in layers):
                         found[(p, entry.feature)] = area
-        return sorted(found.values(), key=lambda a: (-a.rank, a.area_km2, a.id))
+        return most_specific_first(found.values(), self.tiers)
+
+    @property
+    def tiers(self) -> list[str]:
+        """The tiers, highest first, from the first pack that lists them (P3-T17): a pack written before
+        tiers lists none."""
+        for index in self._indexes:
+            found = (index.pack.manifest or {}).get("tiers")
+            if found:
+                return list(found)
+        return []
 
     # Lines along a path (P2-T10a) ---------------------------------------------------
 

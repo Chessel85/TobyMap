@@ -451,9 +451,18 @@ class MapSession:
                                   label_scale=v["label_size"] / 100.0, heading_up=v["heading_up"],
                                   special_layers=frozenset(layer.id for layer in self.layers.layers()
                                                            if layer.line_style == "special"),
-                                  fills={layer.id: layer.fill for layer in self.layers.layers()})
+                                  fills=self._fills())
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
+
+    def _fills(self) -> dict:
+        """How each layer is painted. With "Draw the borders of regions" off, as it is at first, the
+        regions are not painted, so the countries and counties are clearer; they are still said, and the
+        current area is still outlined (P3-T17, DP165)."""
+        fills = {layer.id: layer.fill for layer in self.layers.layers()}
+        if not self.settings["map_region_borders"] and "regions" in fills:
+            fills["regions"] = "none"
+        return fills
 
     def focus_rect(self, width: int, height: int) -> dict:
         """Where a magnifier should look on a map of this size: a small square round the
@@ -543,8 +552,7 @@ class MapSession:
         if area is None:
             return say("details.nothing")
         rec = area.record
-        layers = templates()["details"]["layers"]
-        lines = [area.name, say("details.type", value=layers.get(area.layer, area.layer))]
+        lines = [area.name, say("details.type", value=self._type_text(area))]
         parents = [p for p in (self.store.feature(i) for i in rec.get("parents", [])) if p]
         if parents:
             lines.append(say("details.part_of", value=say("place.list_separator").join(p.name for p in parents)))
@@ -559,6 +567,26 @@ class MapSession:
                                                                           self._coordinate_step())))
         lines.append(say("details.source", value=self._source_text(area)))
         return "\n".join(lines)
+
+    def _type_text(self, area) -> str:
+        """What an area is, for Details: its tier and the area above it, such as "constituent country of
+        the United Kingdom" or "region of France" (P3-T17); or, in a pack written before tiers, its layer's
+        word. The area above is the nearest of its parents of a higher tier, so Berlin, a region used as its
+        own county, is a region of Germany, not of Berlin."""
+        words_for = templates()["details"]
+        tier = area.record.get("tier")
+        if tier not in words_for["tiers"]:
+            return words_for["layers"].get(area.layer, area.layer)
+        tiers = self.store.tiers
+        mine = tiers.index(tier) if tier in tiers else len(tiers)
+        above, seen = self.store.feature(area.record["parent"]) if area.record.get("parent") else None, 0
+        while above is not None and seen < 4:
+            theirs = above.record.get("tier")
+            if theirs in tiers and tiers.index(theirs) < mine:
+                return say("details.tier_of", tier=words_for["tiers"][tier], owner=words.name_after_of(above.name))
+            parent = above.record.get("parent")
+            above, seen = (self.store.feature(parent) if parent else None), seen + 1
+        return words_for["tiers"][tier]
 
     def registry(self) -> dict:
         return registry.describe(self.platform, self.settings.keys)

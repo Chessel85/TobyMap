@@ -1,0 +1,36 @@
+# The tiers record (P3-T17, DP165; glossary: tier). It sits beside the counties record.
+#
+# A tier is where an area sits in its own country's government, such as country,
+# constituent country, region or county. The OSM level alone cannot say it: England
+# and the French region Brittany are both level 4, but England is a constituent
+# country of the United Kingdom.
+#
+# The writing stage gives every area of the countries, regions and counties layers
+# a tier, in this order:
+# * an area listed under "areas" takes the tier given there;
+# * an area of a country listed under "countries" takes the tier given there for
+#   its layer;
+# * any other area takes its layer's tier, under "layers".
+# A region used as its own county (DP101) takes its region's tier.
+#
+# The application says the tier in Details, such as "constituent country of the
+# United Kingdom", and puts the areas at a point in the order of "tiers", after
+# their layers' ranks. Each tier has the words said for it in
+# mapcore/describe/templates.yaml, under details, tiers. A new tier needs its
+# words there and its place in this list.
+
+# The tiers, highest first.
+tiers: [country, constituent_country, region, county]
+
+layers:
+  countries: country
+  regions: region
+  counties: county
+
+countries:
+  osm:r62149:
+    name: United Kingdom
+    regions: constituent_country
+    why: "England, Scotland, Wales and Northern Ireland are countries of the United Kingdom, not regions: the tier below them is the counties and unitary authorities (DP165)."
+
+areas: {}

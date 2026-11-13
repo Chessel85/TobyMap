@@ -77,6 +77,18 @@ details:
     railways: railway line
     towns: city or town
     stations: railway station
+  # An area's tier (P3-T17, DP165), said in place of its layer's word, with the area above it:
+  # "constituent country of the United Kingdom", "region of France", "county of England".
+  # The tiers are listed in mapdata/config/tiers.yaml.
+  tiers:
+    country: country
+    constituent_country: constituent country
+    region: region
+    county: county
+  tier_of: "{tier} of {owner}"
+  # A name with one of these words is said with "the" after "of": "of the United Kingdom".
+  the_words: [Kingdom, States, Republic, Islands, Isle, Isles, Emirates, Federation, Union, Netherlands,
+              Philippines, Bahamas, Maldives, Seychelles, Comoros]
   part_of: "Part of: {value}"
   disputed: "This land is disputed."
   area: "Area: {value}"

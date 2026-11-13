@@ -30,7 +30,10 @@ layers:
   - {id: physical-regions, name: "Deserts, plateaus, plains and other regions", rank: 3, kind: land, made_by: physical, group: Physical features, geometry: area, switched_on: true, fill: none}
   # Named peaks of 1,000 metres or more, as places, with their height (P3-T1f, DP169).
   - {id: peaks, name: Peaks, rank: 8, kind: land, group: Physical features, geometry: point, switched_on: true, max_zoom_m: 50000}
-  - {id: regions, name: Regions, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000}
+  # Each country's first tier below it: regions, states and provinces, and the United Kingdom's constituent
+  # countries (P3-T17, DP165). Not painted unless "Draw the borders of regions" is on; still said. Its
+  # shown_name is the name in the application; its name stays, so the areas are not built again.
+  - {id: regions, name: Regions, shown_name: Regions and constituent countries, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000}
   # Islands, between regions and counties, so Tenerife is inside the Canary Islands region (P3-T1d).
   # Not painted: the counties under them are (P3-T1e).
   - {id: islands, name: Islands, rank: 5, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000, fill: none}

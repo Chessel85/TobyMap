@@ -41,6 +41,8 @@ SNAP = 0.7               # pixel cells per pixel: points in the same 1.4 pixel c
 LAYER_ORDER = {"oceans": 0, "countries": 1, "regions": 2, "counties": 3}
 OCEAN_STYLE = 7
 HIGHLIGHT_STYLE = 8
+CLEAR_STYLE = 9   # an area in a layer not painted, drawn only for the current area's outline (P3-T17)
+CLEAR = "clear"   # its fill
 LINE_STYLE, HIGHLIGHT_LINE_STYLE, SPECIAL_LINE_STYLE = 0, 1, 2   # the line styles (P2-T17v)
 LINE_DRAW_ORDER = {LINE_STYLE: 0, SPECIAL_LINE_STYLE: 1, HIGHLIGHT_LINE_STYLE: 2}
 MIN_RING = 3
@@ -281,10 +283,16 @@ class SceneBuilder:
             parts, idx = np.empty(0, object), empty
         if len(parts):
             fill = [fill_of(feats[i], fills) for i in idx.tolist()]
+            # A layer that is not painted still has the current area's outline (VIS-1), as for a region with
+            # "Draw the borders of regions" off (P3-T17); and an area isolated is painted, as it is all there is.
+            if current or isolate:
+                fill = [("land" if feats[i][0] == isolate else CLEAR if feats[i][0] == current else f) if f == "none"
+                        else f for f, i in zip(fill, idx.tolist())]
             painted = np.array([f != "none" for f in fill], bool)
             if not painted.all():
                 parts, idx = parts[painted], idx[painted]
                 fill = [f for f, k in zip(fill, painted) if k]
+            clear = {feats[i][0] for i, f in zip(idx.tolist(), fill) if f == CLEAR}
             # Water first, the oceans before the seas and lakes, then the land, each in its layer order.
             order = np.argsort(np.array([(0 if f == "water" else WATER_LAST) + feats[i][1]
                                          for f, i in zip(fill, idx.tolist())], np.intp), kind="stable")
@@ -294,9 +302,10 @@ class SceneBuilder:
             poly_off = np.asarray(poly_off, np.intp)
         else:
             xy, ring_off, poly_off = np.zeros((0, 2)), np.zeros(1, np.intp), np.zeros(1, np.intp)
+            clear = set()
         chosen = time.perf_counter()
         frame = self._frame(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
-                            current, highlight, fills)
+                            current, highlight, fills, clear)
         frame.update(self._lines(view, cx, cy, r, lines, line_idx, feats, highlight, special_layers))
         frame.update(self._markers(view, width, height, cx, cy, r, dots, dot_idx, feats, highlight))
         frame["points"] += int(len(frame["line_coords"]) // 2)
@@ -382,7 +391,7 @@ class SceneBuilder:
                 "marker_style": np.array([1 if highlight and a == highlight else 0 for a in area], np.int32)}
 
     def _frame(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current, highlight,
-               fills=None):
+               fills=None, clear=frozenset()):
         theme = self.theme
         n_pts = len(xy)
         lon, lat = (xy[:, 0], xy[:, 1]) if n_pts else (np.zeros(0), np.zeros(0))
@@ -462,13 +471,14 @@ class SceneBuilder:
             styles.append(styles[-1])
         styles.append({"fill": theme["ocean"], "stroke": "#00000000", "width": 0})   # OCEAN_STYLE
         styles.append({"fill": theme["highlight_fill"], "stroke": theme["highlight_outline"], "width": 2})
+        styles.append({"fill": "#00000000", "stroke": "#00000000", "width": 0})   # CLEAR_STYLE
         shape_area, shape_style, shape_name = [], [], []
         for j in kept_polys:
             ident, layer, colour = feats[tile_of_poly[j]][:3]
             shape_area.append(ident)
             shape_name.append(feats[tile_of_poly[j]][6])
             water = fill_of(feats[tile_of_poly[j]], fills) == "water"
-            shape_style.append(OCEAN_STYLE if water else (colour - 1) % len(land))
+            shape_style.append(CLEAR_STYLE if ident in clear else OCEAN_STYLE if water else (colour - 1) % len(land))
         hi = [i for i, a in enumerate(shape_area) if highlight and a == highlight]
         for i in hi:
             shape_style[i] = HIGHLIGHT_STYLE

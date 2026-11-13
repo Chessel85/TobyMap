@@ -61,6 +61,69 @@ def resolve_within(records: list[dict], renamed: dict) -> None:
             r["within"] = [renamed.get((w["id"], w["layer"]), w["id"]) for w in r["within"]]
 
 
+# Tiers (P3-T17, DP165) ------------------------------------------------------------------------------
+
+TIERS_RECORD = "tiers.yaml"
+
+
+def tiers_path():
+    from mapdata.paths import CONFIG_DIR
+
+    return CONFIG_DIR / TIERS_RECORD
+
+
+def load_tiers(path=None) -> dict:
+    """The tiers record, mapdata/config/tiers.yaml, checked: every tier it gives is one of its tiers."""
+    import yaml
+
+    data = yaml.safe_load((path or tiers_path()).read_text(encoding="utf-8")) or {}
+    order = list(data.get("tiers") or [])
+    given = list((data.get("layers") or {}).values())
+    for entry in (data.get("countries") or {}).values():
+        given += [v for k, v in entry.items() if k in ("countries", "regions", "counties")]
+    given += [e["tier"] for e in (data.get("areas") or {}).values()]
+    unknown = sorted({t for t in given if t not in order})
+    if unknown:
+        raise ValueError(f"The tiers record gives the tiers {', '.join(unknown)}, which are not in its list of "
+                         f"tiers: {', '.join(order)}.")
+    return {"tiers": order, "layers": dict(data.get("layers") or {}),
+            "countries": dict(data.get("countries") or {}), "areas": dict(data.get("areas") or {})}
+
+
+def fingerprint_extra(stage: dict) -> dict:
+    """The tiers record is part of what the writing stage reads, so changing it writes the pack again."""
+    return {"tiers": tiers_path().read_text(encoding="utf-8")}
+
+
+def give_tiers(records: list[dict], tiers: dict) -> dict[str, int]:
+    """Give each area of the layers in the tiers record its tier (P3-T17): its own from the record's areas, or
+    its country's for its layer, or its layer's. A region used as its own county takes its region's tier.
+    Returns how many areas have each tier."""
+    by_id = {r["id"]: r for r in records}
+
+    def country_of(r):
+        for _ in range(4):   # a county's parent is its region, whose parent is its country
+            if r is None or r["layer"] == "countries":
+                break
+            r = by_id.get(r.get("parent"))
+        return r["id"] if r is not None and r["layer"] == "countries" else None
+
+    counts: dict[str, int] = {}
+    order = {"countries": 0, "regions": 1, "counties": 2}
+    for r in sorted((r for r in records if r["layer"] in tiers["layers"]), key=lambda r: order.get(r["layer"], 3)):
+        own = tiers["areas"].get(r["id"])
+        if own:
+            tier = own["tier"]
+        elif r.get("type") == "region used as county" and by_id.get(r.get("parent"), {}).get("tier"):
+            tier = by_id[r["parent"]]["tier"]
+        else:
+            country = tiers["countries"].get(country_of(r)) or {}
+            tier = country.get(r["layer"]) or tiers["layers"][r["layer"]]
+        r["tier"] = tier
+        counts[tier] = counts.get(tier, 0) + 1
+    return counts
+
+
 AREA_BATCH = 200_000   # parts measured together
 
 
@@ -274,6 +337,11 @@ def run(ctx) -> None:
     if changed:
         ctx.progress.line(f"Ids used twice, written with an ending so every id is different: {changed}. "
                           "The log lists them.")
+    tiers = load_tiers()
+    counts = give_tiers(records, tiers)
+    if counts:
+        ctx.progress.line("Tiers given, from the tiers record: " + "; ".join(
+            f"{t.replace('_', ' ')}, {counts[t]:,}" for t in tiers["tiers"] if t in counts) + ".")
     used = {r.pop("source_key") for r in records if "source_key" in r} or set(ctx.pack.sources)
     sources = [{"name": s.name, "licence": s.licence, "attribution": s.attribution,
                 "date": s.data_date(ctx.source_paths[k])}
@@ -284,10 +352,10 @@ def run(ctx) -> None:
 
     with parallel.pool(ctx.workers) as executor:
         pool = None if ctx.workers == 1 else executor
-        write_with(ctx, records, geoms, sources, pool)
+        write_with(ctx, records, geoms, sources, pool, tiers["tiers"])
 
 
-def write_with(ctx, records, geoms, sources, executor) -> None:
+def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None = None) -> None:
     """The rest of the writing stage, with the pool of workers open for all of it (P3-T1k)."""
     import time
 
@@ -330,6 +398,8 @@ def write_with(ctx, records, geoms, sources, executor) -> None:
     manifest = {"name": data["name"], "title": data["title"], "version": str(data["version"]),
                 "coverage": data["coverage"], "app_versions": data["app_versions"],
                 "drawing_levels": levels, "sources": sources}
+    if tiers:   # the order of the tiers, highest first, for the order of the areas at a point (P3-T17)
+        manifest["tiers"] = list(tiers)
     layers = [layer.definition() for k, layer in ctx.pack.layers.items()
               if any(r["layer"] == k for r in records)]
     path = ctx.folder / pack_file_name(data["name"])

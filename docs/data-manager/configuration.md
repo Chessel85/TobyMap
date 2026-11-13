@@ -47,6 +47,7 @@ These say how the application shows and sounds the layer (SCP-7). They are writt
 * sound: the sound of the layer's features in "hear its direction" and look around, by event name. (none)
 * fill: for an area layer, how the map paints it: land, in the land colours; water, in the ocean's colour, under the land; or none, not painted at all, for a layer whose areas lie over the others, such as the continents and mountain ranges (P3-T1e). The areas of a layer with fill none are simplified one at a time at each drawing level, as they may overlap. Changing it rewrites only the pack. (land, but water for the oceans)
 * line_style: for a line layer, plain or special. A special layer's lines are drawn thicker and in the theme's colour for special lines, on top of the plain lines. The special-lines layer uses this, so the equator, the prime meridian, the tropics, the polar circles and the date line stand out. Changing it rewrites only the pack, in the stage "writing the pack". (plain)
+* shown_name: the name the application shows and says for the layer, when it is not its name. The name is part of every stage's fingerprint, so changing it builds every layer again from the planet file; changing shown_name rewrites only the pack. The Regions layer is shown as "Regions and constituent countries" this way (P3-T17). (the name)
 
 The layer file `samples.yaml` holds one layer for the test pack only: railway stations (a point). The test pack's sample river and lake are in the base layers' rivers and lakes (P3-T1g, P3-T1h). The samples stage keeps the lines and points of a line or point layer as they are, and checks that a feature's shape fits its layer.
 
@@ -112,6 +113,7 @@ These are used by spike S2's commands, which stay until task P1-T16 is finished:
 * s2_stage1.yaml to s2_stage4.yaml: the spike S2 stages.
 * country_units.yaml: the areas that replace a level 2 country in the Countries layer, such as French Guiana.
 * county_levels.yaml: the counties record, which levels make each country's Counties layer, in order, and which regions are used as their own county. The build writes it; to correct a country, change its levels and start its "how" with "corrected: " and the reason. Argentina, Tunisia and South Sudan are corrected to level 5 first (P3-T1c).
+* tiers.yaml: the tiers record, beside the counties record (P3-T17, DP165). The writing stage reads it to give each area of the countries, regions and counties layers its tier, such as constituent country for England. It lists the tiers highest first; each layer's tier; a country's own tier for a layer, such as the United Kingdom's regions as constituent countries; and an area's own tier, under "areas". A region used as its own county takes its region's tier. Every tier given must be in the list, and needs its words in mapcore/describe/templates.yaml, under details, tiers. Changing the record writes the pack again, but builds nothing else again.
 
 ## The run switch
 

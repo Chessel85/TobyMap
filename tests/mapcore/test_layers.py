@@ -116,6 +116,7 @@ def test_with_regions_off_crossing_to_france_says_nothing_about_the_region(sessi
 
 
 def test_with_regions_off_the_map_draws_no_region(session):
+    session.run("settings.set", field="map_region_borders", value=True)   # off at first (P3-T17)
     ids = regions(session)
     assert ids, "the test pack has regions here"
     session.world.zoom_index = session.world.zoom_list.index(250000)
@@ -220,6 +221,7 @@ def test_nearby_leaves_out_a_layer_whose_zoom_range_is_passed(session):
 
 
 def test_the_map_draws_only_layers_in_their_zoom_range(session):
+    session.run("settings.set", field="map_region_borders", value=True)   # off at first (P3-T17)
     ids = regions(session)
     session.world.zoom_index = session.world.zoom_list.index(250000)
     assert ids & set(session.scene(800, 600)["shape_area"])

@@ -254,7 +254,8 @@ def inspect_point(pack, lat: float, lon: float) -> int:
     for f in found:
         name = _name(f)
         extra = f", sovereign state {f['sovereign']}" if f.get("sovereign") and f["sovereign"] != name else ""
-        print(f"{name}: {f['layer']}, {f['type']}{extra}, {f['area_km2']:,.0f} km2, {f['id']}.")
+        kind = f["tier"].replace("_", " ") if f.get("tier") else f["type"]   # the tier, as Details says it (P3-T17)
+        print(f"{name}: {f['layer']}, {kind}{extra}, {f['area_km2']:,.0f} km2, {f['id']}.")
     return 0
 
 

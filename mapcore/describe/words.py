@@ -20,6 +20,15 @@ def distance_text(metres: float, system: str = "metric") -> str:
     return f"{d.value} {_unit(d.unit, d.value)}"
 
 
+def name_after_of(name: str) -> str:
+    """A name as said after "of": "the United Kingdom", "the Isle of Wight", "the Gambia", but "France"
+    (P3-T17). A name takes "the" when it has one of the words in templates.yaml, details, the_words."""
+    if name.startswith("The "):
+        return "the " + name[4:]
+    words = set(name.replace(",", " ").split())
+    return f"the {name}" if words & set(templates()["details"]["the_words"]) else name
+
+
 def point_text(key: str) -> str:
     return templates()["points"][key]
 

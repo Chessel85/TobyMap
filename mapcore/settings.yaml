@@ -287,6 +287,13 @@ tabs:
         label: Draw the borders
         kind: yes_no
         default: true
+      # Regions and constituent countries painted on the map, or left out so the countries and counties
+      # are clearer, as the sighted notes asked (P3-T17, DP165). Off at first. The regions are still said,
+      # and the current area is still outlined.
+      - id: map_region_borders
+        label: Draw the borders of regions
+        kind: yes_no
+        default: false
       - id: fill_colour
         label: "Colour of the fill, when it is one colour for all"
         kind: choice

@@ -1,12 +1,19 @@
 # User Experience Description
 
-Version 0.22, 10 November 2026. The special lines are drawn thicker and in a colour of their own, and a setting in the Display tab chooses when the current area is outlined (section 11.2; P2-T17v). Version 0.21, 10 November 2026. A switch in the Speech tab says the place after every step, even when it has not changed, instead of the tick (section 3.1; P2-T17q, DP162). Version 0.20, 10 November 2026. Your notes on the Phase 2 sweep (P2-T18): Space and Enter on a group heading in the Information panel say and do nothing (section 6.3); the layers list is a tree whose groups close and open, and the maximum zoom is the closest (section 7.1); an item under a metre away is "here", and a line you are on is not nearby (section 6); the beacon can come from either pole or the equator (section 8.4); and Reset all settings is in the Map menu (section 13). Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
+Version 0.23, 13 November 2026. Hierarchy mode as built in the core (section 5.4; P3-T6a): M switches it on and off, a move says the feature and its zoom, and Left and Right go round the neighbours of the feature you started from. Version 0.22, 10 November 2026. The special lines are drawn thicker and in a colour of their own, and a setting in the Display tab chooses when the current area is outlined (section 11.2; P2-T17v). Version 0.21, 10 November 2026. A switch in the Speech tab says the place after every step, even when it has not changed, instead of the tick (section 3.1; P2-T17q, DP162). Version 0.20, 10 November 2026. Your notes on the Phase 2 sweep (P2-T18): Space and Enter on a group heading in the Information panel say and do nothing (section 6.3); the layers list is a tree whose groups close and open, and the maximum zoom is the closest (section 7.1); an item under a metre away is "here", and a line you are on is not nearby (section 6); the beacon can come from either pole or the equator (section 8.4); and Reset all settings is in the Map menu (section 13). Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.23
+
+Made in P3-T6a, 13 November 2026.
+
+* Section 5: M switches between stepping and hierarchy mode, as your key list chose, in place of 1 and 2. Neither moves you.
+* Section 5.4: how a move is said, how Left and Right go round, and what is offered when Up is ambiguous. The questions this raised are DP187 to DP191. Your answers: measuring gets Shift+M (DP187); Down lists layers outside their zoom range (DP188); no World step (DP189); France and French Guiana count as separate countries (DP190), asked as DP191.
 
 ## Changes in version 0.22
 
@@ -316,7 +323,7 @@ The step never limits what is said, and nor does the size rule (DP66). In versio
 Two independent choices decide how the user moves. They share the same location, so changing either never moves the user, except when entering network mode (NAV-11).
 
 * Orientation: which way the user faces. F cycles through the three orientations, and the new one is announced.
-* Movement mode: what the arrow keys move between. The number keys 1 to 3 choose stepping (free roaming), hierarchy or network, and the new mode is announced.
+* Movement mode: what the arrow keys move between. M switches between stepping (free roaming) and hierarchy mode, and the new mode is announced, such as "Hierarchy mode. Hampshire." H says the mode too. Network mode's key comes with Phase 4.
 
 ### 5.1 The three orientations (O, and Shift+O the other way)
 
@@ -355,9 +362,18 @@ Stepping moves the location by the step size (NAV-1, NAV-2, NAV-3).
   * Up and Down move forward and back along the shortest path over the globe (a great circle), which can go over the poles. Left and Right turn by the fine amount.
   * After each step, the heading is the direction of travel on arrival, so on long steps it changes slightly. The change is announced only when it crosses a pole, or at detailed verbosity.
 
-### 5.4 Hierarchy mode (2): containers and neighbours
+### 5.4 Hierarchy mode (M): containers and neighbours
 
-The user moves between features rather than distances.
+The user moves between features rather than distances. M enters hierarchy mode, and the current feature is at first the smallest area where you are. In hierarchy mode, Up, Down, Left and Right move between features, and holding an arrow does not repeat.
+
+As built in P3-T6a:
+
+* Each move is a jump to the feature's own point, zoomed to fit it, and says the feature and the zoom: "England. Zoom 250 kilometres." A place, such as a station, keeps the zoom. Alt+comma comes back with the zoom as it was, and to the feature you were on.
+* At the top, Up plays the blocked sound and says "Nothing holds Europe." There is no World step above the continents and oceans (DP189).
+* When Up is ambiguous, the list offers each area with its type, smallest first, such as "New Forest National Park, national park" and "Hampshire, county of England", with Cancel.
+* Down offers the kinds, such as "Railway stations 1", then a kind's features, each with its direction, with Cancel. Down, and Contains, list a layer even outside its zoom range, so Down from England, fitted at 250 kilometres, still lists its counties; the size rule still leaves out what is too small to see at that zoom (DP188). The map and the speech keep the zoom ranges.
+* Left and Right go round the neighbours of the feature you started from, clockwise from ahead, each said as the Bordering group says it, then the zoom: "Spain, south-west, shared border 450 kilometres. Zoom 1,000 kilometres." Right after the last goes back to the first. The neighbours that only nearly touch come in the same round.
+* The current feature is outlined on the map, and Details is about it.
 
 Up goes to the parent, for example from Hampshire to England (NAV-4):
 
@@ -683,7 +699,7 @@ Keys changed since version 0.3 (agreed, DP79):
 ### Movement
 * Arrow keys: move, with the meaning depending on the movement mode and orientation (section 5).
 * O: cycle the orientation: north-fixed, cardinal facing, free facing. Shift+O goes the other way.
-* 1, 2, 3: stepping, hierarchy and network modes. 3 again: next network type.
+* M: stepping or hierarchy mode (P3-T6a). Network mode's key comes with Phase 4.
 * Shift+Left and Shift+Right: turn 90 degrees.
 * Ctrl+Left and Ctrl+Right: fine turn in free facing.
 * A: type a bearing.

@@ -6,8 +6,8 @@ test pack without the data folder:
 * hampshire-wiltshire.geojson: England and every county in a box round Hampshire and
   Wiltshire, simplified to 0.001 degrees (about 100 metres), keeping shared borders.
 * new-forest.geojson: the New Forest National Park, which overlaps Hampshire and Wiltshire,
-  in the layer national_parks. Only for INF-5 and the ambiguous up of NAV-4: national
-  parks come to the real packs in Phase 4.
+  in the layer national_parks, and Brockenhurst station, inside both the park and Hampshire.
+  Only for INF-5 and the ambiguous up of NAV-4: national parks come to the real packs in Phase 4.
 * switzerland-neighbours.geojson: Switzerland, Liechtenstein, and France, Germany, Italy
   and Austria cut to a box round them, simplified to 0.002 degrees, keeping shared borders.
 * rhine.geojson: the Rhine from Basel to Schaffhausen, where it is the border of
@@ -39,6 +39,7 @@ LICENCE = ("Contains information from OpenStreetMap, which is made available und
 ENGLAND, UK = 58447, 62149
 HANTS_WILTS_BOX = (-2.40, 50.70, -0.70, 51.72)        # west, south, east, north
 NEW_FOREST = 2678988
+BROCKENHURST_BOX = (-1.60, 50.80, -1.55, 50.84)       # Brockenhurst station, in the park and in Hampshire
 ALPS_BOX = (5.0, 45.0, 11.5, 48.5)
 COUNTRIES = [  # relation, English name, Natural Earth id it replaces, or None
     (51701, "Switzerland", "ne:CHE"),
@@ -147,14 +148,18 @@ def main() -> int:
           f"0.001 degrees, keeping shared borders. England here is the counties joined, so it holds each of them. "
           f"The counties: {names}.", features, HANTS_WILTS_BOX)
 
-    # The New Forest National Park.
+    # The New Forest National Park, and Brockenhurst station, inside both it and Hampshire, so "up" from the
+    # station has two parents, neither inside the other (P3-T6a, NAV-4).
     park = one("a[boundary=protected_area]", HANTS_WILTS_BOX, NEW_FOREST)
+    station = next(iter(world("n[railway=station][name=Brockenhurst]")(gbox(BROCKENHURST_BOX))))
     write("new-forest.geojson",
-          f"The New Forest National Park from {source}, simplified to 0.0005 degrees. It overlaps Hampshire and "
-          "Wiltshire. Only for the tests of INF-5 and the ambiguous up of NAV-4: national parks come to the "
-          "real packs in Phase 4.",
+          f"The New Forest National Park from {source}, simplified to 0.0005 degrees, and Brockenhurst station, "
+          "inside both the park and Hampshire. The park overlaps Hampshire and Wiltshire. Only for the tests of "
+          "INF-5 and the ambiguous up of NAV-4: national parks come to the real packs in Phase 4.",
           [feature({"id": f"osm:r{NEW_FOREST}", "name": "New Forest National Park", "layer": "national_parks",
-                    "type": "national park"}, shapely.simplify(shape(park), 0.0005))])
+                    "type": "national park"}, shapely.simplify(shape(park), 0.0005)),
+           feature({"id": f"osm:n{station.id}", "name": "Brockenhurst", "layer": "stations", "type": "station"},
+                   shapely.Point(round(station.lon, 7), round(station.lat, 7)))])
 
     # Switzerland and its five neighbours.
     clip = shapely.box(*ALPS_BOX)

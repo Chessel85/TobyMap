@@ -16,7 +16,7 @@ from mapcore.store import Store
 OSM = Path(__file__).resolve().parents[1] / "samples" / "osm"
 FILES = {
     "hampshire-wiltshire.geojson": {"regions", "counties"},
-    "new-forest.geojson": {"national_parks"},
+    "new-forest.geojson": {"national_parks", "stations"},
     "switzerland-neighbours.geojson": {"countries"},
     "rhine.geojson": {"rivers"},
     "bay-of-biscay.geojson": {"seas"},

@@ -279,7 +279,7 @@ def test_menu_bar_from_the_registry_with_toggles(app):
     assert app.evaluate("document.activeElement.textContent") == "Map"
     assert app.locator(".menu:not([hidden])").count() == 0
     app.keyboard.press("Enter")
-    assert app.locator('.menu:not([hidden]) [role=menuitemcheckbox]').count() == 3   # Link step to zoom, the beacon, Isolate
+    assert app.locator('.menu:not([hidden]) [role=menuitemcheckbox]').count() == 4   # Hierarchy mode (P3-T6), Link step to zoom, thebeacon, Isolate
     app.keyboard.press("Escape")
     assert app.locator(".menu:not([hidden])").count() == 0 and region(app) == "menu"
     app.keyboard.press("Escape")                       # Escape on the bar goes back to the map (web checklist 2.4)

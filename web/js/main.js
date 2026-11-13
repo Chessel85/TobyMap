@@ -403,14 +403,19 @@ function openDialog(d) {
   dialogTitle.textContent = d.title;
   dialog.querySelectorAll(".sounds").forEach((el) => el.remove());
   dialog.querySelectorAll(".history").forEach((el) => el.remove());
+  // Hierarchy mode's lists, the ambiguous up and Down's two lists, are the same list as the location
+  // history, with Cancel in place of Close (P3-T6b, ACC-7). Choosing a kind opens its features in the
+  // same box.
+  const list = d.kind === "history" || d.kind === "choose";
   if (d.kind === "sounds") soundsList(d);
-  if (d.kind === "history") historyList(d);
-  dialogText.hidden = d.kind === "sounds" || d.kind === "history";
+  if (list) historyList(d);
+  dialogClose.textContent = d.kind === "choose" ? d.cancel : words.close;
+  dialogText.hidden = d.kind === "sounds" || list;
   dialogText.value = d.text;
   dialogText.setAttribute("aria-label", d.title);
-  dialog.showModal();
+  if (!dialog.open) dialog.showModal();
   if (d.kind === "sounds") return $("sounds-list").focus();
-  if (d.kind === "history") return $("history-list").focus();
+  if (list) return $("history-list").focus();
   dialogText.focus();
   dialogText.setSelectionRange(0, 0);
 }
@@ -730,7 +735,10 @@ function returnTarget() {
   // Menu commands return focus to the map, as on the desktop.
   return returnFocus && document.contains(returnFocus) && !menubar.contains(returnFocus) ? returnFocus : mapEl;
 }
-function afterClose() {
+function afterClose(e) {
+  // The close event comes after the answer is handled: if the answer opened the box again, as Down's
+  // second list does (P3-T6b), the focus stays in it.
+  if (e && e.target.open) return;
   returnTarget().focus();
 }
 dialog.addEventListener("close", afterClose);

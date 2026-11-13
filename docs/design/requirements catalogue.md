@@ -1,6 +1,12 @@
 # Requirements Catalogue
 
-Version 0.16, 11 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.17, 13 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.17
+
+This change comes from your answer to DP189, 13 November 2026, with hierarchy mode (P3-T6).
+
+* NAV-4: "up" from Hampshire ends at Europe. There is no World step above the continents and oceans.
 
 ## Changes in version 0.16
 
@@ -512,7 +518,7 @@ The high level requirements document stays the product owner's own statement of 
   * This is the same list as the Contains group (INF-4).
 * Zoom (DP77): moving to a feature in hierarchy mode zooms the view to fit that feature. Without this, "down" from the United Kingdom at a 1 km zoom would list only what is within 1 km.
 * Acceptance criteria:
-  * From Hampshire, "up" goes to England, then the United Kingdom, then Europe, then the World, with no menu, when only administrative layers are active.
+  * From Hampshire, "up" goes to England, then the United Kingdom, then Europe, with no menu, when only administrative layers are active. Europe is the top: there is no World step (DP189).
   * From a field inside both Hampshire and the New Forest National Park, "up" beeps and offers "Hampshire" and "New Forest National Park".
   * "Down" from France lists types including "Regions", and choosing it lists France's regions.
   * "Down" from a county with no national park does not list "National parks".

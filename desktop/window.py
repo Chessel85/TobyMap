@@ -609,8 +609,11 @@ class MainWindow(QMainWindow):
         elif kind == "sounds":
             box = SoundsDialog(self, dialog["title"], dialog["items"], dialog["play"], self.words["close"],
                                play=lambda event: self.dispatch("sound.preview", event=event))
-        elif kind == "history":
-            box = HistoryDialog(self, dialog["title"], dialog["lines"], self.words["close"], dialog["help"],
+        elif kind in ("history", "choose"):
+            # Hierarchy mode's lists, the ambiguous up and Down's two lists, are the location history's
+            # list with Cancel in place of Close (P3-T6b, ACC-7). Cancel runs nothing, so you stay.
+            close = dialog["cancel"] if kind == "choose" else self.words["close"]
+            box = HistoryDialog(self, dialog["title"], dialog["lines"], close, dialog["help"],
                                 go=lambda index: self.session.run(dialog["go"], index=index),
                                 speak=lambda text: self.announcer.speak(text, "assertive"),
                                 current=dialog.get("current", 0))
@@ -654,8 +657,13 @@ class MainWindow(QMainWindow):
         the place as it is now, after the dialog's changes: said once, and never the old place."""
         if box in self._dialogs:
             self._dialogs.remove(box)
-        said, self._said_on_return = self._said_on_return, []
         region = self._opened_in.pop(box, "map")
+        if self._dialogs:
+            # The answer opened another box, as choosing a kind in Down's first list does (P3-T6b): the
+            # focus stays in it, and comes back to where the first was opened when it closes.
+            self._opened_in[self._dialogs[-1]] = region
+            return
+        said, self._said_on_return = self._said_on_return, []
         if region != "map":
             # Back in the panel or Details, the focus arrives on an item or the text, which the
             # screen reader reads; what the answer said follows it, spoken (P2-T17k).

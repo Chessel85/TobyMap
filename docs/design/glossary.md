@@ -189,7 +189,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Names on the map: the areas' names drawn on the map for sighted users, placed by the core.
 * Text cursor: the small rectangle a Windows program says its typing point is at, also called the system caret. Magnifiers can follow it. The desktop map holds an invisible one at its centre (ACC-8).
 * Current feature: what you are on. When stepping, the smallest area where you are; in hierarchy mode, the feature you last moved to (LOC-4). The Information panel's Contains, Bordering, Overlapping and Crossing groups are about it.
-* Hierarchy mode: moving between features instead of by distance: up to the area that contains the current feature, down into what it contains, and across to its neighbours (NAV-4). Key 2; key 1 goes back to stepping.
+* Hierarchy mode: moving between features instead of by distance: up to the area that contains the current feature, down into what it contains, and across to its neighbours (NAV-4). M switches it on, and M again goes back to stepping (the PO's key list, in place of 1 and 2).
 * Item actions: what the keys do on any item in the Information panel: Enter goes there, Space hears its direction, and Ctrl+Enter bookmarks it from Phase 4. There is no menu of actions (DP170).
 * Look around: hearing the Nearby group as sound, one item after another clockwise from ahead, each from its own direction (SON-4).
 * Focus point: in the web version, the small invisible element at the map centre that has the keyboard focus when the map does, so a magnifier that follows the focus looks there (ACC-8).

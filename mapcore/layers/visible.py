@@ -265,10 +265,11 @@ class VisibleRule:
         return got[1]
 
     def _candidates(self, p: int, zoom_m: float, lat: float | None = None, reach: float = 180.0,
-                    lon: float | None = None, rho: float = math.pi) -> np.ndarray:
+                    lon: float | None = None, rho: float = math.pi, any_zoom_range: bool = False) -> np.ndarray:
         """The rows of the pack's feature table that pass the first three tests and, when lat
         is given, whose box reaches within `reach` degrees of latitude of it and, when lon is
-        given too, shares a longitude with the cap of angular radius rho round the point."""
+        given too, shares a longitude with the cap of angular radius rho round the point.
+        any_zoom_range leaves out the zoom range test, keeping the size rule (DP188)."""
         numbers, boxes, widths, layer_of = self._table(p)
         ids, _code = self._layer_codes(p)
         cut = None
@@ -279,7 +280,7 @@ class VisibleRule:
         found = []
         for k, (rows, south, north, west, east) in enumerate(self._by_layer(p)):
             layer = self.layers.get(ids[k])
-            if layer is not None and not (layer.on and layer.in_zoom(zoom_m)):
+            if layer is not None and not (layer.on and (any_zoom_range or layer.in_zoom(zoom_m))):
                 continue
             if lat is not None:
                 end = int(np.searchsorted(south, lat + reach + SLACK, side="right"))
@@ -294,10 +295,12 @@ class VisibleRule:
 
     # The view -----------------------------------------------------------------------
 
-    def features(self, lat: float, lon: float, zoom_m: float) -> frozenset:
-        """The ids of every visible feature with the location and zoom given."""
+    def features(self, lat: float, lon: float, zoom_m: float, any_zoom_range: bool = False) -> frozenset:
+        """The ids of every visible feature with the location and zoom given. With any_zoom_range, a layer
+        outside its zoom range counts too, as Contains and hierarchy mode's Down ask (DP188); the size rule
+        and the view still apply."""
         out: set = set()
-        for p, rows, by_shape in self._visible(lat, lon, zoom_m):
+        for p, rows, by_shape in self._visible(lat, lon, zoom_m, any_zoom_range):
             out.update(self.store._indexes[p].ids[rows].tolist())
             out.update(self.store._area(p, n).id for n in by_shape)
         return frozenset(out)
@@ -310,7 +313,7 @@ class VisibleRule:
             out.update((p, n) for n in by_shape)
         return out
 
-    def _visible(self, lat: float, lon: float, zoom_m: float) -> list:
+    def _visible(self, lat: float, lon: float, zoom_m: float, any_zoom_range: bool = False) -> list:
         """For each pack, the rows of its feature table decided visible by their boxes, and the
         feature numbers decided visible by their shapes."""
         lon = geodesy.wrap_lon(lon)
@@ -319,7 +322,7 @@ class VisibleRule:
         for p in self.store._covering(lat, lon)[:1]:
             numbers, boxes, _w, _l = self._table(p)
             # The difference in latitude alone is never more than the distance.
-            rows = self._candidates(p, zoom_m, lat, math.degrees(rho), lon, rho * MARGIN)
+            rows = self._candidates(p, zoom_m, lat, math.degrees(rho), lon, rho * MARGIN, any_zoom_range)
             if not len(rows):
                 continue
             near, far = box_reach(boxes[rows], lat, lon)

@@ -32,11 +32,14 @@ menus:
 panel_groups: [within, nearby, crossed, contains, bordering, overlapping, crossing, search]
 
 commands:
-  # Moving (NAV-1). Arrow keys step north, south, west and east.
+  # Moving (NAV-1). Arrow keys step north, south, west and east; in hierarchy mode they go up to the
+  # area that holds the current feature, down into it, and round its neighbours (NAV-4, P3-T6a).
   - {name: move.north, label: Step north or forward, key: Up, region: map, menu: Map, latest_only: true, held: true}
   - {name: move.south, label: Step south or back, key: Down, region: map, menu: Map, latest_only: true, held: true}
   - {name: move.west, label: Step west or turn left, key: Left, region: map, menu: Map, latest_only: true, held: true}
   - {name: move.east, label: Step east or turn right, key: Right, region: map, menu: Map, latest_only: true, held: true}
+  # Stepping or hierarchy mode (NAV-4, NAV-11): M, from the key list, in place of 1 and 2. It never moves you.
+  - {name: mode.toggle, label: Hierarchy mode, key: M, region: map, menu: Map, toggle: true}
   # Zoom and step (NAV-2, NAV-13).
   - {name: zoom.out, label: Zoom out, key: Page Up, region: map, menu: Map}
   - {name: zoom.in, label: Zoom in, key: Page Down, region: map, menu: Map}
@@ -133,4 +136,5 @@ commands:
   - {name: bearing.set, label: Face the typed bearing, key: "", region: map, menu: "", pointer: true}
   - {name: goto.set, label: Go to the typed coordinates, key: "", region: map, menu: "", pointer: true}
   - {name: history.go, label: Go to a place in the location history, key: "", region: global, menu: "", pointer: true}
+  - {name: hierarchy.choose, label: Choose from the ambiguous up or a down list in hierarchy mode, key: "", region: global, menu: "", pointer: true}
   - {name: settings.reset_confirm, label: Reset all settings once asked, key: "", region: global, menu: "", pointer: true}

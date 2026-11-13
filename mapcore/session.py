@@ -190,6 +190,11 @@ class MapSession:
         # The current feature, when it is not the smallest area here (LOC-4): (identifier, lat, lon), set by
         # hierarchy mode (P3-T6) as it moves you there. Any move away from that place ends it.
         self._current: tuple[str, float, float] | None = None
+        # Hierarchy mode (P3-T6a): the neighbours Left and Right go round, the list offered to choose from,
+        # and the kinds of feature Down found.
+        self._across: dict | None = None
+        self._choices: list[tuple] = []
+        self._down: dict = {}
         self._pressed_in = "map"                 # the region of the key being carried out
         self._answer_to = "map"                  # where Go to's or the bearing's box was opened (P2-T17k)
         self.held_moves = 0
@@ -255,6 +260,8 @@ class MapSession:
             "beacon.toggle": self._beacon_toggle,
             "orientation.cycle": lambda **a: self._orientation_step(+1),
             "orientation.previous": lambda **a: self._orientation_step(-1),
+            "mode.toggle": self._mode_toggle,
+            "hierarchy.choose": self._hierarchy_choose,
             "turn.left": lambda **a: self._turn(sign=-1),
             "turn.right": lambda **a: self._turn(sign=1),
             "turn.fine_left": lambda **a: self._turn("fine_turn_deg", -1),
@@ -453,8 +460,10 @@ class MapSession:
         self.map_size = (width, height)
         if self._scene is None:
             self._scene = scene_mod.SceneBuilder(self.store)
-        areas = self.areas
-        current = areas[0].id if areas and outlined(areas[0].record, self.settings["outline_current"]) else None
+        # The current feature is outlined: the smallest area here, or the one hierarchy mode moved you to.
+        feature = self.current_feature
+        current = feature.id if feature is not None and outlined(feature.record, self.settings["outline_current"]) \
+            else None
         # A copy of the place: on the desktop the map is drawn in a thread of its
         # own while the held key steps on (P2-T14).
         v = self.settings
@@ -661,16 +670,23 @@ class MapSession:
         such as "Regions 13", in the catalogue's layer order, only for layers with something visible."""
         lat, lon, zoom = self.world.lat, self.world.lon, self.world.zoom_m
         by_layer: dict[str, list] = {}
-        for identifier in self.visible.features(lat, lon, zoom):
+        # Layers outside their zoom range count, as the PO chose, so Down from England, fitted at 250 km,
+        # still lists its counties; the size rule still leaves out what is too small to see (DP188).
+        for identifier in self.visible.features(lat, lon, zoom, any_zoom_range=True):
             if identifier == current.id:
                 continue
             area = self.store.feature(identifier)
             if area is None:
                 continue
             # The relationships are stored from the inside out: a feature's "in" lists what holds it, and
-            # "partly" what it is partly inside. So the current feature holds this one when it is listed.
+            # "partly" what it is partly inside, for a line or a place; an area partly inside another is in
+            # "overlaps" (DP70: the New Forest National Park is under Hampshire and under Wiltshire). So the
+            # current feature holds this one when it is listed; an overlapping area only when it is the smaller,
+            # so England is not listed under the park.
             rel = self.store.relationships(identifier)
-            if current.id in rel.get("in", ()) or any(p[0] == current.id for p in rel.get("partly", ())):
+            if current.id in rel.get("in", ()) or any(p[0] == current.id for p in rel.get("partly", ())) \
+                    or (any(p[0] == current.id for p in rel.get("overlaps", ()))
+                        and area.area_km2 < current.area_km2):
                 by_layer.setdefault(area.layer, []).append(area)
         items = []
         for layer in self.layers.layers():
@@ -815,8 +831,9 @@ class MapSession:
             say("panel.count_one", group=name) if n == 1 else say("panel.count", group=name, count=n))
 
     def _details_feature(self):
-        """The feature Details is about: the selected item, or the smallest area here (DAT-9, DP170)."""
-        return self.store.feature(self.selected) if self.selected else (self.areas[0] if self.areas else None)
+        """The feature Details is about: the selected item, or the current feature, the smallest area here or
+        the one hierarchy mode moved you to (DAT-9, DP170, LOC-4)."""
+        return self.store.feature(self.selected) if self.selected else self.current_feature
 
     def _wikipedia(self, **a) -> Response:
         """Open the article of the feature Details is about in the browser (P3-T5b, INF-1). Says which
@@ -917,7 +934,8 @@ class MapSession:
         """Whether each menu item with a tick is on, by command name."""
         return {"step.link": bool(self.world.link), "sound.mute": bool(self.settings["mute"]),
                 "help.describer": bool(self.describing), "beacon.toggle": bool(self.settings["beacon_on"]),
-                "isolate.toggle": self.isolated is not None}
+                "isolate.toggle": self.isolated is not None,
+                "mode.toggle": self.world.movement_mode == "hierarchy"}
 
     def settings_schema(self) -> dict:
         """The settings dialog: its tabs and fields, with the current values (P1-T10)."""
@@ -1313,7 +1331,10 @@ class MapSession:
         at the times hold_due() gives: after the repeat delay, then at the repeat
         rate, whatever the operating system sends (DP129). Each ticks. Nothing is
         said until release(), and the map is drawn at most held_draw_rate times a
-        second, so the clicks keep their time (DP140)."""
+        second, so the clicks keep their time (DP140). In hierarchy mode the arrow keys move between
+        features instead (P3-T6a), and a held key does not repeat."""
+        if self.world.movement_mode == "hierarchy":
+            return self._hierarchy_key(direction, held or repeat)
         now = self.clock()
         if repeat:
             interval = 1.0 / max(1, self.settings["repeat_rate"])
@@ -1487,8 +1508,13 @@ class MapSession:
         return isinstance(p, dict) and all(isinstance(p.get(k), (int, float)) for k in ("lat", "lon", "zoom_m", "step_m"))
 
     def _place_now(self) -> dict:
+        """The place, zoom and step; and the current feature when hierarchy mode moved you to it, so going
+        back through the location history comes back to it too (P3-T6a)."""
         w = self.world
-        return {"lat": w.lat, "lon": w.lon, "zoom_m": w.zoom_m, "step_m": w.step_m}
+        place = {"lat": w.lat, "lon": w.lon, "zoom_m": w.zoom_m, "step_m": w.step_m}
+        if self._current is not None and self._current[1:] == (w.lat, w.lon):
+            place["feature"] = self._current[0]
+        return place
 
     def _remember_place(self, place: dict | None = None) -> None:
         """Before a step or a jump the place, zoom and step are kept, and any way forward is
@@ -1563,6 +1589,8 @@ class MapSession:
             place = source.pop()
         del other[:-PLACE_LIMIT]
         self._go_to(place["lat"], place["lon"], place["zoom_m"], place["step_m"])
+        if place.get("feature") and self.store.feature(place["feature"]) is not None:
+            self.set_current_feature(place["feature"])
         self._crossed_clear()
         return self._land(Response(redraw=True, panel_stale=True, details_stale=True, settings_changed=True))
 
@@ -1729,6 +1757,176 @@ class MapSession:
     def _bookmark(self, **_a) -> Response:
         """Ctrl+Enter on an item: a bookmark. They come in Phase 4 (DP170, LOC-4, INF-10)."""
         return Response().speak(say("bookmark.later"), ASSERTIVE)
+
+    # Hierarchy mode (P3-T6a; NAV-4, NAV-11, LOC-4, DP77, architecture 7.6) ---------------------------
+    # The arrow keys move between features: Up to the area that holds the current feature, Down into what
+    # it holds, Left and Right round its neighbours. Each move is a jump to the feature's own point, zoomed
+    # to fit it, so Alt+comma comes back with the zoom as it was.
+
+    def _mode_toggle(self, **_a) -> Response:
+        """M: stepping or hierarchy mode, and back (NAV-11, the PO's key list). Neither moves you. Entering
+        hierarchy mode names the current feature, the smallest area here at first."""
+        w = self.world
+        w.movement_mode = "stepping" if w.movement_mode == "hierarchy" else "hierarchy"
+        self._across = None
+        r = Response(panel_stale=True, settings_changed=True)
+        if w.movement_mode == "stepping":
+            return r.speak(say("hierarchy.stepping"), ASSERTIVE)
+        current = self.current_feature
+        return r.speak(say("hierarchy.on", name=current.name) if current else say("hierarchy.on_nothing"), ASSERTIVE)
+
+    def _hierarchy_key(self, direction: str, held: bool) -> Response:
+        if held:   # a held arrow does not repeat in hierarchy mode: each move is a jump
+            return Response()
+        if self.current_feature is None:
+            return Response().earcon("blocked").speak(say("place.none"), ASSERTIVE)
+        return {"north": self._hierarchy_up, "south": self._hierarchy_down,
+                "west": lambda: self._hierarchy_across(-1), "east": lambda: self._hierarchy_across(+1)}[direction]()
+
+    def _parents(self, feature) -> list:
+        """The next areas up from a feature (NAV-4): of the areas that hold it fully, from layers that are on,
+        those holding none of the others. One is the way up; two or more, neither inside the other, are the
+        ambiguous up. Areas that are the same land as the feature are not its parents (DP71), and of two
+        parents that are the same land only the first is kept."""
+        rel = self.store.relationships(feature.id)
+        same = set(rel.get("same", ()))
+        parents = [a for a in (self.store.feature(i) for i in rel.get("in", ()) if i not in same)
+                   if a is not None and self._layer_on(a)]
+        holders: set = set()
+        for a in parents:
+            holders.update(self.store.relationships(a.id).get("in", ()))
+        out, seen = [], set()
+        for a in parents:
+            if a.id in holders or a.id in seen:
+                continue
+            out.append(a)
+            seen.update(self.store.relationships(a.id).get("same", ()))
+        return out
+
+    def _hierarchy_up(self) -> Response:
+        current = self.current_feature
+        parents = self._parents(current)
+        if not parents:
+            return Response().earcon("blocked").speak(say("hierarchy.top", name=current.name), ASSERTIVE)
+        if len(parents) == 1:
+            return self._hierarchy_go(parents[0], parents[0].name)
+        r = self._choose(say("hierarchy.up_title", name=current.name), say("hierarchy.up_help", name=current.name),
+                         [say("hierarchy.choice", name=p.name, type=self._type_text(p)) for p in parents],
+                         [("feature", p.id) for p in parents])
+        return r.earcon("ambiguous_up")
+
+    def _hierarchy_down(self) -> Response:
+        """Down: the kinds of visible feature inside the current one, each with its count, the same list as
+        Contains (INF-4); then, once a kind is chosen, its features."""
+        current = self.current_feature
+        items, empty = self._group_contains(current, describer.words_facing(self.world, self.settings))
+        if not items:
+            return Response().earcon("blocked").speak(empty, ASSERTIVE)
+        how = self.panel_sorts.get("contains")
+        self._down = {"name": current.name,
+                      "kinds": {h["id"]: (h["name"], self._sorted("contains", h["children"], how)) for h in items}}
+        return self._choose(say("hierarchy.down_title", name=current.name), say("hierarchy.down_help"),
+                            [h["label"] for h in items], [("kind", h["id"]) for h in items])
+
+    def _hierarchy_across(self, step: int) -> Response:
+        """Left and Right: round the current feature's neighbours, clockwise from ahead (NAV-4, INF-2): first
+        those sharing a border, with its length, then those that nearly touch. The neighbours are those of
+        the feature you started from, so Right after Right goes on round it; any other move starts again
+        from the feature you are on. Each is said as Bordering says it, from where you started."""
+        w = self.world
+        cycle = self._across
+        if cycle is None or cycle["at"] != (w.lat, w.lon):
+            cycle = self._across_cycle()
+            if not cycle["items"]:
+                return Response().earcon("blocked").speak(say("bordering.none", name=cycle["name"]), ASSERTIVE)
+        n = len(cycle["items"])
+        cycle["index"] = (step - 1) // 2 % n if cycle["index"] is None else (cycle["index"] + step) % n
+        area, text = cycle["items"][cycle["index"]]
+        r = self._hierarchy_go(area, text)
+        cycle["at"] = (w.lat, w.lon)
+        self._across = cycle
+        return r
+
+    def _across_cycle(self) -> dict:
+        current = self.current_feature
+        w = self.world
+        heading = describer.words_facing(w, self.settings)
+        ahead = describer.facing(w) or 0.0
+        units, style = self._units(), self.settings["bearing"]
+        rel = self.store.relationships(current.id)
+        found = []
+        for key, entries in (("bordering.item", rel.get("next", [])), ("bordering.near", rel.get("near", []))):
+            for identifier, km in entries:
+                area = self.store.feature(identifier)
+                if area is None or not self._layer_on(area):
+                    continue
+                lat, lon = self._point_of(area)
+                _, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
+                field = "length" if key == "bordering.item" else "across"
+                text = say(key, name=area.name, direction=words.direction_text(bearing, style, heading),
+                           **{field: words.distance_text(km * 1000.0, units)})
+                found.append(((bearing - ahead) % 360.0, area.name.casefold(), area, text))
+        found.sort(key=lambda f: f[:2])
+        return {"name": current.name, "items": [(a, t) for *_, a, t in found], "index": None, "at": None}
+
+    def _point_of(self, area) -> tuple[float, float]:
+        """Where hierarchy mode puts you for a feature: its own point, on its land (architecture 6.13), else
+        the centre of its bounding box. As (lat, lon)."""
+        point = area.record.get("point")
+        if point:
+            return point[1], point[0]
+        return box_centre(area.record["bbox"])
+
+    def _fit_zoom(self, area, lat: float, lon: float) -> float | None:
+        """The closest zoom whose view, round the feature's point, reaches its bounding box's edges north,
+        south, east and west of it (DP77). None for a place, which keeps the zoom."""
+        if self._geometry(area) == "point" or not area.record.get("bbox"):
+            return None
+        west, south, east, north = area.record["bbox"]
+        far = max(geodesy.inverse(lat, lon, edge_lat, edge_lon)[0]
+                  for edge_lat, edge_lon in ((north, lon), (south, lon), (lat, west), (lat, east)))
+        zooms = self.world.zoom_list
+        return next((z for z in zooms if z >= far), zooms[-1])
+
+    def _hierarchy_go(self, area, text: str) -> Response:
+        """Move to a feature, as a jump: to its point, zoomed to fit it (DP77). The step changes only when it
+        is linked to the zoom. It becomes the current feature (LOC-4), and is said, with the zoom."""
+        lat, lon = self._point_of(area)
+        r = self._jump(lat, lon, zoom_m=self._fit_zoom(area, lat, lon))
+        w = self.world
+        if w.link:
+            w.step_index = nearest_index(w.step_list, w.zoom_m / 4)
+        self.areas = self._here()
+        self.set_current_feature(area.id)
+        self._across = None
+        if self.settings["say_zoom_step"]:
+            text = say("hierarchy.moved", text=text,
+                       zoom=say("movement.zoom_only", zoom=words.distance_text(w.zoom_m, self._units())))
+        return r.speak(text, ASSERTIVE)
+
+    def _choose(self, title: str, help_text: str, lines: list[str], choices: list[tuple]) -> Response:
+        """A list to choose from, with Cancel (ACC-7): the ambiguous up and the down lists. The shell runs
+        hierarchy.choose with the index of the line chosen; Cancel runs nothing, so you stay."""
+        self._choices = choices
+        return Response(dialog={"kind": "choose", "title": title, "help": help_text, "lines": lines,
+                                "text": "\n".join(lines), "go": "hierarchy.choose", "current": 0,
+                                "cancel": say("ui.cancel")})
+
+    def _hierarchy_choose(self, index: int = -1, **_a) -> Response:
+        """A line chosen in the ambiguous up or a down list: go to that feature, or list that kind's
+        features."""
+        if not 0 <= index < len(self._choices):
+            return Response().earcon("blocked")
+        kind, value = self._choices[index]
+        if kind == "kind":
+            label, children = self._down["kinds"][value]
+            return self._choose(say("hierarchy.kind_title", kind=label, name=self._down["name"]),
+                                say("hierarchy.kind_help"), [c["label"] for c in children],
+                                [("feature", c["id"]) for c in children])
+        area = self.store.feature(value)
+        if area is None:
+            return Response().earcon("blocked")
+        return self._hierarchy_go(area, area.name)
 
     def _focus_back(self, item: str | None = None) -> dict | None:
         """Where the focus goes once Go to's or the bearing's box has its answer: back to the

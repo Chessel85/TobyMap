@@ -74,7 +74,7 @@ Go to Search,anywhere,3,,Shift+8,Shift+8,"P3-T4. The search results, the world t
 "Next sort order: name, distance, bearing",the Information panel,3,,Ctrl+S,Ctrl+S,P3-T4. Agreed in DP79.
 Previous sort order,the Information panel,3,,Ctrl+Shift+S,Ctrl+Shift+S,P3-T4. New: Shift goes the other way round a list (P2-T17l).
 Bookmark the item,the Information panel,3,,Ctrl+Enter,Ctrl+Enter,"Phase 4, from DP170. Until then it says that bookmarks come in Phase 4."
-Measure to the item or the search result,the map and the Information panel,3,,M,M but really need to know how the feature works in more detail first,P3-T7. You were not sure of this key (DP170); I ask again when P3-T7 is done.
+Measure to the item or the search result,the map and the Information panel,3,,M,M but really need to know how the feature works in more detail first,P3-T7. You were not sure of this key (DP170); I ask again when P3-T7 is done. DP187 (13 November 2026): Shift+M, as M is hierarchy mode.
 "Distance to a feature found by search, without moving",the map,3,,Shift+M,shift + M but really need to know how the feature works in more detail first,"P3-T7, INF-8. New, proposed by me."
 Search,anywhere,3,,Ctrl+F,control + F but need to test behaviour in browsers,"P3-T8. In the web version, the page takes Ctrl+F from the browser's own find while TobyMap has focus; the browser tests check this in Chromium and Firefox."
 World tree,the map,3,,W,"W, but need to know more about what this feature is","P3-T9. The design had T, which is now Next theme; W for World. New, proposed by me."

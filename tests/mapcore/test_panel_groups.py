@@ -181,7 +181,9 @@ def hants(test_pack):
 
 def test_contains_groups_what_is_visible_by_layer_under_headings(hants):
     g = group(hants.panel(open={"contains"}), "contains")
-    assert g["label"] == "Contains Hampshire, 1 item"
+    # The river, Brockenhurst station, and the New Forest National Park, partly inside (DP70, P3-T6a).
+    assert g["label"] == "Contains Hampshire, 3 items"
+    assert [h["label"] for h in g["items"]] == ["Rivers 1", "Railway stations 1", "National parks 1"]
     heading = g["items"][0]
     assert heading["label"] == "Rivers 1" and panel_table.is_heading(heading["id"]) and heading["level"] == 1
     child = heading["children"][0]

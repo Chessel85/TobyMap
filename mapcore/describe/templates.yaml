@@ -383,6 +383,7 @@ movement:
     south: "South"
   mode:
     stepping: "Stepping."
+    hierarchy: "Hierarchy mode."
   heading: "{facing} {orientation} {mode} Zoom {zoom}, step {step}."
 
 # The layers list (SCP-6, SCP-7). Layer and group names come from the pack.
@@ -476,6 +477,25 @@ crossing:
   none: "Nothing crosses {name}."
 search:
   none: "No search yet."
+
+# Hierarchy mode (P3-T6a; NAV-4, NAV-11, DP77). M switches it on and off; the arrow keys go up, down and
+# round the neighbours. A move says the feature, then the zoom it was fitted to: "England. Zoom 250 kilometres."
+# A neighbour is said as Bordering says it: "Spain, south-west, shared border 452 kilometres. Zoom ..."
+hierarchy:
+  "on": "Hierarchy mode. {name}."
+  on_nothing: "Hierarchy mode. No area here."
+  stepping: "Stepping mode."
+  moved: "{text}. {zoom}"
+  top: "Nothing holds {name}."
+  # The ambiguous up: the feature is inside two areas, neither inside the other (NAV-4).
+  up_title: "Up from {name}"
+  up_help: "{name} is inside more than one area, and neither is inside the other. Choose one to go up to, or Cancel to stay."
+  choice: "{name}, {type}"
+  # Down: the kinds of visible feature inside, each with its count, then a kind's features (INF-4).
+  down_title: "Inside {name}"
+  down_help: "Choose a kind of feature, or Cancel to stay."
+  kind_title: "{kind} in {name}"
+  kind_help: "Choose a feature to go to it, or Cancel to stay."
 
 # Which unit system, bearing style and coordinate format is chosen (ANN-5, LOC-1).
 # Why a pack was not opened, or what is wrong with it (PCK-5, NFR-4, P1-T2).

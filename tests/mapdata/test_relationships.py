@@ -79,7 +79,7 @@ def test_the_bay_of_biscay_is_in_the_north_atlantic(pack):
 
 def test_an_area_counts_what_is_inside_it_by_layer(pack):
     counts = pack.relationships(ENGLAND)["counts"]
-    assert counts["counties"] >= 21 and counts["rivers"] == 1 and counts["stations"] == 1
+    assert counts["counties"] >= 21 and counts["rivers"] == 1 and counts["stations"] == 2   # Southampton Central, Brockenhurst
 
 
 def test_a_pack_without_relationships_gives_none(pack):

@@ -77,6 +77,14 @@ details:
     railways: railway line
     towns: city or town
     stations: railway station
+    continents: continent
+    seas: sea, bay or strait
+    sea-places: sea, bay or strait
+    islands: island
+    mountain-ranges: mountain range
+    physical-regions: physical region
+    peaks: peak
+    national_parks: national park
   # An area's tier (P3-T17, DP165), said in place of its layer's word, with the area above it:
   # "constituent country of the United Kingdom", "region of France", "county of England".
   # The tiers are listed in mapdata/config/tiers.yaml.
@@ -86,12 +94,32 @@ details:
     region: region
     county: county
   tier_of: "{tier} of {owner}"
+  # Land the build names itself, in the Countries layer, said by its type, not as a country (P3-T2c, DP120).
+  own_types: [disputed land, unclaimed land, condominium, territory]
   # A name with one of these words is said with "the" after "of": "of the United Kingdom".
   the_words: [Kingdom, States, Republic, Islands, Isle, Isles, Emirates, Federation, Union, Netherlands,
               Philippines, Bahamas, Maldives, Seychelles, Comoros]
   part_of: "Part of: {value}"
   disputed: "This land is disputed."
+  # Who claims it, each with equal credit, in the order of their names (DP119), and the source's view (ANN-6, DAT-8).
+  claimants: "Claimed by: {value}"
+  dispute_view: "{source}: {view}"
+  dispute_view_named: "{source}, for {name}: {view}"
+  also_held_as: "OpenStreetMap also has this area as {name}."
   area: "Area: {value}"
+  # Facts from Wikidata, each with its source and date (P3-T2b, INF-1, DAT-7). The date is the fact's own, such
+  # as a census's; a fact with none is dated by when it was fetched.
+  facts:
+    population: Population
+    area_km2: "Area, as published"
+    capital: Capital
+    elevation_m: Elevation
+    length_km: Length
+    official_name: Official name
+  fact: "{name}: {value}, from {source}, {date}"
+  fact_fetched: "{name}: {value}, from {source}, as fetched on {date}"
+  wikipedia: "Wikipedia article: {value}"
+  months: [January, February, March, April, May, June, July, August, September, October, November, December]
   centre: "The location is {value}"
   source: "Source: {value}"
 
@@ -233,6 +261,7 @@ units:
   yd: [yard, yards]
   mi: [mile, miles]
   nmi: [nautical mile, nautical miles]
+  ft: [foot, feet]
   km2: [square kilometre, square kilometres]
   mi2: [square mile, square miles]
 
@@ -308,6 +337,9 @@ place:
   # Every layer here is on, but none is in its zoom range (DP160).
   out_of_zoom: "No data at this zoom level"
   sea: "Sea"
+  # Disputed land is said with "disputed", once, after the largest disputed area of the place (P3-T2c, ANN-6):
+  # "Autonomous Republic of Crimea, Crimea, disputed".
+  disputed: "{name}, disputed"
 
 # The words after a move that crosses a pole (NAV-1 says the block is silent,
 # so there are none here).

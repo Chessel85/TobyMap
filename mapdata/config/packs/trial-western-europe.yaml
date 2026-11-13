@@ -145,6 +145,25 @@ stages:
           - {query: "w[railway=rail][highspeed=yes][!service]", type: high-speed railway}
           - {query: "w[railway=rail][usage=main][!service]", type: railway}
     box: [-11.0, 35.0, 17.0, 61.0]
+  # Disputed areas (P3-T2c, DP119, ANN-6): land two countries both hold becomes a disputed area of its own, with
+  # both as claimants; Natural Earth's disputed areas mark the areas inside them, with its view.
+  - stage: disputes
+    source: naturalearth-disputed
+    # Natural Earth gives Kosovo no note, so it is named here to be used.
+    include: [Kosovo]
+    held_twice:
+      - {countries: [osm:r60189, osm:r60199], id: "disputed:crimea", name: Crimea, wikidata: Q7835}
+      - {countries: [osm:r1656678, osm:r192789], id: "disputed:abyei", name: Abyei, wikidata: Q336494}
+      - {countries: [osm:r167454, osm:r286393], id: "disputed:southern-patagonian-ice-field", name: Southern Patagonian Ice Field, wikidata: Q1031467}
+      - {countries: [osm:r148838, osm:r307829], id: "disputed:navassa-island", name: Navassa Island, wikidata: Q25359}
+  # Facts from Wikidata for every feature with a Wikidata link, kept in the data folder so they are fetched once
+  # (P3-T2a, DAT-7). Features with no link in these layers are matched by name and place.
+  - stage: wikidata
+    source: wikidata
+    refresh: 2026-11
+    match: [oceans, seas, lakes, mountain-ranges, physical-regions]
+  # What each feature is inside, beside, overlapping and crossing (P3-T3, AD-8). Settings: see configuration.md.
+  - stage: relationships
   - stage: write
     drawing_levels:
       # As the world pack's, so the sizes compare.

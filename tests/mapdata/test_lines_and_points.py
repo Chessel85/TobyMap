@@ -82,7 +82,7 @@ def test_lines_and_points_are_stored_in_their_own_tile_entries(pack_path):
         if parts[0] == "tile":
             for entry in pack.tile(*map(int, parts[1:])):
                 kinds.setdefault(pack.feature(entry.feature)["id"], set()).add(entry.kind)
-    assert pack.format == 3
+    assert pack.format == 4
     assert kinds["test:land"] <= {tiles.COVERED, tiles.COMPACT}
     assert kinds["grat:lon10e"] == {tiles.LINES} and kinds["test:station"] == {tiles.POINTS}
     assert [d["geometry"] for d in pack.layers] == ["area", "line", "point"]

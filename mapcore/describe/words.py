@@ -82,3 +82,40 @@ def area_text(km2: float, system: str = "metric") -> str:
     else:
         number = formats.spoken_number(value)
     return f"{number} {_unit(unit, number)}"
+
+
+def date_text(date: str) -> str:
+    """A date as said: "2020", "March 2020" or "1 March 2020", from "2020", "2020-03" or "2020-03-01" (P3-T2b)."""
+    parts = date.split("-") if not date.startswith("-") else [date]
+    months = templates()["details"]["months"]
+    if len(parts) == 3:
+        return f"{int(parts[2])} {months[int(parts[1]) - 1]} {parts[0]}"
+    if len(parts) == 2:
+        return f"{months[int(parts[1]) - 1]} {parts[0]}"
+    return date
+
+
+def height_text(metres: float, system: str = "metric") -> str:
+    """A height, such as "4,808 metres" or "15,774 feet", to the nearest whole unit (P3-T2b)."""
+    if system == "metric":
+        value, unit = metres, "m"
+    else:
+        value, unit = metres / 0.3048, "ft"
+    number = f"{round(value):,}"
+    return f"{number} {_unit(unit, number)}"
+
+
+def fact_value_text(key: str, value, system: str = "metric") -> str:
+    """A fact's value in words: a population as a whole number with commas, an area or a height in the units
+    chosen, a capital or a list of capitals joined as a list is (P3-T2b)."""
+    if key == "population":
+        return f"{int(value):,}"
+    if key == "area_km2":
+        return area_text(float(value), system)
+    if key == "elevation_m":
+        return height_text(float(value), system)
+    if key == "length_km":
+        return distance_text(float(value) * 1000, system)
+    if isinstance(value, list):
+        return say("place.list_separator").join(str(v) for v in value)
+    return str(value)

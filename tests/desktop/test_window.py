@@ -805,7 +805,7 @@ def test_ctrl_shift_l_opens_the_layers_list_with_a_check_box_for_each_layer_in_i
     groups = [dialog.tree.topLevelItem(i) for i in range(dialog.tree.topLevelItemCount())]
     assert [g.text(0) for g in groups][:2] == ["Boundaries", "Water"]
     boundaries = [groups[0].child(i).text(0) for i in range(groups[0].childCount())]
-    assert boundaries == ["Countries", "Regions and constituent countries", "Counties"]   # P3-T17
+    assert boundaries == ["Countries", "Regions and constituent countries", "Counties", "National parks"]   # P3-T17; the test pack's park, P3-T3
     assert layer_item(dialog, "countries").checkState(0) == Qt.CheckState.Checked
     assert dialog.ok_button.text() == "OK" and dialog.cancel_button.text() == "Cancel"
     dialog.cancel_button.click()

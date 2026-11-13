@@ -1,6 +1,6 @@
 # Pack format specification
 
-Version 3, 5 November 2026 (P2-T10a). Version 2 was 3 November 2026 (P1-T2). The code is in `mapcore/packs`. Requirements: PCK-5, DAT-9, NFR-4, DMT-1, and the format for PCK-1. Decisions: AD-5, AD-17, architecture sections 6.1 to 6.4 and 6.9.
+Version 4, 13 November 2026 (P3-T2b). Version 3 was 5 November 2026 (P2-T10a), and version 2 3 November 2026 (P1-T2). The code is in `mapcore/packs`. Requirements: PCK-5, DAT-9, NFR-4, DMT-1, and the format for PCK-1. Decisions: AD-5, AD-17, architecture sections 6.1 to 6.4 and 6.9.
 
 Words follow the glossary: pack, record, directory, manifest, feature record, pack tile, drawing tile, tile entry, covered note, compact coordinates, check number and checksum.
 
@@ -10,8 +10,9 @@ Every pack's header holds a format number.
 
 * Format 1 was the spike S2 pack. It was dropped on 3 November at the PO's request, and nothing reads it: a file with format 1 is not a TobyMap pack. The spike S2 stages now write the current format.
 * Format 2 was Phase 1's format. The Phase 1 plan calls it "pack format version 1"; it kept the number 2 so that an old spike pack left in a folder is never mistaken for it.
-* Format 3 is the format described here. It is format 2 with two more kinds of tile entry, for lines and points (P2-T10a). The writer always writes format 3. The reader reads format 2 as well, since a format 2 pack is a format 3 pack with no lines or points in it, so the Phase 1 world pack still opens.
-* A number above 3 is refused with packs.newer_format.
+* Format 3 is format 2 with two more kinds of tile entry, for lines and points (P2-T10a).
+* Format 4 is the format described here. It is format 3 with facts in the feature records: each feature's facts from Wikidata, with their sources and dates, and its Wikipedia article (P3-T2b); disputed areas' claimants and the source's view (P3-T2c); and each feature's relationships, in records of their own (P3-T3e). The writer always writes format 4. The reader reads formats 2 and 3 as well, since they are format 4 packs without what it added, so the Phase 1 and P3-T1 world packs still open.
+* A number above 4 is refused with packs.newer_format.
 
 ## The file
 
@@ -67,7 +68,7 @@ JSON. The builder gives:
 
 The writer adds, and refuses a builder that sets them itself:
 
-* format: 3.
+* format: 4.
 * built: the latest of the sources' dates. Never the clock, so a rebuild gives the same bytes (DMT-1).
 * layers: the layers' identifiers, in order.
 * tile_levels: the tile levels at which pack tiles of exact shapes are stored, ascending.
@@ -130,9 +131,34 @@ Optional fields:
 * also_held_as: with disputed, the other copy's details: id, name, name_en and country_code, the ISO 3166-1 code its own ISO 3166-2 code names, such as UA. The details of the area describe the dispute from these (ANN-6).
 * tier: for an area of the countries, regions and counties layers, where it sits in its country's government, one of the manifest's tiers, such as constituent_country for England (P3-T17, DP165). Given by the writing stage from mapdata/config/tiers.yaml. Details says it with the area above it, "constituent country of the United Kingdom". A pack written before P3-T17 has none, and Details then says the layer's word.
 
+* facts: from format 4, the feature's facts from Wikidata (P3-T2b, DAT-7, INF-1), by name: population, area_km2, capital, elevation_m, length_km and official_name. Each is an object with value; source, "Wikidata"; fetched, the date it was fetched, YYYY-MM-DD; and date, the fact's own date where Wikidata gives one, cut to its precision, so "2020", "2020-03" or "2020-03-01". A capital's value is a list of names, with wikidata, the list of their Wikidata items. Details says each fact with its source and date. A feature with no facts has no field.
+* wikipedia: from format 4, the title of the feature's English Wikipedia article, such as "Rhine". Only the title is stored; the article is opened in the browser, so none of Wikipedia's text is in the pack.
+* wikidata: the feature's Wikidata item, such as Q584, from OpenStreetMap's wikidata tag, given by hand, or matched by name and place (P3-T2a).
+
+* claimants: from format 4, for disputed land two countries both hold, such as Crimea, the two countries' identifiers, in the order of their names, with equal credit (P3-T2c, DP119).
+* dispute: from format 4, for an area inside one of Natural Earth's disputed areas: name, Natural Earth's name for that area; source, "Natural Earth"; and view, its note in full words, such as "Administered by Russia. Claimed by Ukraine." (ANN-6, DAT-8).
+* tier_name: from format 4, what the area's tier is called in its country, such as "state", from the tiers record's names (DP181). Details says it in place of the tier's word.
+
 The manifest may also have:
 
 * tiers: the tiers, highest first, such as `["country", "constituent_country", "region", "county"]` (P3-T17). "Where am I" orders the areas at a point by rank, then by this list, the lowest tier first, then the smallest. Optional, so the format number did not change.
+
+### relations/G
+
+From format 4 (P3-T3e, architecture 6.5): the relationships of group G's feature records, the same groups as features/G, as a JSON object by identifier, holding only the features that have any. A group with none has no record, so finding a feature's relationships takes at most one read. Each feature's object may have:
+
+* in: the areas that hold it fully, from every layer, smallest first: its parents and their parents.
+* same: areas that are the same land, each inside the other (DP71).
+* overlaps: for an area, the areas that overlap it with neither holding the other, each as [id, the share of this area covered, the share of the other covered], the largest share first (INF-5).
+* partly: for a line or a place, the areas it is partly inside, each as [id, share].
+* next: areas of its layer that share a border with it, each as [id, km], the longest border first (INF-2).
+* near: areas of its layer within the build's near_km that share no border, each as [id, km].
+* crosses: for a line, the areas it passes through, in order from its start (INF-6).
+* crossed_by and along: for an area, the lines crossing it, and those along its border.
+* water_in: for a water area, the water area of a lower rank that holds most of it (DAT-4).
+* counts: for an area, how many features of each layer are inside it, fully or partly, by layer id.
+
+`Pack.relationships(identifier)` returns the object, or an empty one for a feature with none or a pack written before format 4.
 
 ### tile/L/X/Y
 
@@ -193,7 +219,7 @@ The writer writes `<pack name>.sha256` beside the pack: the SHA-256 of the whole
 On opening, in this order:
 
 1. Not TOBYPACK at the start, shorter than a header, or a format below 2: packs.not_a_pack.
-2. A format above 3: packs.newer_format. Formats 2 and 3 are read.
+2. A format above 4: packs.newer_format. Formats 2, 3 and 4 are read.
 3. A damaged header, directory, manifest or layer definitions: packs.damaged_pack.
 4. The application's version below app_versions.from: packs.app_too_old. At or above app_versions.before: packs.app_too_new.
 
@@ -228,3 +254,4 @@ The same calls in the same order always give the same bytes (DMT-1). Cutting sha
 * Format 1, 2 November 2026: spike S2. A 16-byte header, the directory's place in a 16-byte footer, one record for all feature records, WKB or compact coordinates, and no check numbers. Dropped on 3 November.
 * Format 2, 3 November 2026: P1-T2. The directory's place and check number in the header, a check number for every record, the checksum file, version checks, feature records in groups with feature numbers, attribution, licence and layer definitions, drawing tiles, compact coordinates only, and the writer's limits.
 * Format 3, 5 November 2026: P2-T10a. Tile entry kinds 3 (lines) and 4 (points), the layer definitions' geometry and the other fields from P2-T3, and the reader still reads format 2.
+* Format 4, 13 November 2026: P3-T2b, P3-T2c, P3-T3e. Facts and the Wikipedia article, claimants, the source's view of a dispute and tier names in feature records; the relations records; and the reader still reads formats 2 and 3.

@@ -558,9 +558,21 @@ class MapSession:
             lines.append(say("details.part_of", value=say("place.list_separator").join(p.name for p in parents)))
         if rec.get("disputed"):
             lines.append(say("details.disputed"))
+            if rec.get("claimants"):   # each with equal credit, in the order of their names (DP119)
+                claimants = [self.store.feature(i) for i in rec["claimants"]]
+                lines.append(say("details.claimants", value=say("place.list_separator").join(
+                    c.name if c is not None else i for c, i in zip(claimants, rec["claimants"]))))
+            if rec.get("dispute"):
+                d = rec["dispute"]
+                key = "details.dispute_view" if d["name"] == area.name else "details.dispute_view_named"
+                lines.append(say(key, source=d["source"], name=d["name"], view=d["view"]))
+        if rec.get("also_held_as"):   # held twice in one layer (DP104), said as disputed only in disputed land
+            other = rec["also_held_as"]
+            lines.append(say("details.also_held_as", name=other.get("name_en") or other.get("name")))
         layer = self.layers.get(area.layer)
         if layer is None or layer.geometry == "area":   # a line or a point has no area (P2-T5)
             lines.append(say("details.area", value=words.area_text(area.area_km2, self.settings["units"])))
+        lines += self._fact_lines(rec)
         s = self.world
         if self.selected and (not self.areas or self.areas[0].id != self.selected):
             lines.append(say("details.centre", value=words.coordinates_text(s.lat, s.lon, self.settings["coordinates"],
@@ -568,12 +580,36 @@ class MapSession:
         lines.append(say("details.source", value=self._source_text(area)))
         return "\n".join(lines)
 
+    def _fact_lines(self, rec: dict) -> list[str]:
+        """The facts of a feature, each with its source and date, in the order of templates.yaml, then its
+        Wikipedia article (P3-T2b, INF-1). A pack written before P3-T2 has none."""
+        facts, out = rec.get("facts") or {}, []
+        names = templates()["details"]["facts"]
+        for key, name in names.items():
+            fact = facts.get(key)
+            if not fact or fact.get("value") in (None, "", []):
+                continue
+            if key == "capital" and fact["value"] == [rec.get("names", {}).get("en")]:   # a town is its own seat
+                continue
+            value = words.fact_value_text(key, fact["value"], self.settings["units"])
+            if fact.get("date"):
+                out.append(say("details.fact", name=name, value=value, source=fact["source"],
+                               date=words.date_text(fact["date"])))
+            else:
+                out.append(say("details.fact_fetched", name=name, value=value, source=fact["source"],
+                               date=words.date_text(fact["fetched"])))
+        if rec.get("wikipedia"):
+            out.append(say("details.wikipedia", value=rec["wikipedia"]))
+        return out
+
     def _type_text(self, area) -> str:
         """What an area is, for Details: its tier and the area above it, such as "constituent country of
         the United Kingdom" or "region of France" (P3-T17); or, in a pack written before tiers, its layer's
         word. The area above is the nearest of its parents of a higher tier, so Berlin, a region used as its
         own county, is a region of Germany, not of Berlin."""
         words_for = templates()["details"]
+        if area.record.get("type") in words_for["own_types"]:   # such as Crimea, "disputed land" (P3-T2c)
+            return area.record["type"]
         tier = area.record.get("tier")
         if tier not in words_for["tiers"]:
             return words_for["layers"].get(area.layer, area.layer)
@@ -583,10 +619,11 @@ class MapSession:
         while above is not None and seen < 4:
             theirs = above.record.get("tier")
             if theirs in tiers and tiers.index(theirs) < mine:
-                return say("details.tier_of", tier=words_for["tiers"][tier], owner=words.name_after_of(above.name))
+                return say("details.tier_of", tier=area.record.get("tier_name") or words_for["tiers"][tier],
+                           owner=words.name_after_of(above.name))
             parent = above.record.get("parent")
             above, seen = (self.store.feature(parent) if parent else None), seen + 1
-        return words_for["tiers"][tier]
+        return area.record.get("tier_name") or words_for["tiers"][tier]
 
     def registry(self) -> dict:
         return registry.describe(self.platform, self.settings.keys)

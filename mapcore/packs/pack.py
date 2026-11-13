@@ -1,8 +1,8 @@
-"""Pack format 3 (and reading format 2): the writer and the reader (AD-5, architecture 6.2, PCK-5, DAT-9, NFR-4).
+"""Pack format 4 (and reading formats 2 and 3): the writer and the reader (AD-5, architecture 6.2, PCK-5, DAT-9, NFR-4).
 
 The specification is docs/developer/pack-format.md. In short:
 
-* A 40-byte header: b"TOBYPACK", the format number (3), flags, reserved,
+* A 40-byte header: b"TOBYPACK", the format number (4), flags, reserved,
   where the directory starts and its length, the directory's check number,
   and the header's own check number.
 * The records, one after another, each compressed with zlib.
@@ -36,8 +36,9 @@ from mapcore.packs import coords, tiles
 from mapcore.packs.source import FileSource
 
 MAGIC = b"TOBYPACK"
-FORMAT = 3          # written: format 3 adds line and point tile entries (P2-T10a)
-OLDEST_FORMAT = 2   # read: format 2 is format 3 without them, so it is read as it is
+FORMAT = 4          # written: format 4 adds facts and relationships (P3-T2b, P3-T3e); format 3 added line and point tile
+                    # entries (P2-T10a)
+OLDEST_FORMAT = 2   # read: formats 2 and 3 are format 4 without what it added, so they are read as they are
 _HEADER = struct.Struct("<8sHHIQQII")
 HEADER_SIZE = _HEADER.size  # 40
 GROUP_SIZE = 256  # feature records per group, on average
@@ -185,7 +186,7 @@ def require_checksum(path) -> None:
 # Writing -------------------------------------------------------------------
 
 class PackWriter:
-    """Writes a pack in format 3.
+    """Writes a pack in format 4.
 
     The order of calls is: add_features once, then any number of add_tile and
     add_drawing_tile, then finish. Given the same calls in the same order,
@@ -250,6 +251,22 @@ class PackWriter:
             if members:
                 self._put(f"features/{g}", _json(members))
         return dict(self.numbers)
+
+    def add_relationships(self, by_id: dict[str, dict]) -> None:
+        """Write each feature's relationships (P3-T3e, architecture 6.5), in the feature records' groups: record
+        relations/G holds, as a JSON object by identifier, those of group G's features that have any."""
+        if self.numbers is None:
+            raise PackWriteError("add_features comes before the relationships")
+        unknown = sorted(set(by_id) - set(self.numbers))
+        if unknown:
+            raise PackWriteError(f"relationships of features not in the pack: {', '.join(unknown[:5])}")
+        groups = max(1, len(self.group_starts))
+        per: dict[int, dict] = {}
+        for fid, rel in by_id.items():
+            if rel:
+                per.setdefault(feature_group(fid, groups), {})[fid] = rel
+        for g in sorted(per):
+            self._put(f"relations/{g}", _json(per[g]))
 
     def _entries(self, entries, exact: bool, level: int) -> bytes:
         if self.numbers is None:
@@ -379,7 +396,7 @@ def read_format(source) -> int | None:
 
 
 class Pack:
-    """Reads records on demand from a pack in format 3 or 2.
+    """Reads records on demand from a pack in format 4, 3 or 2.
 
     `source` is a path or a byte source (source.py). The pack is refused,
     with a PackError whose message comes from the templates, when it is not a
@@ -399,6 +416,7 @@ class Pack:
         self.name = getattr(source, "name", None) or "This pack"
         self.reads = 0
         self._groups: dict[int, list[dict]] = {}
+        self._relations: dict[int, dict] = {}
         try:
             self._open(app_version, check_app)
         except Exception:
@@ -540,6 +558,14 @@ class Pack:
             if record["id"] == identifier:
                 return self.group_starts[g] + i
         return None
+
+    def relationships(self, identifier: str) -> dict:
+        """A feature's relationships, from format 4 (P3-T3e): what it is inside, beside, overlapping and crossing,
+        by the identifiers of the other features. Empty for a feature with none, or a pack written before."""
+        g = feature_group(identifier, len(self.group_starts))
+        if g not in self._relations:
+            self._relations[g] = self.get_json(f"relations/{g}") or {}
+        return self._relations[g].get(identifier, {})
 
     def feature_by_id(self, identifier: str) -> dict | None:
         number = self.feature_number(identifier)

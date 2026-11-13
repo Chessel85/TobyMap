@@ -16,7 +16,13 @@ COUNTRY_LAYER = "countries"
 
 
 def area_names(areas) -> list[str]:
-    return [a.name for a in areas]
+    """The areas' names, smallest first, with "disputed" after the largest disputed one, so it is said once
+    (P3-T2c, ANN-6)."""
+    names = [a.name for a in areas]
+    last = max((i for i, a in enumerate(areas) if (getattr(a, "record", None) or {}).get("disputed")), default=None)
+    if last is not None:
+        names[last] = say("place.disputed", name=names[last])
+    return names
 
 
 def changed_areas(old, new) -> list:

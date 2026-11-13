@@ -105,6 +105,38 @@ sources:
     attribution: "Messager, M.L., Lehner, B., Grill, G., Nedeva, I., Schmitt, O. (2016). Estimating the volume and age of water stored in global lakes using a geo-statistical approach. Nature Communications 7: 13603. HydroLAKES, www.hydrosheds.org."
     refresh_days: 730
 
+  naturalearth-disputed:
+    name: Natural Earth, admin 0 breakaway and disputed areas, 1:10 million
+    about: "Land whose sovereignty is disputed or that has broken away, each with Natural Earth's note of who holds and who claims it (P3-T2c, ANN-6, DAT-8)."
+    url: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_disputed_areas.geojson
+    file: naturalearth/ne_10m_admin_0_disputed_areas.geojson
+    licence: Public domain
+    attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
+    refresh_days: 365
+
+  wikidata:
+    name: Wikidata, facts fetched from its query service
+    about: "Population, area, capital, elevation, length, official name, kind and Wikipedia title of each feature with a Wikidata link (P3-T2a). The build fetches them itself, as it runs, into the folder wikidata in the downloads folder, and keeps them, so a rebuild fetches nothing again."
+    url: https://query.wikidata.org/sparql
+    folder: wikidata
+    licence: CC0 1.0
+    attribution: "Facts from Wikidata, available under CC0: https://www.wikidata.org/"
+    refresh_days: 180
+
+  sample-ne-disputed:
+    name: Natural Earth, breakaway and disputed areas, Crimea only, test sample
+    repo: tests/samples/naturalearth-disputed-crimea.geojson
+    date: 2026-11-13
+    licence: Public domain
+    attribution: Made with Natural Earth. Free vector and raster map data at naturalearthdata.com.
+
+  sample-wikidata:
+    name: Wikidata, facts for the test pack's samples
+    repo: tests/samples/wikidata
+    date: 2026-11-13
+    licence: CC0 1.0
+    attribution: "Facts from Wikidata, available under CC0: https://www.wikidata.org/"
+
   sample-world:
     name: Natural Earth, admin 0 countries, 1:110 million, test sample
     repo: tests/samples/world-naturalearth-110m.geojson

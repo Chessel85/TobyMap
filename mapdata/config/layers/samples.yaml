@@ -5,3 +5,7 @@
 
 layers:
   - {id: stations, name: Railway stations, rank: 8, kind: land, group: Transport, geometry: point, switched_on: true}
+  # The New Forest National Park, which overlaps Hampshire and Wiltshire, for the tests of the relationships only:
+  # INF-5's overlaps and NAV-4's ambiguous up (P3-T3). National parks come to the real packs in Phase 4. Its area
+  # overlaps the counties, so it is not painted.
+  - {id: national_parks, name: National parks, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true, fill: none}

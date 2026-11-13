@@ -38,7 +38,7 @@ def test_selfcheck_finds_no_problems():
 
 def test_every_kind_of_record_comes_back(data):
     p = open_bytes(data)
-    assert p.manifest["format"] == 3
+    assert p.manifest["format"] == 4
     assert p.manifest["name"] == "selfcheck"
     assert p.manifest["sources"] == selfcheck.MANIFEST["sources"]
     assert p.manifest["coordinates"] == {"encoding": "compact", "scale": 10_000_000}
@@ -160,7 +160,16 @@ def test_a_format_2_pack_is_still_read(data):
     older[36:40] = pack.check_number(bytes(older[:36])).to_bytes(4, "little")
     p = open_bytes(bytes(older), "phase1.pack")
     assert p.format == 2 and p.manifest["name"] == "selfcheck"
-    assert open_bytes(data).format == 3
+    assert open_bytes(data).format == 4
+
+
+def test_a_format_3_pack_is_still_read(data):
+    """Format 4 only adds facts to feature records (P3-T2b), so the world pack of P3-T1 is read as it is."""
+    older = bytearray(data)
+    older[8:10] = (3).to_bytes(2, "little")
+    older[36:40] = pack.check_number(bytes(older[:36])).to_bytes(4, "little")
+    p = open_bytes(bytes(older), "p3t1.pack")
+    assert p.format == 3 and p.manifest["name"] == "selfcheck"
 
 
 def test_something_else_is_not_a_pack():

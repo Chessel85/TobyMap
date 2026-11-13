@@ -38,6 +38,9 @@ class Source:
     file: str | None = None         # where the download is kept, inside the downloads folder
     find: list[str] = field(default_factory=list)  # a local copy in the data folder, newest first
     repo: str | None = None         # a file or folder in the repository, such as the test samples
+    # A folder in the downloads folder that a stage fills as it runs, such as the facts fetched from Wikidata
+    # (P3-T2a). It need not exist before the build.
+    folder: str | None = None
     date: str | None = None         # the data's own date, YYYY-MM-DD, when the file's date is not it
     refresh_days: int | None = None
 
@@ -48,6 +51,8 @@ class Source:
             return p if p.exists() else None
         if folders is None:
             return None
+        if self.folder:
+            return folders.downloads / self.folder
         if self.file:
             p = folders.downloads / self.file
             if p.exists():
@@ -60,13 +65,23 @@ class Source:
         return None
 
     def data_date(self, path: Path) -> str:
-        return self.date or file_date(path)
+        if self.date:
+            return self.date
+        if self.folder:   # the date its newest file was last added to, or today's for a folder not yet filled
+            files = [p for p in Path(path).glob("*") if p.is_file()] if Path(path).is_dir() else []
+            return max((dt.datetime.fromtimestamp(p.stat().st_mtime, dt.timezone.utc).date().isoformat()
+                        for p in files), default=dt.date.today().isoformat())
+        return file_date(path)
 
     def fingerprint(self, path: Path) -> str:
         """What a stage's fingerprint uses for the source. Files in the repository are small, so their
         bytes are used; downloads are large, so their size and date."""
         h = hashlib.sha256(self.key.encode())
-        if self.repo:
+        if self.folder:
+            # A folder a stage fills itself changes as the stage runs, so only its name counts: what the stage
+            # reads from it is named by the stage's own settings, such as the refresh label of the facts.
+            h.update(self.folder.encode())
+        elif self.repo:
             files = sorted(p for p in path.rglob("*") if p.is_file()) if path.is_dir() else [path]
             for p in files:
                 h.update(p.relative_to(path).as_posix().encode() if path.is_dir() else b"")
@@ -100,7 +115,8 @@ def _read(path: Path) -> dict:
     return data
 
 
-SOURCE_FIELDS = {"name", "licence", "attribution", "about", "url", "file", "find", "repo", "date", "refresh_days"}
+SOURCE_FIELDS = {"name", "licence", "attribution", "about", "url", "file", "find", "repo", "date", "refresh_days",
+                 "folder"}
 
 
 def load_sources(config_dir: Path = CONFIG_DIR) -> dict[str, Source]:

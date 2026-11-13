@@ -157,8 +157,12 @@ These change what we can use, so please read them even if you skip the rest.
 
 ### Facts, names and links
 * Wikidata (CC0) supplies population, area, capital, multilingual names, Wikipedia article titles and links. Accepted in DP51. Each fact is shown with its source and date, for example "Population 67 million (Wikidata, 2024)".
+* In use from P3-T2a, 13 November 2026: the wikidata stage fetches each feature's facts from Wikidata's query service (https://query.wikidata.org/sparql), in batches, with a plain client name and nothing about the person running the build, and keeps them in the data folder, so they are fetched once. The source is "wikidata" in mapdata/config/sources.yaml, licence CC0 1.0. The facts: population with its date, area, capital, elevation, length, the official name, the English Wikipedia article's title, and the kind of each feature ("instance of"), which can name each country's tiers (DP181). The test pack's facts are in tests/samples/wikidata, made by tools/make_wikidata_samples.py.
 * We store only the link to each Wikipedia article. Opening it uses the browser, so Wikipedia's CC BY-SA text is never copied into our packs.
 * GeoNames (CC-BY 4.0) is an optional extra gazetteer for alternative names and search. It is probably not needed if Wikidata and OSM cover enough.
+
+### Disputed areas
+* Natural Earth's breakaway and disputed areas, 1:10 million (public domain), ne_10m_admin_0_disputed_areas, in use from P3-T2c, 13 November 2026: each area's note of who holds and who claims it is the source's view said in Details (ANN-6, DAT-8). The source is "naturalearth-disputed" in mapdata/config/sources.yaml. The test pack has its Crimea only, in tests/samples/naturalearth-disputed-crimea.geojson.
 
 ### Maritime zones (optional political layer)
 * Marine Regions EEZ and territorial sea layers. Some versions are listed as CC-BY 4.0, but the licence must be confirmed for the version we use.

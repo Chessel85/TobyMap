@@ -34,3 +34,124 @@ countries:
     why: "England, Scotland, Wales and Northern Ireland are countries of the United Kingdom, not regions: the tier below them is the counties and unitary authorities (DP165)."
 
 areas: {}
+
+# Names of each country's tiers, from Wikidata's kind of each area (DP181), written by mapdata tier-names.
+# Each country has the name of its regions' tier and of its counties' tier, and any area named on its
+# own. A country already here is kept as it is, so correct a name here by hand. A name is said in
+# Details in place of the tier's word: Kansas, "state of the United States".
+names:
+  osm:r192756:   # Algeria
+    regions: "province"
+    counties: "district"
+  osm:r9407:   # Andorra
+    counties: "parish"
+  osm:r16239:   # Austria
+    regions: "federal state"
+    counties: "district"
+  osm:r52411:   # Belgium
+    regions: "region"
+    counties: "province"
+  osm:r2528142:   # Bosnia and Herzegovina
+    areas:
+      "municipality": [osm:r2528168, osm:r2528170, osm:r2528174, osm:r2528190, osm:r2528191, osm:r2528199, osm:r2528218, osm:r2528235, osm:r2528247, osm:r2528261, osm:r2528275, osm:r2528286]
+  osm:r214885:   # Croatia
+    regions: "county"
+    counties: "municipality"
+    areas:
+      "polis": [osm:r11112261, osm:r8796473]
+      "settlement": [osm:r12769958, osm:r12771589]
+  osm:r51684:   # Czechia
+    regions: "region"
+    areas:
+      "municipal part": [osm:r19999119, osm:r19999125, osm:r19999126, osm:r19999127, osm:r19999128, osm:r19999129, osm:r19999130, osm:r19999131, osm:r19999132, osm:r19999133, osm:r19999134, osm:r19999135, osm:r19999136, osm:r19999137, osm:r19999138, osm:r19999139, osm:r19999140, osm:r19999141, osm:r19999142, osm:r19999143, osm:r19999144, osm:r19999145]
+  osm:r50046:   # Denmark
+    regions: "region"
+    counties: "municipality"
+  osm:r1403916:   # France
+    regions: "region"
+    counties: "department"
+    areas:
+      "territorial collectivity": [osm:r4850450, osm:r71525]
+  osm:r51477:   # Germany
+    regions: "federated state"
+    areas:
+      "district": [osm:r2083466, osm:r2083497, osm:r2083535, osm:r2084746, osm:r2145178, osm:r2145179, osm:r2156362, osm:r2156363, osm:r2168230, osm:r2168231, osm:r2168232, osm:r62348, osm:r62355, osm:r62356, osm:r62357, osm:r62360, osm:r62361, osm:r62362, osm:r62367, osm:r62371, osm:r62377, osm:r62378, osm:r62383, osm:r62389, osm:r62390, osm:r62397, osm:r62398, osm:r62399, osm:r62404, osm:r62406, osm:r62415, osm:r62416, osm:r62426, osm:r62431, osm:r62443, osm:r62448, osm:r62451, osm:r62454, osm:r62457, osm:r62458, osm:r62465, osm:r62469, osm:r62472, osm:r62482, osm:r62491, osm:r62494, osm:r62497, osm:r62498, osm:r62510, osm:r62514, osm:r62515, osm:r62520, osm:r62521, osm:r62527, osm:r62530, osm:r62533, osm:r62540, osm:r62541, osm:r62548, osm:r62550, osm:r62556, osm:r62558, osm:r62561, osm:r62565, osm:r62567, osm:r62569, osm:r62572, osm:r62575, osm:r62580, osm:r62584, osm:r62592, osm:r62595, osm:r62597, osm:r62600, osm:r62608, osm:r62609, osm:r62610, osm:r62613, osm:r62614, osm:r62615, osm:r62617, osm:r62620, osm:r62622, osm:r62623, osm:r62627, osm:r62632, osm:r62633, osm:r62641, osm:r62647, osm:r62648, osm:r62653, osm:r62655, osm:r62657, osm:r62662, osm:r62663, osm:r62664, osm:r62666, osm:r62668, osm:r62669, osm:r62672, osm:r62673, osm:r62674, osm:r62679, osm:r62680, osm:r62684, osm:r62686, osm:r62687, osm:r62689, osm:r62698, osm:r62707, osm:r62709, osm:r62711, osm:r62712, osm:r62726, osm:r62727, osm:r62728, osm:r62731, osm:r62737, osm:r62739, osm:r62740, osm:r62741, osm:r62742, osm:r62743, osm:r62744, osm:r62762, osm:r62764, osm:r62765, osm:r62766, osm:r62773, osm:r62778, osm:r6679859, osm:r975339]
+      "rural district": [osm:r1431517, osm:r1739376, osm:r1739377, osm:r1739379, osm:r1739380, osm:r1739381, osm:r1829066, osm:r1831015, osm:r1891506, osm:r27014, osm:r27016, osm:r27017, osm:r27019, osm:r27025, osm:r27026, osm:r27028, osm:r318248, osm:r58745, osm:r62339, osm:r62343, osm:r62344, osm:r62345, osm:r62346, osm:r62350, osm:r62353, osm:r62354, osm:r62358, osm:r62359, osm:r62364, osm:r62365, osm:r62368, osm:r62373, osm:r62376, osm:r62379, osm:r62380, osm:r62382, osm:r62384, osm:r62387, osm:r62388, osm:r62393, osm:r62394, osm:r62401, osm:r62402, osm:r62408, osm:r62412, osm:r62413, osm:r62417, osm:r62419, osm:r62420, osm:r62421, osm:r62423, osm:r62424, osm:r62425, osm:r62427, osm:r62429, osm:r62432, osm:r62434, osm:r62437, osm:r62440, osm:r62442, osm:r62445, osm:r62446, osm:r62447, osm:r62452, osm:r62462, osm:r62466, osm:r62468, osm:r62473, osm:r62474, osm:r62475, osm:r62476, osm:r62477, osm:r62480, osm:r62483, osm:r62485, osm:r62486, osm:r62488, osm:r62489, osm:r62492, osm:r62500, osm:r62502, osm:r62503, osm:r62505, osm:r62506, osm:r62511, osm:r62519, osm:r62524, osm:r62535, osm:r62536, osm:r62537, osm:r62542, osm:r62543, osm:r62544, osm:r62546, osm:r62547, osm:r62552, osm:r62553, osm:r62555, osm:r62563, osm:r62566, osm:r62570, osm:r62571, osm:r62574, osm:r62577, osm:r62579, osm:r62582, osm:r62585, osm:r62586, osm:r62587, osm:r62588, osm:r62593, osm:r62596, osm:r62601, osm:r62602, osm:r62603, osm:r62604, osm:r62606, osm:r62616, osm:r62618, osm:r62621, osm:r62624, osm:r62626, osm:r62628, osm:r62635, osm:r62637, osm:r62639, osm:r62643, osm:r62651, osm:r62656, osm:r62661, osm:r62665, osm:r62681, osm:r62682, osm:r62683, osm:r62690, osm:r62692, osm:r62694, osm:r62697, osm:r62700, osm:r62703, osm:r62704, osm:r62706, osm:r62708, osm:r62715, osm:r62716, osm:r62721, osm:r62723, osm:r62725, osm:r62730, osm:r62733, osm:r62735, osm:r62736, osm:r62738, osm:r62746, osm:r62747, osm:r62750, osm:r62767, osm:r62770, osm:r62779, osm:r62783, osm:r62785, osm:r62943]
+      "urban district": [osm:r62562]
+      "urban municipality": [osm:r172679, osm:r1800297, osm:r1829065, osm:r191645, osm:r2168233, osm:r27020, osm:r27021, osm:r27027, osm:r535895, osm:r62340, osm:r62347, osm:r62349, osm:r62352, osm:r62369, osm:r62374, osm:r62375, osm:r62381, osm:r62385, osm:r62391, osm:r62396, osm:r62400, osm:r62403, osm:r62405, osm:r62407, osm:r62409, osm:r62410, osm:r62411, osm:r62414, osm:r62418, osm:r62428, osm:r62430, osm:r62444, osm:r62449, osm:r62450, osm:r62453, osm:r62455, osm:r62456, osm:r62464, osm:r62470, osm:r62471, osm:r62478, osm:r62481, osm:r62484, osm:r62487, osm:r62493, osm:r62495, osm:r62496, osm:r62499, osm:r62508, osm:r62512, osm:r62518, osm:r62522, osm:r62523, osm:r62525, osm:r62526, osm:r62528, osm:r62531, osm:r62532, osm:r62534, osm:r62539, osm:r62554, osm:r62559, osm:r62573, osm:r62578, osm:r62581, osm:r62589, osm:r62590, osm:r62591, osm:r62594, osm:r62598, osm:r62629, osm:r62630, osm:r62631, osm:r62634, osm:r62636, osm:r62638, osm:r62640, osm:r62642, osm:r62644, osm:r62646, osm:r62649, osm:r62652, osm:r62654, osm:r62658, osm:r62659, osm:r62671, osm:r62685, osm:r62691, osm:r62693, osm:r62695, osm:r62699, osm:r62701, osm:r62713, osm:r62717, osm:r62719, osm:r62720, osm:r62724, osm:r62734, osm:r62745, osm:r62748, osm:r62751, osm:r62768, osm:r62772, osm:r62780]
+  osm:r270009:   # Guernsey
+    counties: "parish"
+  osm:r21335:   # Hungary
+    counties: "county"
+  osm:r62273:   # Ireland
+    regions: "province"
+    counties: "county"
+  osm:r62269:   # Isle of Man
+    counties: "sheading"
+  osm:r365331:   # Italy
+    regions: "region"
+    areas:
+      "autonomous region with special statute": [osm:r179296, osm:r39152, osm:r45155, osm:r45757, osm:r7361997]
+      "comune": [osm:r2202523, osm:r2202524, osm:r2202525, osm:r2202526, osm:r2202527, osm:r2202528, osm:r2202529, osm:r2202530, osm:r45306, osm:r45317, osm:r45363, osm:r45447, osm:r45463, osm:r45464, osm:r45468, osm:r45543, osm:r45547, osm:r45566, osm:r45569, osm:r45578, osm:r45585, osm:r45612, osm:r45620, osm:r45629, osm:r45632, osm:r45635, osm:r45654, osm:r45671, osm:r45674, osm:r45688, osm:r45692, osm:r45702, osm:r45709, osm:r45763, osm:r45768, osm:r45793, osm:r45813, osm:r45814, osm:r45841, osm:r45842, osm:r45848, osm:r45916, osm:r45918, osm:r45941, osm:r45955, osm:r45956, osm:r45970, osm:r45975, osm:r46032, osm:r46039, osm:r46064, osm:r46084, osm:r46123, osm:r46152, osm:r46156, osm:r46163, osm:r46164, osm:r46176, osm:r46197, osm:r46294, osm:r46357]
+      "free municipal consortium": [osm:r39151, osm:r39155, osm:r39157, osm:r39166, osm:r39178, osm:r39216]
+      "metropolitan city": [osm:r275098, osm:r276369, osm:r39181, osm:r39295, osm:r39374, osm:r40600, osm:r40707, osm:r41313, osm:r42472, osm:r42856, osm:r44230, osm:r44862, osm:r44880, osm:r44881, osm:r49135]
+      "province": [osm:r1552704, osm:r1552705, osm:r167044, osm:r19166661, osm:r19621461, osm:r19622158, osm:r19622159, osm:r2203582, osm:r251419, osm:r39637, osm:r39748, osm:r39788, osm:r39979, osm:r40021, osm:r40136, osm:r40217, osm:r40259, osm:r40423, osm:r40715, osm:r40783, osm:r40940, osm:r40973, osm:r41093, osm:r41223, osm:r41255, osm:r41277, osm:r41542, osm:r41778, osm:r41781, osm:r41817, osm:r41976, osm:r42003, osm:r42024, osm:r42106, osm:r42141, osm:r42147, osm:r42172, osm:r42212, osm:r42338, osm:r42366, osm:r42455, osm:r42609, osm:r42614, osm:r42619, osm:r42628, osm:r42637, osm:r42661, osm:r42760, osm:r42782, osm:r42845, osm:r42884, osm:r42889, osm:r42965, osm:r43080, osm:r43199, osm:r43267, osm:r43292, osm:r43332, osm:r43483, osm:r43647, osm:r43798, osm:r43893, osm:r44107, osm:r44181, osm:r44217, osm:r44580, osm:r44866, osm:r44882, osm:r44913, osm:r44996, osm:r45300, osm:r45347, osm:r45614, osm:r45639, osm:r45756, osm:r46089, osm:r46429, osm:r46708, osm:r47046, osm:r49131, osm:r53059, osm:r907991]
+      "sparse municipality": [osm:r2202522, osm:r2202531, osm:r45153, osm:r45207, osm:r45209, osm:r45452, osm:r45454, osm:r45689, osm:r45847, osm:r45942, osm:r46104, osm:r46198, osm:r46400]
+  osm:r367988:   # Jersey
+    counties: "parish"
+  osm:r1155955:   # Liechtenstein
+    counties: "electoral unit"
+  osm:r2171347:   # Luxembourg
+    counties: "canton"
+  osm:r365307:   # Malta
+    counties: "region"
+  osm:r1124039:   # Monaco
+    counties: "quarter"
+  osm:r3630439:   # Morocco
+    regions: "region"
+    areas:
+      "circle": [osm:r18251918, osm:r4751164, osm:r4778412, osm:r4778492, osm:r5935621]
+      "urban commune": [osm:r4778595, osm:r6053065]
+  osm:r2323309:   # Netherlands
+    regions: "province"
+    counties: "municipality"
+    areas:
+      "place with town rights and privileges": [osm:r415473]
+  osm:r2978650:   # Norway
+    regions: "county"
+    counties: "municipality"
+  osm:r49715:   # Poland
+    regions: "voivodeship"
+    counties: "powiat"
+    areas:
+      "city with powiat rights": [osm:r1122507, osm:r1553160, osm:r2106899, osm:r2132418, osm:r2456294, osm:r2533323, osm:r2670477, osm:r2773118, osm:r404940, osm:r451269, osm:r451305, osm:r451516]
+  osm:r295480:   # Portugal
+    counties: "district"
+  osm:r54624:   # San Marino
+    counties: "municipality"
+  osm:r14296:   # Slovakia
+    regions: "region"
+    counties: "district"
+  osm:r218657:   # Slovenia
+    counties: "municipality"
+    areas:
+      "city municipality": [osm:r1675676, osm:r1675786, osm:r1675900, osm:r1675901, osm:r1676306, osm:r1676328, osm:r1676350, osm:r1676363, osm:r1685729, osm:r1685734]
+  osm:r1311341:   # Spain
+    regions: "autonomous community"
+    counties: "province"
+    areas:
+      "autonomous city": [osm:r1154756, osm:r1154757, osm:r1822781, osm:r7523933]
+  osm:r52822:   # Sweden
+    regions: "county"
+    counties: "municipality"
+  osm:r51701:   # Switzerland
+    regions: "canton"
+    counties: "municipality"
+    areas:
+      "constituency": [osm:r1687101, osm:r1687136, osm:r1687161, osm:r1687181, osm:r1687206, osm:r1687207, osm:r1687214, osm:r1687219]
+      "district": [osm:r1684250, osm:r1684477, osm:r1684478, osm:r1684487, osm:r1684494, osm:r1684810, osm:r1684825, osm:r1686698, osm:r1686700, osm:r1686701, osm:r1686702, osm:r1686703, osm:r1686704, osm:r1686705, osm:r1686706, osm:r1686707, osm:r1686708, osm:r1686709, osm:r1686710, osm:r1686711, osm:r1686712, osm:r1688231, osm:r1688254, osm:r1688290, osm:r1688584, osm:r1688585, osm:r1688586, osm:r1688587, osm:r1688588, osm:r1688589, osm:r1688679, osm:r1688750, osm:r1688759, osm:r1688769, osm:r1688773, osm:r1690941, osm:r1691005, osm:r1691046, osm:r1691150, osm:r1691158, osm:r1691171, osm:r1691224, osm:r1691239, osm:r1691254, osm:r1691279, osm:r1691293, osm:r1691473, osm:r1697465, osm:r1697529, osm:r1697530, osm:r1698881, osm:r1698882, osm:r1698883, osm:r1698884, osm:r1699155, osm:r1699156, osm:r1699157, osm:r1701206, osm:r1701228, osm:r1701231, osm:r1701238, osm:r1701264, osm:r1701276, osm:r1701280, osm:r1701283, osm:r1701287, osm:r1701301, osm:r1835279, osm:r1836567, osm:r1836631, osm:r1845517, osm:r1854100, osm:r1874920, osm:r1875019, osm:r20034294, osm:r20109266, osm:r20109267, osm:r20109268, osm:r365551, osm:r365552, osm:r365554, osm:r365575, osm:r365576, osm:r365577, osm:r373330, osm:r373331, osm:r373332, osm:r373333]
+      "region": [osm:r1688767, osm:r1688768, osm:r1689429, osm:r1689430, osm:r2013131, osm:r2013172, osm:r2018098, osm:r2018099, osm:r2018280, osm:r2018281, osm:r2018282, osm:r2018283, osm:r2018284, osm:r20972591, osm:r20972592]
+      "statistical district": [osm:r20109269]
+  osm:r192757:   # Tunisia
+    regions: "governorate"
+    counties: "delegation"

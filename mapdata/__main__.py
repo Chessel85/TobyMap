@@ -64,6 +64,9 @@ def build_parser() -> argparse.ArgumentParser:
     rip.add_argument("folder", help="the stage's folder, holding its request")
     wx = sub.add_parser("spike-s2-water", help="used by spike-s2: read the inland water in its own process")
     wx.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
+    tn = sub.add_parser("tier-names", help="name each country's tiers from Wikidata's kinds, into the tiers record "
+                                           "(DP181)")
+    tn.add_argument("pack", help="a pack whose wikidata stage has run, such as world")
     ins = sub.add_parser("inspect", help="ask a pack about itself: its manifest, one feature, or what is at a point",
                          description="Examples: inspect test manifest; inspect test feature osm:r62149; "
                                      "inspect test at 50.7 -1.3; inspect test 50.7 -1.3.")
@@ -338,6 +341,10 @@ def main(argv: list[str] | None = None) -> int:
         return import_module(f"mapdata.stages.{args.module}").main(Path(args.folder))
     if args.command == "inspect":
         return cmd_inspect(args)
+    if args.command == "tier-names":
+        from mapdata.stages import tier_names, write
+        folders = _folders(args)
+        return 2 if folders is None else tier_names.run(args.pack, folders, write.tiers_path())
     return 1
 
 

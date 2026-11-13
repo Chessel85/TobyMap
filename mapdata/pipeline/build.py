@@ -66,10 +66,16 @@ STAGES = {
                            ("mapdata.stages.osm_lines", "mapdata.stages.osm_rivers")),
     "physical": StageKind("building the mountain ranges and physical regions", "mapdata.stages.physical",
                           ("mapdata.stages.physical", "mapdata.stages.land")),
+    "disputes": StageKind("making the disputed areas", "mapdata.stages.disputes",
+                          ("mapdata.stages.disputes",)),
+    "relationships": StageKind("working out what each feature is inside, beside and crossing",
+                               "mapdata.stages.relationships", ("mapdata.stages.relationships", "mapdata.stages.geodesy")),
+    "wikidata": StageKind("taking the facts of each feature from Wikidata", "mapdata.stages.wikidata",
+                          ("mapdata.stages.wikidata",)),
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
                         ("mapdata.stages.checks", "mapdata.stages.lookup")),
     "write": StageKind("writing the pack", "mapdata.stages.write",
-                       ("mapdata.stages.write", "mapdata.stages.pack_write", "mapdata.stages.drawing_levels", "mapdata.stages.antimeridian",
+                       ("mapdata.stages.write", "mapdata.stages.pack_write", "mapdata.stages.relationships", "mapdata.stages.drawing_levels", "mapdata.stages.antimeridian",
                         "mapdata.stages.geodesy", "mapcore.geo.geodesy", "mapcore.packs.pack",
                         "mapcore.packs.coords", "mapcore.packs.tiles")),
 }
@@ -89,6 +95,9 @@ class StageContext:
     workers: int
     source_paths: dict[str, Path] = field(default_factory=dict)
     switch: Switch | None = None
+    # The folder of each kind of stage run before this one, the latest of each kind, such as "osm-areas", for a
+    # stage that needs what an earlier stage kept besides the features, such as the outlines as read (P3-T2c).
+    earlier: dict[str, Path] = field(default_factory=dict)
 
     def claim(self, path: Path) -> Path:
         return self.ledger.claim(path)
@@ -219,6 +228,7 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
     previous_print, previous_folder = "", None
     ran, skipped = [], []
     stage_folders: list[Path] = []
+    earlier: dict[str, Path] = {}
     for n, stage in enumerate(pack.stages, 1):
         if previous_folder is not None:
             stage_folders.append(previous_folder)
@@ -237,7 +247,7 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
             progress.line(f"Stage {n} of {total}: {kind.title}.")
             start = time.perf_counter()
             ctx = StageContext(pack, stage, n, previous_folder, folder, folders, progress, ledger, workers,
-                               source_paths, switch)
+                               source_paths, switch, dict(earlier))
             folder.mkdir(parents=True, exist_ok=True)
             import_module(kind.module).run(ctx)
             took = time.perf_counter() - start
@@ -247,6 +257,7 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
             ran.append((kind_name, took))
             progress.line(f"Stage {n} of {total} finished in {duration_words(took)}.")
         previous_print, previous_folder = fp, folder
+        earlier[kind_name] = folder
 
     stage_folders.append(previous_folder)
     built = next((f / pack_file_name(name) for f in reversed(stage_folders) if (f / pack_file_name(name)).is_file()),

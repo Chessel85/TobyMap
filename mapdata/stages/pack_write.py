@@ -413,7 +413,8 @@ def spike_sources(gol: Path, land_polygons: Path) -> list[dict]:
 
 def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers: int = 1, say=print,
           layers: list[dict] | None = None, attribution: str | None = None,
-          drawing_geoms: dict[int, list] | None = None, executor=None, before_records=None) -> dict:
+          drawing_geoms: dict[int, list] | None = None, executor=None, before_records=None,
+          relationships: dict[str, dict] | None = None) -> dict:
     """Write the pack. The cutting into pack tiles and the encoding are split
     into batches run by worker processes (DP103); the main process joins the
     results, splits full pack tiles, and writes the file. The tile entries
@@ -429,6 +430,7 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
 
     executor, if given, is a pool already open, as the writing stage's; otherwise one is opened here.
     before_records, if given, is called before the feature records are made, such as to put in their areas.
+    relationships, if given, are each feature's relationships by id (P3-T3e), written beside the feature records.
 
     A progress line is written after each step, so a long step is seen to move (DMT-2).
 
@@ -490,6 +492,8 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
         step(f"Made {len(made):,} feature records")
     writer = PackWriter(path)
     numbers = writer.add_features(made)
+    if relationships:   # P3-T3e: by id, beside the feature records
+        writer.add_relationships(relationships)
     number_of = [numbers[r["id"]] for r in records]
     entries_written = 0
     for (level, x, y) in sorted(encoded):

@@ -55,12 +55,12 @@ def test_a_source_with_no_licence_stops_the_build(tmp_path):
 def test_the_pack_carries_every_source_licence_and_attribution(test_pack):
     with Pack(test_pack, check_app=False) as p:
         names = {s["name"]: s for s in p.manifest["sources"]}
-        assert {s["licence"] for s in names.values()} == {"Public domain", "CC-BY 4.0", "ODbL 1.0"}
+        assert {s["licence"] for s in names.values()} == {"Public domain", "CC-BY 4.0", "ODbL 1.0", "CC0 1.0"}
         assert "© OpenStreetMap contributors" in p.attribution
         assert "Flanders Marine Institute" in p.attribution
         assert "Natural Earth" in p.attribution
         assert "Open Database License" in p.licence
-        assert p.manifest["built"] == "2026-11-03"  # the sources' dates, not the clock
+        assert p.manifest["built"] == "2026-11-13"  # the sources' dates, the latest being the Wikidata samples', not the clock
 
 
 # Stage caching (architecture 8.3) ---------------------------------------------
@@ -70,7 +70,7 @@ def test_a_second_build_with_nothing_changed_skips_every_stage(tmp_path):
     assert code == 0
     code, second = run_build(tmp_path)
     assert code == 0
-    assert "Stages skipped, as nothing they use had changed: samples, water, write." in second
+    assert "Stages skipped, as nothing they use had changed: samples, water, disputes, wikidata, relationships, write." in second
     assert not any(line.startswith("Stages run") for line in second)
 
 
@@ -112,7 +112,7 @@ def test_how_a_layer_is_shown_changes_only_the_pack_writing(tmp_path):
         "switched_on: false, min_zoom_m: 1000, max_zoom_m: 2500000, crossing_earcon: line_crossing"), encoding="utf-8")
     code, lines = run_build(data, config_dir=config)
     assert code == 0
-    assert "Stages skipped, as nothing they use had changed: samples, water." in lines
+    assert "Stages skipped, as nothing they use had changed: samples, water, disputes, wikidata, relationships." in lines
     pack = Pack(data / "tobymap" / "output" / "test" / "test.pack")
     regions = next(d for d in pack.layers if d["id"] == "regions")
     pack.close()
@@ -202,7 +202,7 @@ def test_progress_lines_are_never_closer_than_10_seconds():
 def test_the_build_writes_a_summary_and_a_full_log(test_pack):
     log = test_pack.with_name("test build log.txt")
     text = log.read_text(encoding="utf-8")
-    assert "Stage 1 of 3: reading the samples." in text
+    assert "Stage 1 of 6: reading the samples." in text
     assert "Source sample-osm: OpenStreetMap, small test samples, ODbL 1.0" in text
     assert "Summary of the build of test:" in text
     assert "Oceans and seas: 2 areas." in text
@@ -276,9 +276,9 @@ def test_a_build_stops_before_any_work_if_the_data_folder_is_missing(tmp_path):
 
 def test_the_test_pack_settings_name_their_sources_and_layers():
     pack = load_pack("test")
-    assert list(pack.sources) == ["sample-world", "sample-oceans", "sample-osm"]
+    assert list(pack.sources) == ["sample-world", "sample-oceans", "sample-osm", "sample-ne-disputed", "sample-wikidata"]
     assert {layer.kind for layer in pack.layers.values()} == {"land", "water"}
-    assert [s["stage"] for s in pack.stages] == ["samples", "water", "write"]
+    assert [s["stage"] for s in pack.stages] == ["samples", "water", "disputes", "wikidata", "relationships", "write"]
 
 
 def test_an_unknown_pack_lists_the_packs():
@@ -329,10 +329,10 @@ def test_each_country_from_osm_is_one_area_with_natural_earth_beyond_its_box(tes
 def test_inspect_gives_the_manifest_and_a_feature(test_pack, capsys):
     assert main(["inspect", str(test_pack), "manifest"]) == 0
     out = capsys.readouterr().out
-    assert "Pack test, version 0.1.0, format 3" in out
+    assert "Pack test, version 0.1.0, format 4" in out
     assert ("Layers: Countries, Oceans and seas, Seas, bays and straits, Regions and constituent countries, "
             "Counties, Rivers, Lakes, "
-            "Railway stations.") in out
+            "Railway stations, National parks.") in out
     assert main(["inspect", str(test_pack), "feature", "osm:r154350"]) == 0
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "Isle of Wight: osm:r154350."
@@ -373,7 +373,7 @@ def test_fetch_finds_the_samples_in_the_repository(tmp_path, capsys):
     assert main(["--data", str(tmp_path), "fetch", "--pack", "test"]) == 0
     out = capsys.readouterr().out.splitlines()
     assert out[0].startswith("sample-world: in the repository, tests/samples/world-naturalearth-110m.geojson")
-    assert out[-1] == "Summary: 3 of 3 sources ready."
+    assert out[-1] == "Summary: 5 of 5 sources ready."
 
 
 # The run switch, continue.txt -------------------------------------------------------------
@@ -396,7 +396,7 @@ class SwitchAfter:
 def test_continue_txt_saying_no_pauses_the_build_and_keeps_finished_stages(tmp_path):
     code, lines = run_build(tmp_path, switch=SwitchAfter(1))  # stage 1 runs, then the switch says no
     assert code == PAUSED_EXIT
-    assert lines[-1].startswith("Paused before stage 2 of 3, taking the land out of the water layers, as "
+    assert lines[-1].startswith("Paused before stage 2 of 6, taking the land out of the water layers, as "
                                 "the first line of continue.txt is not yes.")
     assert "run the same command again" in lines[-1]
     assert not (tmp_path / "tobymap" / "output" / "test" / "test.pack").exists()

@@ -61,9 +61,16 @@ def resolve_within(records: list[dict], renamed: dict) -> None:
             r["within"] = [renamed.get((w["id"], w["layer"]), w["id"]) for w in r["within"]]
 
 
+# Fields the stages keep for the build only: Wikidata's kinds of each feature, which name the tiers (DP181), and
+# whether its Wikidata link was matched by name, which the wikidata stage's log lists (P3-T2a).
+BUILD_ONLY = ("kinds", "wikidata_matched")
+
+
 # Tiers (P3-T17, DP165) ------------------------------------------------------------------------------
 
 TIERS_RECORD = "tiers.yaml"
+# Land the build names itself in the Countries layer has no tier: it is said by its type (P3-T2c).
+OWN_TYPES = ("disputed land", "unclaimed land", "condominium", "territory")
 
 
 def tiers_path():
@@ -87,7 +94,16 @@ def load_tiers(path=None) -> dict:
         raise ValueError(f"The tiers record gives the tiers {', '.join(unknown)}, which are not in its list of "
                          f"tiers: {', '.join(order)}.")
     return {"tiers": order, "layers": dict(data.get("layers") or {}),
-            "countries": dict(data.get("countries") or {}), "areas": dict(data.get("areas") or {})}
+            "countries": dict(data.get("countries") or {}), "areas": dict(data.get("areas") or {}),
+            "names": {str(k): names_entry(v) for k, v in (data.get("names") or {}).items()}}
+
+
+def names_entry(entry) -> dict:
+    """A country's tier names (DP181), with its areas named one by one as {area id: name}: the record groups them
+    as {name: [area ids]}."""
+    from mapdata.stages.tier_names import from_record
+
+    return from_record(entry)
 
 
 def fingerprint_extra(stage: dict) -> dict:
@@ -110,7 +126,8 @@ def give_tiers(records: list[dict], tiers: dict) -> dict[str, int]:
 
     counts: dict[str, int] = {}
     order = {"countries": 0, "regions": 1, "counties": 2}
-    for r in sorted((r for r in records if r["layer"] in tiers["layers"]), key=lambda r: order.get(r["layer"], 3)):
+    for r in sorted((r for r in records if r["layer"] in tiers["layers"] and r.get("type") not in OWN_TYPES),
+                    key=lambda r: order.get(r["layer"], 3)):
         own = tiers["areas"].get(r["id"])
         if own:
             tier = own["tier"]
@@ -121,6 +138,13 @@ def give_tiers(records: list[dict], tiers: dict) -> dict[str, int]:
             tier = country.get(r["layer"]) or tiers["layers"][r["layer"]]
         r["tier"] = tier
         counts[tier] = counts.get(tier, 0) + 1
+        # The tier's name in its country, from Wikidata (DP181), such as "state" for Kansas.
+        named = tiers.get("names", {}).get(country_of(r)) or {}
+        word = (named.get("areas") or {}).get(r["id"]) or (named.get(r["layer"]) if not own else None)
+        if word and r.get("type") != "region used as county":
+            r["tier_name"] = word
+        elif r.get("type") == "region used as county" and by_id.get(r.get("parent"), {}).get("tier_name"):
+            r["tier_name"] = by_id[r["parent"]]["tier_name"]
     return counts
 
 
@@ -331,6 +355,9 @@ def drawing_shapes(records, geoms, levels, say, apart=frozenset(), held=None, ex
 
 def run(ctx) -> None:
     records, geoms = features.load(ctx.previous)
+    from mapdata.stages import relationships as relmod
+
+    rel = relmod.load(ctx.previous)   # from the relationships stage, by each feature's index (P3-T3)
     renamed: dict = {}
     changed = keep_ids_unique(records, ctx.progress.log, renamed)
     resolve_within(records, renamed)
@@ -342,7 +369,13 @@ def run(ctx) -> None:
     if counts:
         ctx.progress.line("Tiers given, from the tiers record: " + "; ".join(
             f"{t.replace('_', ' ')}, {counts[t]:,}" for t in tiers["tiers"] if t in counts) + ".")
+    for r in records:   # what earlier stages kept for the build only, not for the pack
+        for key in BUILD_ONLY:
+            r.pop(key, None)
     used = {r.pop("source_key") for r in records if "source_key" in r} or set(ctx.pack.sources)
+    # Wikidata's facts are added to features made from other sources, so it is credited when any feature has them.
+    if any(r.get("facts") for r in records):
+        used |= {st["source"] for st in ctx.pack.stages if st["stage"] == "wikidata" and st.get("source")}
     sources = [{"name": s.name, "licence": s.licence, "attribution": s.attribution,
                 "date": s.data_date(ctx.source_paths[k])}
                for k, s in ctx.pack.sources.items() if k in used]
@@ -352,10 +385,12 @@ def run(ctx) -> None:
 
     with parallel.pool(ctx.workers) as executor:
         pool = None if ctx.workers == 1 else executor
-        write_with(ctx, records, geoms, sources, pool, tiers["tiers"])
+        write_with(ctx, records, geoms, sources, pool, tiers["tiers"],
+                   relmod.by_id(rel, [r["id"] for r in records]) if rel else None)
 
 
-def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None = None) -> None:
+def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None = None,
+               relationships: dict | None = None) -> None:
     """The rest of the writing stage, with the pool of workers open for all of it (P3-T1k)."""
     import time
 
@@ -409,4 +444,4 @@ def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None =
     ctx.claim(checksum_path(path))
     pack_write.write(path, manifest, records, geoms, ctx.workers, say=ctx.progress.line, layers=layers,
                      attribution=attribution_text(sources), drawing_geoms=drawing_geoms, executor=executor,
-                     before_records=set_areas)
+                     before_records=set_areas, relationships=relationships)

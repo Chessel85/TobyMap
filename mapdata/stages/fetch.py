@@ -82,6 +82,10 @@ def fetch_sources(keys: list[str], sources: dict, folders, say=print, clock=time
                 say(f"{key}: in the repository, {s.repo}, dated {s.data_date(path)}. Licence: {s.licence}.")
                 ready.append(key)
             continue
+        if s.folder:
+            say(f"{key}: fetched by the build itself, into {path}, as it runs. Licence: {s.licence}.")
+            ready.append(key)
+            continue
         if path is None and s.file and s.url:
             try:
                 path = fetch(s, folders.downloads, say, clock, ledger.claim)

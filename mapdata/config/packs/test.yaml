@@ -28,6 +28,21 @@ stages:
       - {source: sample-osm, file: southampton-itchen.geojson}
       - {source: sample-osm, file: rhine.geojson}
       - {source: sample-osm, file: bay-of-biscay.geojson}
+      - {source: sample-osm, file: crimea.geojson}
+      - {source: sample-osm, file: new-forest.geojson}
   - stage: water
     land_layer: countries
+  # Disputed areas: land two countries hold, such as Crimea, and Natural Earth's disputed areas (P3-T2c, DP119).
+  - stage: disputes
+    source: sample-ne-disputed
+    held_twice:
+      - {countries: [osm:r60189, osm:r60199], id: "disputed:crimea", name: Crimea, wikidata: Q7835}
+  # Facts from Wikidata, read offline from the repository: tests never use the network (P3-T2a).
+  - stage: wikidata
+    source: sample-wikidata
+    refresh: sample
+    offline: true
+    match: [oceans, seas]
+  # What each feature is inside, beside, overlapping and crossing (P3-T3, AD-8).
+  - stage: relationships
   - stage: write

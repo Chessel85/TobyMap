@@ -39,7 +39,7 @@ The world pack built again with the join mended (P3-T1m) and peaks only with a W
 ### Still to look at
 
 * The Python test test_the_rule_takes_under_5_ms_a_frame_on_the_world_pack still fails on this pack: median 45 ms a frame against 5 ms, run alone, about as before the rebuild (47 ms). The mended join did not change it. All 1,438 other Python tests pass.
-* The strip of the North Atlantic along the equator at 0 degrees east (below) was not looked at again.
+* The square of the North Atlantic at 0 degrees north, 0 east (below) is gone. Checked on 13 November 2026 with mapdata inspect on this pack: 0.001 degrees north of the equator at 0.5 east is the North Atlantic, and 0.001 degrees south is the South Atlantic, so the two oceans meet on the equator and there is no strip. At drawing level 0 the North Atlantic is now one large shape. The square was the join's fault (P3-T1m), not the ocean data's.
 
 ## The world build (P3-T1l), 12 November 2026
 
@@ -89,7 +89,7 @@ The layers, largest first:
 
 ### Still to look at
 
-* At 0 degrees north, 0 east, the small square of the North Atlantic seen in P2-T17v: the ocean data's line between the North and South Atlantic runs a few thousandths of a degree north of the equator, so the North Atlantic has a strip about 400 metres wide along the equator, kept in 1 degree grid squares. It is still there in this build. Whether it is outlined in the application is for you to check, or for me to look at with the outlines.
+* At 0 degrees north, 0 east, the small square of the North Atlantic seen in P2-T17v: the ocean data's line between the North and South Atlantic runs a few thousandths of a degree north of the equator, so the North Atlantic has a strip about 400 metres wide along the equator, kept in 1 degree grid squares. It is still there in this build. Whether it is outlined in the application is for you to check, or for me to look at with the outlines. Later found to be wrong: the oceans meet exactly on the equator, and the square was the join's fault, put right in P3-T1m (see the night run above).
 * Start-up time and memory of the application with this pack are not measured yet.
 
 ## The writing stage made faster (P3-T1k), 12 November 2026

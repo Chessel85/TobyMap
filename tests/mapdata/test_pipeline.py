@@ -70,7 +70,7 @@ def test_a_second_build_with_nothing_changed_skips_every_stage(tmp_path):
     assert code == 0
     code, second = run_build(tmp_path)
     assert code == 0
-    assert "Stages skipped, as nothing they use had changed: samples, water, disputes, wikidata, relationships, write." in second
+    assert "Stages skipped, as nothing they use had changed: samples, distant-parts, water, disputes, wikidata, relationships, write." in second
     assert not any(line.startswith("Stages run") for line in second)
 
 
@@ -90,7 +90,7 @@ def test_a_changed_setting_runs_its_stage_and_those_after_again(tmp_path):
                          encoding="utf-8")
     code, lines = run_build(data, config_dir=config)
     assert code == 0
-    assert "Stages skipped, as nothing they use had changed: samples." in lines
+    assert "Stages skipped, as nothing they use had changed: samples, distant-parts." in lines
     assert any(line.startswith("Stages run: water in") and "write in" in line for line in lines)
 
 
@@ -112,7 +112,7 @@ def test_how_a_layer_is_shown_changes_only_the_pack_writing(tmp_path):
         "switched_on: false, min_zoom_m: 1000, max_zoom_m: 2500000, crossing_earcon: line_crossing"), encoding="utf-8")
     code, lines = run_build(data, config_dir=config)
     assert code == 0
-    assert "Stages skipped, as nothing they use had changed: samples, water, disputes, wikidata, relationships." in lines
+    assert "Stages skipped, as nothing they use had changed: samples, distant-parts, water, disputes, wikidata, relationships." in lines
     pack = Pack(data / "tobymap" / "output" / "test" / "test.pack")
     regions = next(d for d in pack.layers if d["id"] == "regions")
     pack.close()
@@ -202,7 +202,7 @@ def test_progress_lines_are_never_closer_than_10_seconds():
 def test_the_build_writes_a_summary_and_a_full_log(test_pack):
     log = test_pack.with_name("test build log.txt")
     text = log.read_text(encoding="utf-8")
-    assert "Stage 1 of 6: reading the samples." in text
+    assert "Stage 1 of 7: reading the samples." in text
     assert "Source sample-osm: OpenStreetMap, small test samples, ODbL 1.0" in text
     assert "Summary of the build of test:" in text
     assert "Oceans and seas: 2 areas." in text
@@ -278,7 +278,7 @@ def test_the_test_pack_settings_name_their_sources_and_layers():
     pack = load_pack("test")
     assert list(pack.sources) == ["sample-world", "sample-oceans", "sample-osm", "sample-ne-disputed", "sample-wikidata"]
     assert {layer.kind for layer in pack.layers.values()} == {"land", "water"}
-    assert [s["stage"] for s in pack.stages] == ["samples", "water", "disputes", "wikidata", "relationships", "write"]
+    assert [s["stage"] for s in pack.stages] == ["samples", "distant-parts", "water", "disputes", "wikidata", "relationships", "write"]
 
 
 def test_an_unknown_pack_lists_the_packs():
@@ -396,7 +396,7 @@ class SwitchAfter:
 def test_continue_txt_saying_no_pauses_the_build_and_keeps_finished_stages(tmp_path):
     code, lines = run_build(tmp_path, switch=SwitchAfter(1))  # stage 1 runs, then the switch says no
     assert code == PAUSED_EXIT
-    assert lines[-1].startswith("Paused before stage 2 of 6, taking the land out of the water layers, as "
+    assert lines[-1].startswith("Paused before stage 2 of 7, making countries' distant parts areas of their own, as "
                                 "the first line of continue.txt is not yes.")
     assert "run the same command again" in lines[-1]
     assert not (tmp_path / "tobymap" / "output" / "test" / "test.pack").exists()

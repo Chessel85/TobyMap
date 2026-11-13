@@ -1,6 +1,10 @@
 # Architecture and High Level Design
 
-Version 0.10, 10 November 2026. Updated for P2-T17e: the desktop's sound goes to the sound card through WASAPI.
+Version 0.11, 13 November 2026. Updated for DP191: a country's distant parts are areas of their own.
+
+## Changes in version 0.11
+
+* Section 6.12: a group of a country's parts on a different continent from its largest part, such as Hawaii or the Canary Islands, is an area of its own in the Countries layer, named after its region, with its country as its sovereign state (DP191, DP190). A new stage, distant-parts, makes them before the continents.
 
 ## Changes in version 0.10
 
@@ -608,7 +612,8 @@ OpenStreetMap's level 2 follows sovereignty, so France's area includes French Gu
 * The list is checked against Natural Earth's "map units", which already make these splits. The quality report lists every country with parts far from its largest part, so nothing is missed. Expected cases include the Netherlands, Norway (Svalbard), Denmark (Greenland and the Faroe Islands), Portugal, the USA and New Zealand.
 * Spike S2 found that distance alone is not enough: most of Svalbard is less than 1,000 km from mainland Norway. The report also lists parts separated from the largest part by more than about 300 km of sea. For the USA, the distance rule found Alaska, Hawaii, Puerto Rico, Guam and the other territories, as expected.
 * There is no Sovereign States layer for now. One could be added later, switched off by default, keeping the whole of France as one area, if you decide you want it (DP86).
-* Ceuta and Melilla stay part of Spain, because they are Spain, not territories with their own identity. Spain's area simply has parts in Africa. Each part of a country is placed in the continent it is in, so Spain appears under Europe and Africa, as Russia appears under Europe and Asia (DP88).
+* Ceuta and Melilla stay part of Spain, because they are Spain, not territories with their own identity. They are within 300 km of mainland Spain, so they are not distant parts (below), and Spain is in Europe.
+* Distant parts (DP191, DP190): a group of a country's parts on a different continent from its largest part becomes an area of its own in the Countries layer, so France and French Guiana count as separate countries, and so do the United States and Hawaii, and Spain and the Canary Islands. The distant-parts stage does this after the join and before the continents, by the continents stage's own rule and settings, so the two always agree. The land is shared out by the country's regions, then by their counties, so the Dutch Caribbean islands are Aruba, Curacao, Sint Maarten, Bonaire, Saba and Sint Eustatius, each named after its own area; land in none is named after its largest named island. Each records its country as its sovereign state, but its country is not its parent, so "where am I" in Honolulu says Hawaii, then Oceania, and Details says "region of the United States". On the world data of 13 November 2026 it makes 30 areas from 11 countries. Countries split along continent dividing lines, such as Russia, are not distant parts, and stay whole.
 * Gibraltar is its own entry in the Countries layer, with the United Kingdom as its sovereign state.
 
 #### Islands

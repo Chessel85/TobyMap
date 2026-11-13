@@ -122,7 +122,8 @@ def give_tiers(records: list[dict], tiers: dict) -> dict[str, int]:
             if r is None or r["layer"] == "countries":
                 break
             r = by_id.get(r.get("parent"))
-        return r["id"] if r is not None and r["layer"] == "countries" else None
+        # A country's distant part, such as Hawaii, keeps its country's tiers and their names (DP191).
+        return (r.get("sovereign_id") or r["id"]) if r is not None and r["layer"] == "countries" else None
 
     counts: dict[str, int] = {}
     order = {"countries": 0, "regions": 1, "counties": 2}
@@ -145,6 +146,18 @@ def give_tiers(records: list[dict], tiers: dict) -> dict[str, int]:
             r["tier_name"] = word
         elif r.get("type") == "region used as county" and by_id.get(r.get("parent"), {}).get("tier_name"):
             r["tier_name"] = by_id[r["parent"]]["tier_name"]
+    # A country's distant part takes the tier of the area it is named from, so Hawaii is said as a state of the
+    # United States (DP191); the regions and counties are given theirs above, after the countries.
+    for r in records:
+        named = by_id.get(r.get("named_from")) if r["layer"] == "countries" else None
+        if named is None or not named.get("tier"):
+            continue
+        counts[r["tier"]] -= 1
+        r["tier"] = named["tier"]
+        counts[r["tier"]] = counts.get(r["tier"], 0) + 1
+        r.pop("tier_name", None)
+        if named.get("tier_name"):
+            r["tier_name"] = named["tier_name"]
     return counts
 
 

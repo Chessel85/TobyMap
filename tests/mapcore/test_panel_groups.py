@@ -108,7 +108,8 @@ def test_bordering_switzerland_lists_its_five_neighbours_by_bearing_with_their_b
     bearings = [i["bearing_deg"] for i in items]
     assert bearings == sorted(bearings)   # clockwise from ahead, which is north here
     france = next(i for i in items if i["name"] == "France")
-    assert france["label"].startswith("France, south-west, shared border ") and " kilometres" in france["label"]
+    # West: France's point is no longer pulled towards French Guiana, an area of its own (DP191).
+    assert france["label"].startswith("France, west, shared border ") and " kilometres" in france["label"]
     assert all({"id", "label", "level", "name", "distance_m", "bearing_deg"} <= set(i) for i in items)
     assert all(i["level"] == 1 for i in items)
 

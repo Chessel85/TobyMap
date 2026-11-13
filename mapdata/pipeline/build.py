@@ -56,6 +56,8 @@ STAGES = {
                             ("mapdata.stages.osm_places",)),
     "graticule": StageKind("writing the graticule and special lines", "mapdata.stages.graticule",
                            ("mapdata.stages.graticule",)),
+    "distant-parts": StageKind("making countries' distant parts areas of their own", "mapdata.stages.distant_parts",
+                               ("mapdata.stages.distant_parts", "mapdata.stages.continents", "mapdata.stages.clip")),
     "continents": StageKind("building the continents from the countries", "mapdata.stages.continents",
                             ("mapdata.stages.continents",)),
     "osm-layer": StageKind("reading a layer of named areas from the planet file", "mapdata.stages.osm_layer",

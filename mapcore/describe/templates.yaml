@@ -102,6 +102,8 @@ details:
     region: region
     county: county
   tier_of: "{tier} of {owner}"
+  # A country's distant part with no region of its own, such as Wake Island: "part of the United States" (DP191).
+  distant_part: part
   # Land the build names itself, in the Countries layer, said by its type, not as a country (P3-T2c, DP120).
   own_types: [disputed land, unclaimed land, condominium, territory]
   # A name with one of these words is said with "the" after "of": "of the United Kingdom".

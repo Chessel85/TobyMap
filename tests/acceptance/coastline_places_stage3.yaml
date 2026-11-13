@@ -19,7 +19,8 @@ places:
   - {name: Attu in the Aleutians, lat: 52.88, lon: 173.10, includes: [United States, Alaska]}
   - {name: The Bering Sea at the line, lat: 57.00, lon: 179.99, sea: true}
   - {name: Washington, lat: 38.8977, lon: -77.0365, includes: [United States]}
-  - {name: Honolulu, lat: 21.3069, lon: -157.8583, includes: [United States, Hawaii]}
+  # Hawaii is an area of its own in the Countries layer, not inside the United States (DP191).
+  - {name: Honolulu, lat: 21.3069, lon: -157.8583, includes: [Hawaii]}
   - {name: Moscow, lat: 55.7558, lon: 37.6173, includes: [Russia]}
   - {name: Kaliningrad, lat: 54.7104, lon: 20.4522, includes: [Russia]}
   - {name: Tarawa in Kiribati, lat: 1.3290, lon: 172.9790, includes: [Kiribati]}

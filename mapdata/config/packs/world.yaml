@@ -52,6 +52,9 @@ stages:
     # The tropics and polar circles are worked out for this year (the tilt of the Earth's axis changes slowly).
     year: 2026
     source: naturalearth-geographic-lines
+  # A country's parts on another continent become areas of their own in the Countries layer, such as Hawaii and
+  # the Canary Islands, named after their regions, by the continents' rule and settings (DP191).
+  - stage: distant-parts
   # The continents, from the countries, split along the lines in mapdata/config/continents.yaml (P3-T1e, DP174).
   - stage: continents
   # Lakes, reservoirs and lagoons of 10 km2 or more, from OpenStreetMap, checked against HydroLAKES (P3-T1h, DP169).

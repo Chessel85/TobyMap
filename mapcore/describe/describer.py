@@ -15,9 +15,37 @@ HERE_M = 1.0   # closer than this, an item is "here", with no distance or direct
 COUNTRY_LAYER = "countries"
 
 
+SAME_SIZE = 0.01   # two areas of one name within this share of each other's size are the same land, said once
+
+
+def same_land(a, b) -> bool:
+    """Whether two areas of one name are the same land: one is named from the other, as a distant part is from
+    its region (DP191), or is the other's parent, as French Guiana the country unit is of its region (DP86), or
+    they are within SAME_SIZE of each other's size."""
+    if a.name != b.name:
+        return False
+    ra, rb = getattr(a, "record", None) or {}, getattr(b, "record", None) or {}
+    if ra.get("named_from") == b.id or rb.get("named_from") == a.id or rb.get("parent") == a.id \
+            or ra.get("parent") == b.id:
+        return True
+    sa, sb = getattr(a, "area_km2", None), getattr(b, "area_km2", None)
+    return sa is not None and sb is not None and abs(sa - sb) <= SAME_SIZE * max(sa, sb)
+
+
+def said_once(areas) -> list:
+    """The areas, leaving out one that is the same land as a smaller one already there, with its name, so it is
+    said once: Hawaii the region and Hawaii the distant part of the United States (DP191, DP71)."""
+    out = []
+    for a in areas:
+        if not any(same_land(a, b) for b in out):
+            out.append(a)
+    return out
+
+
 def area_names(areas) -> list[str]:
     """The areas' names, smallest first, with "disputed" after the largest disputed one, so it is said once
-    (P3-T2c, ANN-6)."""
+    (P3-T2c, ANN-6). The same land in two layers, with one name, is said once."""
+    areas = said_once(areas)
     names = [a.name for a in areas]
     last = max((i for i, a in enumerate(areas) if (getattr(a, "record", None) or {}).get("disputed")), default=None)
     if last is not None:

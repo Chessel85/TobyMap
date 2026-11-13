@@ -23,7 +23,8 @@ places:
   - {name: French Guiana inland, lat: 4.0000, lon: -53.0000, includes: [French Guiana]}
   - {name: Madrid, lat: 40.4168, lon: -3.7038, includes: [Spain, Community of Madrid]}
   - {name: Mallorca, lat: 39.6200, lon: 2.9800, includes: [Spain, Balearic Islands]}
-  - {name: Tenerife, lat: 28.2700, lon: -16.6000, includes: [Spain, Canary Islands, Santa Cruz de Tenerife]}
+  # The Canary Islands are an area of their own in the Countries layer, not inside Spain (DP191).
+  - {name: Tenerife, lat: 28.2700, lon: -16.6000, includes: [Canary Islands, Santa Cruz de Tenerife]}
   - {name: Ceuta, lat: 35.8890, lon: -5.3200, includes: [Spain, Ceuta]}
   - {name: Melilla, lat: 35.2930, lon: -2.9430, includes: [Spain, Melilla]}
   - {name: Llívia, a part of Spain inside France, lat: 42.4655, lon: 1.9800, includes: [Spain, Catalonia, Girona]}

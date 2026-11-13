@@ -910,15 +910,31 @@ class MapSession:
         word. The area above is the nearest of its parents of a higher tier, so Berlin, a region used as its
         own county, is a region of Germany, not of Berlin."""
         words_for = templates()["details"]
-        if area.record.get("type") in words_for["own_types"]:   # such as Crimea, "disputed land" (P3-T2c)
-            return area.record["type"]
-        tier = area.record.get("tier")
+        rec = area.record
+        if rec.get("type") in words_for["own_types"]:   # such as Crimea, "disputed land" (P3-T2c)
+            return rec["type"]
+        tier = rec.get("tier")
+        sovereign = rec.get("sovereign")
+        if (area.layer == describer.COUNTRY_LAYER and sovereign and sovereign != area.name
+                and (rec.get("sovereign_id") or rec.get("type") not in (None, "country"))):
+            # A country's distant part, an area of its own though not inside its country (DP191): its region's
+            # tier, "region of the United States", or "part of" where it has none, such as Wake Island. A country
+            # unit (DP86) by its type: "overseas region of France". Gibraltar, a country, is said as one.
+            if rec.get("sovereign_id"):
+                word = rec.get("tier_name") or (words_for["tiers"][tier] if tier in words_for["tiers"]
+                                                and tier != "country" else words_for["distant_part"])
+            else:
+                word = rec["type"]
+            return say("details.tier_of", tier=word, owner=words.name_after_of(sovereign))
         if tier not in words_for["tiers"]:
             return words_for["layers"].get(area.layer, area.layer)
         tiers = self.store.tiers
         mine = tiers.index(tier) if tier in tiers else len(tiers)
         above, seen = self.store.feature(area.record["parent"]) if area.record.get("parent") else None, 0
         while above is not None and seen < 4:
+            if above.record.get("sovereign_id"):   # a region of a distant part: "region of France" (DP191)
+                return say("details.tier_of", tier=area.record.get("tier_name") or words_for["tiers"][tier],
+                           owner=words.name_after_of(above.record["sovereign"]))
             theirs = above.record.get("tier")
             if theirs in tiers and tiers.index(theirs) < mine:
                 return say("details.tier_of", tier=area.record.get("tier_name") or words_for["tiers"][tier],

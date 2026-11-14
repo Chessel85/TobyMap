@@ -1,6 +1,14 @@
 # Implementation Plan
 
-Version 0.6, 10 November 2026.
+Version 0.7, 14 November 2026.
+
+## Changes in version 0.7
+
+This change comes from your decision of 14 November 2026, recorded as DP197.
+
+* P3-T13 (the pack manager, first version) moves to Phase 4 and joins P4-T6, which becomes the whole pack manager.
+* P3-T14 (quality reports and the publish command) moves to Phase 4 as P4-T11, so all the data manager work is done together, with P4-T4 and P4-T5.
+* So PCK-2, PCK-4, DMT-3 and DMT-5 are delivered in Phase 4, not Phase 3. Phase 3's exit check of publishing the base pack to a test release, and installing it from there, becomes a Phase 4 exit check.
 
 ## Changes in version 0.6
 
@@ -271,7 +279,7 @@ NAV-3, NAV-8 (coordinates), NAV-10, NAV-11, NAV-12, SCP-6, SCP-7, ANN-2, ANN-7, 
 The whole world can be explored and questioned at country scale, using the complete base pack.
 
 ### Requirements delivered
-LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, ANN-6, ACC-9, DAT-1, DAT-4, DAT-5, DAT-7, DAT-8, DAT-12, PCK-1 (base pack), PCK-2 (first version), PCK-4, DMT-3, DMT-5.
+LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, ANN-6, ACC-9, DAT-1, DAT-4, DAT-5, DAT-7, DAT-8, DAT-12, PCK-1 (base pack). PCK-2, PCK-4, DMT-3 and DMT-5 moved to Phase 4 (DP197).
 
 ### Tasks
 * P3-T0 Start of the phase: P3-T0a versions, P3-T0b the questions left from Phase 2, P3-T0c the key list, P3-T0d samples for the test pack, P3-T0e this plan at version 0.6, P3-T0f four more step sizes (DP166).
@@ -289,8 +297,7 @@ LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, AN
 * P3-T10 Query builder (Q) (INF-9).
 * P3-T11 Look around and "hear its direction" (SON-4).
 * P3-T12 Name languages (English and the local name only, DP172): preferred language, fall-back to the local name, and language marking (ACC-9).
-* P3-T13 Pack manager first version, tested through a GitHub pre-release (DP171): the catalogue, install, remove, checksum checks, and the first-run offer of the base pack. Packs downloaded from GitHub Releases, or the fall-back chosen in DP83 for the web.
-* P3-T14 Pipeline quality reports and the publish command (DMT-3, DMT-5).
+* P3-T13 and P3-T14: moved to Phase 4 (DP197). P3-T13 joins P4-T6, and P3-T14 becomes P4-T11.
 * P3-T18 Controls for sighted users: a status line and move and zoom buttons, off by a setting, not in the Tab order (VIS-1, SCP-2, ACC-2, DP165).
 * P3-T15 Help: the user guide, the key reference, the glossary and the data sources page (DAT-9).
 * P3-T16 Lists of disputed and unclaimed areas: the user can list or search for all disputed areas, and all unclaimed areas (DP119, DP120). Disputed areas include land OSM holds twice (such as Sevastopol), land in two countries (the 15 places in DP119, once Phase 3 can give both parties equal credit), and the West Bank and the Ilemi Triangle, which the base pack lite already marks disputed. Unclaimed areas include Bir Tawil, the small islands in no country, and any other land in no country. Done with search (P3-T8) and browse by category (P3-T9).
@@ -298,7 +305,6 @@ LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, AN
 ### Automatic exit checks
 * The Phase 3 acceptance scripts pass, including the coverage test of sample places worldwide (DAT-1), Switzerland's five neighbours (INF-2), "Sao Paulo" (SRB-1), and the Bay of Biscay hierarchy (DAT-4).
 * The base pack's size is reported against about 400 MB (PCK-1; 250 MB until DP175).
-* The base pack is published to a test release and installed from it by the pack manager.
 
 ### PO acceptance gate
 * Follow the Phase 3 checklist: hierarchy from Hampshire up to the World, down into France, neighbours of Switzerland, the Information panel groups and sorting, search, the world tree, the query builder and look around.
@@ -311,7 +317,7 @@ LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, AN
 Street-level exploration of Great Britain, with packs combining seamlessly, a complete pack manager, and personal content.
 
 ### Requirements delivered
-DAT-2, DAT-3 (detailed coastlines), PLT-4, PCK-1 (regional packs), PCK-2 (complete), DMT-4, DMT-7 (complete), NFR-3, NFR-4, USR-1 to USR-5.
+DAT-2, DAT-3 (detailed coastlines), PLT-4, PCK-1 (regional packs), PCK-2, PCK-4, DMT-3, DMT-4, DMT-5, DMT-7 (complete), NFR-3, NFR-4, USR-1 to USR-5.
 
 ### Tasks
 * P4-T1 Full OpenStreetMap pipeline for a region, built on the spike S2 method: all administrative levels cut to the land polygons, slivers given to neighbours, named islands (and unnamed islands if DP87 says so), shared-edge simplification across levels, roads and paths, land use, national parks (moved from Phase 3), parks and public spaces, school grounds, points of interest with friendly categories, river assembly, and matching to base identifiers.
@@ -319,17 +325,19 @@ DAT-2, DAT-3 (detailed coastlines), PLT-4, PCK-1 (regional packs), PCK-2 (comple
 * P4-T3 Combining packs: tile coverage and the most detailed pack wins, merging records and relations by identifier, and the no-missing-detail rule (PLT-4).
 * P4-T4 Correction rules in the pipeline, listed in the quality report (DMT-4).
 * P4-T5 Pipeline safety in full: the disk space estimate, the data folder check, and the record of files created (DMT-7).
-* P4-T6 Pack manager complete: updates offered, downloads cancelled and resumed, and browser storage reported in the web version.
+* P4-T6 The pack manager, whole, including P3-T13's work items (DP197): the catalogue, install and remove, checksum checks, the first-run offer of the base pack, downloads on the desktop from GitHub Releases and in the web version from Hugging Face (PCK-4), updates offered, downloads cancelled and resumed, and browser storage reported in the web version. Tested through a GitHub pre-release (DP171).
 * P4-T7 Robustness: corrupt packs detected and set aside (NFR-4). Memory checked against 2 GB with the base and Great Britain packs (NFR-3).
 * P4-T8 Pins, feature bookmarks and collections, shown in the Information panel and on the map (USR-1 to USR-3).
 * P4-T9 Measuring a chain of pins (USR-4) and GeoJSON export and import (USR-5).
 * P4-T10 Languages of names on the desktop (ACC-9, DP196): a test harness that sends speech to NVDA through its Controller Client with each name's language marked (SSML), to find out with the PO whether NVDA switches voices for it. If it does, what TobyMap says can go that way when NVDA is running and the Names setting is "Always the local name".
+* P4-T11 Quality reports and the publish command, P3-T14's work items (DMT-3, DMT-5, PCK-4, DP197): every build writes a quality report and CSV files, with the corrections of P4-T4 listed in it; and `mapdata publish` puts a pack, its checksum and the catalogue on a GitHub release with an identical copy on Hugging Face, after asking the PO.
 
 ### Automatic exit checks
 * The street-level acceptance scripts pass for the UK test area (DAT-2).
 * A point 2 km off the Brittany coast is announced as sea (DAT-3). The S2 coastline checks pass on the Great Britain pack.
 * A bookmark still resolves after the pack is rebuilt (USR-2).
 * Step timing meets NFR-1 on the Great Britain pack.
+* The base pack is published to a test release and installed from it by the pack manager (moved from Phase 3, DP197).
 
 ### PO acceptance gate
 * Install the Great Britain pack. Follow the Phase 4 checklist: explore streets around a familiar place, move between areas covered and not covered by the pack, drop pins, bookmark features, build a collection and measure it, and export it.
@@ -438,8 +446,8 @@ Every requirement in the catalogue is assigned to a phase:
 * Phase 0: DEL-1, DEL-3, SCP-4.
 * Phase 1: SCP-1, SCP-2, PLT-1, PLT-2, PLT-3, PLT-5, ACC-1, ACC-2, ACC-3, ACC-4, ACC-7, LOC-1, LOC-2, LOC-6, LOC-7, NAV-1, NAV-2, NAV-9, NAV-13, ANN-1, ANN-3, ANN-4, ANN-5, VIS-1, VIS-4, VIS-5, SON-1, SON-7, SON-8, SON-9, DMT-1, DMT-2, DMT-6, DAT-9, DAT-14, PCK-5, DEL-5.
 * Phase 2: NAV-3, NAV-10, NAV-11, NAV-12, SCP-6, SCP-7, ANN-2, ANN-7, ACC-5, ACC-6, ACC-8, SON-2, SON-3, SON-6, SON-10, DAT-13, VIS-2, VIS-3.
-* Phase 3: LOC-3, LOC-4, NAV-4, NAV-8, INF-1 to INF-10, SRB-1 to SRB-4, SON-4, ANN-6, ACC-9, DAT-1, DAT-4, DAT-5, DAT-7, DAT-8, DAT-12, PCK-2, PCK-4, DMT-3, DMT-5.
-* Phase 4: DAT-2, DAT-3, PLT-4, PCK-1, DMT-4, DMT-7, NFR-3, NFR-4, USR-1 to USR-5.
+* Phase 3: LOC-3, LOC-4, NAV-4, NAV-8, INF-1 to INF-10, SRB-1 to SRB-4, SON-4, ANN-6, ACC-9, DAT-1, DAT-4, DAT-5, DAT-7, DAT-8, DAT-12.
+* Phase 4: DAT-2, DAT-3, PLT-4, PCK-1, PCK-2, PCK-4, DMT-3, DMT-4, DMT-5, DMT-7, NFR-3, NFR-4, USR-1 to USR-5.
 * Phase 5: NAV-5, NAV-6, NAV-14, INF-12.
 * Phase 6: TCH-1 to TCH-4, INF-11, SON-5, DAT-6, LOC-5.
 * Phase 7: DAT-10, DAT-11, PCK-3, NFR-1, NFR-2, DEL-4.

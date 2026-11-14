@@ -1,6 +1,13 @@
 # Phase 3 detailed plan: information, hierarchy and search
 
-Version 0.3, 11 November 2026. Written by Claude Code for the product owner (PO).
+Version 0.4, 14 November 2026. Written by Claude Code for the product owner (PO).
+
+## Changes in version 0.4
+
+This change comes from your decision of 14 November 2026, recorded as DP197.
+
+* P3-T13 (the pack manager) and P3-T14 (quality reports and publishing) move to Phase 4. The pack manager joins P4-T6, the complete pack manager, and the quality reports and the publish command become P4-T11, with the rest of the data manager work. Their work items are kept below, marked as moved, so Phase 4's plan can take them as they are.
+* So Phase 3 no longer delivers PCK-2, PCK-4, DMT-3 or DMT-5, and its exit checks no longer include publishing the base pack to a test release. In Phase 3 the world pack is still installed by copying it into the packs folder.
 
 ## Changes in version 0.3
 
@@ -46,10 +53,9 @@ The whole world can be explored and questioned at country scale, with the comple
 5. You can search by name, with accents and small misspellings ignored, and tell apart places with the same name. You can browse the world as a tree, list every feature of a kind in an area, and build a question such as "rivers crossing Germany".
 6. You can measure from where you are to any item or search result, and look around: hear the Nearby group as sound, one item after another.
 7. Disputed areas say so, and you can list every disputed and every unclaimed area.
-8. The pack manager installs the base pack from where it is published, checks it, and offers it on first run.
-9. A sighted helper sees a line with the coordinates, zoom and step under the map, and buttons to move.
+8. A sighted helper sees a line with the coordinates, zoom and step under the map, and buttons to move.
 
-What Phase 3 does not do: street detail, national parks, land use and points of interest (Phase 4, the Great Britain pack), pins and bookmarks (Phase 4, so the bookmark action waits), network mode and driving (Phase 5), and grid values and the sweep (Phase 6). Unnamed islands are in the base pack only above a size (DP169); every island, however small, comes with the regional packs.
+What Phase 3 does not do: street detail, national parks, land use and points of interest (Phase 4, the Great Britain pack), pins and bookmarks (Phase 4, so the bookmark action waits), network mode and driving (Phase 5), and grid values and the sweep (Phase 6). The pack manager, the quality reports and publishing also move to Phase 4 (DP197). Unnamed islands are in the base pack only above a size (DP169); every island, however small, comes with the regional packs.
 
 ## Which model does each work item
 
@@ -175,9 +181,8 @@ You accepted Phase 2 on 10 November. As agreed, I ask whether to publish 0.1.1 a
 5. While the world build runs, the application work on the test pack, which needs no heavy run: P3-T4 (the Information panel), P3-T5 (details) and P3-T6 (hierarchy mode), then P3-T7 (measuring).
 6. P3-T8 (search), P3-T9 (the world tree and browsing), P3-T16 (disputed and unclaimed lists), then P3-T10 (the query builder).
 7. P3-T11 (look around) and P3-T12 (name languages).
-8. P3-T13 (the pack manager) and P3-T14 (quality reports and publishing).
-9. P3-T18 (controls for sighted users) and P3-T15 (Help).
-10. The installer, the checklists, the phase report, and your acceptance.
+8. P3-T18 (controls for sighted users) and P3-T15 (Help). P3-T13 and P3-T14 have moved to Phase 4 (DP197).
+9. The installer, the checklists, the phase report, and your acceptance.
 
 Every question is answered. Counties go in (DP175). One decision is still to make with you, before the world build: the thresholds for the world (DP169).
 
@@ -489,7 +494,9 @@ Work items:
 
 Tests first: with English, Germany is "Germany"; with the local name chosen, "Deutschland"; a place with no English name is said by its local name; in Chromium and Firefox, names carry their lang attribute.
 
-## P3-T13 The pack manager, first version
+## P3-T13 The pack manager, first version: moved to Phase 4
+
+Moved to Phase 4 on 14 November 2026 (DP197), where it joins P4-T6, the complete pack manager. The work items are kept as written, for Phase 4's plan.
 
 * Requirements: PCK-2 (first version), PCK-4, PCK-5, DAT-9.
 * Needs first: P3-T14b for the real test release; DP171.
@@ -503,7 +510,9 @@ Work items:
 
 Tests first: a damaged download is found and removed; an incompatible pack is refused with a clear message (PCK-5); installing from the stand-in catalogue puts the pack in the folder and opens it; the web version reads records while a pack is still downloading.
 
-## P3-T14 Quality reports and publishing
+## P3-T14 Quality reports and publishing: moved to Phase 4
+
+Moved to Phase 4 on 14 November 2026 (DP197), where it becomes P4-T11, done with the rest of the data manager work: correction rules (P4-T4) and pipeline safety (P4-T5). The work items are kept as written, for Phase 4's plan.
 
 * Requirements: DMT-3, DMT-5, PCK-4, DMT-6.
 * Needs first: P3-T1; DP171 for publishing.
@@ -545,14 +554,14 @@ From the implementation plan, section 6, and how each is met:
 
 * The Phase 3 acceptance scripts pass on Windows, macOS and the web, including the coverage check of sample places worldwide (DAT-1), Switzerland's five neighbours (INF-2), "Sao Paulo" (SRB-1) and the Bay of Biscay's hierarchy (DAT-4). Also new: Hampshire up to the World, the New Forest's ambiguous up, Contains for Wales, Paris's ranking, London to Paris, Russia and Turkey across two continents, the Alps, the Rhine's countries in order, and France's details.
 * The base pack's size is reported against about 400 MB (DP175).
-* The base pack is published to the test release and installed from it by the pack manager (DP171).
+* The base pack published to the test release and installed from it by the pack manager (DP171) has moved to Phase 4 with P3-T13 and P3-T14 (DP197).
 * Also checked, though not new exit checks: step timing still meets 150 ms for 95% of steps on the base pack (NFR-1); search within 1 second on the desktop; the base pack built twice is identical (DMT-1); the installer installs, starts and uninstalls cleanly in continuous integration.
 
 ## Your acceptance checklist
 
 The checklists, docs/checklists/phase-3-desktop.md and phase-3-web.md, are made from the acceptance scripts, as in Phase 2. They will cover:
 
-1. Installing the new version, and the base pack from the pack manager; opening the web version in Firefox.
+1. Installing the new version, and the base pack by copying it into the packs folder; opening the web version in Firefox.
 2. The coverage: a sea, a bay, a strait, a lake, a mountain range and an island, by Go to.
 3. Hierarchy mode from Hampshire up to the World, and down into France.
 4. The neighbours of Switzerland, in hierarchy mode and in Bordering.
@@ -574,7 +583,7 @@ A short checklist for a sighted helper covers the special lines, the selected it
 * The phase report, docs/plan/phase-3-report.md (Sonnet): what was built, how to install it, the checklists, known problems, and what was not tested.
 * Continuous integration green on every job before you see it.
 * Your feedback recorded against requirement IDs (DEL-4).
-* I ask whether to publish, as agreed in DP110. If you agree, the release with the installer, the portable zip and the release notes, the web version on GitHub Pages, and the base pack published with P3-T14b (Opus).
+* I ask whether to publish, as agreed in DP110. If you agree, the release with the installer, the portable zip and the release notes, and the web version on GitHub Pages (Opus). The publish command is now in Phase 4 (P4-T11, DP197), so packs are published from then on; if you want the world pack public sooner, I ask you before attaching it to the release by hand.
 
 ## Risks
 
@@ -584,14 +593,12 @@ A short checklist for a sighted helper covers the special lines, the selected it
 * Wikidata's query service limits how much each client asks for. The stage asks in small batches, waits when told to, and keeps what it has, so a stopped fetch carries on.
 * The search index and the relationships make the pack, and the web version's memory, larger. Both are read in records, only as needed; the browser's memory is measured in P3-T8b.
 * Identical boundaries within a tolerance (DP71) may join two areas that are not the same, or miss two that are. The quality report lists every pair found, for checking.
-* Downloading a pack of 200 MB or more in the web version meets the browser's storage limit, which spike S3 measured. If a browser refuses, the pack manager says so and suggests another browser.
 * NVDA may not switch voices from a language given on the desktop (P3-T12b). If not, it is written in Help.
-* Hugging Face publishing needs your sign-in once, which only you can do.
 
 ## Left for Phase 4
 
 * Street detail, and the Great Britain pack, with national parks, land use and points of interest.
 * Every island, named or not, at every zoom (DP87), with the regional packs.
 * Pins, bookmarks and collections, and the bookmark action on items.
-* The pack manager's updates, and cancelling and resuming downloads.
-* Corrections by rule in the pipeline (DMT-4).
+* The whole pack manager, P3-T13's first version with updates, and cancelling and resuming downloads (P4-T6, DP197).
+* The quality reports and the publish command, P3-T14, as P4-T11 (DP197), with corrections by rule in the pipeline (DMT-4). The two risks that went with them stay true there: the browser's storage limit for packs of 200 MB or more, and your Hugging Face sign-in, needed once.

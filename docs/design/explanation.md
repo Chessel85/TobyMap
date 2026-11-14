@@ -330,7 +330,7 @@ Building the same pack twice from the same sources gives exactly the same file, 
 
 ### Packs in later phases
 
-The base pack lite covers the whole world, with a few layers. Later phases add other packs. A pack can cover a smaller area, such as Great Britain, and hold other layers, such as roads, and both are stored in the same way, as records, pack tiles and tile entries. Where two installed packs cover the same place, the application uses the more detailed one there (AD-14).
+The base pack lite covers the whole world, with a few layers. Later phases add other packs. A pack can cover a smaller area, such as Great Britain, and hold other layers, such as roads, and both are stored in the same way, as records, pack tiles and tile entries. Where two installed packs cover the same place, the application uses the more detailed one there (AD-14). The section "How several packs work together" explains this.
 
 ## How TobyMap measures the Earth and moves you on it
 
@@ -475,3 +475,73 @@ The map is drawn from the pack, not from a separate picture. The core chooses wh
 * Points less than about a pixel apart are joined into one, which is why a picture stays near 10,000 to 25,000 points.
 * The edges that exist only because a shape was cut along a pack tile, the 180 degree line or the South Pole are marked. They are filled in but never outlined, so Fiji and Russia look whole across the line.
 * Oceans are drawn first, then countries, then first-level divisions on top. The area you are in has a thicker outline, and the item chosen in the Information panel is highlighted.
+
+## How several packs work together
+
+This section explains what happens when more than one pack is installed: the world pack, and later regional packs such as Great Britain, and grid packs such as detailed elevation. The design is in architecture AD-13, AD-14 and section 6.8. Combining packs is built in Phase 4, task P4-T3, so this describes the design, not something measured yet.
+
+### Words used in this section
+
+These are defined in full in the glossary.
+
+* Pack: one file of map data that the application reads.
+* Base pack: the world pack, which covers every point on Earth, land or sea.
+* Pack tile: one rectangle of a grid over the world, holding the shapes inside it. Each pack tile is one record.
+* Lookup: finding every area at a point.
+* Pack tile cache: the pack tiles read recently, kept in memory.
+
+### The short answer
+
+The application does not search every pack when you move. For each place it uses one pack for the shapes, the most detailed one installed there. The other packs are not read. So a step costs about the same with one pack installed or with ten.
+
+### What each pack says about itself
+
+Each pack's manifest lists the pack tiles it covers in detail.
+
+* The base pack covers every pack tile in the world, at country, region and county detail.
+* A regional pack, such as Great Britain, covers only the pack tiles of its own area, at street detail.
+* The proposal is that regional packs follow Geofabrik's extract boundaries: a country, or a part of a large country, such as California. These areas do not overlap, so two regional packs never compete for the same place (PCK-1, proposed).
+
+### What happens when you step
+
+1. When the packs are opened, the application builds a table in memory: for each pack tile, which installed pack has the most detail there.
+2. When you step, the lookup works out which pack tiles you are in, one at each tile level, and finds each in that table. This is a look-up in memory, not a search through the packs.
+3. It reads those pack tiles from that one pack, or from the pack tile cache if it has read them already.
+4. Where no regional pack covers the place, the base pack answers. Nothing is said about missing detail (PLT-4).
+
+For example, with the base pack and the Great Britain pack installed:
+
+* near Southampton, the coast comes from the Great Britain pack, from OpenStreetMap, and you hear the street you are on;
+* in Brazil, only the base pack is read. The Great Britain pack is not touched.
+
+### The same feature in two packs
+
+Hampshire is in the base pack, and it would also be in the Great Britain pack. It is one feature, not two.
+
+* Every feature keeps one identifier in every pack, such as osm:r172799 for Hampshire (AD-13).
+* When a regional pack is built, its features are matched to the base pack's, mostly by their Wikidata identifier, and keep the base pack's identifier.
+* So Hampshire is announced once, its facts and relationships from both packs are joined, and a bookmark on it keeps working whichever packs are installed.
+
+Roads and paths that cross from one regional pack into the next join at the same OpenStreetMap points, so travelling along them carries on across the join.
+
+### Grid packs
+
+A grid pack, such as detailed elevation or climate, holds a value at each point instead of shapes (DAT-6). It never competes with the packs of areas.
+
+* The base pack holds only coarse elevation and depth. The detailed grids are planned as optional grid packs (PCK-1, proposed).
+* A grid pack is read only when you ask for a value, or when a grid is played as pitch while you move (Phase 6). That is one read from one pack.
+
+### Where more packs do cost something
+
+Stepping does not slow down, but a few other things do a little more work:
+
+* Search: each pack has its own search index, so a search asks each installed pack and joins the answers.
+* The Information panel: groups such as Bordering and Contains join the relationships from every pack that holds the feature. This already runs in the background, so a step never waits for it.
+* Opening: each pack's directory and lists are read when TobyMap starts, which takes a little time and memory for each pack. Phase 4 checks memory with the base pack and the Great Britain pack together, against 2 GB (NFR-3).
+* Drawing a wide view: zoomed out, the drawing levels are used, so street detail is never drawn at the scale of a continent.
+
+With the handful of packs a person is likely to install, this extra work should be small. Phase 4 measures it, and times steps on the Great Britain pack against the step time in NFR-1.
+
+### Getting packs
+
+The pack manager, in Phase 4, lists the published packs from one small file, the catalogue, with each pack's size and date. It downloads a pack, checks its checksum, and offers updates. The desktop downloads from GitHub Releases. The web version keeps its packs in the browser's private storage, downloaded from a copy on Hugging Face, and can read from a pack while it is still downloading (PCK-2, PCK-4). Later, a user who is online may explore an area before installing its pack, by reading only the records needed over the internet (PCK-3, Phase 7).

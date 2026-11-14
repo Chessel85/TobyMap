@@ -104,6 +104,39 @@ def test_land_in_no_region_is_named_after_its_largest_island_or_its_continent():
     assert any("is named United States in Oceania" in s for s in logs)
 
 
+def test_a_country_shared_out_whole_leaves_no_area_of_its_own():
+    """DP192: what is left of OpenStreetMap's whole French state, in Oceania, is shared out by its regions, with
+    metropolitan France as their sovereign state, so there is only one France."""
+    caledonia = shapely.box(164.0, -22.5, 167.0, -20.0)
+    polynesia = shapely.box(-149.7, -17.9, -149.1, -17.4)
+    wallis = shapely.box(-176.25, -13.4, -176.1, -13.2)
+    metro = country("osm:r20", "France", shapely.box(-1.0, 43.5, 5.0, 49.0), type="metropolitan France",
+                    sovereign="France")
+    whole = country("osm:r21", "France", caledonia, polynesia, wallis, wikidata="Q142")
+    regions = [({"id": f"osm:r{n}", "layer": "regions", "name": name, "parent": "osm:r21"}, g)
+               for n, name, g in ((22, "New Caledonia", caledonia), (23, "French Polynesia", polynesia),
+                                  (24, "Wallis and Futuna", wallis))]
+    county = ({"id": "osm:r25", "layer": "counties", "name": "Noumea", "parent": "osm:r22"},
+              shapely.box(166.4, -22.3, 166.5, -22.2))
+    records = [r for r, _ in (metro, whole, *regions, county)]
+    geoms = [g for _, g in (metro, whole, *regions, county)]
+    new, changed, reparent = dp.split_countries(records, lambda idx: {i: geoms[i] for i in idx}, SETTINGS, 0.5,
+                                                lambda s: None, lambda s: None, whole={"osm:r21": "osm:r20"})
+    assert sorted(r["name"] for r, _ in new) == ["French Polynesia", "New Caledonia", "Wallis and Futuna"]
+    assert all(r["sovereign"] == "France" and r["sovereign_id"] == "osm:r20" for r, _ in new)
+    assert changed == {1: None}   # no land left: the stage takes the area away
+    assert reparent == {2: "part:osm:r22", 3: "part:osm:r23", 4: "part:osm:r24"}
+
+
+def test_the_stage_takes_away_a_country_shared_out_whole():
+    records = [{"id": "osm:r21", "layer": "countries"}, {"id": "osm:r22", "layer": "regions", "parent": "osm:r21"},
+               {"id": "osm:r26", "layer": "regions", "parent": "osm:r21"}]
+    offsets = [[0, 1], [1, 1], [2, 1]]
+    kept_records, kept_offsets = dp.take_away(records, offsets, {0}, {"osm:r21": "osm:r20"})
+    assert [r["id"] for r in kept_records] == ["osm:r22", "osm:r26"] and kept_offsets == [[1, 1], [2, 1]]
+    assert kept_records[1]["parent"] == "osm:r20"   # a region left over goes to the sovereign country
+
+
 def test_a_new_area_takes_a_colour_apart_from_its_neighbours():
     """French Guiana borders Brazil and Suriname, so it is coloured apart from them (AD-19)."""
     guiana = shapely.box(-54.0, 2.5, -51.6, 5.7)

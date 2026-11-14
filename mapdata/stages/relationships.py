@@ -118,6 +118,34 @@ def first_distance(geoms) -> np.ndarray:
 
 COVER = "cover"   # in place of a shape: the area covers the whole box
 
+GRID_DEG = 1e-9   # the grid a pair is snapped to when GEOS cannot compare it as it is, well under a millimetre
+REPAIRED = [0]    # how many pairs needed repairing, for the log
+
+
+def robust(op, a, b):
+    """op (shapely.intersection or shapely.difference) of two arrays of shapes, pair by pair. Cutting a shape to
+    a box (clip_by_rect) can leave it slightly invalid along the box's edge, and GEOS then refuses the pair with
+    a TopologyException, such as "Ring edge missing" on the world pack (P3-T3). Such a pair is done again with
+    both shapes made valid, and failing that on a fine grid, so one bad pair does not stop the build."""
+    try:
+        return op(a, b)
+    except shapely.errors.GEOSException:
+        pass
+    a = np.broadcast_to(np.asarray(a, dtype=object), np.broadcast_shapes(np.shape(a), np.shape(b)))
+    b = np.broadcast_to(np.asarray(b, dtype=object), a.shape)
+    out = np.empty(a.shape, dtype=object)
+    for k, (x, y) in enumerate(zip(a.ravel(), b.ravel())):
+        try:
+            out.flat[k] = op(x, y)
+            continue
+        except shapely.errors.GEOSException:
+            REPAIRED[0] += 1
+        try:
+            out.flat[k] = op(shapely.make_valid(x), shapely.make_valid(y))
+        except shapely.errors.GEOSException:
+            out.flat[k] = op(shapely.make_valid(x), shapely.make_valid(y), grid_size=GRID_DEG)
+    return out
+
 
 def cut(item, box) -> tuple | None:
     """An item (index, kind, shape or COVER) cut to a box (west, south, east, north), or None if nothing is in it.
@@ -227,7 +255,7 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
         keep = left < right
         left, right = left[keep], right[keep]
         if len(left):
-            inter = shapely.intersection(arr[left], arr[right])
+            inter = robust(shapely.intersection, arr[left], arr[right])
             got = areas_km2(inter)
             for a, b, km2 in zip(left, right, got):
                 ia, ib = areas[parts[a]][0], areas[parts[b]][0]
@@ -239,8 +267,8 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
             if same.any():
                 la, rb = left[same], right[same]
                 edge = shapely.boundary(box_shape)
-                shared = shapely.intersection(shapely.boundary(arr[la]), shapely.boundary(arr[rb]))
-                shared = shapely.difference(shared, shapely.buffer(edge, 1e-9))
+                shared = robust(shapely.intersection, shapely.boundary(arr[la]), shapely.boundary(arr[rb]))
+                shared = robust(shapely.difference, shared, shapely.buffer(edge, 1e-9))
                 for a, b, km in zip(la, rb, lengths_km(shared)):
                     if km > 0:
                         sums.border[tuple(sorted((areas[parts[a]][0], areas[parts[b]][0])))] += float(km)
@@ -260,7 +288,7 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
             tree = shapely.STRtree(arr)
             li_idx, ar_idx = tree.query(larr, predicate="intersects")
             if len(li_idx):
-                inter = shapely.intersection(larr[li_idx], arr[ar_idx])
+                inter = robust(shapely.intersection, larr[li_idx], arr[ar_idx])
                 kms, firsts = lengths_km(inter), first_distance(inter)
                 for l_, a_, km, d in zip(li_idx, ar_idx, kms, firsts):
                     if km > 0:
@@ -276,9 +304,9 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
                              for l_, a_ in zip(li_idx, ar_idx)], dtype=bool)
             li_idx, ar_idx = (li_idx[keep], ar_idx[keep]) if len(li_idx) else (li_idx, ar_idx)
             if len(li_idx):
-                edges = shapely.difference(shapely.boundary(arr[ar_idx]),
+                edges = robust(shapely.difference, shapely.boundary(arr[ar_idx]),
                                            shapely.buffer(shapely.boundary(box_shape), tol))
-                near = shapely.intersection(larr[li_idx], shapely.buffer(edges, tol))
+                near = robust(shapely.intersection, larr[li_idx], shapely.buffer(edges, tol))
                 for l_, a_, km in zip(li_idx, ar_idx, lengths_km(near)):
                     if km > 0:
                         sums.along[(lines[l_][0], areas[parts[a_]][0])] += float(km)
@@ -312,7 +340,7 @@ def on_lines(item, lines, sums: Sums) -> None:
     edge = shapely.boundary(g)
     for orient, at, lo, hi in near:
         line = shapely.LineString([(at, lo), (at, hi)] if orient == "v" else [(lo, at), (hi, at)])
-        got = shapely.intersection(edge, line)
+        got = robust(shapely.intersection, edge, line)
         for part in shapely.get_parts(got):
             if shapely.get_type_id(part) not in (1, 5) or shapely.length(part) <= 0:
                 continue
@@ -368,8 +396,9 @@ def _job(job):
     box, blobs, layer_of, settings = job
     items = [(i, k, COVER if b is None else shapely.from_wkb(b)) for i, k, b in blobs]
     sums = Sums()
+    REPAIRED[0] = 0
     relate(tuple(box), items, layer_of, settings, sums)
-    return sums.plain()
+    return dict(sums.plain(), repaired=REPAIRED[0])
 
 
 def top_boxes(deg: float) -> list[tuple]:
@@ -405,11 +434,15 @@ def measure(records, geoms, kinds, settings, executor=None, workers: int = 1, sa
         results = (_job(j) for j in jobs)
     else:
         results = executor.map(_job, jobs)
+    repaired = 0
     for n, plain in enumerate(results, 1):
         total.add(Sums.from_plain(plain))
+        repaired += plain.get("repaired", 0)
         if n % 4 == 0 or n == len(jobs):
             say(f"Compared the features in {n} of {len(jobs)} boxes of {settings['top_deg']:g} degrees, "
                 f"{time.perf_counter() - started:.0f} seconds.")
+    if repaired:
+        say(f"Pairs of shapes the geometry library could not compare as they were, so made valid first: {repaired}.")
     for key, km in edge_borders(total.edges, layer_of).items():
         total.border[key] += km
     return total

@@ -25,6 +25,10 @@ point is still in exactly one area of the Countries layer (LOC-6).
   neighbours are no longer Brazil and Suriname. A region that became an area of its own has it as its parent.
 
 Settings: min_share, the least share of a region's or county's land in the distant parts, 0.5 by default.
+whole: countries whose land is all shared out this way, none kept, each with the country to name as the
+sovereign state of the new areas, such as {osm:r2202162: osm:r1403916}: what is left of OpenStreetMap's whole
+French state, in Oceania, after the country units (DP86), with metropolitan France as sovereign (DP192). The
+country itself is then taken away; anything still naming it as parent names its sovereign state instead.
 """
 from __future__ import annotations
 
@@ -56,13 +60,17 @@ def fingerprint_extra(stage: dict) -> dict:
 
 # Finding the distant parts ---------------------------------------------------------------------------
 
-def distant_groups(geom, zone_geoms: list, tree, distant_km: float) -> tuple[list, list[tuple[int, list]]]:
+def distant_groups(geom, zone_geoms: list, tree, distant_km: float,
+                   whole: bool = False) -> tuple[list, list[tuple[int, list]]]:
     """A country's parts kept with it, and its distant groups as (zone, parts), using the continents stage's
-    rule: the group with the largest part is the main group, and a group whose continent differs is distant."""
+    rule: the group with the largest part is the main group, and a group whose continent differs is distant.
+    With whole, every group is shared out and none kept (DP192)."""
     parts = shapely.get_parts(geom)
     parts = parts[~shapely.is_empty(parts)]
-    if len(parts) < 2:
+    if len(parts) < 2 and not whole:
         return list(parts), []
+    if len(parts) == 0:
+        return [], []
     gid = continents.groups(parts, distant_km)
     sh = continents.shares(parts, zone_geoms, tree)
     by_group: dict = defaultdict(lambda: defaultdict(float))
@@ -74,7 +82,7 @@ def distant_groups(geom, zone_geoms: list, tree, distant_km: float) -> tuple[lis
     main_zone = zone_of[gid[int(np.argmax(sizes))]]
     kept, far = [], defaultdict(list)
     for g, p in zip(gid, parts):
-        if zone_of[g] == main_zone:
+        if zone_of[g] == main_zone and not whole:
             kept.append(p)
         else:
             far[g].append(p)
@@ -148,10 +156,13 @@ def read_shapes(folder: Path, offsets: list, indexes) -> dict[int, object]:
 
 # The stage ----------------------------------------------------------------------------------------
 
-def split_countries(records: list[dict], shape_of, settings: dict, min_share: float, line=print, log=print):
+def split_countries(records: list[dict], shape_of, settings: dict, min_share: float, line=print, log=print,
+                    whole: dict[str, str] | None = None):
     """The work of the stage on records and their shapes, for the stage and its tests. shape_of(indexes) gives
-    {index: shape}. Returns (new records with their shapes, {index: new shape} for countries that lost land,
-    {index: new parent} for regions)."""
+    {index: shape}. whole gives countries whose land is all shared out, each with the country to name as the
+    sovereign state of its new areas (DP192). Returns (new records with their shapes, {index: new shape, or
+    None for a country with no land left} for countries that lost land, {index: new parent} for regions)."""
+    whole = whole or {}
     zs = continents.zones(settings)
     zone_geoms = [g for _c, g in zs]
     tree = shapely.STRtree(zone_geoms)
@@ -166,7 +177,7 @@ def split_countries(records: list[dict], shape_of, settings: dict, min_share: fl
         g = shapes.get(i)
         if g is None or g.is_empty:
             continue
-        kept, far = distant_groups(g, zone_geoms, tree, distant_km)
+        kept, far = distant_groups(g, zone_geoms, tree, distant_km, whole=records[i]["id"] in whole)
         if far:
             found[i] = (kept, far)
     if not found:
@@ -201,8 +212,14 @@ def split_countries(records: list[dict], shape_of, settings: dict, min_share: fl
         made = share_out(far, [(records[k], named_shapes[k]) for _l, n, k in sorted(order) if n != country["name"]],
                          [(records[k], named_shapes[k]) for n, k in isles if n != country["name"]],
                          min_share, distant_km)
-        changed[i] = shapely.MultiPolygon(list(kept)) if len(kept) > 1 else kept[0]
+        changed[i] = shapely.MultiPolygon(list(kept)) if len(kept) > 1 else (kept[0] if kept else None)
         colours = [(c, changed[i] if g is shapes.get(i) else g) for c, g in colours]
+        sovereign = country
+        if country["id"] in whole:
+            sovereign = next((r for r in records if r["id"] == whole[country["id"]]), None)
+            if sovereign is None:
+                raise ValueError(f"distant-parts: whole: {whole[country['id']]}, the sovereign state given for "
+                                 f"{country['id']}, is not in the Countries layer.")
         counts: dict[int, int] = defaultdict(int)
         for rec, z, shape in made:
             cont = zs[z][0]
@@ -223,7 +240,8 @@ def split_countries(records: list[dict], shape_of, settings: dict, min_share: fl
                 out = {"id": fid, "layer": LAYER, "name": f"{country['name']} in {cont['name']}"}
                 log(f"{country['name']}: land in {cont['name']} in no region or county of its own, "
                     f"{continents.km2(shape):,.1f} km2, is named {out['name']}.")
-            out.update(type=TYPE, sovereign=country.get("sovereign") or country["name"], sovereign_id=country["id"])
+            out.update(type=TYPE, sovereign=sovereign.get("sovereign") or sovereign["name"],
+                       sovereign_id=sovereign["id"])
             for k in ("source", "source_key"):
                 if country.get(k):
                     out[k] = country[k]
@@ -239,10 +257,13 @@ def run(ctx) -> None:
     t = time.perf_counter()
     settings = continents.load_settings()
     min_share = float(ctx.settings.get("min_share", 0.5))
+    whole = dict(ctx.settings.get("whole") or {})
     data = json.loads((ctx.previous / "features.json").read_text(encoding="utf-8"))
     records, offsets = data["records"], data["shapes"]
     new, changed, reparent = split_countries(records, lambda idx: read_shapes(ctx.previous, offsets, idx),
-                                             settings, min_share, ctx.progress.line, ctx.progress.log)
+                                             settings, min_share, ctx.progress.line, ctx.progress.log, whole)
+    gone = {i for i, g in changed.items() if g is None}
+    changed = {i: g for i, g in changed.items() if g is not None}
     shapes_out = ctx.claim(ctx.folder / "shapes.wkb")
     shutil.copyfile(ctx.previous / "shapes.wkb", shapes_out)
     if new or changed:
@@ -263,10 +284,33 @@ def run(ctx) -> None:
         for i, parent in reparent.items():
             records[i]["parent"] = parent
         update_within(ctx.folder, records, offsets, [(r["id"], g) for r, g in new])
+    if gone:
+        for i in sorted(gone):
+            ctx.progress.line(f"{records[i]['name']} ({records[i]['id']}) is shared out whole, so it is no longer an "
+                              f"area of its own (DP192).")
+        records, offsets = take_away(records, offsets, gone, whole)
     text = json.dumps({"records": records, "shapes": offsets}, ensure_ascii=False, sort_keys=True, indent=0)
     ctx.claim(ctx.folder / "features.json").write_text(text, encoding="utf-8", newline="\n")
     ctx.progress.line(f"Distant parts made areas of their own: {len(new)}, from {len(changed)} countries, in "
                       f"{time.perf_counter() - t:.0f} seconds. The log lists any named after their continent.")
+
+
+def take_away(records: list[dict], offsets: list, gone: set[int], whole: dict[str, str]) -> tuple[list, list]:
+    """The records and shape offsets without the countries shared out whole (DP192). Anything still naming one
+    as its parent, such as a region too small to be an area of its own, names its sovereign state instead; a
+    place still within one is within its sovereign state."""
+    to = {records[i]["id"]: whole.get(records[i]["id"]) for i in gone}
+    kept_records, kept_offsets = [], []
+    for i, (r, o) in enumerate(zip(records, offsets)):
+        if i in gone:
+            continue
+        if r.get("parent") in to:
+            r["parent"] = to[r["parent"]]
+        if r.get("within"):
+            r["within"] = [dict(w, id=to[w["id"]]) if w.get("id") in to else w for w in r["within"]]
+        kept_records.append(r)
+        kept_offsets.append(o)
+    return kept_records, kept_offsets
 
 
 def update_within(folder: Path, records: list[dict], offsets: list, made: list[tuple[str, object]]) -> None:

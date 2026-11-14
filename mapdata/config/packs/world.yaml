@@ -55,6 +55,9 @@ stages:
   # A country's parts on another continent become areas of their own in the Countries layer, such as Hawaii and
   # the Canary Islands, named after their regions, by the continents' rule and settings (DP191).
   - stage: distant-parts
+    # What is left of OpenStreetMap's whole French state after the country units (DP86), New Caledonia, French
+    # Polynesia, and Wallis and Futuna, is shared out by its regions too, with France as sovereign (DP192).
+    whole: {osm:r2202162: osm:r1403916}
   # The continents, from the countries, split along the lines in mapdata/config/continents.yaml (P3-T1e, DP174).
   - stage: continents
   # Lakes, reservoirs and lagoons of 10 km2 or more, from OpenStreetMap, checked against HydroLAKES (P3-T1h, DP169).

@@ -132,3 +132,23 @@ def test_a_border_along_a_parallel_on_a_cutting_line_is_measured():
     out = rel.relationships(records, [montana, wyoming], [rel.AREA, rel.AREA], sums, {"x": 1}, set(),
                             dict(rel.SETTINGS))
     assert out[0]["next"] == [[1, pytest.approx(7 * 111.195 * 0.7071, rel=0.001)]]
+
+
+def test_a_pair_the_geometry_library_refuses_is_made_valid_and_done_again():
+    """On the world pack, GEOS refused one pair cut along a box's edge ("Ring edge missing", P3-T3): the pair is
+    done again with both shapes made valid, the other pairs as they were, and the build does not stop."""
+    bowtie = shapely.Polygon([(0, 0), (2, 2), (2, 0), (0, 2)])   # invalid: it crosses itself
+    square = shapely.box(0, 0, 1, 1)
+    calls = []
+
+    def fussy(a, b, **kw):
+        calls.append(kw)
+        if not all(shapely.is_valid(g) for g in [*shapely.get_parts(a), *shapely.get_parts(b)]):
+            raise shapely.errors.GEOSException("TopologyException: Ring edge missing")
+        return shapely.intersection(a, b, **kw)
+
+    rel.REPAIRED[0] = 0
+    got = rel.robust(fussy, [square, bowtie], [square, square])
+    assert got[0].equals(square)
+    assert shapely.area(got[1]) == pytest.approx(0.5)
+    assert rel.REPAIRED[0] == 1

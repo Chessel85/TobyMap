@@ -258,6 +258,87 @@ class SearchDialog(QDialog):
         self.accept()
 
 
+class QueryDialog(QDialog):
+    """The query builder (P3-T10b, INF-9): three lists, Find (layers), Relation and Of, a distance field shown
+    only when the chosen relation has a distance, and OK and Cancel (ACC-7). OK runs the core's query.run with
+    the chosen ids; an error is shown and spoken and the form stays open, an answer closes it. The core gives
+    every word; `run` is session.run."""
+
+    def __init__(self, parent, dialog: dict, run, speak=None):
+        super().__init__(parent)
+        self._run, self._speak, self._dialog = run, speak, dialog
+        self.response = None
+        self.setWindowTitle(dialog["title"])
+        layout = QVBoxLayout(self)
+        self.help = QLabel(dialog["help"])
+        self.help.setWordWrap(True)
+        layout.addWidget(self.help)
+        self.layer_list = self._list(layout, dialog["find_label"], dialog["layers"])
+        self.relation_list = self._list(layout, dialog["relation_label"], dialog["relations"])
+        self.of_list = self._list(layout, dialog["of_label"], dialog["of"])
+        self.distance_label = QLabel(dialog["distance_label"])
+        self.distance = QLineEdit(str(dialog["distance"]))
+        self.distance.setAccessibleName(dialog["distance_label"])
+        self.distance_label.setBuddy(self.distance)
+        layout.addWidget(self.distance_label)
+        layout.addWidget(self.distance)
+        self.message = QLabel("")
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        self.ok_button, self.cancel_button = button_row(layout, [dialog["ok"], dialog["cancel"]])
+        self.ok_button.clicked.connect(self.apply)
+        self.cancel_button.clicked.connect(self.reject)
+        self.distance.returnPressed.connect(self.apply)
+        self.relation_list.currentRowChanged.connect(lambda _r: self._show_distance())
+        self._show_distance()
+        self.resize(560, 560)
+        self.layer_list.setFocus()
+
+    @staticmethod
+    def _list(layout, label_text: str, items: list[dict]) -> QListWidget:
+        label = QLabel(label_text)
+        box = QListWidget()
+        box.setAccessibleName(label_text)
+        label.setBuddy(box)
+        for item in items:
+            row = QListWidgetItem(item["label"])
+            row.setData(Qt.ItemDataRole.UserRole, item["id"])
+            box.addItem(row)
+        if items:
+            box.setCurrentRow(0)
+        layout.addWidget(label)
+        layout.addWidget(box)
+        return box
+
+    def _show_distance(self) -> None:
+        row = self.relation_list.currentRow()
+        wanted = 0 <= row < len(self._dialog["relations"]) and bool(self._dialog["relations"][row].get("distance"))
+        self.distance_label.setVisible(wanted)
+        self.distance.setVisible(wanted)
+
+    @staticmethod
+    def _chosen(box: QListWidget) -> str:
+        item = box.currentItem()
+        return item.data(Qt.ItemDataRole.UserRole) if item is not None else ""
+
+    def apply(self) -> None:
+        if self.response is not None:   # Enter can arrive twice: answer once
+            return
+        args = {"layer": self._chosen(self.layer_list), "relation": self._chosen(self.relation_list),
+                "of": self._chosen(self.of_list)}
+        if self.distance.isVisible():
+            args["distance"] = self.distance.text()
+        response = self._run(self._dialog["run"], **args)
+        if response.error:
+            self.message.setText(response.error)
+            self.message.setAccessibleDescription(response.error)
+            if self._speak is not None:
+                self._speak(response.error)
+            return
+        self.response = response
+        self.accept()
+
+
 class WorldTreeDialog(QDialog):
     """The world tree (P3-T9a, SRB-3): World, then its continents, countries and so on, in the Information
     panel's own tree, so NVDA says each item's level and position. A branch is read from the core, with the

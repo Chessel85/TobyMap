@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, WorldTreeDialog
+from desktop.dialogs import ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, WorldTreeDialog
 from desktop.keys import key_name
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
@@ -621,6 +621,10 @@ class MainWindow(QMainWindow):
         elif kind == "search":   # Ctrl+F (P3-T8c): the core searches and says every word
             box = SearchDialog(self, dialog, run=self.session.run,
                                speak=lambda text: self.announcer.speak(text, "assertive"))
+            box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
+        elif kind == "query":   # Q (P3-T10b): three lists, a distance for "within a distance of", OK and Cancel
+            box = QueryDialog(self, dialog, run=self.session.run,
+                              speak=lambda text: self.announcer.speak(text, "assertive"))
             box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
         elif kind == "tree":   # W (P3-T9a): the world as a tree, each branch read when opened
             box = WorldTreeDialog(self, dialog, run=self.session.run,

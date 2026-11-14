@@ -535,6 +535,37 @@ browse:
   done: "{layer}: {count} inside {name}, in the Search group."
   done_capped: "{layer}: {count} inside {name}. The first {limit} are in the Search group."
 
+# The query builder (P3-T10a, INF-9): find a layer, how it relates, and to which feature. The answer goes
+# into the Search group, under a heading such as "Rivers crossing Germany, 1 item". No field names appear.
+query:
+  title: "Query"
+  help: "Choose what to find, how it relates, and the feature, then OK. The answer goes into the Search group."
+  find_label: "Find"
+  relation_label: "Relation"
+  of_label: "Of"
+  distance_label_km: "Distance in kilometres"
+  distance_label_mi: "Distance in miles"
+  relation_inside: "inside"
+  relation_crossing: "crossing"
+  relation_bordering: "bordering"
+  relation_near: "within a distance of"
+  of_current: "{name}, the current feature"
+  of_found: "{description}, from the Search group"
+  # The Search group's heading, and the answer said: "Rivers crossing Germany".
+  heading_inside: "{layer} inside {name}"
+  heading_crossing: "{layer} crossing {name}"
+  heading_crossed_by: "{layer} crossed by {name}"
+  heading_bordering: "{layer} bordering {name}"
+  heading_near: "{layer} within {distance} of {name}"
+  # An item of an answer within a distance: "Newport, 6.4 kilometres from Hampshire"; one inside it, its name.
+  item_near: "{name}, {distance} from {of}"
+  done: "{heading}: {count}, in the Search group."
+  done_capped: "{heading}: {count}. The first {limit} are in the Search group."
+  nothing: "No {heading}."
+  no_feature: "No feature to ask about. Go to one, or search for one first."
+  bad_distance: "Type a distance greater than 0, such as 10."
+  bad_choice: "Choose what to find, the relation and the feature."
+
 # Hierarchy mode (P3-T6a; NAV-4, NAV-11, DP77). M switches it on and off; the arrow keys go up, down and
 # round the neighbours. A move says the feature, then the zoom it was fitted to: "England. Zoom 250 kilometres."
 # A neighbour is said as Bordering says it: "Spain, south-west, shared border 452 kilometres. Zoom ..."

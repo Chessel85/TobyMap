@@ -185,6 +185,44 @@ def _boxes_meet(a, b) -> bool:
     return any(x0 <= y1 and y0 <= x1 for x0, x1 in spans(a) for y0, y1 in spans(b))
 
 
+def _grown_boxes(bbox, metres: float) -> list[tuple[float, float, float, float]]:
+    """A feature's box (west, south, east, north; west greater than east across the 180 degree line) grown by
+    `metres` on every side, as boxes that do not cross the 180 degree line (P3-T10a). Near a pole, or grown
+    past half the world, it reaches every longitude."""
+    west, south, east, north = bbox
+    dlat = metres / M_PER_DEG_LAT_MIN
+    s, n = max(-90.0, south - dlat), min(90.0, north + dlat)
+    worst = math.cos(math.radians(min(89.9, max(abs(s), abs(n)))))
+    dlon = math.degrees(metres / (geodesy.A_M * worst)) if worst > 1e-6 else 360.0
+    width = (east - west) % 360.0 if west > east else east - west
+    if max(abs(s), abs(n)) >= 89.0 or width + 2 * dlon >= 360.0:
+        return [(-180.0, s, 180.0, n)]
+    return [(w, s, e, n) for w, e in _intervals(geodesy.wrap_lon(west - dlon), geodesy.wrap_lon(east + dlon))]
+
+
+def _boxes_reach(boxes: np.ndarray, reach) -> np.ndarray:
+    """For an array of boxes (west, south, east, north, west greater than east across the 180 degree line),
+    whether each meets any of the boxes in `reach`, none of which crosses the 180 degree line."""
+    west, south, east, north = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+    crosses = west > east
+    out = np.zeros(len(boxes), dtype=bool)
+    for w, s, e, n in reach:
+        lat_ok = (south <= n) & (north >= s)
+        plain = (west <= e) & (east >= w)
+        across = (w <= east) | (e >= west)   # the box is [west, 180] and [-180, east]
+        out |= lat_ok & np.where(crosses, across, plain)
+    return out
+
+
+def _meet_boxes(box, own) -> list[tuple[float, float, float, float]]:
+    """Where a box that does not cross the 180 degree line meets a feature's own box, which may."""
+    w, s, e, n = box
+    s, n = max(s, own[1]), min(n, own[3])
+    if s > n:
+        return []
+    return [(a, s, b, n) for a, b in _meet([(w, e)], _intervals(own[0], own[2]))]
+
+
 def _in_box(lat: float, lon: float, box) -> bool:
     west, south, east, north = box
     if not south <= lat <= north:
@@ -289,6 +327,7 @@ class _PackIndex:
         self._boxes = None
         self._sizes = None
         self._ids = None
+        self._layer_by_id = None
         self._tile_index: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
         by_kind: dict[tuple[str, int], list[tuple[int, int]]] = {}
         for key in pack.keys():
@@ -331,6 +370,14 @@ class _PackIndex:
         if self._boxes is None:
             self._read_table()
         return self._ids
+
+    @property
+    def layer_by_id(self) -> dict:
+        """Each feature's layer by its identifier, from the feature table, so a list of identifiers can be
+        narrowed to a layer without reading their records (P3-T10a)."""
+        if self._layer_by_id is None:
+            self._layer_by_id = dict(zip(self.ids.tolist(), self.sizes[1].tolist()))
+        return self._layer_by_id
 
     def _read_table(self) -> None:
         numbers, box, widths, layer_of, ids = [], [], [], [], []
@@ -456,6 +503,14 @@ class Store:
                     return Area(p, number, pack.feature(number))
             except DamagedRecord as exc:
                 self._note(exc)
+        return None
+
+    def layer_of(self, identifier: str) -> str | None:
+        """A feature's layer, from the feature table held in memory, with no record read; None if not found."""
+        for index in self._indexes:
+            found = index.layer_by_id.get(identifier)
+            if found is not None:
+                return found
         return None
 
     def relationships(self, identifier: str) -> dict:
@@ -861,6 +916,131 @@ class Store:
                 self._note(exc)
         out.sort(key=lambda f: (f.name.casefold(), f.id))
         return out
+
+    # Within a distance of a feature (P3-T10a, INF-9) ---------------------------------------------------------
+
+    def within_distance(self, layer: str, identifier: str, metres: float) -> list[tuple[Found, float]]:
+        """Every feature of a layer within `metres` of a feature, with its distance, nearest first, then by name
+        (INF-9: "towns within 10 km of Hampshire"). A feature inside it, crossing it, overlapping it or sharing a
+        border with it is at 0 by the stored relationships, with no shape read. For the rest, only the features
+        whose boxes come within reach of the feature's box are looked at, and only the pack tiles there are read:
+        a point is measured to the feature's nearest point on the ellipsoid, as Nearby measures; a line or an
+        area by the nearest points of the two shapes in a flat view round them, then on the ellipsoid."""
+        holder = self.feature(identifier)
+        if holder is None or metres < 0:
+            return []
+        mine = self.relationships(identifier)
+        touching = set(mine.get("in", ())) | set(mine.get("same", ())) | set(mine.get("crosses", ())) \
+            | set(mine.get("crossed_by", ())) | set(mine.get("along", ())) \
+            | {x[0] for x in (*mine.get("partly", ()), *mine.get("overlaps", ()), *mine.get("next", ()))}
+        near_km = {i: km for i, km in mine.get("near", ())}
+        reach = _grown_boxes(holder.record["bbox"], metres)
+        point_layer = self._geometry_of(layer) == "point"
+        out: list[tuple[Found, float]] = []
+        for p, index in enumerate(self._indexes):
+            numbers, boxes = index.boxes
+            _widths, layers = index.sizes
+            keep = (layers == layer) & _boxes_reach(boxes, reach)
+            for k in np.nonzero(keep)[0].tolist():
+                area = self._area(p, int(numbers[k]))
+                if area is None or area.id == identifier:
+                    continue
+                distance = self._distance_to(p, holder, area, metres, touching, near_km, point_layer, reach)
+                if distance is None or distance > metres:
+                    continue
+                rec = area.record
+                point = rec.get("point")
+                name = _record_name(rec)
+                out.append((Found(p, area.id, name, layer, 0, point[1] if point else None,
+                                  point[0] if point else None, name, "", 0, 1.0), distance))
+        out.sort(key=lambda t: (t[1], t[0].name.casefold(), t[0].id))
+        return out
+
+    def _distance_to(self, p: int, holder: Area, area: Area, metres: float, touching: set, near_km: dict,
+                     point_layer: bool, reach) -> float | None:
+        """How far a feature is from the holder, or None when beyond `metres`: 0 for one the stored
+        relationships put in, across or beside it; else measured from the pack tiles near both."""
+        if area.id in touching:
+            return 0.0
+        rel = self.relationships(area.id)
+        if holder.id in rel.get("in", ()) or holder.id in rel.get("same", ()) or holder.id in rel.get("crosses", ()) \
+                or any(x[0] == holder.id for x in (*rel.get("partly", ()), *rel.get("overlaps", ()))):
+            return 0.0
+        if area.id in near_km:   # an area of the holder's own layer that nearly touches it, measured in the build
+            return near_km[area.id] * 1000.0
+        if point_layer:
+            best = None
+            for lon, lat in self._points_of(area, reach):
+                found = self._nearest(holder.pack, holder, Flat(lat, lon), lat, lon,
+                                      float(self._box_distance_m(np.asarray([holder.record["bbox"]], dtype=np.float64),
+                                                                 lat, lon)[0]), metres)
+                if found is not None and (best is None or found.distance_m < best):
+                    best = found.distance_m
+            return best
+        return self._shapes_apart(p, holder, area, metres)
+
+    def _points_of(self, area: Area, reach) -> list[tuple[float, float]]:
+        """A point feature's points (lon, lat) within reach: its own point, or each of its points in the pack
+        tiles there, for a feature of several points."""
+        import shapely
+
+        found = []
+        for kind_data in self._parts(area, reach):
+            found += [tuple(c) for c in shapely.get_coordinates(kind_data).tolist()]
+        if not found and area.record.get("point"):
+            found = [tuple(area.record["point"])]
+        return found
+
+    def _parts(self, area: Area, boxes) -> list:
+        """The shapes of a feature's parts, in longitude and latitude, from its pack tiles meeting the boxes
+        (west, south, east, north, none across the 180 degree line). A pack tile it wholly covers is the tile's
+        own box."""
+        import shapely
+
+        index = self._indexes[area.pack]
+        own = area.record["bbox"]
+        out = []
+        seen = set()
+        for box in boxes:
+            for w, s, e, n in [b for b in _meet_boxes(box, own)]:
+                for level in index.pack.tile_levels:
+                    x0, y0 = tiles.tile_of(w, s, level)
+                    x1, y1 = tiles.tile_of(e, n, level)
+                    for x, y in index.tiles_in("tile", level, x0, x1, y0, y1):
+                        if (level, x, y) in seen:
+                            continue
+                        seen.add((level, x, y))
+                        data = self._tile(area.pack, "tile", level, x, y)
+                        for i in data.by_feature.get(area.number, ()):
+                            if data.entries[i].kind == tiles.COVERED:
+                                out.append(shapely.box(*tiles.tile_box(level, x, y)))
+                            else:
+                                with self._shapes:
+                                    out.append(data.shape(i))
+        return out
+
+    def _shapes_apart(self, p: int, holder: Area, area: Area, metres: float) -> float | None:
+        """The least distance between two features' shapes, from the pack tiles where each comes within reach of
+        the other: the nearest points are found in a flat view round the middle of that ground, then measured on
+        the ellipsoid. None when either has no shape there."""
+        import shapely
+
+        theirs = self._parts(area, _grown_boxes(holder.record["bbox"], metres))
+        if not theirs:
+            return None
+        mine = self._parts(holder, _grown_boxes(area.record["bbox"], metres))
+        if not mine:
+            return None
+        a, b = shapely.union_all(theirs), shapely.union_all(mine)
+        if a.intersects(b):
+            return 0.0
+        west, south, east, north = shapely.union_all([a, b]).bounds
+        flat = Flat((south + north) / 2.0, (west + east) / 2.0)
+        line = shapely.shortest_line(flat.transform(a), flat.transform(b))
+        (x1, y1), (x2, y2) = shapely.get_coordinates(line).tolist()
+        lat1, lon1 = (float(v) for v in flat.inverse(x1, y1))
+        lat2, lon2 = (float(v) for v in flat.inverse(x2, y2))
+        return geodesy.inverse(lat1, lon1, lat2, lon2)[0]
 
     def _inside(self, ranked: list[Found], identifier: str, limit: int) -> list[Found]:
         """The results that are the feature, or inside it, partly inside or crossing it, by the stored

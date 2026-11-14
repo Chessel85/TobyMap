@@ -30,7 +30,7 @@ from mapcore.geo import formats, geodesy, parse
 from mapcore import panel as panel_table
 from mapcore.layers import LayerCatalogue
 from mapcore.layers.visible import VisibleRule
-from mapcore.store.store import special_kind
+from mapcore.store.store import Found, special_kind
 from mapcore.world import WorldState
 from mapcore.sound.stretch import split_rate
 from mapcore.world.state import nearest_index
@@ -42,6 +42,7 @@ BROWSE_LIMIT = 2000   # features listed by browsing a layer (P3-T9b)
 PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158)
 SEARCH_LIMIT = 20    # search results listed (P3-T8b)
 SEARCH_DELAY_MS = 300   # the pause in typing before the search dialog searches (P3-T8c)
+QUERY_RELATIONS = ("inside", "crossing", "bordering", "near")   # the query builder's relations (P3-T10a, INF-9)
 REGIONS = ("map", "panel", "details", "menu")
 # Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
 # the times the core gives, so the clicks never wait for the map to be drawn.
@@ -205,6 +206,7 @@ class MapSession:
         self._down: dict = {}
         # The last search's results, by identifier (P3-T8b), so Enter says the same description.
         self.search_found: dict = {}
+        self.search_title: str | None = None   # the Search group's heading after a query (P3-T10a), else None
         self._pressed_in = "map"                # the region of the key being carried out
         self._answer_to = "map"                  # where Go to's or the bearing's box was opened (P2-T17k)
         self.held_moves = 0
@@ -292,6 +294,8 @@ class MapSession:
             "tree.go": self._tree_go,
             "browse.open": self._browse_open,
             "browse.choose": self._browse_choose,
+            "query.open": self._query_open,
+            "query.run": self._query_run,
             "settings.open": self._settings_open,
             "settings.set": self._settings_set,
             "settings.reset": self._reset_ask,
@@ -552,7 +556,8 @@ class MapSession:
         # A lazy group is made again when the place, a setting, the current feature or the way you face
         # changes, as its bearing order is clockwise from ahead.
         context = (base["key"], current.id if current else None, describer.facing(self.world),
-                   frozenset(layer.id for layer in self.layers.layers() if layer.on), tuple(self.search_found))
+                   frozenset(layer.id for layer in self.layers.layers() if layer.on), tuple(self.search_found),
+                   self.search_title)
         for gid in registry.panel_groups():
             g = panel_table.GROUPS[gid]
             if g.lazy and gid not in wanted:
@@ -628,6 +633,8 @@ class MapSession:
     def _heading_name(self, gid: str, current) -> str:
         """The group's name, with the current feature's for a group about it: "Bordering France"."""
         name = say(f"panel.{gid}")
+        if gid == "search" and self.search_title:   # after a query: "Rivers crossing Germany" (P3-T10a)
+            return self.search_title
         if panel_table.GROUPS[gid].about_current and current is not None:
             return say("panel.about", group=name, name=current.name)
         return name
@@ -797,6 +804,7 @@ class MapSession:
             out.append({"id": f.id, "name": f.name, "description": f.description, "layer": f.layer,
                         "label": label})
         self.search_found = {f.id: f for f in found}
+        self.search_title = None
         return out
 
     def search_go(self, identifier: str) -> Response:
@@ -866,7 +874,7 @@ class MapSession:
             kwargs["layers"] = {scope[len("layer:"):]}
         found = self.search(text, **kwargs) if text else []
         if not text:
-            self.search_found = {}
+            self.search_found, self.search_title = {}, None
         r = Response(panel_stale=True)
         r.found = {"lines": [f["label"] for f in found], "ids": [f["id"] for f in found],
                    "none": say("search.nothing", text=text) if text and not found else ""}
@@ -974,9 +982,130 @@ class MapSession:
             layer = self.layers.get(which)
             found, label = self.store.browse(layer.id, current.id), layer.name
         self.search_found = {f.id: f for f in found[:BROWSE_LIMIT]}
+        self.search_title = None
         key = "browse.done_capped" if len(found) > BROWSE_LIMIT else "browse.done"
         text = say(key, count=len(found), layer=label, name=current.name, limit=BROWSE_LIMIT)
         return Response(panel_stale=True).speak(text, ASSERTIVE)
+
+    # The query builder (P3-T10a; INF-9) -----------------------------------------------------------------------
+    # Three parts: find (a layer), the relation (inside, crossing, bordering, or within a distance of), and of
+    # what (the current feature, or a feature in the Search group; later a bookmark). Each is answered from the
+    # stored relationships; "within a distance of" reads only the pack tiles near the feature. The answer goes
+    # into the Search group under a heading such as "Rivers crossing Germany". No field names from the data.
+
+    def _query_open(self, **_a) -> Response:
+        """The form's three lists, with OK and Cancel (ACC-7): the layers that are on, the relations, and the
+        features to ask about, the current one first, then the Search group's, up to SEARCH_LIMIT. A distance
+        field is for "within a distance of" only, in the user's units. The shell runs query.run on OK."""
+        of = []
+        current = self.current_feature
+        if current is not None:
+            of.append({"id": current.id, "label": say("query.of_current", name=current.name)})
+        for identifier, found in self.search_found.items():
+            if len(of) > SEARCH_LIMIT:
+                break
+            if current is None or identifier != current.id:
+                of.append({"id": identifier, "label": say("query.of_found", description=found.description)})
+        if not of:
+            return Response().earcon("blocked").speak(say("query.no_feature"), ASSERTIVE)
+        layers = [{"id": layer.id, "label": layer.name} for layer in self.layers.layers() if layer.on]
+        relations = [{"id": r, "label": say("query.relation_" + r), "distance": r == "near"} for r in QUERY_RELATIONS]
+        unit = "mi" if self._units() == "imperial" else "km"
+        return Response(dialog={
+            "kind": "query", "title": say("query.title"), "help": say("query.help"),
+            "find_label": say("query.find_label"), "layers": layers,
+            "relation_label": say("query.relation_label"), "relations": relations,
+            "of_label": say("query.of_label"), "of": of,
+            "distance_label": say("query.distance_label_" + unit), "distance": "10",
+            "run": "query.run", "ok": say("ui.ok"), "cancel": say("ui.cancel")})
+
+    def _query_run(self, layer: str = "", relation: str = "", of: str = "", distance="", **_a) -> Response:
+        """OK on the form: the answer into the Search group, said with its count. A choice missing, a distance
+        that is not a number above 0, or nothing found, is an error, so the form stays open to change it."""
+        chosen = self.layers.get(layer)
+        if chosen is None or relation not in QUERY_RELATIONS or self.store.feature(of) is None:
+            return Response(error=say("query.bad_choice"))
+        metres = None
+        if relation == "near":
+            try:
+                value = float(str(distance).strip().replace(",", ""))
+            except ValueError:
+                value = 0.0
+            if not math.isfinite(value) or value <= 0:
+                return Response(error=say("query.bad_distance"))
+            metres = value * (formats.METRES_PER_MILE if self._units() == "imperial" else 1000.0)
+        heading, found = self.query(layer, relation, of, metres)
+        if not found:
+            return Response(error=say("query.nothing", heading=heading[:1].lower() + heading[1:]))
+        self.search_found = {f.id: f for f in found[:BROWSE_LIMIT]}
+        self.search_title = heading
+        key = "query.done_capped" if len(found) > BROWSE_LIMIT else "query.done"
+        text = say(key, heading=heading, count=f"{len(found):,}", limit=f"{BROWSE_LIMIT:,}")
+        return Response(panel_stale=True).speak(text, ASSERTIVE)
+
+    def query(self, layer: str, relation: str, identifier: str, metres: float | None = None) -> tuple[str, list[Found]]:
+        """A query's heading and answer (INF-9): the features of a layer that are inside, crossing, bordering,
+        or within `metres` of the feature, as search results.
+
+        * inside: the features the stored relationships put inside it, fully or partly, or crossing it (as
+          browsing does, SRB-4).
+        * crossing: for an area, the lines that cross it or run along its border, by name; for a line, the
+          areas it passes through, in order from its start, said as "crossed by".
+        * bordering: for an area, the areas of its layer sharing a border with it, and the lines along its
+          border, by name; for a line, the areas it runs along the border of.
+        * near: everything within the distance, inside counting as 0, nearest first (Store.within_distance).
+
+        A point has nothing inside, crossing or bordering it, so only "near" finds anything for one."""
+        holder = self.store.feature(identifier)
+        name = words.name_after_of(holder.name)
+        layer_name = self.layers.get(layer).name
+        kind = self._geometry(holder)
+        rel = self.store.relationships(identifier)
+        if relation == "near":
+            distance = words.distance_text(metres, self._units())
+            heading = say("query.heading_near", layer=layer_name, distance=distance, name=name)
+            found = []
+            for f, apart in self.store.within_distance(layer, identifier, metres):
+                text = f.name if apart <= 0 else say("query.item_near", name=f.name, of=name,
+                                                     distance=words.distance_text(apart, self._units()))
+                found.append(replace(f, description=text))
+            return heading, found
+        if relation == "inside":
+            found = self.store.browse(layer, identifier) if kind == "area" else []
+            return say("query.heading_inside", layer=layer_name, name=name), found
+        if relation == "crossing":
+            if kind == "line":
+                return (say("query.heading_crossed_by", layer=layer_name, name=name),
+                        self._found_of(rel.get("crosses", ()), layer, by_name=False))
+            ids = [*rel.get("crossed_by", ()), *rel.get("along", ())] if kind == "area" else []
+            return say("query.heading_crossing", layer=layer_name, name=name), self._found_of(ids, layer)
+        heading = say("query.heading_bordering", layer=layer_name, name=name)
+        if kind == "area":
+            return heading, self._found_of([i for i, _km in rel.get("next", ())] + list(rel.get("along", ())), layer)
+        if kind == "line":   # the areas whose border it runs along, among those it passes through or is in
+            near = [*rel.get("crosses", ()), *(x[0] for x in rel.get("partly", ())), *rel.get("in", ())]
+            ids = [i for i in near if identifier in self.store.relationships(i).get("along", ())]
+            return heading, self._found_of(ids, layer)
+        return heading, []
+
+    def _found_of(self, identifiers, layer: str, by_name: bool = True) -> list[Found]:
+        """The features of a layer among the identifiers, each once, as search results: by name, or as given."""
+        out, seen = [], set()
+        for identifier in identifiers:
+            if identifier in seen:
+                continue
+            seen.add(identifier)
+            if self.store.layer_of(identifier) != layer:   # from the table in memory: no record read
+                continue
+            area = self.store.feature(identifier)
+            if area is None or area.layer != layer:
+                continue
+            point = area.record.get("point")
+            out.append(Found(area.pack, area.id, area.name, layer, 0, point[1] if point else None,
+                             point[0] if point else None, area.name, "", 0, 1.0))
+        if by_name:
+            out.sort(key=lambda f: (f.name.casefold(), f.id))
+        return out
 
     def _layer_on(self, area) -> bool:
         layer = self.layers.get(area.layer)

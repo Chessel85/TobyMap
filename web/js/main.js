@@ -15,7 +15,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), messageBox = $("messagebox");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -289,7 +289,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || searchDialog.open || treeDialog.open || messageBox.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -355,7 +355,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [messageBox, settingsDialog, inputDialog, layersDialog, searchDialog, treeDialog, dialog].find((d) => d.open);   // the top one first
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -402,6 +402,7 @@ function openDialog(d) {
   if (d.kind === "layers") return openLayers(d);
   if (d.kind === "search") return openSearch(d);
   if (d.kind === "tree") return openTree(d);
+  if (d.kind === "query") return openQuery(d);
   if (d.kind === "confirm") return openConfirm(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
@@ -791,6 +792,78 @@ function openSearch(d) {
   field.focus();
 }
 
+// The query builder (P3-T10b, INF-9): three lists, Find, Relation and Of, a distance field shown only when the
+// chosen relation has a distance, and OK and Cancel (ACC-7). OK runs the core's query.run with the chosen ids;
+// an error is shown and spoken and the form stays open, an answer closes it. All words come from the core.
+function openQuery(d) {
+  const box = queryDialog;
+  box.replaceChildren();
+  box.setAttribute("aria-label", d.title);
+  const title = document.createElement("h2");
+  title.textContent = d.title;
+  const help = document.createElement("p");
+  help.id = "query-help";
+  help.textContent = d.help;
+  const makeList = (id, labelText, items) => {
+    const label = document.createElement("label");
+    label.textContent = labelText;
+    const list = document.createElement("select");
+    list.id = id;
+    list.size = Math.min(6, Math.max(2, items.length));
+    label.htmlFor = id;
+    items.forEach((item, i) => {
+      const o = document.createElement("option");
+      o.value = item.id;
+      o.textContent = item.label;
+      list.appendChild(o);
+    });
+    if (items.length) list.selectedIndex = 0;
+    return { label, list };
+  };
+  const layers = makeList("query-layer", d.find_label, d.layers);
+  const relations = makeList("query-relation", d.relation_label, d.relations);
+  const of = makeList("query-of", d.of_label, d.of);
+  const distanceLabel = document.createElement("label");
+  distanceLabel.textContent = d.distance_label;
+  const distance = document.createElement("input");
+  distance.type = "text";
+  distance.id = "query-distance";
+  distance.autocomplete = "off";
+  distance.spellcheck = false;
+  distance.value = String(d.distance);
+  distanceLabel.htmlFor = distance.id;
+  const message = document.createElement("p");
+  message.id = "query-message";
+  message.setAttribute("role", "status");
+  const showDistance = () => {
+    const r = d.relations[relations.list.selectedIndex];
+    const wanted = !!(r && r.distance);
+    distanceLabel.hidden = distance.hidden = !wanted;
+  };
+  relations.list.addEventListener("change", showDistance);
+  let sending = false;
+  const ok = () => {
+    if (sending) return;   // Enter can arrive twice: one answer at a time
+    sending = true;
+    const args = { layer: layers.list.value, relation: relations.list.value, of: of.list.value };
+    if (!distance.hidden) args.distance = distance.value;
+    const { width, height } = mapSize();
+    client.send({ type: "run", commands: [[d.run, args]], width, height }).then((r) => {
+      sending = false;
+      if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
+      closeWithAnswer(box, [r]);
+    }).catch((error) => { sending = false; showError(error); });
+  };
+  distance.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ok(); } });
+  const okButton = button(d.ok, ok, "query-ok");
+  const cancel = button(d.cancel, () => box.close(), "query-cancel");
+  box.append(title, help, layers.label, layers.list, relations.label, relations.list, of.label, of.list,
+             distanceLabel, distance, message, okButton, cancel);
+  showDistance();
+  box.showModal();
+  layers.list.focus();
+}
+
 // The world tree (P3-T9a, SRB-3): the Information panel's tree code, so the screen reader says each item's
 // level and position, such as "level 3, 5 of 44". World is the one top item; a branch is asked of the core
 // (d.children) only when it is opened, and kept while the box is open. Enter, or Go, on an item goes there;
@@ -908,6 +981,7 @@ inputDialog.addEventListener("close", afterClose);
 layersDialog.addEventListener("close", afterClose);
 searchDialog.addEventListener("close", afterClose);
 treeDialog.addEventListener("close", afterClose);
+queryDialog.addEventListener("close", afterClose);
 // Enter in a settings field presses OK, as on the desktop (web checklist 5).
 settingsDialog.addEventListener("keydown", (e) => {
   const el = e.target;

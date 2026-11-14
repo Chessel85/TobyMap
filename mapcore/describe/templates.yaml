@@ -492,6 +492,9 @@ search:
   result: "{description}, {type}"
   result_via: "{description}, {type}, found as {via}"
   nothing: "Nothing found for {text}."
+  # Typing one of these words lists the disputed or unclaimed areas first (P3-T16a).
+  word_disputed: "disputed"
+  word_unclaimed: "unclaimed"
   # The search dialog (P3-T8c) and its choice of where to search (P3-T8d, SRB-2).
   title: "Search"
   label: "Search for"
@@ -516,6 +519,14 @@ tree:
   gone: "{name}"
   leaf: "{name} has no areas below it in the tree."
   world_go: "The World is the top of the tree. Choose a continent, country or area to go there."
+  # Land that is not plainly one country's (P3-T16a, ANN-6, DAT-8): each item gives its claimants, or none.
+  disputed: "Disputed areas"
+  unclaimed: "Unclaimed areas"
+  special_go: "{name} is a list, not a place. Open it and choose an area to go there."
+  special_none: "No {kind} are stored."
+  special_claimed: "{name}, {type}, claimed by {claimants}"
+  special_view: "{name}, {type}, {view}"
+  special_unclaimed: "{name}, {type}, no claimant"
 browse:
   title: "Inside {name}"
   help: "Choose a kind of feature to list every one inside {name}, or Cancel to stay."

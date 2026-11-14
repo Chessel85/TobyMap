@@ -30,6 +30,7 @@ from mapcore.geo import formats, geodesy, parse
 from mapcore import panel as panel_table
 from mapcore.layers import LayerCatalogue
 from mapcore.layers.visible import VisibleRule
+from mapcore.store.store import special_kind
 from mapcore.world import WorldState
 from mapcore.sound.stretch import split_rate
 from mapcore.world.state import nearest_index
@@ -777,14 +778,24 @@ class MapSession:
         search_go and search_measure say the same description."""
         w = self.world
         found = self.store.search(text, limit, layers, None if near_m is None else (w.lat, w.lon, near_m), inside)
+        # "disputed" or "unclaimed" lists those areas first (P3-T16a), within the narrowing chosen.
+        word = text.strip().casefold()
+        for kind in ("disputed", "unclaimed"):
+            if word in (say("search.word_" + kind), say("tree." + kind).casefold()) and layers is None and near_m is None:
+                special = self.store.special_areas(kind, inside)
+                have = {f.id for f in special}
+                found = special + [f for f in found if f.id not in have]
         out = []
         for f in found:
             area = self.store.feature(f.id)
             if area is None:
                 continue
             key = "search.result_via" if f.via else "search.result"
+            label = say(key, description=f.description, type=self._type_text(area), via=f.via)
+            if special_kind(area.record):   # disputed and unclaimed land says its claimants (P3-T16a)
+                label = self._special_label(area)
             out.append({"id": f.id, "name": f.name, "description": f.description, "layer": f.layer,
-                        "label": say(key, description=f.description, type=self._type_text(area), via=f.via)})
+                        "label": label})
         self.search_found = {f.id: f for f in found}
         return out
 
@@ -874,11 +885,32 @@ class MapSession:
         label = say("tree.item", name=name, type=self._type_text(area)) if area is not None else name
         return {"id": identifier, "label": label}
 
+    def _special_label(self, area) -> str:
+        """An item of Disputed areas or Unclaimed areas, with its claimants or "no claimant" (P3-T16a)."""
+        rec, kind = area.record, self._type_text(area)
+        if rec.get("claimants"):
+            names = [c.name if c is not None else i for c, i in
+                     ((self.store.feature(i), i) for i in rec["claimants"])]
+            return say("tree.special_claimed", name=area.name, type=kind, claimants=say("place.list_separator").join(names))
+        if rec.get("dispute"):
+            return say("tree.special_view", name=area.name, type=kind, view=rec["dispute"]["view"])
+        return say("tree.special_unclaimed", name=area.name, type=kind)
+
+    def _special_nodes(self) -> list[dict]:
+        return [{"id": "special:" + k, "label": say("tree." + k)} for k in ("disputed", "unclaimed")]
+
+    def _special_items(self, kind: str) -> list[dict]:
+        out = []
+        for identifier, name in self.store.tree_children("special:" + kind):
+            area = self.store.feature(identifier)
+            out.append({"id": identifier, "label": self._special_label(area) if area is not None else name})
+        return out
+
     def _tree_open(self, **_a) -> Response:
         """W: the world as a tree, World, then its continents, which each open to their countries, and so on
         (SRB-3). The shell reads each branch as it is opened with tree.children, and Enter on an item runs
         tree.go. The shells' own tree gives the screen reader each item's level and position."""
-        continents = [self._tree_node(i, n) for i, n in self.store.tree_children("world")]
+        continents = [self._tree_node(i, n) for i, n in self.store.tree_children("world")] + self._special_nodes()
         return Response(dialog={
             "kind": "tree", "title": say("tree.title"), "help": say("tree.help"),
             "root": {"id": "world", "label": say("tree.world"), "items": continents},
@@ -887,6 +919,11 @@ class MapSession:
 
     def _tree_children(self, id: str = "world", **_a) -> Response:
         """One branch of the tree, opened: its items by name, or the words for a branch with none."""
+        if id.startswith("special:"):
+            items = self._special_items(id[len("special:"):])
+            kind = say("tree." + id[len("special:"):]).lower()
+            return Response(branch={"id": id, "items": items,
+                                    "none": "" if items else say("tree.special_none", kind=kind)})
         items = [self._tree_node(i, n) for i, n in self.store.tree_children(id)]
         area = self.store.feature(id)
         return Response(branch={"id": id, "items": items,
@@ -896,6 +933,8 @@ class MapSession:
         """Enter on a tree item: go there, as hierarchy mode moves. The World is the top, not a place."""
         if id == "world":
             return Response(error=say("tree.world_go"))
+        if id.startswith("special:"):
+            return Response(error=say("tree.special_go", name=say("tree." + id[len("special:"):])))
         area = self.store.feature(id)
         if area is None:
             return Response(error=say("place.none"))
@@ -910,11 +949,17 @@ class MapSession:
             return Response().earcon("blocked").speak(say("browse.none_here"), ASSERTIVE)
         counts = self.store.relationships(current.id).get("counts", {})
         layers = [layer for layer in self.layers.layers() if counts.get(layer.id)]
-        if not layers:
+        lines = [say("contains.heading", layer=layer.name, count=counts[layer.id]) for layer in layers]
+        choices = [("layer", layer.id) for layer in layers]
+        for kind in ("disputed", "unclaimed"):   # categories of their own (P3-T16a)
+            inside = self.store.special_areas(kind, current.id)
+            if inside:
+                lines.append(say("contains.heading", layer=say("tree." + kind), count=len(inside)))
+                choices.append(("special", kind))
+        if not choices:
             return Response().earcon("blocked").speak(say("browse.nothing_inside", name=current.name), ASSERTIVE)
         return self._choose(say("browse.title", name=current.name), say("browse.help", name=current.name),
-                            [say("contains.heading", layer=layer.name, count=counts[layer.id]) for layer in layers],
-                            [("layer", layer.id) for layer in layers], go="browse.choose")
+                            lines, choices, go="browse.choose")
 
     def _browse_choose(self, index: int = -1, **_a) -> Response:
         """A kind chosen: every feature of it inside the current feature goes into the Search group, by name,
@@ -922,11 +967,15 @@ class MapSession:
         current = self.current_feature
         if current is None or not 0 <= index < len(self._choices):
             return Response().earcon("blocked")
-        layer = self.layers.get(self._choices[index][1])
-        found = self.store.browse(layer.id, current.id)
+        kind, which = self._choices[index]
+        if kind == "special":
+            found, label = self.store.special_areas(which, current.id), say("tree." + which)
+        else:
+            layer = self.layers.get(which)
+            found, label = self.store.browse(layer.id, current.id), layer.name
         self.search_found = {f.id: f for f in found[:BROWSE_LIMIT]}
         key = "browse.done_capped" if len(found) > BROWSE_LIMIT else "browse.done"
-        text = say(key, count=len(found), layer=layer.name, name=current.name, limit=BROWSE_LIMIT)
+        text = say(key, count=len(found), layer=label, name=current.name, limit=BROWSE_LIMIT)
         return Response(panel_stale=True).speak(text, ASSERTIVE)
 
     def _layer_on(self, area) -> bool:

@@ -37,6 +37,7 @@ def test_w_opens_the_world_tree_from_the_map(s):
 def test_the_world_holds_the_continents_by_name_with_their_position_as_nvda_says_it(s):
     root = s.run("tree.open").dialog["root"]
     names = labels(root["items"])
+    names = names[:-2]   # the last two are Disputed areas and Unclaimed areas (P3-T16a)
     assert names == sorted(names) and "Europe, continent" in names and len(names) == 7
     # World is level 1, the continents level 2: Europe is "level 2, 4 of 7", as the shells' trees count.
     assert names.index("Europe, continent") + 1 == 4
@@ -107,3 +108,47 @@ def test_choosing_lakes_puts_every_lake_in_hampshire_in_the_search_group_whateve
     assert said.announcements[-1]["text"] == "Lakes: 1 inside Hampshire, in the Search group."
     group = next(g for g in hampshire.panel(open=["search"]) if g["id"] == "search")
     assert [i["label"].split(",")[0] for i in group["items"]] == ["Longbridge Lake"]
+
+
+# Lists of disputed and unclaimed areas (P3-T16a; ANN-6, DAT-8, LOC-6) ------------------------------------------
+
+def test_the_world_ends_with_disputed_and_unclaimed_areas(s):
+    items = s.run("tree.open").dialog["root"]["items"]
+    assert [i["label"] for i in items[-2:]] == ["Disputed areas", "Unclaimed areas"]
+
+
+def test_crimea_is_in_disputed_areas_with_its_claimants(s):
+    items = branch(s, "special:disputed")["items"]
+    crimea = next(i for i in items if i["label"].startswith("Crimea"))
+    assert crimea["label"].endswith("claimed by Russia, Ukraine") or "claimed by" in crimea["label"]
+    assert s.run("tree.go", id=crimea["id"]).error is None
+
+
+def test_a_list_is_not_a_place_and_an_empty_one_says_so(s):
+    assert "is a list" in s.run("tree.go", id="special:disputed").error
+    b = branch(s, "special:unclaimed")
+    assert b["items"] == [] and b["none"] == "No unclaimed areas are stored."
+
+
+def test_searching_disputed_lists_them_first(s):
+    found = s.search("disputed")
+    assert found and found[0]["name"].startswith("Crimea") or any(f["name"].startswith("Crimea") for f in found)
+    assert "laimed by" in found[0]["label"]
+
+
+def test_unclaimed_land_and_marked_land_are_told_apart():
+    from mapcore.store.store import special_kind
+    assert special_kind({"type": "unclaimed land"}) == "unclaimed"      # Bir Tawil, the small islands
+    assert special_kind({"type": "disputed land"}) == "disputed"        # the West Bank, the Ilemi Triangle
+    assert special_kind({"type": "region", "disputed": True}) == "disputed"   # a place held twice in OSM
+    assert special_kind({"type": "country"}) is None
+
+
+def test_browsing_inside_a_country_lists_its_disputed_areas(s):
+    s.run("tree.go", id="continent:europe")
+    r = s.run("browse.open")
+    index = next((i for i, line in enumerate(r.dialog["lines"]) if line.startswith("Disputed areas")), None)
+    assert index is not None
+    s.run("browse.choose", index=index)
+    group = next(g for g in s.panel(open=["search"]) if g["id"] == "search")
+    assert any(i["label"].startswith("Crimea") for i in group["items"])

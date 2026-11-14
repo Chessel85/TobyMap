@@ -163,6 +163,16 @@ def _record_name(rec: dict) -> str:
 TREE_LAYERS = ("continents", "countries", "regions", "counties")   # the layers of the world tree (P3-T9a)
 
 
+def special_kind(rec: dict) -> str | None:
+    """"unclaimed" for land in no country, "disputed" for land more than one party holds or claims, else None
+    (P3-T16a, ANN-6, DAT-8, LOC-6)."""
+    if rec.get("type") == "unclaimed land":
+        return "unclaimed"
+    if rec.get("disputed") or rec.get("type") == "disputed land":
+        return "disputed"
+    return None
+
+
 def _boxes_meet(a, b) -> bool:
     """Whether two boxes (west, south, east, north) share any ground; west greater than east is a box across
     the 180 degree line (AD-17)."""
@@ -783,9 +793,26 @@ class Store:
                     break
             else:
                 self._place_country(identifier, rec, rows, add)
+        for identifier, rec in rows.items():   # the two lists of land that is not plainly one country's (P3-T16a)
+            kind = special_kind(rec)
+            if kind:
+                add("special:" + kind, identifier)
         return {parent: sorted(((i, _record_name(rows[i])) for i in members),
                                key=lambda t: (t[1].casefold(), t[0]))
                 for parent, members in tree.items()}
+
+    def special_areas(self, kind: str, inside: str | None = None) -> list[Found]:
+        """The disputed areas or unclaimed areas (kind "disputed" or "unclaimed"), by name, as search results,
+        all of them or only those the stored relationships put inside, partly inside or crossing a feature."""
+        out = []
+        for identifier, name in self.tree_children("special:" + kind):
+            rec = self.feature(identifier)
+            point = rec.record.get("point") if rec is not None else None
+            out.append(Found(0, identifier, name, rec.layer if rec is not None else "countries", 0,
+                             point[1] if point else None, point[0] if point else None, name, "", 0, 1.0))
+        if inside is None:
+            return out
+        return self._inside(out, inside, len(out))
 
     def _place_country(self, identifier: str, rec: dict, rows: dict, add) -> None:
         """An area of the countries layer goes under its sovereign, if it is a distant part; else under the

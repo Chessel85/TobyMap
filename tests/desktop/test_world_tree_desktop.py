@@ -39,7 +39,7 @@ def item_named(parent, text):
 def test_w_opens_the_tree_with_world_open_and_the_continents_under_it(window, qtbot):
     box = open_box(window, qtbot)
     assert box.tree.hasFocus() and box.cancel_button.text() == "Cancel"
-    assert box.world.text(0) == "World" and box.world.isExpanded() and box.world.childCount() == 7
+    assert box.world.text(0) == "World" and box.world.isExpanded() and box.world.childCount() == 9   # seven continents, Disputed areas and Unclaimed areas
     assert box.tree.currentItem().text(0) == "Africa, continent"
 
 

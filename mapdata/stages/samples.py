@@ -27,7 +27,8 @@ from mapdata.pipeline.errors import BuildStopped
 from mapdata.stages.clip import polygonal
 
 NEEDED = ("id", "name", "layer", "type")
-KEPT = ("id", "name", "local_name", "layer", "type", "parent", "sovereign")
+# population: a town's, from OpenStreetMap, as the osm-places stage keeps it (P3-T1j), for search's importance.
+KEPT = ("id", "name", "local_name", "layer", "type", "parent", "sovereign", "population")
 
 
 def as_lines_or_points(geom, shape: str, props: dict, filename: str):

@@ -29,6 +29,7 @@ import math
 import re
 import struct
 import zlib
+from collections import OrderedDict
 from pathlib import Path
 
 from mapcore.describe import say
@@ -42,6 +43,7 @@ OLDEST_FORMAT = 2   # read: formats 2 and 3 are format 4 without what it added, 
 _HEADER = struct.Struct("<8sHHIQQII")
 HEADER_SIZE = _HEADER.size  # 40
 GROUP_SIZE = 256  # feature records per group, on average
+SEARCH_KEPT = 32  # search records kept after reading (P3-T8b)
 
 # What a feature record must hold in Phase 1 (architecture 6.4).
 FEATURE_FIELDS = ("id", "source", "layer", "type", "names", "rank", "area_km2", "bbox", "width_km",
@@ -212,6 +214,7 @@ class PackWriter:
         self.group_starts: list[int] = []
         self.tile_levels: set[int] = set()
         self.drawing_used: dict[int, set[tuple[int, int]]] = {}
+        self.search: dict | None = None
         self.finished = False
 
     def _put(self, key: str, data: bytes) -> None:
@@ -267,6 +270,23 @@ class PackWriter:
                 per.setdefault(feature_group(fid, groups), {})[fid] = rel
         for g in sorted(per):
             self._put(f"relations/{g}", _json(per[g]))
+
+    def add_search(self, buckets: int, records: dict[int, list[list]], rows: int) -> None:
+        """Write the search index (P3-T8a, architecture 7.9): record search/B holds the rows filed under the
+        prefixes that mapcore.search.bucket puts in B, as a JSON list. The manifest gets search: {"buckets",
+        "rows"}, so the reader knows how many records there are."""
+        if self.numbers is None:
+            raise PackWriteError("add_features comes before the search index")
+        if self.search is not None:
+            raise PackWriteError("add_search is called once")
+        for b in sorted(records):
+            if not 0 <= b < buckets:
+                raise PackWriteError(f"search record {b} is not one of the {buckets}")
+            unknown = [r[2] for r in records[b] if r[2] not in self.numbers]
+            if unknown:
+                raise PackWriteError(f"the search index names features not in the pack: {', '.join(unknown[:5])}")
+            self._put(f"search/{b}", _json(records[b]))
+        self.search = {"buckets": int(buckets), "rows": int(rows)}
 
     def _entries(self, entries, exact: bool, level: int) -> bytes:
         if self.numbers is None:
@@ -338,7 +358,9 @@ class PackWriter:
             for x, y in used:
                 if not tiles.in_grid(declared[d], x, y):
                     raise PackWriteError(f"drawing tile {d}/{x}/{y} is not in tile level {declared[d]}")
-        return {
+        if "search" in given:
+            raise PackWriteError("the writer sets search itself, from add_search")
+        out = {
             **given,
             "format": FORMAT,
             "built": max(s["date"] for s in sources),
@@ -349,6 +371,9 @@ class PackWriter:
                          "group_starts": self.group_starts},
             "limits": {"entry_points": tiles.ENTRY_POINTS, "tile_points": tiles.TILE_POINTS},
         }
+        if self.search is not None:
+            out["search"] = self.search
+        return out
 
     def finish(self, manifest: dict, attribution: str, layers: list[dict], licence: str = ODBL_NOTICE) -> str | None:
         """Write the manifest, attribution, licence, layers and directory.
@@ -417,6 +442,7 @@ class Pack:
         self.reads = 0
         self._groups: dict[int, list[dict]] = {}
         self._relations: dict[int, dict] = {}
+        self._search: OrderedDict[int, list] = OrderedDict()
         try:
             self._open(app_version, check_app)
         except Exception:
@@ -566,6 +592,30 @@ class Pack:
         if g not in self._relations:
             self._relations[g] = self.get_json(f"relations/{g}") or {}
         return self._relations[g].get(identifier, {})
+
+    @property
+    def search_buckets(self) -> int:
+        """How many search records the pack has (P3-T8a); 0 for a pack written before the search index."""
+        return int((self.manifest.get("search") or {}).get("buckets") or 0)
+
+    def search_rows(self, b: int) -> list[list]:
+        """The rows of search record b (mapcore.search.ROW). The last SEARCH_KEPT records read are kept, so
+        typing on reads each record once, and the memory they take stays small."""
+        if b in self._search:
+            self._search.move_to_end(b)
+            return self._search[b]
+        from mapcore import search
+
+        rows = self.get_json(f"search/{b}") or []
+        for row in rows:   # what the pack leaves out to save space, put back (pack-format.md, search/B)
+            name = row[search.NAME]
+            if not row[search.KEY]:
+                row[search.KEY] = search.normalise(name)
+            row[search.DESCRIPTION] = f"{name}, {row[search.DESCRIPTION]}" if row[search.DESCRIPTION] else name
+        self._search[b] = rows
+        while len(self._search) > SEARCH_KEPT:
+            self._search.popitem(last=False)
+        return rows
 
     def feature_by_id(self, identifier: str) -> dict | None:
         number = self.feature_number(identifier)

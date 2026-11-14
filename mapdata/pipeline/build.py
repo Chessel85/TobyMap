@@ -79,7 +79,8 @@ STAGES = {
     "write": StageKind("writing the pack", "mapdata.stages.write",
                        ("mapdata.stages.write", "mapdata.stages.pack_write", "mapdata.stages.relationships", "mapdata.stages.drawing_levels", "mapdata.stages.antimeridian",
                         "mapdata.stages.geodesy", "mapcore.geo.geodesy", "mapcore.packs.pack",
-                        "mapcore.packs.coords", "mapcore.packs.tiles")),
+                        "mapcore.packs.coords", "mapcore.packs.tiles", "mapdata.stages.search_index",
+                        "mapcore.search")),
 }
 
 

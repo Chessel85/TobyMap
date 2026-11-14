@@ -487,6 +487,12 @@ crossing:
   none: "Nothing crosses {name}."
 search:
   none: "No search yet."
+  # A search result (P3-T8b, SRB-1): the description that tells it apart, such as "Paris, Île-de-France,
+  # France", then what it is, as Details says it. Found by a name other than the English: "found as" it.
+  result: "{description}, {type}"
+  result_via: "{description}, {type}, found as {via}"
+  nothing: "Nothing found for {text}."
+  gone: "{description}"
 
 # Hierarchy mode (P3-T6a; NAV-4, NAV-11, DP77). M switches it on and off; the arrow keys go up, down and
 # round the neighbours. A move says the feature, then the zoom it was fitted to: "England. Zoom 250 kilometres."

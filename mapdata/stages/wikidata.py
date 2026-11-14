@@ -10,7 +10,11 @@ about the person running the build, and kept in the data folder with the date ea
 nothing again, so the pack is the same byte for byte (DMT-1). A new "refresh" in the settings starts a
 new file, fetched afresh.
 
-Each line of the file is one item: {"id": "Q142", "fetched": "2026-11-13", "rows": [...]}, where each
+How many Wikimedia sites have each item, which counts towards its importance in search (P3-T8a), is kept
+beside them in sites-<refresh>.jsonl, fetched the same way, 500 items to a query, so the facts already
+fetched need not be fetched again. The build keeps it as "sitelinks", for the writing stage only.
+
+Each line of the facts file is one item: {"id": "Q142", "fetched": "2026-11-13", "rows": [...]}, where each
 row is [what, value, date, rank, label]: the statements as Wikidata gives them. Which statement is
 used is chosen when the stage runs (choose_facts), so a change to the rules needs no fetching.
 
@@ -334,6 +338,62 @@ def parse_point(wkt: str) -> tuple[float, float] | None:
     return float(lon), float(lat)
 
 
+# How many Wikimedia sites have each item (P3-T8a) ------------------------------------------------------
+
+SITES_QUERY = """SELECT ?item ?n WHERE { VALUES ?item { %s } ?item wikibase:sitelinks ?n }"""
+SITES_BATCH = 500   # a light query, one number for each item
+
+
+def sites_path(facts: Path) -> Path:
+    """sites-<refresh>.jsonl beside the facts: one line for each item, {"id", "fetched", "sites"}."""
+    return facts.with_name(facts.name.replace("facts-", "sites-", 1))
+
+
+def fetch_sites(qids: list[str], query=post, batch: int = SITES_BATCH, say=print, pause_s: float = PAUSE_S,
+                sleep=time.sleep, today: str | None = None, keep=None) -> dict[str, dict]:
+    """How many Wikimedia sites (Wikipedias in each language, and the other projects) have each item, which
+    counts towards its importance in search (architecture 7.9). Kept in its own file, so the facts fetched
+    before need not be fetched again. An item Wikidata gives no number for has 0."""
+    import datetime as dt
+
+    today = today or dt.date.today().isoformat()
+    out: dict[str, dict] = {}
+    started = time.monotonic()
+
+    def ask(part: list[str]) -> dict[str, int]:
+        """The counts of a batch; a batch whose answer is cut off every time is asked again in halves."""
+        try:
+            result = query(SITES_QUERY % " ".join(f"wd:{q}" for q in part))
+        except CutOff:
+            if len(part) == 1:
+                say(f"Wikidata's answer for {part[0]} was cut off every time; it counts as no sites.")
+                return {}
+            half = len(part) // 2
+            return {**ask(part[:half]), **ask(part[half:])}
+        got: dict[str, int] = {}
+        for b in result["results"]["bindings"]:
+            try:
+                got[_plain(b.get("item"))] = int(float(b["n"]["value"]))
+            except (KeyError, ValueError, TypeError):
+                continue
+        return got
+
+    for n in range(0, len(qids), batch):
+        part = qids[n:n + batch]
+        got = ask(part)
+        entries = {q: {"id": q, "fetched": today, "sites": got.get(q, 0)} for q in part}
+        out.update(entries)
+        if keep is not None:
+            keep(entries)
+        done = min(n + batch, len(qids))
+        if done < len(qids):
+            took = time.monotonic() - started
+            say(f"Fetched the site counts of {done:,} of {len(qids):,} Wikidata items; about "
+                f"{(len(qids) - done) * took / done / 60:.0f} minutes to go.")
+            sleep(pause_s)
+    return out
+
+
 def fetch_names(names: list[str], query=post, batch: int = BATCH, say=print, pause_s: float = PAUSE_S,
                 sleep=time.sleep, today: str | None = None, keep=None) -> dict[str, dict]:
     """The items with each English name and their coordinates: {name: {"name", "fetched", "items": [[q, lon,
@@ -493,6 +553,26 @@ def run(ctx) -> None:
             r["kinds"] = got["kinds"]
     line(f"Facts from Wikidata for {with_facts:,} features of {len(records):,}; {len(wanted):,} have a "
          "Wikidata link.")
+
+    # How many Wikimedia sites have each item, for search's importance (P3-T8a), kept in a file of its own.
+    spath = sites_path(path)
+    sites = read_file(spath)
+    missing = [q for q in wanted if q not in sites]
+    if missing and not offline:
+        line(f"Fetching how many Wikimedia sites have each of {len(missing):,} Wikidata items, for search; the "
+             f"rest were fetched before and kept in {spath}.")
+        sites.update(fetch_sites(missing, say=line, batch=int(s.get("sites_batch", SITES_BATCH)),
+                                 keep=lambda e: append_file(ctx.claim(spath), e)))
+    elif missing:
+        say(f"Offline: the site counts of {len(missing)} Wikidata items are not in {spath.name}, so they count "
+            "as none.")
+    counted = 0
+    for r in records:
+        q = r.get("wikidata")
+        if q and (sites.get(q) or {}).get("sites"):
+            r["sitelinks"] = int(sites[q]["sites"])
+            counted += 1
+    line(f"Wikimedia site counts for {counted:,} features, for their importance in search.")
     for text in coverage_lines(records, ctx.pack.layers):
         line(text)
     features.save(ctx.folder, records, geoms, ctx.claim)

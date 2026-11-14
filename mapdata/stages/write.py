@@ -61,9 +61,10 @@ def resolve_within(records: list[dict], renamed: dict) -> None:
             r["within"] = [renamed.get((w["id"], w["layer"]), w["id"]) for w in r["within"]]
 
 
-# Fields the stages keep for the build only: Wikidata's kinds of each feature, which name the tiers (DP181), and
-# whether its Wikidata link was matched by name, which the wikidata stage's log lists (P3-T2a).
-BUILD_ONLY = ("kinds", "wikidata_matched")
+# Fields the stages keep for the build only: Wikidata's kinds of each feature, which name the tiers (DP181),
+# whether its Wikidata link was matched by name, which the wikidata stage's log lists (P3-T2a), and how many
+# Wikimedia sites have it, which counts towards its importance in search (P3-T8a).
+BUILD_ONLY = ("kinds", "wikidata_matched", "sitelinks")
 
 
 # Tiers (P3-T17, DP165) ------------------------------------------------------------------------------
@@ -382,6 +383,9 @@ def run(ctx) -> None:
     if counts:
         ctx.progress.line("Tiers given, from the tiers record: " + "; ".join(
             f"{t.replace('_', ' ')}, {counts[t]:,}" for t in tiers["tiers"] if t in counts) + ".")
+    # The search index (P3-T8a) is made with the feature records; the sites are kept for it first.
+    search = {"sites": {r["id"]: int(r["sitelinks"]) for r in records if r.get("sitelinks")},
+              "settings": ctx.settings.get("search") or {}}
     for r in records:   # what earlier stages kept for the build only, not for the pack
         for key in BUILD_ONLY:
             r.pop(key, None)
@@ -399,11 +403,11 @@ def run(ctx) -> None:
     with parallel.pool(ctx.workers) as executor:
         pool = None if ctx.workers == 1 else executor
         write_with(ctx, records, geoms, sources, pool, tiers["tiers"],
-                   relmod.by_id(rel, [r["id"] for r in records]) if rel else None)
+                   relmod.by_id(rel, [r["id"] for r in records]) if rel else None, search)
 
 
 def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None = None,
-               relationships: dict | None = None) -> None:
+               relationships: dict | None = None, search: dict | None = None) -> None:
     """The rest of the writing stage, with the pool of workers open for all of it (P3-T1k)."""
     import time
 
@@ -457,4 +461,4 @@ def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None =
     ctx.claim(checksum_path(path))
     pack_write.write(path, manifest, records, geoms, ctx.workers, say=ctx.progress.line, layers=layers,
                      attribution=attribution_text(sources), drawing_geoms=drawing_geoms, executor=executor,
-                     before_records=set_areas, relationships=relationships)
+                     before_records=set_areas, relationships=relationships, search=search)

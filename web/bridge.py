@@ -213,6 +213,20 @@ def shell_times(key_ms: float, handed_ms: float) -> None:
                           handed_over_at=now - handed_ms / 1000 if handed_ms is not None else None)
 
 
+def search(text: str, scope_json: str = "{}"):
+    """A search in the core (P3-T8b, SRB-1): the results as MapSession.search gives them, and how long the
+    search took in Pyodide, in milliseconds. scope_json may give layers, near_m and inside (SRB-2). For the
+    search dialog (P3-T8c), the browser tests and the timing of search on the web."""
+    import json
+    import time
+
+    scope = json.loads(scope_json or "{}")
+    t = time.perf_counter()
+    results = _session.search(text, layers=scope.get("layers"), near_m=scope.get("near_m"),
+                              inside=scope.get("inside"))
+    return _js({"results": results, "ms": (time.perf_counter() - t) * 1000})
+
+
 def pack_selfcheck():
     """The pack format's self-check in Pyodide (P1-T2): a list of problems, empty when all is well."""
     from mapcore.packs import selfcheck

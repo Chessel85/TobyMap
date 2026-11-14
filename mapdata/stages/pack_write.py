@@ -414,7 +414,7 @@ def spike_sources(gol: Path, land_polygons: Path) -> list[dict]:
 def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers: int = 1, say=print,
           layers: list[dict] | None = None, attribution: str | None = None,
           drawing_geoms: dict[int, list] | None = None, executor=None, before_records=None,
-          relationships: dict[str, dict] | None = None) -> dict:
+          relationships: dict[str, dict] | None = None, search: dict | None = None) -> dict:
     """Write the pack. The cutting into pack tiles and the encoding are split
     into batches run by worker processes (DP103); the main process joins the
     results, splits full pack tiles, and writes the file. The tile entries
@@ -431,6 +431,8 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
     executor, if given, is a pool already open, as the writing stage's; otherwise one is opened here.
     before_records, if given, is called before the feature records are made, such as to put in their areas.
     relationships, if given, are each feature's relationships by id (P3-T3e), written beside the feature records.
+    search, if given, makes the search index (P3-T8a, mapdata.stages.search_index): {"sites": {id: how many
+    Wikimedia sites have it}, "settings": the index's settings}.
 
     A progress line is written after each step, so a long step is seen to move (DMT-2).
 
@@ -490,10 +492,22 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
             before_records()
         made = feature_records(records, geoms, None if workers == 1 else executor, workers)
         step(f"Made {len(made):,} feature records")
+    index = None
+    if search is not None:   # P3-T8a: from the feature records, with their final ids, points and areas
+        from mapdata.stages import search_index
+
+        index_rows = search_index.rows(made, relationships, search.get("sites") or {}, search.get("settings"))
+        n_buckets, filed = search_index.buckets(
+            index_rows, search_index.settings_of(search.get("settings"))["bucket_rows"])
+        index = (n_buckets, filed, len(index_rows))
+        step(f"Made the search index: {len(index_rows):,} names of {len({r[2] for r in index_rows}):,} features, "
+             f"in {n_buckets:,} search records")
     writer = PackWriter(path)
     numbers = writer.add_features(made)
     if relationships:   # P3-T3e: by id, beside the feature records
         writer.add_relationships(relationships)
+    if index is not None:
+        writer.add_search(*index)
     number_of = [numbers[r["id"]] for r in records]
     entries_written = 0
     for (level, x, y) in sorted(encoded):

@@ -137,7 +137,7 @@ function finish(result) {
 
 self.onmessage = async (event) => {
   const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs,
-          problem, samples, rate, factor, pitch, open } = event.data;
+          problem, samples, rate, factor, pitch, open, text, scope } = event.data;
   try {
     await ready;
     let out;
@@ -160,6 +160,7 @@ self.onmessage = async (event) => {
     }
     else if (type === "painted") { bridge.frame_painted(paintMs); out = { result: null, transfer: [] }; }
     else if (type === "shell_times") { bridge.shell_times(keyMs, handedMs); out = { result: null, transfer: [] }; }
+    else if (type === "search") out = { result: bridge.search(text || "", JSON.stringify(scope || {})), transfer: [] };
     else if (type === "packcheck") out = { result: bridge.pack_selfcheck(), transfer: [] };
     else if (type === "storecheck") out = { result: bridge.store_selfcheck(), transfer: [] };
     else throw new Error(`Unknown message ${type}`);

@@ -20,7 +20,7 @@ FILES = {
     "switzerland-neighbours.geojson": {"countries"},
     "rhine.geojson": {"rivers"},
     "bay-of-biscay.geojson": {"seas"},
-    "shared-names.geojson": {"places", "regions"},
+    "shared-names.geojson": {"towns", "regions"},
 }
 
 

@@ -28,6 +28,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from mapcore import search
 from mapcore.geo import geodesy
 from mapcore.packs import tiles
 from mapcore.packs.pack import DamagedRecord, Pack
@@ -134,6 +135,44 @@ def path_pieces(path) -> list[np.ndarray]:
                     c[:, 0] -= 360.0 * k
                     out.append(c)
     return out
+
+
+@dataclass(frozen=True)
+class Found:
+    """A search result (P3-T8b): the feature's identifier, English name, layer and importance, its point, the
+    description that tells it apart, the name it was found by when not the English (via, else ""), and how
+    well it matched (mapcore.search: level and similarity)."""
+    pack: int
+    id: str
+    name: str
+    layer: str
+    importance: int
+    lat: float | None
+    lon: float | None
+    description: str
+    via: str
+    level: int
+    similarity: float
+
+
+def _in_box(lat: float, lon: float, box) -> bool:
+    west, south, east, north = box
+    if not south <= lat <= north:
+        return False
+    return west <= lon <= east if west <= east else (lon >= west or lon <= east)
+
+
+def _within(row: list, near: tuple[float, float, float]) -> bool:
+    """Whether a search row's point is within near's distance of near's point, on the mean sphere, which is
+    close enough to narrow a search (SRB-2)."""
+    lat, lon = row[search.LAT], row[search.LON]
+    if lat is None:
+        return False
+    plat, plon, metres = near
+    a = math.radians(lat)
+    b = math.radians(plat)
+    h = math.sin((b - a) / 2) ** 2 + math.cos(a) * math.cos(b) * math.sin(math.radians(plon - lon) / 2) ** 2
+    return 2 * 6_371_008.8 * math.asin(min(1.0, math.sqrt(h))) <= metres
 
 
 @dataclass(frozen=True)
@@ -628,6 +667,95 @@ class Store:
                     results.append(found)
                     results.sort(key=lambda n: (n.distance_m, n.area.id))
         return results[:limit]
+
+    # Search (P3-T8b, SRB-1, SRB-2, architecture 7.9) ------------------------------------------------------
+
+    def search(self, text: str, limit: int = 20, layers=None, near: tuple[float, float, float] | None = None,
+               inside: str | None = None) -> list[Found]:
+        """Features whose names match what was typed, best first: by how well they match, then by importance
+        (mapcore.search). Only the search records of the words typed are read, never the whole index.
+
+        Narrowing (SRB-2): `layers`, a collection of layer ids; `near`, (lat, lon, metres), the feature's point
+        within that distance; `inside`, an identifier: the feature itself, or one the stored relationships put
+        inside it, fully or partly, or crossing it. A pack written before the search index finds nothing.
+        One feature found by two of its names is listed once, by the better."""
+        query = search.Query(text)
+        if not query.key:
+            return []
+        wanted = None if layers is None else set(layers)
+        best: dict[str, tuple[tuple, Found]] = {}
+        with self._lock:
+            for p, index in enumerate(self._indexes):
+                pack = index.pack
+                n = pack.search_buckets
+                if not n:
+                    continue
+                for pref in query.prefixes:
+                    try:
+                        rows = pack.search_rows(search.bucket(pref, n))
+                    except DamagedRecord as exc:
+                        self._note(exc)
+                        continue
+                    lead = " " + pref
+                    for row in rows:
+                        key = row[search.KEY]
+                        # A record holds the rows of several prefixes; only this prefix's are looked at, so what
+                        # is found never depends on which prefixes share a record.
+                        if not (key.startswith(pref) or lead in key):
+                            continue
+                        if wanted is not None and row[search.LAYER] not in wanted:
+                            continue
+                        got = query.match(key)
+                        if got is None:
+                            continue
+                        if near is not None and not _within(row, near):
+                            continue
+                        level, similar = got
+                        order = search.rank_key(level, similar, row[search.IMPORTANCE], row[search.NAME],
+                                                row[search.ID])
+                        old = best.get(row[search.ID])
+                        if old is None or order < old[0]:
+                            best[row[search.ID]] = (order, Found(
+                                p, row[search.ID], row[search.NAME], row[search.LAYER], row[search.IMPORTANCE],
+                                row[search.LAT], row[search.LON], row[search.DESCRIPTION], row[search.VIA],
+                                level, similar))
+        ranked = [f for _o, f in sorted(best.values(), key=lambda t: t[0])]
+        if inside is None:
+            return ranked[:limit]
+        return self._inside(ranked, inside, limit)
+
+    def _inside(self, ranked: list[Found], identifier: str, limit: int) -> list[Found]:
+        """The results that are the feature, or inside it, partly inside or crossing it, by the stored
+        relationships, in their order, at most limit. Each result's point is first tested against the
+        feature's box, so the relationships of most are never read."""
+        holder = self.feature(identifier)
+        if holder is None:
+            return []
+        box = holder.record.get("bbox")
+        out = []
+        for f in ranked:
+            if len(out) >= limit:
+                break
+            if f.id == identifier:
+                out.append(f)
+                continue
+            if box is not None and f.lat is not None and not _in_box(f.lat, f.lon, box):
+                # A line or an area may reach into the box with its point outside it.
+                if f.layer and self._geometry_of(f.layer) == "point":
+                    continue
+            rel = self.relationships(f.id)
+            if identifier in rel.get("in", ()) or identifier in rel.get("same", ()) \
+                    or identifier in rel.get("crosses", ()) \
+                    or any(x[0] == identifier for x in (*rel.get("partly", ()), *rel.get("overlaps", ()))):
+                out.append(f)
+        return out
+
+    def _geometry_of(self, layer: str) -> str:
+        for index in self._indexes:
+            for d in index.pack.layers:
+                if d.get("id") == layer:
+                    return d.get("geometry", "area")
+        return "area"
 
     @staticmethod
     def _box_distance_m(boxes: np.ndarray, lat: float, lon: float) -> np.ndarray:

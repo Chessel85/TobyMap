@@ -31,6 +31,8 @@ stages:
       - {source: sample-osm, file: crimea.geojson}
       - {source: sample-osm, file: new-forest.geojson}
       - {source: sample-osm, file: distant-parts.geojson}
+      # Places that share a name, for search (P3-T8): two Parises, two Portlands, two Newports, Sao Paulo.
+      - {source: sample-osm, file: shared-names.geojson}
   # A country's parts on another continent become areas of their own: French Guiana and Hawaii (DP191).
   - stage: distant-parts
   - stage: water

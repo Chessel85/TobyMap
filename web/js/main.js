@@ -26,7 +26,9 @@ let toggles = {};   // the ticks of the menu items, from the core
 
 // window.tobymap is for the browser tests and diagnostics only.
 window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.heard, clicks: sounds.clicks, ready: false, error: null,
-  paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceHalts: voice.counts, voiceState: voice.getState };
+  paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceHalts: voice.counts, voiceState: voice.getState,
+  // A search in the core, with its time in Pyodide (P3-T8b): for the tests and timing until the dialog comes (P3-T8c).
+  search: (text, scope) => client.send({ type: "search", text, scope }) };
 const told = new Set();   // voice problems and own sound files that failed, each said once
 
 // Your own sound file could not be played, so the default was: said once for each file (SON-8).

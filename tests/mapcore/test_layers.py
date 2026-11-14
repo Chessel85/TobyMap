@@ -41,12 +41,12 @@ class _Pack:
 
 def test_the_catalogue_comes_from_the_packs_layer_definitions(session):
     layers = session.layers.layers()
-    assert [layer.id for layer in layers] == ["countries", "oceans", "seas", "regions", "counties", "rivers", "lakes",
-                                                   "stations", "national_parks"]
+    assert [layer.id for layer in layers] == ["countries", "oceans", "seas", "regions", "counties", "rivers", "towns",
+                                                   "lakes", "stations", "national_parks"]
     countries = session.layers.get("countries")
     assert countries.name == "Countries" and countries.group == "Boundaries" and countries.geometry == "area"
     assert countries.on and countries.in_zoom(5000) and countries.in_zoom(10_000_000)
-    assert [g for g, _ in session.layers.groups()] == ["Boundaries", "Water", "Transport"]
+    assert [g for g, _ in session.layers.groups()] == ["Boundaries", "Water", "Places", "Transport"]
 
 
 def test_an_old_pack_with_only_ids_and_names_gets_the_defaults():
@@ -188,7 +188,7 @@ def test_the_layers_list_for_the_shells(session):
     assert data["title"] == "Layers"
     assert [(g["name"], [layer["id"] for layer in g["layers"]]) for g in data["groups"]] == [
         ("Boundaries", ["countries", "regions", "counties", "national_parks"]), ("Water", ["oceans", "seas", "rivers", "lakes"]),
-        ("Transport", ["stations"])]
+        ("Places", ["towns"]), ("Transport", ["stations"])]
     oceans = data["groups"][1]["layers"][0]
     assert oceans["name"] == "Oceans and seas" and oceans["on"] is False and oceans["changed"] == ["on"]
 
@@ -305,7 +305,7 @@ def test_the_panel_follows_the_zoom(session):
 def test_the_layers_command_has_its_key_and_gives_the_dialog_its_words_and_choices(session):
     assert session.press("Ctrl+Shift+L").dialog["kind"] == "layers"
     d = session.run("layers.open").dialog
-    assert d["title"] == "Layers" and [g["name"] for g in d["groups"]] == ["Boundaries", "Water", "Transport"]
+    assert d["title"] == "Layers" and [g["name"] for g in d["groups"]] == ["Boundaries", "Water", "Places", "Transport"]
     assert d["every_zoom"] == "No limit" and {"value": 1000.0, "label": "1 kilometre"} in d["zooms"]
     assert "line_crossing" in {e["event"] for e in d["earcons"]}
     # The closest zoom, the smaller distance, is the maximum zoom (P2-T18c, the PO swapped them).

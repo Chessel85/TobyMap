@@ -160,6 +160,15 @@ From format 4 (P3-T3e, architecture 6.5): the relationships of group G's feature
 
 `Pack.relationships(identifier)` returns the object, or an empty one for a feature with none or a pack written before format 4.
 
+### search/B
+
+From 13 November 2026, in format 4 (P3-T8a, architecture 7.9): the search index. The manifest's `search` is `{"buckets": N, "rows": R}`, set by the writer; a pack without it has no search index, and a search finds nothing. The rules are in `mapcore/search.py`, used by both the build and the application:
+
+* Each name, the English, the local and Wikidata's official name, is made plain: accents taken off, special letters spelt out (ß as ss, ø as o), lower case, and anything but letters and digits made a space.
+* A plain name is filed under the first three letters of its first word, and of each later word of three letters or more that is not a small word such as "of" or "de".
+* Record search/B holds every row filed under a prefix whose CRC-32, as UTF-8, modulo N is B. A record with no rows is not stored. A search reads only the records of the prefixes of the words typed.
+* Each record is a JSON list of rows, sorted by plain name then identifier. A row is a list: the plain name, or "" when it is the English name made plain; the English name; the identifier; the layer; the importance, 0 to 1,000; the point's longitude and latitude, to 3 decimal places; the words that follow the name in the description that tells it apart, such as "Île-de-France, France" for "Paris, Île-de-France, France", or "" for none; and the name it is filed by when that is not the English name, else "". The reader puts the plain name and the whole description back. A row filed under two prefixes in two records is in both. A name with ä, ö or ü is also filed with ae, oe and ue, as it is often typed.
+
 ### tile/L/X/Y
 
 A pack tile of exact shapes, at tile level L, column X and row Y.
@@ -254,4 +263,4 @@ The same calls in the same order always give the same bytes (DMT-1). Cutting sha
 * Format 1, 2 November 2026: spike S2. A 16-byte header, the directory's place in a 16-byte footer, one record for all feature records, WKB or compact coordinates, and no check numbers. Dropped on 3 November.
 * Format 2, 3 November 2026: P1-T2. The directory's place and check number in the header, a check number for every record, the checksum file, version checks, feature records in groups with feature numbers, attribution, licence and layer definitions, drawing tiles, compact coordinates only, and the writer's limits.
 * Format 3, 5 November 2026: P2-T10a. Tile entry kinds 3 (lines) and 4 (points), the layer definitions' geometry and the other fields from P2-T3, and the reader still reads format 2.
-* Format 4, 13 November 2026: P3-T2b, P3-T2c, P3-T3e. Facts and the Wikipedia article, claimants, the source's view of a dispute and tier names in feature records; the relations records; and the reader still reads formats 2 and 3.
+* Format 4, 13 November 2026: P3-T2b, P3-T2c, P3-T3e. Facts and the Wikipedia article, claimants, the source's view of a dispute and tier names in feature records; the relations records; and the reader still reads formats 2 and 3. The search records were added on 13 November 2026 (P3-T8a), optional, so the number did not change: no pack in format 4 had been published.

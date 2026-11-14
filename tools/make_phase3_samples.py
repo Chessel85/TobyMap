@@ -13,7 +13,7 @@ test pack without the data folder:
 * rhine.geojson: the Rhine from Basel to Schaffhausen, where it is the border of
   Switzerland and Germany, in the layer rivers.
 * bay-of-biscay.geojson: the Bay of Biscay as OpenStreetMap has it, in the layer seas.
-* shared-names.geojson: places that share a name, in the layer places: Paris in France and
+* shared-names.geojson: places that share a name, in the layer towns: Paris in France and
   in Texas, Portland in Oregon and in Maine, Newport in Wales and on the Isle of Wight, and
   Sao Paulo the city, with Sao Paulo the state in the layer regions.
 
@@ -208,7 +208,7 @@ def main() -> int:
     features = []
     for node, english, kind, where, (lon, lat) in PLACES:
         f = one(f"n[place={kind}]", (lon - 0.1, lat - 0.1, lon + 0.1, lat + 0.1), node)
-        props = {"id": f"osm:n{node}", "name": english, **local(f, english), "layer": "places", "type": kind,
+        props = {"id": f"osm:n{node}", "name": english, **local(f, english), "layer": "towns", "type": kind,
                  "where": where}
         if f["population"]:
             props["population"] = int(str(f["population"]).replace(",", ""))

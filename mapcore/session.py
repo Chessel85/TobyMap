@@ -38,6 +38,7 @@ DEFAULTS_FILE = Path(__file__).resolve().parent / "defaults.yaml"
 SPEECH, BRAILLE = "speech", "braille"
 ASSERTIVE, POLITE = "assertive", "polite"
 PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158)
+SEARCH_LIMIT = 20    # search results listed (P3-T8b)
 REGIONS = ("map", "panel", "details", "menu")
 # Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
 # the times the core gives, so the clicks never wait for the map to be drawn.
@@ -195,7 +196,9 @@ class MapSession:
         self._across: dict | None = None
         self._choices: list[tuple] = []
         self._down: dict = {}
-        self._pressed_in = "map"                 # the region of the key being carried out
+        # The last search's results, by identifier (P3-T8b), so Enter says the same description.
+        self.search_found: dict = {}
+        self._pressed_in = "map"                # the region of the key being carried out
         self._answer_to = "map"                  # where Go to's or the bearing's box was opened (P2-T17k)
         self.held_moves = 0
         self.held_turns = 0               # turns made while Left or Right is held in a facing orientation
@@ -745,6 +748,46 @@ class MapSession:
     def _percent(share: float) -> int:
         """A share of land as a whole percentage, at least 1, so a small share is not said as none."""
         return max(1, min(100, round(share * 100)))
+
+    # Search in the core (P3-T8b; SRB-1, SRB-2, NAV-8, INF-8) ---------------------------------------------
+    # The search dialog (P3-T8c) and its narrowing choice (P3-T8d) call these; every word is from the templates.
+
+    def search(self, text: str, limit: int = SEARCH_LIMIT, layers=None, near_m: float | None = None,
+               inside: str | None = None) -> list[dict]:
+        """The features whose names match what was typed, best first (Store.search), each as a dict: id, name,
+        description, layer, and label, the line said and shown, such as "Paris, Île-de-France, France, city or
+        town". Narrowing (SRB-2): layers, a collection of layer ids; near_m, within that many metres of where
+        you are; inside, a feature's identifier, such as the current feature's. The results are kept, so
+        search_go and search_measure say the same description."""
+        w = self.world
+        found = self.store.search(text, limit, layers, None if near_m is None else (w.lat, w.lon, near_m), inside)
+        out = []
+        for f in found:
+            area = self.store.feature(f.id)
+            if area is None:
+                continue
+            key = "search.result_via" if f.via else "search.result"
+            out.append({"id": f.id, "name": f.name, "description": f.description, "layer": f.layer,
+                        "label": say(key, description=f.description, type=self._type_text(area), via=f.via)})
+        self.search_found = {f.id: f for f in found}
+        return out
+
+    def search_go(self, identifier: str) -> Response:
+        """Enter on a search result (NAV-8): a jump to it, as hierarchy mode moves, so Alt+comma comes back.
+        An area is zoomed to fit; a place keeps the zoom. It becomes the current feature (LOC-4), and its
+        description is said, with the zoom."""
+        area = self.store.feature(identifier)
+        if area is None:
+            return Response().earcon("blocked").speak(say("place.none"), ASSERTIVE)
+        found = self.search_found.get(identifier)
+        return self._hierarchy_go(area, say("search.gone", description=found.description if found else area.name))
+
+    def search_measure(self, identifier: str) -> Response:
+        """The distance and bearing to a search result, without moving (INF-8): "Distance to" (P3-T7)."""
+        area = self.store.feature(identifier)
+        if area is None:
+            return Response().earcon("blocked").speak(say("place.none"), ASSERTIVE)
+        return self.measure_to(area)
 
     def _group_search(self, current, heading) -> tuple[list[dict], str]:
         return [], say("search.none")                               # P3-T8c, P3-T9b, P3-T10a

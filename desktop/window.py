@@ -25,8 +25,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QEvent, QObject, Qt, QUrl, Signal
 from PySide6.QtGui import QAction, QDesktopServices, QGuiApplication
-from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QMainWindow, QMenu, QPlainTextEdit, QSplitter,
-                               QTreeWidgetItem)
+from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMenu,
+                               QPlainTextEdit, QPushButton, QSplitter, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from desktop import storage
 from desktop.announcer import Announcer
@@ -264,8 +264,35 @@ class MainWindow(QMainWindow):
         side = QSplitter(Qt.Orientation.Vertical)
         side.addWidget(self.tree)
         side.addWidget(self.details)
+        # The status line and the move and zoom buttons under the map (P3-T18, VIS-1, SCP-2, ACC-2).
+        # None of them takes the focus, so Tab keeps its three regions and the screen reader reads the
+        # map as before; the line is a plain label, not a live region.
+        left = QWidget()
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(0)
+        left_layout.addWidget(self.map, 1)
+        self.controls = QWidget()
+        controls_layout = QVBoxLayout(self.controls)
+        controls_layout.setContentsMargins(4, 2, 4, 2)
+        self.status_line = QLabel()
+        self.status_line.setObjectName("status")
+        self.status_line.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.status_line.setWordWrap(True)
+        controls_layout.addWidget(self.status_line)
+        buttons_row = QHBoxLayout()
+        self.control_buttons: dict[str, QPushButton] = {}
+        for b in self.session.controls()["buttons"]:
+            button = QPushButton(b["label"])
+            button.setObjectName("control_" + b["name"])
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            button.clicked.connect(lambda _=False, n=b["name"]: self.dispatch(n))
+            buttons_row.addWidget(button)
+            self.control_buttons[b["name"]] = button
+        controls_layout.addLayout(buttons_row)
+        left_layout.addWidget(self.controls, 0)
         main = QSplitter(Qt.Orientation.Horizontal)
-        main.addWidget(self.map)
+        main.addWidget(left)
         main.addWidget(side)
         main.setStretchFactor(0, 3)
         main.setStretchFactor(1, 1)
@@ -289,6 +316,7 @@ class MainWindow(QMainWindow):
         # Shift+Space still repeats it.
         self._carry_out_answer([self.session.start()])
         self._said_on_return = []
+        self._refresh_controls()
         self.map.name_at_start()
         self.map.setFocus()
 
@@ -515,6 +543,7 @@ class MainWindow(QMainWindow):
             diagnostics.add_shell(self.session, key_pressed_at=key_at, handed_over_at=time.time())
         if response.redraw:
             self.map.redraw()
+        self._refresh_controls()
         if not focus_first:
             self._refresh_regions(response)
         if response.settings_changed:
@@ -532,6 +561,15 @@ class MainWindow(QMainWindow):
             self.close()
         if response.background:
             self._background.start()
+
+    def _refresh_controls(self) -> None:
+        """The status line says what C and H say, after every move; a setting hides it and the buttons (P3-T18)."""
+        c = self.session.controls()
+        self.controls.setVisible(c["show"])
+        self.status_line.setText(c["status"])
+        self.status_line.setAccessibleName(c["status_name"])
+        for b in c["buttons"]:   # named for what the key does now: North or Forward or Up (P3-T18b)
+            self.control_buttons[b["name"]].setText(b["label"])
 
     def _refresh_regions(self, response) -> None:
         if response.panel_stale:

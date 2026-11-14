@@ -2053,6 +2053,22 @@ class MapSession:
     def _heading(self, **_a) -> Response:
         return Response().speak(describer.heading_report(self.world, self._units()), ASSERTIVE)
 
+    def status_text(self) -> str:
+        """The status line under the map (P3-T18a): what C and H say, in one line."""
+        coordinates = words.coordinates_text(self.world.lat, self.world.lon, self.settings["coordinates"],
+                                             self._coordinate_step())
+        return say("status.line", coordinates=coordinates,
+                   heading=describer.heading_report(self.world, self._units()))
+
+    def controls(self) -> dict:
+        """The status line and the buttons for the shells (P3-T18): whether they show, the line,
+        and each button's command and label. The buttons send the commands the keys send (AD-3)."""
+        c = say("controls")
+        w = self.world
+        state = "hierarchy" if w.movement_mode == "hierarchy" else "facing" if w.orientation != "north-fixed" else "fixed"
+        return {"show": bool(self.settings["show_controls"]), "status": self.status_text(), "group": c["group"],
+                "status_name": c["status"], "buttons": [{"name": n, "label": t} for n, t in c["labels"][state].items()]}
+
     def _visible(self, **_a) -> Response:
         """The size of the visible map, across and up and down the window (DP99).
         Measured along the ground through the centre; never more than the hemisphere."""

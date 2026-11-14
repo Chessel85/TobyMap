@@ -382,6 +382,11 @@ tabs:
         label: Show the cross at the centre of the map
         kind: yes_no
         default: true
+      # The status line and the move and zoom buttons under the map, for sighted users (P3-T18, VIS-1, SCP-2).
+      - id: show_controls
+        label: Show the status line and the move and zoom buttons under the map
+        kind: yes_no
+        default: true
       - id: hover_announce
         label: Announce places when the mouse moves over the map
         kind: yes_no

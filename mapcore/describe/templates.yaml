@@ -394,6 +394,46 @@ movement:
     hierarchy: "Hierarchy mode."
   heading: "{facing} {orientation} {mode} Zoom {zoom}, step {step}."
 
+# The status line and the move and zoom buttons under the map (P3-T18, VIS-1, SCP-2, ACC-2).
+# The line says what C and H say. Neither is in the Tab order or a live region.
+status:
+  line: "{coordinates}. {heading}"
+
+controls:
+  group: "Move and zoom"
+  status: "Status"
+  # Each button is named for what its key does now: the arrow keys mean different things in
+  # north-fixed, in cardinal and free facing, and in hierarchy mode (NAV-3, NAV-4, NAV-11, NAV-12).
+  # Hierarchy mode comes first, as it does when a key is pressed.
+  labels:
+    fixed:
+      move.north: "North"
+      move.south: "South"
+      move.west: "West"
+      move.east: "East"
+      zoom.in: "Zoom in"
+      zoom.out: "Zoom out"
+      step.larger: "Larger step"
+      step.smaller: "Smaller step"
+    facing:
+      move.north: "Forward"
+      move.south: "Back"
+      move.west: "Turn left"
+      move.east: "Turn right"
+      zoom.in: "Zoom in"
+      zoom.out: "Zoom out"
+      step.larger: "Larger step"
+      step.smaller: "Smaller step"
+    hierarchy:
+      move.north: "Up"
+      move.south: "Down"
+      move.west: "Previous neighbour"
+      move.east: "Next neighbour"
+      zoom.in: "Zoom in"
+      zoom.out: "Zoom out"
+      step.larger: "Larger step"
+      step.smaller: "Smaller step"
+
 # The layers list (SCP-6, SCP-7). Layer and group names come from the pack.
 layers:
   title: "Layers"

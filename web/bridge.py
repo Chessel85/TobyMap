@@ -81,6 +81,7 @@ def _extras(response, out: dict, width: int, height: int) -> dict:
         out["details"] = _session.details()
     if response.redraw:
         out["scene"] = _scene(width, height)
+    out["controls"] = _session.controls()   # the status line and the buttons' names, which follow the orientation (P3-T18)
     if response.settings_changed:
         out["registry"] = _session.registry()
     out["hold"] = _session.hold_info()   # the held key's timing, for the page's clicks (DP140)
@@ -105,6 +106,7 @@ def start(width: int, height: int, startup_ms: float, packs, saved_json: str, st
     out["details"] = _session.details()
     out["panel"] = _session.panel()
     out["scene"] = _scene(width, height)
+    out["controls"] = _session.controls()
     return _js(_extras_start(response, out))
 
 

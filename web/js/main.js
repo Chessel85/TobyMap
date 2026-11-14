@@ -152,6 +152,7 @@ function handle(result, keyAt, held = false, named = false) {
     try { localStorage.setItem(STORAGE_KEY, result.save); } catch (e) { /* private browsing: nothing is kept */ }
   }
   if (result.scene) paint(result.scene);
+  if (result.controls) showControls(result.controls);
   if (!focusFirst) refreshRegions(result);
   if (result.map_label !== undefined) { if (named) mapLabel = result.map_label; else setMapLabel(result.map_label); }
   if (r.focus && !focusFirst) applyFocus(r.focus);
@@ -1418,6 +1419,33 @@ function trapKeyTab(e) {
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
   items[(i + (e.shiftKey ? -1 : 1) + items.length) % items.length].focus();
+}
+
+// The status line and the move and zoom buttons (P3-T18). The buttons are made once, from the core's
+// list, with tabindex -1; a mouse press does not take the focus, so the map keeps it.
+let controlsBuilt = false;
+function showControls(c) {
+  const box = $("controls");
+  box.hidden = !c.show;
+  $("status").textContent = c.status;
+  $("status").setAttribute("aria-label", c.status_name);
+  if (controlsBuilt) {   // named for what the key does now: North or Forward or Up
+    for (const b of c.buttons) $("control-" + b.name).textContent = b.label;
+    return;
+  }
+  controlsBuilt = true;
+  const row = $("control-buttons");
+  row.setAttribute("aria-label", c.group);
+  for (const b of c.buttons) {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.id = "control-" + b.name;
+    el.tabIndex = -1;
+    el.textContent = b.label;
+    el.addEventListener("mousedown", (e) => e.preventDefault());
+    el.addEventListener("click", () => run(b.name));
+    row.appendChild(el);
+  }
 }
 
 function applyWords() {

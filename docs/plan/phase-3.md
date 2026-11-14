@@ -312,7 +312,11 @@ Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP
 * [ ] P3-T12 Languages of names.
 * [ ] P3-T13 The pack manager, first version.
 * [ ] P3-T14 Quality reports and publishing.
-* [ ] P3-T18 Controls for sighted users (DP165).
+* [x] P3-T18 Controls for sighted users (DP165). Done on 14 November 2026.
+  * P3-T18a, the status line: a line under the map with the coordinates, then what H says (facing, orientation, mode, zoom and step). It is built by the core (`MapSession.status_text`) from the same words as C and H, and updated after every move. It is a plain label, not in the Tab order and not a live region, so NVDA never reads it by itself.
+  * P3-T18b, move and zoom buttons: North, South, West, East, Zoom in, Zoom out, Larger step and Smaller step. Each sends the command its key sends, and is named for what that key does now: North, South, West and East in north-fixed; Forward, Back, Turn left and Turn right in cardinal and free facing; Up, Down, Previous neighbour and Next neighbour in hierarchy mode. None takes the focus, and a press leaves the focus on the map. A new setting in the Map display tab, "Show the status line and the move and zoom buttons under the map", hides both; it is on at first.
+  * Tests: tests/mapcore/test_controls.py, tests/desktop/test_controls_desktop.py, tests/web/test_controls_page.py (Chromium and Firefox).
+  * Still to do by a sighted helper: the checklist item in P3-T15's checklists.
 * [ ] P3-T15 Help.
 
 ## Closing the phase

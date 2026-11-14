@@ -15,7 +15,13 @@ body { display: flex; flex-direction: column; }
 .menu .key { opacity: 0.8; }
 main { flex: 1; display: flex; min-height: 0; }
 #loading { margin: 2em; font-size: 1.25em; }
-#map-area { flex: 3; position: relative; min-width: 300px; }
+#left { flex: 3; display: flex; flex-direction: column; min-width: 300px; min-height: 0; }
+#map-area { flex: 1; position: relative; min-height: 0; }
+#controls { padding: 4px 8px; background: #2b3138; }
+#controls[hidden] { display: none; }
+#status { margin: 0 0 4px; }
+#control-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+#control-buttons button { font: inherit; padding: 4px 12px; }
 #map-area[hidden], #side[hidden] { display: none; }
 #map-area:focus-within { outline: 4px solid #ffd200; outline-offset: -4px; }
 /* The focus point: where the core says the map centre is (ACC-8). Invisible. */

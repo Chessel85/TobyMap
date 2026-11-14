@@ -21,9 +21,17 @@
   <p id="loading">Loading TobyMap. This can take a few seconds the first time.</p>
   <!-- The map region. The focused element, #map, is a small square at the centre of the map,
        so a magnifier that follows the keyboard focus keeps the location in view (ACC-8, DP146). -->
-  <div id="map-area" hidden>
-    <canvas id="canvas" aria-hidden="true"></canvas>
-    <div id="map" role="application" aria-label="Map" tabindex="0"></div>
+  <div id="left">
+    <div id="map-area" hidden>
+      <canvas id="canvas" aria-hidden="true"></canvas>
+      <div id="map" role="application" aria-label="Map" tabindex="0"></div>
+    </div>
+    <!-- The status line and the move and zoom buttons (P3-T18). Built from the core's words. Not in the
+         Tab order, not a live region; a press on a button leaves the focus on the map. -->
+    <div id="controls" hidden>
+      <p id="status"></p>
+      <div id="control-buttons" role="group"></div>
+    </div>
   </div>
   <div id="side" hidden>
     <ul id="tree" role="tree" aria-label="Information panel"></ul>

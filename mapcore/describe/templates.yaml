@@ -492,6 +492,18 @@ search:
   result: "{description}, {type}"
   result_via: "{description}, {type}, found as {via}"
   nothing: "Nothing found for {text}."
+  # The search dialog (P3-T8c) and its choice of where to search (P3-T8d, SRB-2).
+  title: "Search"
+  label: "Search for"
+  help: "Type a name. The results appear below; press Down to reach them and Enter to go there."
+  results_label: "Results"
+  scope_label: "Search in"
+  scope_all: "Everywhere"
+  scope_inside: "Inside {name}"
+  scope_near: "Near here, within {distance}"
+  scope_layer: "Only {layer}"
+  go_button: "Go"
+  item: "{description}, {direction}"
   gone: "{description}"
 
 # Hierarchy mode (P3-T6a; NAV-4, NAV-11, DP77). M switches it on and off; the arrow keys go up, down and

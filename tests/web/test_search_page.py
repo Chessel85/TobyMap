@@ -19,3 +19,29 @@ def test_search_in_the_worker_finds_sao_paulo_and_ranks_paris(page, site_url):
     near = app.evaluate("window.tobymap.search('Paris', {near_m: 100000})")["results"]
     assert near == []
     assert got["ms"] < 1000
+
+
+def test_ctrl_f_opens_the_search_dialog_and_enter_goes_there(page, site_url):
+    app = open_app(page, site_url, state=HAMPSHIRE)
+    page.keyboard.press("Control+f")
+    field = page.locator("#search-field")
+    field.wait_for(state="visible")
+    assert page.evaluate("document.activeElement.id") == "search-field"   # not the browser's own find
+    assert page.locator("#search-cancel").inner_text() == "Cancel"
+    field.type("Sao Paulo")
+    page.locator("#search-list option").first.wait_for(timeout=15000)
+    assert "São Paulo" in page.locator("#search-list option").first.inner_text()
+    page.keyboard.press("ArrowDown")
+    assert page.evaluate("document.activeElement.id") == "search-list"
+    page.keyboard.press("Enter")
+    page.locator("#searchdialog").wait_for(state="hidden")
+    assert "São Paulo" in page.locator("#map").get_attribute("aria-label")   # the answer is the map's name as focus returns
+
+
+def test_search_says_when_nothing_is_found_and_cancel_closes(page, site_url):
+    open_app(page, site_url, state=HAMPSHIRE)
+    page.keyboard.press("Control+f")
+    page.locator("#search-field").type("qqzzxx")
+    page.locator("#search-message").filter(has_text="Nothing found for qqzzxx.").wait_for(timeout=15000)
+    page.locator("#search-cancel").click()
+    page.locator("#searchdialog").wait_for(state="hidden")

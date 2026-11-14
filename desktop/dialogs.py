@@ -150,6 +150,114 @@ class HistoryDialog(ListDialog):
         super().keyPressEvent(event)
 
 
+class SearchDialog(QDialog):
+    """Search (P3-T8c, P3-T8d; SRB-1, SRB-2, NAV-8): a field, a choice of where to search, and the results
+    below, found after a short pause in typing. Down in the field moves into the list; Enter on a result,
+    or in the field, goes to the selected result and closes. Go and Cancel are buttons (ACC-7). The core
+    does the searching and gives every word; `run` is session.run."""
+
+    def __init__(self, parent, dialog: dict, run, speak=None):
+        from PySide6.QtCore import QTimer
+
+        super().__init__(parent)
+        self._run, self._speak, self._dialog = run, speak, dialog
+        self._ids: list[str] = []
+        self.response = None
+        self.setWindowTitle(dialog["title"])
+        layout = QVBoxLayout(self)
+        label = QLabel(dialog["label"])
+        layout.addWidget(label)
+        self.field = QLineEdit()
+        self.field.setAccessibleName(dialog["label"])
+        self.field.setAccessibleDescription(dialog["help"])
+        label.setBuddy(self.field)
+        layout.addWidget(self.field)
+        scope_label = QLabel(dialog["scope_label"])
+        layout.addWidget(scope_label)
+        self.scope = QComboBox()
+        self.scope.setAccessibleName(dialog["scope_label"])
+        for s in dialog["scopes"]:
+            self.scope.addItem(s["label"], s["id"])
+        scope_label.setBuddy(self.scope)
+        layout.addWidget(self.scope)
+        results_label = QLabel(dialog["results_label"])
+        layout.addWidget(results_label)
+        self.list = QListWidget()
+        self.list.setAccessibleName(dialog["results_label"])
+        results_label.setBuddy(self.list)
+        layout.addWidget(self.list)
+        self.message = QLabel("")
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        self.go_button, self.cancel_button = button_row(layout, [dialog["go_label"], dialog["cancel"]])
+        self.go_button.setAutoDefault(False)
+        self.go_button.setDefault(False)
+        self.go_button.clicked.connect(self.go_to_selected)
+        self.cancel_button.clicked.connect(self.reject)
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(int(dialog["delay_ms"]))
+        self._timer.timeout.connect(self.search_now)
+        self.field.textChanged.connect(lambda _t: self._timer.start())
+        self.scope.currentIndexChanged.connect(lambda _i: self._timer.start())
+        self.field.installEventFilter(self)
+        self.list.installEventFilter(self)
+        self.list.itemActivated.connect(lambda _item: self.go_to_selected())
+        self.resize(560, 480)
+        self.field.setFocus()
+
+    def eventFilter(self, obj, event):
+        from PySide6.QtCore import QEvent
+
+        if event.type() == QEvent.Type.KeyPress and not event.modifiers():
+            key = event.key()
+            if obj is self.field and key == Qt.Key.Key_Down:
+                self._flush()
+                if self.list.count():
+                    self.list.setCurrentRow(max(0, self.list.currentRow()))
+                    self.list.setFocus()
+                return True
+            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and obj in (self.field, self.list):
+                self.go_to_selected()
+                return True
+        return super().eventFilter(obj, event)
+
+    def _flush(self) -> None:
+        """Search at once if a search is waiting for the pause to end."""
+        if self._timer.isActive():
+            self._timer.stop()
+            self.search_now()
+
+    def search_now(self) -> None:
+        response = self._run(self._dialog["query"], text=self.field.text(), scope=self.scope.currentData())
+        found = response.found or {"lines": [], "ids": [], "none": ""}
+        self._ids = list(found["ids"])
+        self.list.clear()
+        self.list.addItems(found["lines"])
+        if self._ids:
+            self.list.setCurrentRow(0)
+        self.message.setText(found["none"])
+        self.message.setAccessibleDescription(found["none"])
+        if found["none"] and self._speak is not None:
+            self._speak(found["none"])
+
+    def go_to_selected(self) -> None:
+        if self.response is not None:   # Enter can reach the list and the dialog: go once
+            return
+        self._flush()
+        row = self.list.currentRow()
+        if not 0 <= row < len(self._ids):
+            return
+        response = self._run(self._dialog["go"], id=self._ids[row])
+        if response.error:
+            self.message.setText(response.error)
+            if self._speak is not None:
+                self._speak(response.error)
+            return
+        self.response = response
+        self.accept()
+
+
 class InputDialog(QDialog):
     """A box to type in, with OK and Cancel (ACC-7): a bearing or coordinates. The core reads what
     was typed; if it can't, its words open in a message box with an OK button, and after OK you are

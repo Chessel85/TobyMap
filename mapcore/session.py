@@ -39,6 +39,7 @@ SPEECH, BRAILLE = "speech", "braille"
 ASSERTIVE, POLITE = "assertive", "polite"
 PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158)
 SEARCH_LIMIT = 20    # search results listed (P3-T8b)
+SEARCH_DELAY_MS = 300   # the pause in typing before the search dialog searches (P3-T8c)
 REGIONS = ("map", "panel", "details", "menu")
 # Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
 # the times the core gives, so the clicks never wait for the map to be drawn.
@@ -89,6 +90,8 @@ class Response:
     # An address for the shell to open in the browser: the desktop through Qt, the web version in a new
     # tab (P3-T5b, INF-1). Only ever a Wikipedia article; the pack holds only its title (DAT-9).
     open_url: str | None = None
+    # The search dialog's results for what was typed (P3-T8c): {"lines", "ids", "none"}.
+    found: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -277,6 +280,9 @@ class MapSession:
             "history.back": lambda **a: self._go_through(-1),
             "history.forward": lambda **a: self._go_through(+1),
             "history.go": self._history_go,
+            "search.open": self._search_open,
+            "search.query": self._search_query,
+            "search.go": self._search_go,
             "settings.open": self._settings_open,
             "settings.set": self._settings_set,
             "settings.reset": self._reset_ask,
@@ -363,6 +369,7 @@ class MapSession:
             merged.label = r.label or merged.label
             merged.beacon = r.beacon or merged.beacon
             merged.open_url = r.open_url or merged.open_url
+            merged.found = r.found or merged.found
         return merged
 
     def press(self, key: str, region: str = "map") -> Response | None:
@@ -535,7 +542,7 @@ class MapSession:
         # A lazy group is made again when the place, a setting, the current feature or the way you face
         # changes, as its bearing order is clockwise from ahead.
         context = (base["key"], current.id if current else None, describer.facing(self.world),
-                   frozenset(layer.id for layer in self.layers.layers() if layer.on))
+                   frozenset(layer.id for layer in self.layers.layers() if layer.on), tuple(self.search_found))
         for gid in registry.panel_groups():
             g = panel_table.GROUPS[gid]
             if g.lazy and gid not in wanted:
@@ -790,7 +797,66 @@ class MapSession:
         return self.measure_to(area)
 
     def _group_search(self, current, heading) -> tuple[list[dict], str]:
-        return [], say("search.none")                               # P3-T8c, P3-T9b, P3-T10a
+        """Search (P3-T8c): the last search's results, in the order of their ranking, each with its direction
+        from where you are. Empty until you have searched."""
+        items = []
+        for identifier, found in self.search_found.items():
+            area = self.store.feature(identifier)
+            if area is not None:
+                items.append(self._feature_item("search", area, "search.item", heading, description=found.description))
+        return self._sorted("search", items, "natural"), say("search.none")
+
+    # The search dialog (P3-T8c, P3-T8d; SRB-1, SRB-2, NAV-8) -----------------------------------------------
+
+    def _search_open(self, **_a) -> Response:
+        """Ctrl+F: a field, a choice of where to search, and the results as you type. The shell waits delay_ms
+        after typing stops, then runs search.query with the text and the chosen scope; Enter on a result runs
+        search.go with its identifier. Every word is from the templates; Cancel runs nothing (ACC-7)."""
+        scopes = [{"id": "all", "label": say("search.scope_all")}]
+        current = self.current_feature
+        if current is not None:
+            scopes.append({"id": "inside", "label": say("search.scope_inside", name=current.name)})
+        scopes.append({"id": "near", "label": say("search.scope_near",
+                                                  distance=words.distance_text(self._near_m(), self._units()))})
+        for group in self.layer_list()["groups"]:
+            scopes.extend({"id": "layer:" + layer["id"], "label": say("search.scope_layer", layer=layer["name"])}
+                          for layer in group["layers"])
+        return Response(dialog={
+            "kind": "search", "title": say("search.title"), "label": say("search.label"),
+            "scope_label": say("search.scope_label"), "scopes": scopes, "results_label": say("search.results_label"),
+            "help": say("search.help"), "delay_ms": SEARCH_DELAY_MS, "query": "search.query", "go": "search.go",
+            "text": "", "cancel": say("ui.cancel"), "go_label": say("search.go_button")})
+
+    def _near_m(self) -> float:
+        """How far "near where you are" reaches (SRB-2): the view's radius, so what is on the map is near."""
+        return max(1000.0, float(self.world.zoom_m))
+
+    def _search_query(self, text: str = "", scope: str = "all", **_a) -> Response:
+        """The results for what has been typed, in the chosen scope: found gives their lines and identifiers,
+        or the words for none. Nothing typed gives no lines and no words. The Search group is refilled."""
+        text = (text or "").strip()
+        kwargs: dict = {}
+        if scope == "inside":
+            current = self.current_feature
+            if current is not None:
+                kwargs["inside"] = current.id
+        elif scope == "near":
+            kwargs["near_m"] = self._near_m()
+        elif scope.startswith("layer:"):
+            kwargs["layers"] = {scope[len("layer:"):]}
+        found = self.search(text, **kwargs) if text else []
+        if not text:
+            self.search_found = {}
+        r = Response(panel_stale=True)
+        r.found = {"lines": [f["label"] for f in found], "ids": [f["id"] for f in found],
+                   "none": say("search.nothing", text=text) if text and not found else ""}
+        return r
+
+    def _search_go(self, id: str = "", **_a) -> Response:
+        """Enter on a result: go there (search_go). An unknown identifier is refused, so the box stays open."""
+        if id not in self.search_found:
+            return Response(error=say("place.none"))
+        return self.search_go(id)
 
     def _layer_on(self, area) -> bool:
         layer = self.layers.get(area.layer)

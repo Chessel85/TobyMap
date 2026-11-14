@@ -15,7 +15,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), messageBox = $("messagebox");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), searchDialog = $("searchdialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -289,7 +289,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || messageBox.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || searchDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -355,7 +355,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [messageBox, settingsDialog, inputDialog, layersDialog, dialog].find((d) => d.open);   // the top one first
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, searchDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -400,6 +400,7 @@ function openDialog(d) {
   if (d.kind === "settings") return openSettings(d);
   if (d.kind === "input") return openInput(d);
   if (d.kind === "layers") return openLayers(d);
+  if (d.kind === "search") return openSearch(d);
   if (d.kind === "confirm") return openConfirm(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
@@ -693,6 +694,102 @@ function openInput(d) {
   field.focus();
 }
 
+// Search (P3-T8c, P3-T8d; SRB-1, SRB-2): a field, a choice of where to search, and a list of results
+// found after a short pause in typing. Down in the field moves into the list; Enter on a result, or in
+// the field, goes there. The core searches and gives every word; a newer search throws an older answer away.
+function openSearch(d) {
+  const box = searchDialog;
+  box.replaceChildren();
+  box.setAttribute("aria-label", d.title);
+  const title = document.createElement("h2");
+  title.textContent = d.title;
+  const label = document.createElement("label");
+  label.textContent = d.label;
+  const field = document.createElement("input");
+  field.type = "text";
+  field.id = "search-field";
+  field.autocomplete = "off";
+  field.spellcheck = false;
+  field.setAttribute("aria-describedby", "search-help");
+  label.htmlFor = field.id;
+  const help = document.createElement("p");
+  help.id = "search-help";
+  help.textContent = d.help;
+  const scopeLabel = document.createElement("label");
+  scopeLabel.textContent = d.scope_label;
+  const scope = document.createElement("select");
+  scope.id = "search-scope";
+  scopeLabel.htmlFor = scope.id;
+  for (const s of d.scopes) {
+    const o = document.createElement("option");
+    o.value = s.id;
+    o.textContent = s.label;
+    scope.appendChild(o);
+  }
+  const listLabel = document.createElement("label");
+  listLabel.textContent = d.results_label;
+  const list = document.createElement("select");
+  list.id = "search-list";
+  list.size = 8;
+  listLabel.htmlFor = list.id;
+  const message = document.createElement("p");
+  message.id = "search-message";
+  message.setAttribute("role", "status");
+  let ids = [], timer = null, newest = 0, sending = false;
+  const ask = (name, args) => {
+    const { width, height } = mapSize();
+    return client.send({ type: "run", commands: [[name, args]], width, height });
+  };
+  const search = () => {
+    timer = null;
+    const mine = ++newest;
+    return ask(d.query, { text: field.value, scope: scope.value }).then((r) => {
+      if (mine !== newest) return r;
+      const found = r.response.found || { lines: [], ids: [], none: "" };
+      ids = found.ids;
+      list.replaceChildren();
+      for (const line of found.lines) {
+        const o = document.createElement("option");
+        o.textContent = line;
+        list.appendChild(o);
+      }
+      if (ids.length) list.selectedIndex = 0;
+      message.textContent = found.none;
+      handle(r, undefined, false, false);   // the Search group is refilled; nothing is said
+      return r;
+    }).catch(showError);
+  };
+  const later = () => { clearTimeout(timer); timer = setTimeout(search, d.delay_ms); };
+  const flush = async () => { if (timer !== null) { clearTimeout(timer); await search(); } };
+  const go = async () => {
+    if (sending) return;   // Enter can arrive twice: one answer at a time
+    sending = true;
+    await flush();
+    if (!ids.length || list.selectedIndex < 0) { sending = false; return; }
+    ask(d.go, { id: ids[list.selectedIndex] }).then((r) => {
+      sending = false;
+      if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
+      closeWithAnswer(box, [r]);
+    }).catch((error) => { sending = false; showError(error); });
+  };
+  field.addEventListener("input", later);
+  scope.addEventListener("change", later);
+  field.addEventListener("keydown", async (e) => {
+    if (e.key === "Enter") { e.preventDefault(); go(); }
+    else if (e.key === "ArrowDown" && !e.altKey) {
+      e.preventDefault();
+      await flush();
+      if (ids.length) list.focus();
+    }
+  });
+  list.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  const goButton = button(d.go_label, go, "search-go");
+  const cancel = button(d.cancel, () => { clearTimeout(timer); newest++; box.close(); }, "search-cancel");
+  box.append(title, label, field, help, scopeLabel, scope, listLabel, list, message, goButton, cancel);
+  box.showModal();
+  field.focus();
+}
+
 // A message box over another box: a title, the words, and one OK button, which has the focus. OK,
 // Enter on it, Space or Escape closes it, and then `after` puts the focus back (P2-T17o).
 let messageAfter = null;
@@ -747,6 +844,7 @@ dialog.addEventListener("close", afterClose);
 settingsDialog.addEventListener("close", afterClose);
 inputDialog.addEventListener("close", afterClose);
 layersDialog.addEventListener("close", afterClose);
+searchDialog.addEventListener("close", afterClose);
 // Enter in a settings field presses OK, as on the desktop (web checklist 5).
 settingsDialog.addEventListener("keydown", (e) => {
   const el = e.target;

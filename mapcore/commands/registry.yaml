@@ -67,6 +67,8 @@ commands:
   - {name: history.forward, label: Forward to the next place, key: "Alt+.", region: map, menu: Map}
   # The location history: the same places as a list (NAV-10, DP158).
   - {name: history.list, label: Location history, key: Ctrl+Shift+Space, region: global, menu: Map}
+  # Search (P3-T8c, SRB-1): Ctrl+F, from the map, the Information panel and Details.
+  - {name: search.open, label: Search, key: Ctrl+F, region: global, menu: Map}
   # The layers list (SCP-6, SCP-7).
   - {name: layers.open, label: Layers, key: Ctrl+Shift+L, region: global, menu: Map}
   # Themes and isolate (VIS-2): your keys, from the key list. Escape is kept for the screen reader and the browser.
@@ -139,4 +141,6 @@ commands:
   - {name: goto.set, label: Go to the typed coordinates, key: "", region: map, menu: "", pointer: true}
   - {name: history.go, label: Go to a place in the location history, key: "", region: global, menu: "", pointer: true}
   - {name: hierarchy.choose, label: Choose from the ambiguous up or a down list in hierarchy mode, key: "", region: global, menu: "", pointer: true}
+  - {name: search.query, label: Search for what was typed, key: "", region: global, menu: "", pointer: true}
+  - {name: search.go, label: Go to a search result, key: "", region: global, menu: "", pointer: true}
   - {name: settings.reset_confirm, label: Reset all settings once asked, key: "", region: global, menu: "", pointer: true}

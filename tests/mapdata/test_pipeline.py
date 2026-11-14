@@ -120,7 +120,7 @@ def test_how_a_layer_is_shown_changes_only_the_pack_writing(tmp_path):
     assert regions == {"id": "regions", "name": "Regions and their tiers", "rank": 4, "group": "Boundaries",
                        "geometry": "area",
                        "switched_on": False, "min_zoom_m": 1000, "max_zoom_m": 2500000,
-                       "crossing_earcon": "line_crossing"}
+                       "crossing_earcon": "line_crossing", "sound": "layer_region"}   # its sound, from P3-T11b
 
 
 def test_the_build_fingerprint_of_a_layer_is_what_it_was_before_p2_t3():

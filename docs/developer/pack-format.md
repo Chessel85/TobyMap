@@ -114,7 +114,7 @@ Each feature record holds, in Phase 1 (architecture 6.4):
 * source: where it comes from, such as osm.
 * layer: a layer id.
 * type: its type in plain words, such as "county".
-* names: by language, such as `{"en": "France", "fr": "France"}`.
+* names: "en", the English name, and "local", the name in the place's own language, only where it differs, such as `{"en": "Germany", "local": "Deutschland"}`. Where OpenStreetMap has no English name, "en" holds the local name (DP172). The setting "Names" chooses which is said (mapcore/names.py, P3-T12a).
 * rank: a whole number used to order "where am I" (LOC-2).
 * area_km2: its area on the ellipsoid.
 * bbox: west, south, east, north. West is greater than east when the box crosses the 180 degree line, as for Fiji (AD-17).
@@ -137,6 +137,7 @@ Optional fields:
 
 * claimants: from format 4, for disputed land two countries both hold, such as Crimea, the two countries' identifiers, in the order of their names, with equal credit (P3-T2c, DP119).
 * dispute: from format 4, for an area inside one of Natural Earth's disputed areas: name, Natural Earth's name for that area; source, "Natural Earth"; and view, its note in full words, such as "Administered by Russia. Claimed by Ukraine." (ANN-6, DAT-8).
+* local_lang: the language of the local name, as a code such as "de", where the build can tell it from OpenStreetMap's tags (P3-T12b, mapcore.names.language_of_name). The web version marks the name with it. A record with none is not marked. Optional, so the format number did not change.
 * tier_name: from format 4, what the area's tier is called in its country, such as "state", from the tiers record's names (DP181). Details says it in place of the tier's word.
 
 The manifest may also have:

@@ -19,6 +19,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Layer: all the areas of one kind in a build, such as the Countries layer. A layer can hold lines or places instead of areas.
 * Line: a feature with length but no area, such as a line of latitude or the date line. Build reports count a line layer in lines.
 * Place: a feature at one position, such as a railway station. Build reports count a point layer in places, because "point" means a corner on an outline.
+* Local name: a feature's name in the place's own language, as OpenStreetMap's name tag gives it, such as Deutschland. A pack holds it beside the English name where the two differ (DP172).
+* Language of a name: the language a local name is written in, as a code such as "de" for German, worked out by the build from OpenStreetMap's tags (P3-T12b). The web version marks a name with it, so a screen reader can read the name in its own language.
 * Shape: everything an area covers, all its parts together.
 * Part: one separate bit of a shape, which doesn't touch any other bit of the same shape. The British mainland is one part of the UK's shape, and Skye is another. Land that is in no area is also counted in parts.
 * Point: one corner on the outline of a shape. The number of points is a measure of how detailed, and how large, a shape is.

@@ -323,6 +323,7 @@ DAT-2, DAT-3 (detailed coastlines), PLT-4, PCK-1 (regional packs), PCK-2 (comple
 * P4-T7 Robustness: corrupt packs detected and set aside (NFR-4). Memory checked against 2 GB with the base and Great Britain packs (NFR-3).
 * P4-T8 Pins, feature bookmarks and collections, shown in the Information panel and on the map (USR-1 to USR-3).
 * P4-T9 Measuring a chain of pins (USR-4) and GeoJSON export and import (USR-5).
+* P4-T10 Languages of names on the desktop (ACC-9, DP196): a test harness that sends speech to NVDA through its Controller Client with each name's language marked (SSML), to find out with the PO whether NVDA switches voices for it. If it does, what TobyMap says can go that way when NVDA is running and the Names setting is "Always the local name".
 
 ### Automatic exit checks
 * The street-level acceptance scripts pass for the UK test area (DAT-2).

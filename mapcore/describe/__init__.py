@@ -6,6 +6,8 @@ from pathlib import Path
 
 import yaml
 
+from mapcore.names import hear
+
 TEMPLATES_FILE = Path(__file__).resolve().parent / "templates.yaml"
 
 
@@ -19,7 +21,10 @@ def say(template: str, /, **values) -> str:
     node = templates()
     for part in template.split("."):
         node = node[part]
-    return node.format(**values) if values else node
+    if not values:
+        return node
+    hear(*values.values())   # a feature's name in another language, for the web page to mark (P3-T12b)
+    return node.format(**values)
 
 
 @lru_cache(maxsize=1)

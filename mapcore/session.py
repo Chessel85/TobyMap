@@ -22,6 +22,7 @@ from urllib.parse import quote
 import yaml
 
 import mapcore
+from mapcore import names as names_mod
 from mapcore import settings as settings_mod
 from mapcore.commands import registry
 from mapcore.describe import describer, say, templates, words
@@ -160,6 +161,7 @@ class MapSession:
         self.defaults = yaml.safe_load(DEFAULTS_FILE.read_text(encoding="utf-8"))
         self.store = store or Store(list(packs or []))
         self.settings = settings_mod.Settings.from_dict(settings)
+        self.store.set_names(self.settings["names"])   # English or local names (P3-T12a)
         # The layers, with the user's changes from the settings in use (SCP-6, SCP-7).
         self.layers = LayerCatalogue(self.store.packs, lambda: self.settings.layers)
         # Which features are visible: layer, zoom range, size and view (NAV-13, P2-T4a).
@@ -808,19 +810,45 @@ class MapSession:
                 have = {f.id for f in special}
                 found = special + [f for f in found if f.id not in have]
         out = []
+        kept = []
         for f in found:
             area = self.store.feature(f.id)
             if area is None:
                 continue
+            f = self._found_named(f, area)
+            kept.append(f)
             key = "search.result_via" if f.via else "search.result"
             label = say(key, description=f.description, type=self._type_text(area), via=f.via)
             if special_kind(area.record):   # disputed and unclaimed land says its claimants (P3-T16a)
                 label = self._special_label(area)
             out.append({"id": f.id, "name": f.name, "description": f.description, "layer": f.layer,
                         "label": label})
-        self.search_found = {f.id: f for f in found}
+        self.search_found = {f.id: f for f in kept}
         self.search_title = None
         return out
+
+    def name_languages(self) -> dict[str, str]:
+        """The names in another language put into words since this was last asked, {name: language code}, such as
+        {"Deutschland": "de"} (P3-T12b). The web page marks each one it shows with its lang attribute, so a screen
+        reader set to switch voices can. English names, and names whose language the pack does not know, are not
+        in it."""
+        return names_mod.take()
+
+    def _found_named(self, f, area):
+        """A search result with its own name as the Names setting chooses (P3-T12a). The search index holds the
+        English name and a description that starts with it, made by the build, so under "local" that start is
+        put in the local name; the names of the areas after it stay as the build made them."""
+        import dataclasses
+
+        name = area.name
+        names_mod.hear(name)
+        if str(name) == f.name:
+            return f
+        description = f.description
+        if description.startswith(f.name):
+            description = str(name) + description[len(f.name):]
+        via = "" if f.via == str(name) else f.via
+        return dataclasses.replace(f, name=name, description=description, via=via)
 
     def search_go(self, identifier: str) -> Response:
         """Enter on a search result (NAV-8): a jump to it, as hierarchy mode moves, so Alt+comma comes back.
@@ -2582,6 +2610,9 @@ class MapSession:
             self.world.set_link(bool(value))
         if field == "units":
             self.world.use_units(value)   # imperial has its own round sizes, so the map may redraw (DP136)
+        if field == "names":   # every name follows at once; the map's names are made again (P3-T12a)
+            self.store.set_names(self.settings["names"])
+            self._scene = None
         self._panel_cache = None
         r = Response(settings_changed=True, panel_stale=True, details_stale=True, redraw=True)
         if field in ("theme", "map_fill", "map_borders", "fill_colour", "border_colour", "outline_colour"):

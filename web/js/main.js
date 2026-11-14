@@ -4,6 +4,7 @@
 // command registry, and every word from the core.
 import { speak, log } from "./announcer.js";
 import { keyName } from "./keys.js";
+import { languageOf, learn, markWhole } from "./langs.js";
 import { MenuBar } from "./menu.js";
 import * as ownSounds from "./own_sounds.js";
 import { paintScene } from "./painter.js";
@@ -30,7 +31,9 @@ window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.hea
   paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceHalts: voice.counts, voiceState: voice.getState,
   scanStarted: scan.started, scanPlaying: scan.playing,
   // A search in the core, with its time in Pyodide (P3-T8b): for the tests and timing until the dialog comes (P3-T8c).
-  search: (text, scope) => client.send({ type: "search", text, scope }) };
+  search: (text, scope) => client.send({ type: "search", text, scope }),
+  // The language the page marks a name with, or null (P3-T12b), for the browser tests.
+  languageOf };
 const told = new Set();   // voice problems and own sound files that failed, each said once
 
 // Your own sound file could not be played, so the default was: said once for each file (SON-8).
@@ -104,6 +107,7 @@ function beaconUpdate(b) {
 // named: a dialog's answer whose words are already the map's name, read as focus returns (P2-T17c).
 function handle(result, keyAt, held = false, named = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
+  learn(result.langs);   // the names in another language in this answer, marked as they are shown (P3-T12b)
   const r = result.response;
   if (r.stop_voice) {   // a key press stops the voice before anything is said (P2-T17n, SON-3)
     voice.halt();
@@ -485,7 +489,7 @@ function historyList(d) {
   for (const line of d.lines) {
     const o = document.createElement("option");
     o.textContent = line;
-    list.appendChild(o);
+    list.appendChild(markWhole(o, line));
   }
   list.selectedIndex = d.current || 0;
   const message = document.createElement("p");
@@ -779,11 +783,12 @@ function openSearch(d) {
       if (mine !== newest) return r;
       const found = r.response.found || { lines: [], ids: [], none: "" };
       ids = found.ids;
+      learn(r.langs);
       list.replaceChildren();
       for (const line of found.lines) {
         const o = document.createElement("option");
         o.textContent = line;
-        list.appendChild(o);
+        list.appendChild(markWhole(o, line));
       }
       if (ids.length) list.selectedIndex = 0;
       message.textContent = found.none;
@@ -845,7 +850,7 @@ function openQuery(d) {
       const o = document.createElement("option");
       o.value = item.id;
       o.textContent = item.label;
-      list.appendChild(o);
+      list.appendChild(markWhole(o, item.label));
     });
     if (items.length) list.selectedIndex = 0;
     return { label, list };
@@ -929,6 +934,7 @@ function openTree(d) {
     if (!open || branches[id] || leaves.has(id)) return;
     ask(d.children, { id }).then((r) => {
       const b = r.response.branch || { items: [], none: "" };
+      learn(r.langs);
       if (b.items.length) branches[id] = b.items; else leaves.add(id);
       show();
       if (!b.items.length && b.none) { message.textContent = b.none; speak(b.none, "assertive"); }
@@ -1474,7 +1480,7 @@ async function boot() {
   applyWords();
   // A group opened or closed: the core fills only the open groups (P3-T4a, NFR-1).
   tree = new Tree(treeEl, (id, group) => run("panel.select", { item: id, group }), null, (open) => {
-    client.send({ type: "panel", open }).then((r) => r && tree.fill(r.panel)).catch(showError);
+    client.send({ type: "panel", open }).then((r) => { if (r) { learn(r.langs); tree.fill(r.panel); } }).catch(showError);
   });
   menubar = new MenuBar($("menubar"), registry.menus, (name) => { mapEl.focus(); run(name, name === "help.keys" ? { region: "map" } : {}); },
     moveRegion, () => mapEl.focus());

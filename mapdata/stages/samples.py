@@ -1,7 +1,7 @@
 """Stage "samples": read small shape files kept in the repository, for the test pack (architecture 11.1).
 
 Each sample is a GeoJSON file. Each feature's properties give its id, name,
-layer and type, and may give local_name, parent, sovereign and replaces.
+layer and type, and may give local_name, local_lang (its language, P3-T12b), parent, sovereign and replaces.
 A sample may also give "box", a list of rectangles [west, south, east,
 north]: the area it covers in more detail than the samples before it.
 
@@ -28,7 +28,7 @@ from mapdata.stages.clip import polygonal
 
 NEEDED = ("id", "name", "layer", "type")
 # population: a town's, from OpenStreetMap, as the osm-places stage keeps it (P3-T1j), for search's importance.
-KEPT = ("id", "name", "local_name", "layer", "type", "parent", "sovereign", "population")
+KEPT = ("id", "name", "local_name", "local_lang", "layer", "type", "parent", "sovereign", "population")
 
 
 def as_lines_or_points(geom, shape: str, props: dict, filename: str):

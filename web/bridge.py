@@ -87,6 +87,7 @@ def _extras(response, out: dict, width: int, height: int) -> dict:
     out["hold"] = _session.hold_info()   # the held key's timing, for the page's clicks (DP140)
     out["toggles"] = _session.toggles()   # the ticks of the menu items
     out["save"] = json.dumps(_session.save())
+    out["langs"] = _session.name_languages()   # last, after everything that says a name (P3-T12b)
     return out
 
 
@@ -125,6 +126,7 @@ def _extras_start(response, out: dict) -> dict:
     out["preload"] = [_session.earcon_file(e["event"]) for e in earcon_list()]   # every earcon, ready (P2-T8)
     out["toggles"] = _session.toggles()
     out["save"] = json.dumps(_session.save())
+    out["langs"] = _session.name_languages()
     return out
 
 
@@ -157,7 +159,8 @@ def crossed(width: int, height: int):
 def panel_open(open_json: str):
     """The groups the page has open in the Information panel (P3-T4a): the core fills those, and keeps
     the list for the panels it makes after each command, so a group not open is never filled by a step."""
-    return _js({"panel": _session.panel(open=json.loads(open_json))})
+    panel = _session.panel(open=json.loads(open_json))
+    return _js({"panel": panel, "langs": _session.name_languages()})
 
 
 def hold():
@@ -232,7 +235,7 @@ def search(text: str, scope_json: str = "{}"):
     t = time.perf_counter()
     results = _session.search(text, layers=scope.get("layers"), near_m=scope.get("near_m"),
                               inside=scope.get("inside"))
-    return _js({"results": results, "ms": (time.perf_counter() - t) * 1000})
+    return _js({"results": results, "ms": (time.perf_counter() - t) * 1000, "langs": _session.name_languages()})
 
 
 def pack_selfcheck():

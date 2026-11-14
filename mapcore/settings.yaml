@@ -158,6 +158,13 @@ tabs:
         label: "Say the place after every step, even when it has not changed"
         kind: yes_no
         default: false
+      # Which name of a feature is said and shown everywhere (P3-T12a, ACC-9, DP172). The packs hold the
+      # English and the local name only. mapcore/names.py.
+      - id: names
+        label: Names
+        kind: choice
+        default: english
+        choices: [[english, "English where there is one"], [local, "Always the local name"]]
   - id: layers
     label: Layers
     fields:

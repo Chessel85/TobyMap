@@ -24,10 +24,11 @@ from __future__ import annotations
 
 import math
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
+from mapcore import names as names_mod
 from mapcore import search
 from mapcore.geo import geodesy
 from mapcore.packs import tiles
@@ -47,6 +48,7 @@ class Area:
     pack: int
     number: int
     record: dict
+    naming: names_mod.Naming = field(default=names_mod.DEFAULT, compare=False, repr=False)   # the store's (P3-T12a)
 
     @property
     def id(self) -> str:
@@ -69,9 +71,9 @@ class Area:
         return self.record["names"]
 
     @property
-    def name(self) -> str:
-        names = self.record["names"]
-        return names.get("en") or next(iter(names.values()), self.record["id"])
+    def name(self) -> names_mod.Name:
+        """The name the Names setting chooses, with its language (P3-T12, mapcore.names)."""
+        return self.naming.name_of(self.record)
 
 
 @dataclass(frozen=True)
@@ -153,11 +155,6 @@ class Found:
     via: str
     level: int
     similarity: float
-
-
-def _record_name(rec: dict) -> str:
-    names = rec.get("names") or {}
-    return names.get("en") or next(iter(names.values()), rec["id"])
 
 
 TREE_LAYERS = ("continents", "countries", "regions", "counties")   # the layers of the world tree (P3-T9a)
@@ -419,7 +416,11 @@ class Store:
         self.cache = TileCache(cache_bytes) if cache_bytes else TileCache()
         self._indexes: list[_PackIndex] = []
         self._lock = threading.RLock()
-        self._tree_children: dict[str, list[tuple[str, str]]] | None = None   # the world tree (P3-T9a)
+        # The world tree (P3-T9a): each branch's members, and their records for their names.
+        self._tree_children: dict[str, set] | None = None
+        self._tree_rows: dict[str, dict] = {}
+        # Which name is said and shown (P3-T12a), shared with every Area this store makes.
+        self.naming = names_mod.Naming()
         # A tile's shapes are shared and prepared, and Shapely builds a prepared shape's index on
         # its first use, which is not safe from two threads at once: the Crossed and passed
         # search and a step's lookup together made Windows stop the program (P2-T17w). Every
@@ -437,6 +438,13 @@ class Store:
     def close(self) -> None:
         for i in self._indexes:
             i.pack.close()
+
+    def set_names(self, choice: str) -> None:
+        """Which name is said and shown: "english" or "local" (P3-T12a). Every Area this store made follows it."""
+        self.naming.choice = choice if choice in names_mod.CHOICES else names_mod.ENGLISH
+
+    def _name(self, rec: dict) -> names_mod.Name:
+        return self.naming.name_of(rec)
 
     def _note(self, exc: DamagedRecord) -> None:
         if exc.message not in self.problems:
@@ -500,7 +508,7 @@ class Store:
             try:
                 number = pack.feature_number(identifier)
                 if number is not None:
-                    return Area(p, number, pack.feature(number))
+                    return Area(p, number, pack.feature(number), self.naming)
             except DamagedRecord as exc:
                 self._note(exc)
         return None
@@ -530,7 +538,7 @@ class Store:
 
     def _area(self, p: int, number: int) -> Area | None:
         try:
-            return Area(p, number, self._indexes[p].pack.feature(number))
+            return Area(p, number, self._indexes[p].pack.feature(number), self.naming)
         except DamagedRecord as exc:
             self._note(exc)
             return None
@@ -822,9 +830,10 @@ class Store:
         with self._lock:
             if self._tree_children is None:
                 self._tree_children = self._build_tree()
-            return list(self._tree_children.get(identifier, ()))
+            named = [(i, self._name(self._tree_rows[i])) for i in self._tree_children.get(identifier, ())]
+        return sorted(named, key=lambda t: (t[1].casefold(), t[0]))
 
-    def _build_tree(self) -> dict[str, list[tuple[str, str]]]:
+    def _build_tree(self) -> dict[str, set]:
         rows: dict[str, dict] = {}
         for index in self._indexes:
             try:
@@ -852,9 +861,10 @@ class Store:
             kind = special_kind(rec)
             if kind:
                 add("special:" + kind, identifier)
-        return {parent: sorted(((i, _record_name(rows[i])) for i in members),
-                               key=lambda t: (t[1].casefold(), t[0]))
-                for parent, members in tree.items()}
+        # Only what a name needs is kept, as the whole records of every county would take much memory in the browser.
+        members = {i for ids in tree.values() for i in ids}
+        self._tree_rows = {i: {k: rows[i][k] for k in ("id", "names", "local_lang") if k in rows[i]} for i in members}
+        return tree
 
     def special_areas(self, kind: str, inside: str | None = None) -> list[Found]:
         """The disputed areas or unclaimed areas (kind "disputed" or "unclaimed"), by name, as search results,
@@ -909,7 +919,7 @@ class Store:
                     rel = self.relationships(rec["id"])
                     if identifier in rel.get("in", ()) or identifier in rel.get("same", ())                             or identifier in rel.get("crosses", ())                             or any(x[0] == identifier for x in (*rel.get("partly", ()), *rel.get("overlaps", ()))):
                         point = rec.get("point")
-                        name = _record_name(rec)
+                        name = self._name(rec)
                         out.append(Found(p, rec["id"], name, layer, 0, point[1] if point else None,
                                          point[0] if point else None, name, "", 0, 1.0))
             except DamagedRecord as exc:
@@ -950,7 +960,7 @@ class Store:
                     continue
                 rec = area.record
                 point = rec.get("point")
-                name = _record_name(rec)
+                name = self._name(rec)
                 out.append((Found(p, area.id, name, layer, 0, point[1] if point else None,
                                   point[0] if point else None, name, "", 0, 1.0), distance))
         out.sort(key=lambda t: (t[1], t[0].name.casefold(), t[0].id))

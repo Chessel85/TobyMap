@@ -20,6 +20,28 @@
 // Its items are check boxes: an item given `checked` has aria-checked, and Space or a click
 // ticks or clears it and calls onToggle(id, checked).
 
+import { languageOf, setText } from "./langs.js";
+
+// An item's own words: its text before any list of items it holds.
+function labelText(li) {
+  let out = "";
+  for (const n of li.childNodes) {
+    if (n.nodeType === Node.ELEMENT_NODE && n.getAttribute("role") === "group") break;
+    out += n.textContent;
+  }
+  return out;
+}
+
+// An item named with aria-label (a group, or an item that opens) cannot mark part of its name, so an item
+// whose words are a single name in another language gets that language itself, as world tree items do.
+// The items inside such an item would take its language too, so every other item says the page's own.
+function wholeLang(li, label) {
+  const lang = languageOf(label);
+  if (lang) li.lang = lang;
+  else if (li.closest("[lang]:not(html)")) li.lang = document.documentElement.lang;
+  else li.removeAttribute("lang");
+}
+
 export class Tree {
   constructor(element, onSelect, onToggle = null, onOpen = null, onItem = null) {
     this.el = element;
@@ -115,11 +137,17 @@ export class Tree {
       .map((g) => g.dataset.id.replace(/^group:/, ""));
   }
 
-  // The words are the item's first child text node, replaced only when they change.
+  // The words are the item's own text, before any list of items it holds, replaced only when they change.
+  // A name in another language among them is a span with its lang attribute (P3-T12b).
   _label(li, label) {
-    const node = li.firstChild;
-    if (node.textContent !== label) node.textContent = label;
+    if (labelText(li) !== label) {
+      const sub = li.querySelector(':scope > [role="group"]');
+      for (const n of [...li.childNodes]) if (n !== sub) n.remove();
+      li.insertBefore(setText(document.createElement("span"), label), li.firstChild);
+      li.firstChild.replaceWith(...li.firstChild.childNodes);
+    }
     if (li.hasAttribute("aria-expanded")) li.setAttribute("aria-label", label);
+    wholeLang(li, label);
   }
 
   // F3: go to an item by its id (the item last focused, or Within's first), opening its group.
@@ -166,8 +194,10 @@ export class Tree {
     // NVDA's say current line was silent in Firefox otherwise (PO test of
     // tools/spikes/s5/say_line.html). A group also holds its items, so it is
     // named with aria-label, or its name would be all its items' words.
-    li.appendChild(document.createTextNode(label));
+    // A name in another language is a span with its lang attribute, still inline (P3-T12b).
+    li.append(...setText(document.createElement("span"), label).childNodes);
     if (id.startsWith("group:")) li.setAttribute("aria-label", label);
+    wholeLang(li, label);
     return li;
   }
 
@@ -263,7 +293,7 @@ export class Tree {
           this._typed += e.key.toLowerCase();
           const same = this._typed.length > 1 && [...this._typed].every((c) => c === this._typed[0]);
           const text = same ? this._typed[0] : this._typed;
-          const starts = (v) => v.firstChild.textContent.toLowerCase().startsWith(text);
+          const starts = (v) => labelText(v).toLowerCase().startsWith(text);
           // Growing text may stay on the current item; a single or repeated letter goes to the next.
           const from = same || this._typed.length === 1 ? i + 1 : i;
           const after = visible.slice(from).concat(visible.slice(0, from));

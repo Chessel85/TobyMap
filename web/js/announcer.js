@@ -4,6 +4,8 @@
 // Every message is also kept in window.tobymap.announcements, for the
 // browser tests and for diagnostics.
 
+import { setText } from "./langs.js";
+
 const regions = {
   polite: [document.getElementById("live-polite-a"), document.getElementById("live-polite-b")],
   assertive: [document.getElementById("live-assertive-a"), document.getElementById("live-assertive-b")],
@@ -32,5 +34,5 @@ export function speak(text, priority = "polite") {
   const other = target === a ? b : a;
   next[kind] = 1 - next[kind];
   other.textContent = "";
-  target.textContent = text;
+  setText(target, text);   // a name in another language is marked with its language (P3-T12b)
 }

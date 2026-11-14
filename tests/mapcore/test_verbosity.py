@@ -63,7 +63,8 @@ def test_a_saved_custom_choice_comes_back(test_pack):
 
 def test_the_speech_tab_has_the_preset_first_then_its_switches():
     tab = next(t for t in settings_mod.schema()["tabs"] if t["id"] == "speech")
-    assert [f["id"] for f in tab["fields"]] == ["verbosity", *settings_mod.PRESET_SWITCHES, "say_place_always"]
+    # Names (P3-T12a) is after the switches, outside the presets.
+    assert [f["id"] for f in tab["fields"]] == ["verbosity", *settings_mod.PRESET_SWITCHES, "say_place_always", "names"]
     assert set(settings_mod.presets()) == {"terse", "normal", "detailed"}
     for switches in settings_mod.presets().values():
         assert set(switches) == set(settings_mod.PRESET_SWITCHES)

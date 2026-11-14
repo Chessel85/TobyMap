@@ -91,6 +91,8 @@ def main() -> int:
     import geodesk
     import shapely
 
+    from mapdata.stages.languages import name_language
+
     gol = planet()
     world = geodesk.Features(str(gol))
     when = gol.stem.removeprefix("planet-")
@@ -115,8 +117,12 @@ def main() -> int:
         return {"type": "Feature", "properties": props, "geometry": geometry(g)}
 
     def local(f, english):
+        """The local name where it differs from the English, and its language where it can be told (P3-T12b)."""
         name = str(f["name"] or "")
-        return {"local_name": name} if name and name != english else {}
+        if not name or name == english:
+            return {}
+        lang = name_language(f)
+        return {"local_name": name, **({"local_lang": lang} if lang and lang != "en" else {})}
 
     def coverage(geoms, tolerance):
         """Simplify areas that share borders, keeping the borders shared."""

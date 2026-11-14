@@ -166,6 +166,12 @@ sound:
 hear:
   label: "{name}, {distance}"
 
+# Look around (P3-T11a, SON-4): the Nearby group played as sound, clockwise from ahead. Each item's
+# label is hear.label, said in the spatial voice. These are said by the screen reader.
+look:
+  muted: "Sound is muted, so look around has nothing to play."
+  go_none: "Nothing to go to. Press Enter while look around plays an item to go to it."
+
 # The spatial voice (P2-T7, SON-3). Each is said once, by the screen reader.
 voice:
   loading: "The spatial voice is still starting. Try again in a few seconds."
@@ -403,6 +409,7 @@ layers:
   every_zoom: "No limit"
   # For an area layer, such as Countries, its border (P2-T17i).
   crossing: "Sound when a line or border of this layer is crossed"
+  layer_sound: "Sound of this layer's features in look around and Hear its direction"
   no_sound: "No sound"
   range_error: "The maximum zoom must not be a larger distance than the minimum zoom."
   choose_layer: "Choose a layer first. The settings are for one layer."

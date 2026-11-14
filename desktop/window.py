@@ -34,6 +34,7 @@ from desktop.dialogs import ConfirmBox, HistoryDialog, InputDialog, LayersDialog
 from desktop.keys import key_name
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
+from desktop.scan import ScanPlayer
 from desktop.sounds import SoundPlayer
 from mapcore.commands import registry
 from mapcore.session import HOLD_SILENCE_S, MapSession, Response
@@ -224,6 +225,7 @@ class MainWindow(QMainWindow):
             voice = SpatialVoice(spatial) if sounds is None else RecordingVoice()
         self.voice = voice
         self._told: set[str] = set()   # sound problems already told, each said once
+        self.scan = ScanPlayer(self)   # look around (P3-T11a)
         self._registry = self.session.registry()
         self._dialogs: list[QDialog] = []
         self._answer_words: list[str] | None = None   # while a dialog's answer is carried out (P2-T17c)
@@ -307,6 +309,7 @@ class MainWindow(QMainWindow):
         self.save()
         self._hold_clock.stop()
         self._beacon.stop()
+        self.scan.stop()
         QApplication.instance().removeEventFilter(self._key_filter)
         self.map.stop_drawing()
         self.voice.close()
@@ -477,6 +480,9 @@ class MainWindow(QMainWindow):
     def handle(self, response, key_at: float | None = None):
         if response.stop_voice:
             self.voice.stop()   # a key press stops the voice before anything is said (P2-T17n, SON-3)
+            if self.scan.playing:   # and look around with it (P3-T11a)
+                self.scan.stop()
+                self.spatial.stop("scan")
         # Focus moved within the window, as after Enter on an item of the Information panel, goes
         # first: the screen reader stops speaking when the focus moves, so the place said after the
         # move is heard (P2-T17k). The panel is brought up to date first, so the item is there.
@@ -501,6 +507,8 @@ class MainWindow(QMainWindow):
         if response.voice:
             self._say(response.voice, self.spatial.last_end if response.voice["after"] and response.sounds else None)
         self._beacon.update(response.beacon)
+        if response.scan:
+            self.scan.start(response.scan)
         if response.announcements or response.earcons:
             from mapcore import diagnostics
 
@@ -552,6 +560,21 @@ class MainWindow(QMainWindow):
         if state == "loading" or (state in ("missing", "failed") and f"voice_{state}" not in self._told):
             self._told.add(f"voice_{state}")
             self.handle(self.session.voice_problem(state))
+
+    def play_scan_item(self, item: dict, first: bool) -> None:
+        """One item of look around (P3-T11a): its sound, under the tag "scan", then its label when the
+        sound ends. A voice still starting, missing or failed is told at the first item only."""
+        if item["sound"] is not None:
+            self._play_placed(item["sound"], tag="scan")
+        start = self.spatial.last_end if item["sound"] is not None else None
+        if first:
+            self._say(item["voice"], start)
+        else:
+            self.voice.say(item["voice"], start)
+
+    def scan_sounding(self) -> bool:
+        """Whether the item look around is playing still sounds: its sound, or its label being made or played."""
+        return self.spatial.playing("scan") or self.voice.busy
 
     def _play_placed(self, placed: dict, tag: str | None = None) -> None:
         """A sound placed in space by the core (P2-T6). A missing sound device, or HRTF data, is

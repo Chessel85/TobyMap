@@ -17,3 +17,14 @@
 - {event: meridian_crossed, file: meridianCrossed.wav, label: Meridian crossed, meaning: "Crossing the prime meridian or the 180 degree meridian.", phase: 2}
 - {event: equator_crossed, file: equatorCrossed.wav, label: Equator or tropic crossed, meaning: "Crossing the equator, a tropic or a polar circle.", phase: 2}
 - {event: beacon, file: beacon.wav, label: Orientation beacon, meaning: "Repeated from the direction of the place chosen in Settings, the North Pole at first, while the beacon is on. B switches it on and off.", phase: 2, listed: false}
+# Each layer's own sound in look around and Hear its direction (P3-T11b, SCP-7). A layer's `sound` in its layer file names one.
+- {event: layer_continent, file: layer-continent.wav, label: Continent, meaning: "Played from a continent's direction in look around and Hear its direction.", phase: 3}
+- {event: layer_country, file: layer-country.wav, label: Country, meaning: "Played from a country's direction in look around and Hear its direction.", phase: 3}
+- {event: layer_region, file: layer-region.wav, label: Region or county, meaning: "Played from a region, island or county's direction.", phase: 3}
+- {event: layer_water, file: layer-water.wav, label: Water, meaning: "Played from the direction of an ocean, sea, bay or lake.", phase: 3}
+- {event: layer_river, file: layer-river.wav, label: River, meaning: "Played from the direction of a river.", phase: 3}
+- {event: layer_road, file: layer-road.wav, label: Road, meaning: "Played from the direction of a motorway or trunk road.", phase: 3}
+- {event: layer_railway, file: layer-railway.wav, label: Railway, meaning: "Played from the direction of a railway line.", phase: 3}
+- {event: layer_town, file: layer-town.wav, label: City or town, meaning: "Played from the direction of a city or town.", phase: 3}
+- {event: layer_mountain, file: layer-mountain.wav, label: Mountain range or region, meaning: "Played from the direction of a mountain range, desert, plateau or plain.", phase: 3}
+- {event: layer_peak, file: layer-peak.wav, label: Peak, meaning: "Played from the direction of a mountain peak.", phase: 3}

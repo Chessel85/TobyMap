@@ -101,7 +101,12 @@ def test_enter_on_a_group_heading_says_and_does_nothing(session):
 
 
 def test_enter_on_the_map_is_not_go_there(session):
-    assert session.press("Enter", "map") is None
+    """Enter on the map is look around's: it goes to the item look around is playing, and with none,
+    it moves nowhere (P3-T11a)."""
+    before = (session.world.lat, session.world.lon)
+    r = session.press("Enter", "map")
+    assert (session.world.lat, session.world.lon) == before and r.focus is None
+    assert spoken(r)[0].startswith("Nothing to go to.")
 
 
 # Ctrl+G and Ctrl+B from the panel and Details (desktop 10.5) ----------------------------------

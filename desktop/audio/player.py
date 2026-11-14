@@ -273,6 +273,13 @@ class SpatialPlayer:
         self.mixer.add(samples, tag)
         return True, custom_failed
 
+    def playing(self, tag: str) -> bool:
+        """Whether a sound with this tag is still playing or waiting to start, as look around's item sound."""
+        return self.stream is not None and self.mixer.playing(tag)
+
+    def stop(self, tag: str) -> None:
+        self.mixer.stop(tag)
+
     @property
     def last_end(self) -> int:
         """The mixer frame the last sound played ends at: a label that waits for it starts there."""
@@ -290,10 +297,19 @@ class RecordingSpatial:
         self.missing = False
         self.hrtf_missing = False
         self.last_end = 0
+        self.sounding: set[str] = set()   # tags the tests say are still playing
+        self.tags: list[str | None] = []    # each sound's tag, in order
 
     def play(self, placed: dict, tag: str | None = None) -> tuple[bool, bool]:
         self.played.append(placed)
+        self.tags.append(tag)
         return True, False
+
+    def playing(self, tag: str) -> bool:
+        return tag in self.sounding
+
+    def stop(self, tag: str) -> None:
+        self.sounding.discard(tag)
 
     def preload(self, infos: list[dict]) -> None:
         pass

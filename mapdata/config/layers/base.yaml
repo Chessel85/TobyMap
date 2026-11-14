@@ -17,36 +17,36 @@
 
 layers:
   # The continents, built from the countries (P3-T1e, DP174). Not painted on the map: the countries are.
-  - {id: continents, name: Continents, rank: 1, kind: land, made_by: continents, group: Boundaries, geometry: area, switched_on: true, fill: none}
-  - {id: countries, name: Countries, rank: 2, kind: land, group: Boundaries, geometry: area, switched_on: true}
-  - {id: oceans, name: Oceans and seas, rank: 2, kind: water, group: Water, geometry: area, switched_on: true, fill: water}
-  - {id: seas, name: "Seas, bays and straits", rank: 4, kind: water, group: Water, geometry: area, switched_on: true, fill: water}
+  - {id: continents, name: Continents, rank: 1, kind: land, made_by: continents, group: Boundaries, geometry: area, switched_on: true, fill: none, sound: layer_continent}
+  - {id: countries, name: Countries, rank: 2, kind: land, group: Boundaries, geometry: area, switched_on: true, sound: layer_country}
+  - {id: oceans, name: Oceans and seas, rank: 2, kind: water, group: Water, geometry: area, switched_on: true, fill: water, sound: layer_water}
+  - {id: seas, name: "Seas, bays and straits", rank: 4, kind: water, group: Water, geometry: area, switched_on: true, fill: water, sound: layer_water}
   # Seas, bays and straits that OSM has only as a point, found by search and Nearby, never said as where you are (DP168).
-  - {id: sea-places, name: "Bays and straits, as places", rank: 8, kind: water, group: Water, geometry: point, switched_on: true, max_zoom_m: 100000}
+  - {id: sea-places, name: "Bays and straits, as places", rank: 8, kind: water, group: Water, geometry: point, switched_on: true, max_zoom_m: 100000, sound: layer_water}
   # Mountain ranges from GMBA, in GMBA's own hierarchy, and Natural Earth's physical regions, such as deserts and
   # plateaus (P3-T1f, DAT-5). Between countries and regions, so a county is still said first. Their areas overlap,
   # so they are not painted on the map.
-  - {id: mountain-ranges, name: Mountain ranges, rank: 3, kind: land, made_by: physical, group: Physical features, geometry: area, switched_on: true, fill: none}
-  - {id: physical-regions, name: "Deserts, plateaus, plains and other regions", rank: 3, kind: land, made_by: physical, group: Physical features, geometry: area, switched_on: true, fill: none}
+  - {id: mountain-ranges, name: Mountain ranges, rank: 3, kind: land, made_by: physical, group: Physical features, geometry: area, switched_on: true, fill: none, sound: layer_mountain}
+  - {id: physical-regions, name: "Deserts, plateaus, plains and other regions", rank: 3, kind: land, made_by: physical, group: Physical features, geometry: area, switched_on: true, fill: none, sound: layer_mountain}
   # Named peaks of 1,000 metres or more, as places, with their height (P3-T1f, DP169).
-  - {id: peaks, name: Peaks, rank: 8, kind: land, group: Physical features, geometry: point, switched_on: true, max_zoom_m: 50000}
+  - {id: peaks, name: Peaks, rank: 8, kind: land, group: Physical features, geometry: point, switched_on: true, max_zoom_m: 50000, sound: layer_peak}
   # Each country's first tier below it: regions, states and provinces, and the United Kingdom's constituent
   # countries (P3-T17, DP165). Not painted unless "Draw the borders of regions" is on; still said. Its
   # shown_name is the name in the application; its name stays, so the areas are not built again.
-  - {id: regions, name: Regions, shown_name: Regions and constituent countries, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000}
+  - {id: regions, name: Regions, shown_name: Regions and constituent countries, rank: 4, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000, sound: layer_region}
   # Islands, between regions and counties, so Tenerife is inside the Canary Islands region (P3-T1d).
   # Not painted: the counties under them are (P3-T1e).
-  - {id: islands, name: Islands, rank: 5, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000, fill: none}
-  - {id: counties, name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 100000}
+  - {id: islands, name: Islands, rank: 5, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 1000000, fill: none, sound: layer_region}
+  - {id: counties, name: Counties, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 100000, sound: layer_region}
   # Rivers of 50 km or more with a Wikidata link, joined into whole rivers (P3-T1g, DP169). Crossing one plays the
   # line crossed sound (ANN-2).
-  - {id: rivers, name: Rivers, rank: 8, kind: land, made_by: osm-rivers, group: Water, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000}
+  - {id: rivers, name: Rivers, rank: 8, kind: land, made_by: osm-rivers, group: Water, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000, sound: layer_river}
   # Motorways and trunk roads, and main railway lines, each road one feature per number and country (P3-T1i).
   # Crossing one plays the line crossed sound (ANN-2).
-  - {id: roads, name: Motorways and trunk roads, rank: 8, kind: land, made_by: osm-lines, group: Transport, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000}
-  - {id: railways, name: Main railway lines, rank: 8, kind: land, made_by: osm-lines, group: Transport, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000}
+  - {id: roads, name: Motorways and trunk roads, rank: 8, kind: land, made_by: osm-lines, group: Transport, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000, sound: layer_road}
+  - {id: railways, name: Main railway lines, rank: 8, kind: land, made_by: osm-lines, group: Transport, geometry: line, switched_on: true, crossing_earcon: line_crossing, max_zoom_m: 250000, sound: layer_railway}
   # Cities and towns, as places, with their population from OSM and the areas each is in (P3-T1j).
-  - {id: towns, name: Cities and towns, rank: 8, kind: land, group: Places, geometry: point, switched_on: true, max_zoom_m: 250000}
+  - {id: towns, name: Cities and towns, rank: 8, kind: land, group: Places, geometry: point, switched_on: true, max_zoom_m: 250000, sound: layer_town}
   # Lakes of 10 km2 or more (P3-T1h, DP169), above the counties, so on Lake Geneva you hear the lake first.
   # Of kind land, as nothing is taken out of a lake: it lies on the land. It is painted as water.
-  - {id: lakes, name: Lakes, rank: 7, kind: land, made_by: osm-layer, group: Water, geometry: area, switched_on: true, fill: water}
+  - {id: lakes, name: Lakes, rank: 7, kind: land, made_by: osm-layer, group: Water, geometry: area, switched_on: true, fill: water, sound: layer_water}

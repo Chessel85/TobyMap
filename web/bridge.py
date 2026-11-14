@@ -183,6 +183,12 @@ def voice_problem(problem: str, width: int, height: int):
     return _js(_extras(_session.voice_problem(problem), {}, width, height))
 
 
+def scan_item(index: int, width: int, height: int):
+    """Look around (P3-T11a): the page has started playing item index of the scan, or -1 at its end."""
+    index = int(index)
+    return _js(_extras(_session.scan_item(index if index >= 0 else None), {}, width, height))
+
+
 def stretch(samples, rate: int, factor: float, pitch: float):
     """A spatial voice label made factor times as fast, and at pitch times the pitch without
     slowing, by the core (P2-T16g, SON-3): float32 samples in, as bytes, and out, as bytes

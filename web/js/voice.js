@@ -17,7 +17,8 @@ let making = null;       // the label being made: {gen, voice, after, asked}
 let waiting = null;      // the newest label asked for while one was being made
 let playing = null;      // the source now playing
 let gen = 0;
-let stretcher = null;    // (samples, rate, factor, pitch) => a promise of the samples reshaped by the core
+let speaking = false;    // the newest label is being made, or is waiting to start or playing (look around waits for it)
+let stretcher = null;   // (samples, rate, factor, pitch) => a promise of the samples reshaped by the core
 export const info = { threads: null, isolated: null, load_ms: null };
 // Each label made, for the browser tests: its words, its numbers and the time from asking to sound.
 export const labels = [];
@@ -57,6 +58,7 @@ export function say(v, after) {
   if (state !== "ready") return state;
   stop();
   gen += 1;
+  speaking = true;
   const job = { gen, voice: v, after, asked: performance.now() };
   if (making) waiting = job;
   else ask(job);
@@ -71,6 +73,12 @@ export function halt() {
   stop();
   gen += 1;
   waiting = null;
+  speaking = false;
+}
+
+// Whether the newest label is still to be heard: being made, waiting for its item's sound, or playing (P3-T11a).
+export function busy() {
+  return speaking;
 }
 
 export function stop() {
@@ -93,7 +101,8 @@ async function finished(m) {
     waiting = null;
     ask(next);
   }
-  if (!job || m.type === "error" || job.gen !== gen) return;   // failed, or a newer label was asked for
+  if (!job || job.gen !== gen) return;   // a newer label was asked for
+  if (m.type === "error") { speaking = false; return; }
   let samples = m.samples;
   const factor = job.voice.stretch || 1;
   const pitch = job.voice.pitch || 1;
@@ -103,7 +112,7 @@ async function finished(m) {
   }
   const made = performance.now() - job.asked;   // the label made, before any wait for the item's sound
   const ctx = sounds.audio();
-  if (!ctx) return;
+  if (!ctx || !samples.length) { speaking = false; return; }
   const buffer = ctx.createBuffer(1, samples.length, m.rate);
   buffer.copyToChannel(samples, 0);
   const at = job.after ? await job.after : 0;
@@ -111,7 +120,10 @@ async function finished(m) {
   const source = sounds.connectPlaced(buffer, job.voice.placed);
   source.start(Math.max(ctx.currentTime, at));
   playing = source;
-  source.onended = () => { if (playing === source) playing = null; };
+  source.onended = () => {
+    if (playing === source) playing = null;
+    if (job.gen === gen) speaking = false;
+  };
   labels.push({ text: job.voice.text, relative_deg: job.voice.placed.relative_deg, pitch,
                 ms: Math.round(performance.now() - job.asked), made_ms: Math.round(made), threads: info.threads,
                 stretch: factor, seconds: samples.length / m.rate, piper_seconds: m.samples.length / m.rate });

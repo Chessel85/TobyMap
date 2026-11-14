@@ -870,7 +870,7 @@ def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_al
     box.max_zoom.setCurrentIndex(box.max_zoom.findData(None))
     box.crossing.setCurrentIndex(box.crossing.findData("line_crossing"))
     box.ok_button.click()
-    assert box.values() == {"min_zoom_m": 250000, "max_zoom_m": None, "crossing_earcon": "line_crossing"}
+    assert box.values() == {"min_zoom_m": 250000, "max_zoom_m": None, "crossing_earcon": "line_crossing", "sound": box.sound.currentData()}
     dialog.layers["counties"].update(box.values())
     assert dialog.changes() == [("counties", {"min_zoom_m": 250000, "max_zoom_m": None,
                                                "crossing_earcon": "line_crossing"})]

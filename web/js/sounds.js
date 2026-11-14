@@ -146,17 +146,29 @@ function audioTime(ctx, at) {
 export const placed = [];
 
 // Plays a placed sound and gives the time on the sound card's clock when it ends, so a label
-// that waits for it can start then; 0 if it did not play.
-export async function playPlaced(p) {
+// that waits for it can start then; 0 if it did not play. scan marks look around's item sound
+// (P3-T11a), which stopScan() stops, even while it is still loading.
+let scanSource = null;
+let scanGen = 0;
+export async function playPlaced(p, scan = false) {
+  const gen = scan ? ++scanGen : 0;
   try {
     const buffer = await bufferFor(p.file);
+    if (scan && gen !== scanGen) return 0;   // stopped while loading
     const source = connectPlaced(buffer, p);
     source.start();
+    if (scan) scanSource = source;
     return audio().currentTime + buffer.duration / p.pitch;
   } catch (e) {
     // No sound file or no audio: nothing to do; the sound is only a help.
     return 0;
   }
+}
+
+export function stopScan() {
+  scanGen += 1;
+  if (scanSource) { try { scanSource.stop(); } catch (e) { /* already ended */ } }
+  scanSource = null;
 }
 
 // The orientation beacon (P2-T9, SON-10): a placed sound that stops its last one still

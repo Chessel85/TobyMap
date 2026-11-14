@@ -81,6 +81,10 @@ commands:
   - {name: isolate.toggle, label: Isolate the current area, key: Ctrl+I, region: map, menu: Map, toggle: true}
   # Every setting back to a new installation's, after a yes in a message box (P2-T18h).
   - {name: settings.reset, label: Reset all settings, key: "", region: global, menu: Map}
+  # Look around (P3-T11a, SON-4): L plays the Nearby group as sound, clockwise from ahead, at most 12 items.
+  # Any key stops it; Enter on the map, while an item plays, goes to that item (INF-10).
+  - {name: look.around, label: Look around, key: L, region: map, menu: Map}
+  - {name: look.go, label: Go to the item look around is playing, key: Enter, region: map, menu: Map}
   # Where am I (LOC-1, LOC-7).
   - {name: where.am_i, label: Where am I, key: Space, region: map, menu: Map}
   - {name: where.coordinates, label: Coordinates, key: C, region: map, menu: Map}

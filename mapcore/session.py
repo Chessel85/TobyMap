@@ -43,6 +43,8 @@ PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158
 SEARCH_LIMIT = 20    # search results listed (P3-T8b)
 SEARCH_DELAY_MS = 300   # the pause in typing before the search dialog searches (P3-T8c)
 QUERY_RELATIONS = ("inside", "crossing", "bordering", "near")   # the query builder's relations (P3-T10a, INF-9)
+SCAN_LIMIT = 12    # items look around plays (P3-T11a, SON-4)
+SCAN_GAP_S = 0.3   # the pause after one item's label before the next item's sound
 REGIONS = ("map", "panel", "details", "menu")
 # Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
 # the times the core gives, so the clicks never wait for the map to be drawn.
@@ -97,6 +99,12 @@ class Response:
     found: dict | None = None
     # A branch of the world tree, opened (P3-T9a): {"id", "items": [{"id", "label"}], "none"}.
     branch: dict | None = None
+    # Look around (P3-T11a, SON-4): {"items": [{"id", "sound", "voice"}], "gap_s"}, Nearby's first items
+    # clockwise from ahead. The shell plays them one after another on its own sound player: each item's
+    # sound (None when switched off), then its voice label after it, then gap_s, then the next. As each
+    # item starts, the shell calls MapSession.scan_item(index) and handles its response; at the end,
+    # scan_item(None). A response with stop_voice stops the scan too, as it stops the voice.
+    scan: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -232,6 +240,10 @@ class MapSession:
         self._scene = None
         self._beacon_near: bool | None = None   # the beacon is on and silent near the North Pole (P2-T9)
         self.isolated: str | None = None        # the one feature shown, with Isolate (VIS-2)
+        # Look around (P3-T11a): the items of the scan playing, (area, lat, lon, label), and the one the
+        # shell is playing now, for Enter. Any other command ends it.
+        self._scan: list[tuple] = []
+        self._scan_at: int | None = None
         self._theme_cache: tuple | None = None   # (the settings it was made from, (theme, refused colours))
         self._handlers = {
             "move.north": lambda **a: self._move("north", **a),
@@ -256,6 +268,8 @@ class MapSession:
             # Shift and a number: go to that group (INF-10, DP109).
             **{f"panel.{g}": (lambda g=g, **a: self._go_to_group(g)) for g in registry.panel_groups()},
             "panel.hear": self._hear,
+            "look.around": self._look_around,
+            "look.go": self._look_go,
             "measure.to": self._measure,
             "panel.go": self._panel_go,
             "panel.sort": lambda **a: self._sort(1, **a),
@@ -384,6 +398,7 @@ class MapSession:
             merged.open_url = r.open_url or merged.open_url
             merged.found = r.found or merged.found
             merged.branch = r.branch or merged.branch
+            merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 
     def press(self, key: str, region: str = "map") -> Response | None:
@@ -1496,15 +1511,21 @@ class MapSession:
     def _record(self, name: str, response: Response, started: float | None = None) -> Response:
         self._beacon_told(name, response)
         response.stop_voice = response.voice is None or self.settings["mute"]
+        if name != "look.around":   # any other command ends the scan, as the shell stops playing it
+            self._scan, self._scan_at = [], None
         if self.settings["mute"]:
             response.earcons = []
             response.crossings = []
             response.sounds = []
             response.voice = None
+            response.scan = None
         elif name != "sound.preview":   # The sounds in Help plays an earcon even when it is switched off
             response.earcons = [e for e in response.earcons if self.earcon_on(e)]
             response.crossings = [e for e in response.crossings if self.earcon_on(e)]
             response.sounds = [s for s in response.sounds if self.earcon_on(s["sound"])]
+            for item in (response.scan or {}).get("items", []):
+                if item["sound"] is not None and not self.earcon_on(item["sound"]["sound"]):
+                    item["sound"] = None
         spoken = [a["text"] for a in response.announcements if a["channel"] == SPEECH]
         label = response.label
         if label and label not in spoken:   # a spatial label can be repeated too (ANN-4)
@@ -2077,8 +2098,6 @@ class MapSession:
         voice from the same place. The label also goes to Braille without speech, to the history,
         and, if that setting is on, to the screen reader (ANN-4, ACC-1). Nothing is played here:
         the sound scene says how, and the shells play it (AD-10)."""
-        from mapcore.sound.scene import place
-
         self.panel()   # the items' places are kept as the panel is made
         if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
@@ -2087,12 +2106,21 @@ class MapSession:
         if spot is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
         area, lat, lon = spot
+        sound, voice = self._heard_from(area, lat, lon)
+        r = Response(sounds=[sound], voice=voice)
+        return self._label_out(r, voice["text"])
+
+    def _heard_from(self, area, lat: float, lon: float) -> tuple[dict, dict]:
+        """A feature heard from (lat, lon): its layer's sound placed there, and its label, the name and
+        distance, in the spatial voice from the same place, waiting for the sound (SON-3, SCP-7). Hear
+        its direction and look around both use this, so they sound the same."""
+        from mapcore.sound.scene import place
+
         w = self.world
         distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
         label = say("hear.label", name=area.name, distance=words.distance_text(distance, self._units()))
-        r = Response()
         layer = self.layers.get(area.layer)
-        r.sounds.append(self.place_sound((layer.sound if layer else None) or "item_direction", lat, lon))
+        sound = self.place_sound((layer.sound if layer else None) or "item_direction", lat, lon)
         voice = place("voice", bearing, distance, describer.facing(w) or 0.0, w.zoom_m, self.curve(),
                       self.settings["sound_mode"]).to_dict()   # the label is never swapped for the fixed tone
         voice["gain"] *= self.settings["voice_volume"] / 100.0
@@ -2100,13 +2128,64 @@ class MapSession:
         # Behind you the label is lower at the same speed, made so by shape_voice, not played
         # slower as the item's sound is (P2-T16g, the PO's choice of sample 9).
         pitch, voice["pitch"] = voice["pitch"], 1.0
-        r.voice = {"text": label, "placed": voice, "rate": piper, "stretch": stretch, "pitch": pitch, "after": True}
+        return sound, {"text": label, "placed": voice, "rate": piper, "stretch": stretch, "pitch": pitch,
+                       "after": True}
+
+    def _label_out(self, r: Response, label: str) -> Response:
+        """A spatial label also goes to Braille without speech on the desktop, or to the screen reader if
+        "also speak spatial labels" is on, and is kept for Repeat (ANN-4, ACC-1)."""
         if self.settings["voice_also_speak"]:   # the screen reader speaks it, and brailles it as it does all speech
             r.speak(label, POLITE)
         elif self.platform == "desktop":         # Braille without speech; a browser has no such route
             r.announcements.append({"text": label, "channel": BRAILLE, "priority": POLITE, "fallback": None})
         r.label = label
         return r
+
+    # Look around (P3-T11a; SON-4, SON-3, SON-2, NAV-13, INF-10) ----------------------
+
+    def scan_items(self) -> list[tuple]:
+        """The items look around plays: Nearby's, which are only visible features (NAV-13), the first
+        SCAN_LIMIT in bearing order clockwise from ahead, as (area, lat, lon) from Nearby's own places."""
+        self.panel()   # Nearby's items and their places are kept as the panel is made
+        items = sorted(self._panel_base()["groups"]["nearby"]["items"], key=lambda i: (i["bearing_deg"], i["id"]))
+        return [self._spots[("nearby", i["id"])] for i in items[:SCAN_LIMIT]]
+
+    def _look_around(self, **_a) -> Response:
+        """L: Nearby played as sound, one item after another, clockwise from ahead, each with its layer's
+        sound from its direction, then its name and distance in the spatial voice from the same place.
+        The core gives the order and how each is heard; the shell plays them (AD-10)."""
+        found = self.scan_items()
+        if not found:
+            return Response().speak(say("nearby.none"), ASSERTIVE)
+        if self.settings["mute"]:
+            return Response().speak(say("look.muted"), ASSERTIVE)
+        items = []
+        self._scan = []
+        for area, lat, lon in found:
+            sound, voice = self._heard_from(area, lat, lon)
+            items.append({"id": area.id, "sound": sound, "voice": voice})
+            self._scan.append((area, lat, lon, voice["text"]))
+        return Response(scan={"items": items, "gap_s": SCAN_GAP_S})
+
+    def scan_item(self, index: int | None) -> Response:
+        """The shell has started playing item index of the scan, or None when the scan has ended. Enter
+        then goes to that item, and Repeat says its label; the label goes to Braille as Hear its direction's
+        does. Not a command: it neither stops the voice nor ends the scan."""
+        if index is None or not 0 <= index < len(self._scan):
+            self._scan_at = None
+            return Response()
+        self._scan_at = index
+        label = self._scan[index][3]
+        self.last_spoken = label
+        return self._label_out(Response(), label)
+
+    def _look_go(self, **_a) -> Response:
+        """Enter on the map while look around plays an item: go there, as Enter on its Nearby item does
+        (INF-10). The scan stops, as at any key."""
+        if self._scan_at is None:
+            return Response().earcon("blocked").speak(say("look.go_none"), ASSERTIVE)
+        area, lat, lon, _label = self._scan[self._scan_at]
+        return self._go_to_item(area, lat, lon)
 
     def _panel_go(self, item: str | None = None, group: str | None = None, **_a) -> Response:
         """Enter on an item of the Information panel: go there, as a jump, so Alt+comma comes back
@@ -2122,12 +2201,16 @@ class MapSession:
         if found is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
         group, (area, lat, lon) = found
+        r = self._go_to_item(area, lat, lon)
+        r.focus = {"region": "panel", "group": group, "item": None}
+        return r
+
+    def _go_to_item(self, area, lat: float, lon: float) -> Response:
+        """Go to an item's feature as a jump: a point or line to the item's place, an area to its centre."""
         layer = self.layers.get(area.layer)
         if (layer is None or layer.geometry == "area") and area.record.get("bbox"):
             lat, lon = box_centre(area.record["bbox"])
-        r = self._land(self._jump(lat, lon))
-        r.focus = {"region": "panel", "group": group, "item": None}
-        return r
+        return self._land(self._jump(lat, lon))
 
     def _measure(self, item: str | None = None, group: str | None = None, **_a) -> Response:
         """Shift+M: the distance and bearing from where you are to the item focused in the Information
@@ -2523,7 +2606,7 @@ class MapSession:
             "zooms": zooms, "every_zoom": every,
             "earcons": [{"event": e["event"], "label": e["label"]} for e in earcon_list()],
             "words": {k: say(f"layers.{k}") for k in ("settings_button", "settings_title", "min_zoom", "max_zoom",
-                                                      "crossing", "no_sound", "choose_layer", "list")}
+                                                      "crossing", "layer_sound", "no_sound", "choose_layer", "list")}
             | {"ok": say("ui.ok"), "cancel": say("ui.cancel")},
             "set": "layers.set", "check": "layers.check"})
 

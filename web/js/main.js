@@ -7,6 +7,7 @@ import { keyName } from "./keys.js";
 import { MenuBar } from "./menu.js";
 import * as ownSounds from "./own_sounds.js";
 import { paintScene } from "./painter.js";
+import * as scan from "./scan.js";
 import * as sounds from "./sounds.js";
 import { Tree } from "./tree.js";
 import * as voice from "./voice.js";
@@ -27,6 +28,7 @@ let toggles = {};   // the ticks of the menu items, from the core
 // window.tobymap is for the browser tests and diagnostics only.
 window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.heard, clicks: sounds.clicks, ready: false, error: null,
   paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceHalts: voice.counts, voiceState: voice.getState,
+  scanStarted: scan.started, scanPlaying: scan.playing,
   // A search in the core, with its time in Pyodide (P3-T8b): for the tests and timing until the dialog comes (P3-T8c).
   search: (text, scope) => client.send({ type: "search", text, scope }) };
 const told = new Set();   // voice problems and own sound files that failed, each said once
@@ -39,6 +41,24 @@ sounds.setOwnFailed((info) => {
   const { width, height } = mapSize();
   client.send({ type: "earcon_failed", event: info.event, width, height }).then((b) => handle(b)).catch(showError);
 });
+
+// Look around (P3-T11a): the core is told which item is playing, so Enter goes to it and its label
+// goes to Braille and Repeat; a voice still starting, missing or failed is told at the first item.
+scan.setHandlers(
+  (index) => {
+    const { width, height } = mapSize();
+    client.send({ type: "scan_item", index, width, height }).then((b) => handle(b)).catch(showError);
+  },
+  (state, first) => { if (first) voiceSaid(state); });
+
+// The spatial voice could not say a label: still starting, said each time; missing or failed, said once (P2-T7b).
+function voiceSaid(state) {
+  if (state === "loading" || ((state === "missing" || state === "failed") && !told.has(state))) {
+    told.add(state);
+    const { width, height } = mapSize();
+    client.send({ type: "voice_problem", problem: state, width, height }).then((b) => handle(b)).catch(showError);
+  }
+}
 
 function mapSize() {
   const r = mapArea.getBoundingClientRect();
@@ -85,7 +105,10 @@ function beaconUpdate(b) {
 function handle(result, keyAt, held = false, named = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
   const r = result.response;
-  if (r.stop_voice) voice.halt();   // a key press stops the voice before anything is said (P2-T17n, SON-3)
+  if (r.stop_voice) {   // a key press stops the voice before anything is said (P2-T17n, SON-3)
+    voice.halt();
+    if (scan.playing()) scan.stop();   // and look around with it (P3-T11a)
+  }
   // Focus moved to the Information panel or Details, as after Enter on an item, goes first: the
   // screen reader stops speaking when the focus moves, so the place said after it is heard (P2-T17k).
   // The panel and Details are brought up to date first, so the item is there.
@@ -103,14 +126,10 @@ function handle(result, keyAt, held = false, named = false) {
   const ends = (r.sounds || []).map((p) => sounds.playPlaced(p));   // placed in space by the core (P2-T6)
   if (r.voice) {   // a label in the spatial voice (P2-T7), after the item's sound
     const after = r.voice.after && ends.length ? Promise.all(ends).then((t) => Math.max(0, ...t)) : null;
-    const state = voice.say(r.voice, after);
-    if (state === "loading" || ((state === "missing" || state === "failed") && !told.has(state))) {
-      told.add(state);
-      const { width, height } = mapSize();
-      client.send({ type: "voice_problem", problem: state, width, height }).then((b) => handle(b)).catch(showError);
-    }
+    voiceSaid(voice.say(r.voice, after));
   }
   beaconUpdate(r.beacon);
+  if (r.scan) scan.start(r.scan);   // look around (P3-T11a)
   if (r.open_url) openUrl(r.open_url);
   if (r.action === "reset") ownSounds.clear().catch(() => {});   // your own sound files go too (P2-T18h)
   if (spoke && keyAt !== undefined) {
@@ -526,7 +545,7 @@ function openLayers(d) {
   const layers = {};
   // Pyodide turns None into undefined; null is "no limit" and "no sound" in the lists below.
   for (const g of d.groups) for (const l of g.layers) {
-    layers[l.id] = { ...l, max_zoom_m: l.max_zoom_m ?? null, crossing_earcon: l.crossing_earcon ?? null };
+    layers[l.id] = { ...l, max_zoom_m: l.max_zoom_m ?? null, crossing_earcon: l.crossing_earcon ?? null, sound: l.sound ?? null };
   }
   const start = JSON.parse(JSON.stringify(layers));
   let current = null;
@@ -559,7 +578,7 @@ function openLayers(d) {
     const commands = [];
     for (const id of Object.keys(layers)) {
       const values = {};
-      for (const f of ["on", "min_zoom_m", "max_zoom_m", "crossing_earcon"]) {
+      for (const f of ["on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound"]) {
         if (layers[id][f] !== start[id][f]) values[f] = layers[id][f];
       }
       if (Object.keys(values).length) commands.push([d.set, { layer: id, values }]);
@@ -606,6 +625,15 @@ function openLayers(d) {
       crossing.append(o);
     }
     crossing.value = JSON.stringify(l.crossing_earcon);
+    const layerSound = document.createElement("select");
+    layerSound.setAttribute("aria-label", d.words.layer_sound);
+    for (const [v, text] of [[null, d.words.no_sound], ...d.earcons.map((e) => [e.event, e.label])]) {
+      const o = document.createElement("option");
+      o.value = JSON.stringify(v);
+      o.textContent = text;
+      layerSound.append(o);
+    }
+    layerSound.value = JSON.stringify(l.sound);
     const message = document.createElement("p");
     message.id = "layer-settings-message";   // shown here and said by the announcer, once
     const ok = button(d.words.ok, () => {
@@ -613,7 +641,7 @@ function openLayers(d) {
       const { width, height } = mapSize();
       client.send({ type: "run", commands: [[d.check, { low, high }]], width, height }).then((r) => {
         if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
-        Object.assign(l, { min_zoom_m: low, max_zoom_m: high, crossing_earcon: JSON.parse(crossing.value) });
+        Object.assign(l, { min_zoom_m: low, max_zoom_m: high, crossing_earcon: JSON.parse(crossing.value), sound: JSON.parse(layerSound.value) });
         showList();
         focusLayer();
       }).catch(showError);
@@ -624,7 +652,8 @@ function openLayers(d) {
     }, "layer-settings-cancel");
     body.append(title, row(d.words.min_zoom, minZoom), document.createElement("br"),
                row(d.words.max_zoom, maxZoom), document.createElement("br"),
-               row(d.words.crossing, crossing), message, ok, cancel);
+               row(d.words.crossing, crossing), document.createElement("br"),
+               row(d.words.layer_sound, layerSound), message, ok, cancel);
     minZoom.focus();
   };
 

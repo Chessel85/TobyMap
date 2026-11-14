@@ -171,6 +171,15 @@ class SpatialVoice:
             self._gen += 1
         self.player.mixer.stop("voice")
 
+    @property
+    def busy(self) -> bool:
+        """A label is being made, or is playing or waiting to start: look around waits for it (P3-T11a)."""
+        if self.state != "ready":
+            return False
+        with self._lock:
+            pending = self._pending
+        return pending > 0 or (self.player.stream is not None and self.player.mixer.playing("voice"))
+
     def _make(self, gen: int, voice: dict, start_frame: int | None, asked: float) -> None:
         try:
             self._make_one(gen, voice, start_frame, asked)
@@ -217,6 +226,7 @@ class RecordingVoice:
         self.state = state
         self.said: list[tuple[dict, int | None]] = []
         self.events: list[str] = []   # "say" and "stop", in order
+        self.busy = False             # the tests say when a label is still sounding
 
     def say(self, voice: dict, start_frame: int | None = None) -> str:
         if self.state == "ready":

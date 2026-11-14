@@ -35,6 +35,16 @@ TONES = {
     "item_direction": [(520, 0.07), (780, 0.1)],
     "meridian_crossed": [(700, 0.05), (1050, 0.05)],    # stand-ins only: the product owner's own files are kept in git
     "equator_crossed": [(1050, 0.05), (700, 0.05)],
+    "layer_continent": [(196, 0.12), (262, 0.18)],
+    "layer_country": [(392, 0.08), (494, 0.12)],
+    "layer_region": [(587, 0.06), (587, 0.06)],
+    "layer_water": [(300, 0.07), (360, 0.07), (300, 0.07), (360, 0.07)],
+    "layer_river": [(420, 0.05), (380, 0.05), (340, 0.05), (300, 0.05)],
+    "layer_road": [(250, 0.05), (250, 0.05), (250, 0.05)],
+    "layer_railway": [(700, 0.04), (560, 0.04), (700, 0.04), (560, 0.04)],
+    "layer_town": [(660, 0.05), (880, 0.05), (1100, 0.07)],
+    "layer_mountain": [(150, 0.14), (120, 0.18)],
+    "layer_peak": [(200, 0.06), (400, 0.06), (800, 0.1)],
     "beacon": [],   # made by make_beacon_samples.soft_whump instead (P2-T16h)
 }
 VOLUME = 0.35

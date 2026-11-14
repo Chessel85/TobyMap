@@ -652,6 +652,20 @@ def test_space_in_the_layers_dialog_ticks_and_enter_presses_ok(app):
     assert said(app)[-1] == "Kent, United Kingdom"
 
 
+def test_a_layers_sound_is_chosen_in_its_settings_and_kept_when_reopened(app):
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    app.focus("[data-layer=counties]")
+    app.click("#layers-settings")
+    sound = app.locator("#layersdialog select[aria-label^='Sound of this layer']")
+    sound.select_option(label="Peak")
+    app.click("#layer-settings-ok")
+    app.wait_for_function("document.activeElement.dataset.layer === 'counties'")
+    app.click("#layers-settings")
+    assert sound.evaluate("e => e.options[e.selectedIndex].textContent") == "Peak"
+    app.click("#layer-settings-cancel")
+
+
 def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refused(app):
     app.keyboard.press("Control+Shift+L")
     app.wait_for_function("document.getElementById('layersdialog').open")

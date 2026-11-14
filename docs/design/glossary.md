@@ -194,7 +194,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Query builder: a form of three lists, find, relation and of, for questions such as "rivers crossing Germany" or "towns within 10 kilometres of Hampshire". The answer goes into the Search group, under a heading that says the question (INF-9, P3-T10). A query is the question asked with it.
 * Hierarchy mode: moving between features instead of by distance: up to the area that contains the current feature, down into what it contains, and across to its neighbours (NAV-4). M switches it on, and M again goes back to stepping (the PO's key list, in place of 1 and 2).
 * Item actions: what the keys do on any item in the Information panel: Enter goes there, Space hears its direction, and Ctrl+Enter bookmarks it from Phase 4. There is no menu of actions (DP170).
-* Look around: hearing the Nearby group as sound, one item after another clockwise from ahead, each from its own direction (SON-4).
+* Look around: hearing the Nearby group as sound, one item after another clockwise from ahead, each from its own direction (SON-4). L starts it; each item is its layer's sound, then its name and distance in the spatial voice, then a short pause. At most 12 items. Any key stops it, and Enter on the map goes to the item playing (P3-T11a). One look around is a scan.
 * Focus point: in the web version, the small invisible element at the map centre that has the keyboard focus when the map does, so a magnifier that follows the focus looks there (ACC-8).
 
 ## Planning

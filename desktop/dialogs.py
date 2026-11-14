@@ -619,8 +619,14 @@ class LayerSettingsDialog(QDialog):
         for e in dialog["earcons"]:
             self.crossing.addItem(e["label"], e["event"])
         self.crossing.setCurrentIndex(max(0, self.crossing.findData(layer["crossing_earcon"])))
+        self.sound = QComboBox()
+        self.sound.setAccessibleName(words["layer_sound"])
+        self.sound.addItem(words["no_sound"], None)
+        for e in dialog["earcons"]:
+            self.sound.addItem(e["label"], e["event"])
+        self.sound.setCurrentIndex(max(0, self.sound.findData(layer.get("sound"))))
         for label, box in ((words["min_zoom"], self.min_zoom), (words["max_zoom"], self.max_zoom),
-                           (words["crossing"], self.crossing)):
+                           (words["crossing"], self.crossing), (words["layer_sound"], self.sound)):
             form.addRow(label, box)
         layout.addLayout(form)
         self.message = QLabel("")
@@ -645,7 +651,7 @@ class LayerSettingsDialog(QDialog):
 
     def values(self) -> dict:
         return {"min_zoom_m": self.min_zoom.currentData() or 0.0, "max_zoom_m": self.max_zoom.currentData(),
-                "crossing_earcon": self.crossing.currentData()}
+                "crossing_earcon": self.crossing.currentData(), "sound": self.sound.currentData()}
 
     def _ok(self):
         v = self.values()
@@ -725,8 +731,8 @@ class LayersDialog(QDialog):
     def changes(self) -> list[tuple[str, dict]]:
         out = []
         for layer_id, now in self.layers.items():
-            changed = {f: now[f] for f in ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon")
-                       if now[f] != self._start[layer_id][f]}
+            changed = {f: now.get(f) for f in ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound")
+                       if now.get(f) != self._start[layer_id].get(f)}
             if changed:
                 out.append((layer_id, changed))
         return out

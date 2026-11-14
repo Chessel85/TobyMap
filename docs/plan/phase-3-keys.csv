@@ -81,5 +81,6 @@ World tree,the map,3,,W,"W, but need to know more about what this feature is","P
 Open the current feature's Wikipedia article,anywhere,3,,Shift+W,control + shift + W,"P3-T5. New, proposed by me; no key was set in the design."
 List every feature of a kind in the current feature,the map,3,,Ctrl+Shift+F,Ctrl+Shift+F,"P3-T9, SRB-4, such as every lake in Finland. New, proposed by me."
 Query builder,the map,3,,Q,Q,P3-T10.
-Look around,the map,3,,L,L,P3-T11.
+Look around,the map,3,L,L,L,P3-T11.
+Go to the item look around is playing,the map,3,Enter,Enter,,P3-T11a. Enter on the map had no command before.
 Pack manager,the map,3,,P,P,"P3-T13. On the map only, so P still finds an item by its first letter in the panel."

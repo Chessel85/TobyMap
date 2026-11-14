@@ -83,6 +83,22 @@ def test_a_key_press_stops_the_voice_before_the_step_is_said(page, site_url):
     app.wait_for_function(f"window.tobymap.voiceHalts.halts > {halts}", timeout=10_000)
 
 
+def test_look_around_says_each_nearby_item_in_turn_clockwise(page, site_url):
+    """P3-T11a, SON-4: each label is said after its item's sound, and the next item waits for it."""
+    app = open_app(page, site_url, state=STATION_WEST)
+    voice_ready(app)
+    count = app.evaluate("""() => document.querySelectorAll('[data-id="group:nearby"] [role=group] > [role=treeitem]').length""")
+    labels = app.evaluate("window.tobymap.labels.length")
+    app.focus("#map")
+    app.keyboard.press("l")
+    app.wait_for_function("window.tobymap.scanStarted.length > 0")
+    app.wait_for_function("!window.tobymap.scanPlaying()", timeout=120_000)
+    said = app.evaluate(f"window.tobymap.labels.slice({labels})")
+    assert len(said) == count, [s["text"] for s in said]
+    degrees = [s["relative_deg"] for s in said]
+    assert degrees == sorted(degrees), "clockwise from ahead"
+
+
 def test_with_one_thread_the_voice_still_works(page, site_url):
     app = open_app(page, site_url, state=STATION_WEST, query="?threads=1")
     info = voice_ready(app)

@@ -1,0 +1,55 @@
+# The test pack (architecture 11.1): a small world, built from the samples in
+# tests/samples, so the automatic tests never need the data folder.
+# Continuous integration builds it on every push. The reference for each
+# setting is docs/data-manager/configuration.md.
+
+name: test-continents
+title: The test pack with continents, for the world tree (P3-T9a). The test pack has none, so its other tests stay as they were.
+version: 0.1.0
+app_versions: {from: 0.0.1}
+coverage: {kind: world}
+layer_groups: [base, samples]
+space_needed_mb: 50
+
+stages:
+  # Least detailed first: each later sample wins inside its own box.
+  - stage: samples
+    samples:
+      - {source: sample-world}
+      - {source: sample-oceans}
+      - {source: sample-osm, file: england-france-channel.geojson}
+      - {source: sample-osm, file: hampshire-wiltshire.geojson}
+      - {source: sample-osm, file: isle-of-wight-solent.geojson}
+      - {source: sample-osm, file: fiji.geojson}
+      - {source: sample-osm, file: bering-strait.geojson}
+      - {source: sample-osm, file: antarctica-south-pole.geojson}
+      - {source: sample-osm, file: niagara-falls.geojson}
+      - {source: sample-osm, file: switzerland-neighbours.geojson}
+      - {source: sample-osm, file: southampton-itchen.geojson}
+      - {source: sample-osm, file: rhine.geojson}
+      - {source: sample-osm, file: bay-of-biscay.geojson}
+      - {source: sample-osm, file: crimea.geojson}
+      - {source: sample-osm, file: new-forest.geojson}
+      - {source: sample-osm, file: distant-parts.geojson}
+      # Places that share a name, for search (P3-T8): two Parises, two Portlands, two Newports, Sao Paulo.
+      - {source: sample-osm, file: shared-names.geojson}
+  # A country's parts on another continent become areas of their own: French Guiana and Hawaii (DP191).
+  - stage: distant-parts
+  # The continents, from the countries (P3-T1e, DP174).
+  - stage: continents
+  - stage: water
+    land_layer: countries
+  # Disputed areas: land two countries hold, such as Crimea, and Natural Earth's disputed areas (P3-T2c, DP119).
+  - stage: disputes
+    source: sample-ne-disputed
+    held_twice:
+      - {countries: [osm:r60189, osm:r60199], id: "disputed:crimea", name: Crimea, wikidata: Q7835}
+  # Facts from Wikidata, read offline from the repository: tests never use the network (P3-T2a).
+  - stage: wikidata
+    source: sample-wikidata
+    refresh: sample
+    offline: true
+    match: [oceans, seas]
+  # What each feature is inside, beside, overlapping and crossing (P3-T3, AD-8).
+  - stage: relationships
+  - stage: write

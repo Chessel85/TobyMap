@@ -15,7 +15,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), searchDialog = $("searchdialog"), messageBox = $("messagebox");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -289,7 +289,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || searchDialog.open || messageBox.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || searchDialog.open || treeDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -355,7 +355,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [messageBox, settingsDialog, inputDialog, layersDialog, searchDialog, dialog].find((d) => d.open);   // the top one first
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, searchDialog, treeDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -401,6 +401,7 @@ function openDialog(d) {
   if (d.kind === "input") return openInput(d);
   if (d.kind === "layers") return openLayers(d);
   if (d.kind === "search") return openSearch(d);
+  if (d.kind === "tree") return openTree(d);
   if (d.kind === "confirm") return openConfirm(d);
   if (d.copy && navigator.clipboard) navigator.clipboard.writeText(d.copy).catch(() => {});
   dialogTitle.textContent = d.title;
@@ -790,6 +791,67 @@ function openSearch(d) {
   field.focus();
 }
 
+// The world tree (P3-T9a, SRB-3): the Information panel's tree code, so the screen reader says each item's
+// level and position, such as "level 3, 5 of 44". World is the one top item; a branch is asked of the core
+// (d.children) only when it is opened, and kept while the box is open. Enter, or Go, on an item goes there;
+// Cancel closes (ACC-7). All words come from the core.
+function openTree(d) {
+  const box = treeDialog;
+  box.replaceChildren();
+  box.setAttribute("aria-label", d.title);
+  const title = document.createElement("h2");
+  title.textContent = d.title;
+  const help = document.createElement("p");
+  help.id = "world-tree-help";
+  help.textContent = d.help;
+  const list = document.createElement("ul");
+  list.id = "world-tree";
+  list.setAttribute("role", "tree");
+  list.setAttribute("aria-label", d.title);
+  list.setAttribute("aria-describedby", help.id);
+  const message = document.createElement("p");
+  message.id = "world-tree-message";
+  message.setAttribute("role", "status");
+  const branches = { world: d.root.items };   // each opened branch, by id
+  const leaves = new Set();                   // opened branches with nothing below
+  let current = "world", sending = false;
+  const ask = (name, args) => {
+    const { width, height } = mapSize();
+    return client.send({ type: "run", commands: [[name, args]], width, height });
+  };
+  const node = (n) => ({ id: n.id, label: n.label, expandable: !leaves.has(n.id),
+                         children: (branches[n.id] || []).map(node) });
+  const show = () => tree.fill([{ id: "world", label: d.root.label, items: branches.world.map(node) }]);
+  const tree = new Tree(list, (id) => { current = id || "world"; }, null, null, (id, open) => {
+    if (!open || branches[id] || leaves.has(id)) return;
+    ask(d.children, { id }).then((r) => {
+      const b = r.response.branch || { items: [], none: "" };
+      if (b.items.length) branches[id] = b.items; else leaves.add(id);
+      show();
+      if (!b.items.length && b.none) { message.textContent = b.none; speak(b.none, "assertive"); }
+    }).catch(showError);
+  });
+  tree.expanded.add("world");
+  show();
+  const go = () => {
+    if (sending) return;   // Enter can arrive twice: one answer at a time
+    sending = true;
+    ask(d.go, { id: current }).then((r) => {
+      sending = false;
+      if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
+      closeWithAnswer(box, [r]);
+    }).catch((error) => { sending = false; showError(error); });
+  };
+  list.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.ctrlKey && !e.altKey) { e.preventDefault(); go(); } });
+  const goButton = button(d.go_label, go, "world-tree-go");
+  const cancel = button(d.cancel, () => box.close(), "world-tree-cancel");
+  box.append(title, help, list, message, goButton, cancel);
+  box.showModal();
+  const first = list.querySelector('[role="group"] [role="treeitem"]') || list.querySelector('[role="treeitem"]');
+  tree._setCurrent(first, false, true);
+  if (first) first.focus();
+}
+
 // A message box over another box: a title, the words, and one OK button, which has the focus. OK,
 // Enter on it, Space or Escape closes it, and then `after` puts the focus back (P2-T17o).
 let messageAfter = null;
@@ -845,6 +907,7 @@ settingsDialog.addEventListener("close", afterClose);
 inputDialog.addEventListener("close", afterClose);
 layersDialog.addEventListener("close", afterClose);
 searchDialog.addEventListener("close", afterClose);
+treeDialog.addEventListener("close", afterClose);
 // Enter in a settings field presses OK, as on the desktop (web checklist 5).
 settingsDialog.addEventListener("keydown", (e) => {
   const el = e.target;

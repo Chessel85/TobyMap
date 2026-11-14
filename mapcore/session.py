@@ -37,6 +37,7 @@ from mapcore.world.state import nearest_index
 DEFAULTS_FILE = Path(__file__).resolve().parent / "defaults.yaml"
 SPEECH, BRAILLE = "speech", "braille"
 ASSERTIVE, POLITE = "assertive", "polite"
+BROWSE_LIMIT = 2000   # features listed by browsing a layer (P3-T9b)
 PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158)
 SEARCH_LIMIT = 20    # search results listed (P3-T8b)
 SEARCH_DELAY_MS = 300   # the pause in typing before the search dialog searches (P3-T8c)
@@ -92,6 +93,8 @@ class Response:
     open_url: str | None = None
     # The search dialog's results for what was typed (P3-T8c): {"lines", "ids", "none"}.
     found: dict | None = None
+    # A branch of the world tree, opened (P3-T9a): {"id", "items": [{"id", "label"}], "none"}.
+    branch: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -283,6 +286,11 @@ class MapSession:
             "search.open": self._search_open,
             "search.query": self._search_query,
             "search.go": self._search_go,
+            "tree.open": self._tree_open,
+            "tree.children": self._tree_children,
+            "tree.go": self._tree_go,
+            "browse.open": self._browse_open,
+            "browse.choose": self._browse_choose,
             "settings.open": self._settings_open,
             "settings.set": self._settings_set,
             "settings.reset": self._reset_ask,
@@ -370,6 +378,7 @@ class MapSession:
             merged.beacon = r.beacon or merged.beacon
             merged.open_url = r.open_url or merged.open_url
             merged.found = r.found or merged.found
+            merged.branch = r.branch or merged.branch
         return merged
 
     def press(self, key: str, region: str = "map") -> Response | None:
@@ -857,6 +866,68 @@ class MapSession:
         if id not in self.search_found:
             return Response(error=say("place.none"))
         return self.search_go(id)
+
+    # The world tree (P3-T9a; SRB-3) and browsing by category (P3-T9b; SRB-4) ------------------------------------
+
+    def _tree_node(self, identifier: str, name: str) -> dict:
+        area = self.store.feature(identifier)
+        label = say("tree.item", name=name, type=self._type_text(area)) if area is not None else name
+        return {"id": identifier, "label": label}
+
+    def _tree_open(self, **_a) -> Response:
+        """W: the world as a tree, World, then its continents, which each open to their countries, and so on
+        (SRB-3). The shell reads each branch as it is opened with tree.children, and Enter on an item runs
+        tree.go. The shells' own tree gives the screen reader each item's level and position."""
+        continents = [self._tree_node(i, n) for i, n in self.store.tree_children("world")]
+        return Response(dialog={
+            "kind": "tree", "title": say("tree.title"), "help": say("tree.help"),
+            "root": {"id": "world", "label": say("tree.world"), "items": continents},
+            "children": "tree.children", "go": "tree.go", "go_label": say("tree.go_button"),
+            "cancel": say("ui.cancel")})
+
+    def _tree_children(self, id: str = "world", **_a) -> Response:
+        """One branch of the tree, opened: its items by name, or the words for a branch with none."""
+        items = [self._tree_node(i, n) for i, n in self.store.tree_children(id)]
+        area = self.store.feature(id)
+        return Response(branch={"id": id, "items": items,
+                                "none": "" if items else say("tree.leaf", name=area.name if area else say("tree.world"))})
+
+    def _tree_go(self, id: str = "", **_a) -> Response:
+        """Enter on a tree item: go there, as hierarchy mode moves. The World is the top, not a place."""
+        if id == "world":
+            return Response(error=say("tree.world_go"))
+        area = self.store.feature(id)
+        if area is None:
+            return Response(error=say("place.none"))
+        return self._hierarchy_go(area, say("tree.gone", name=area.name))
+
+    def _browse_open(self, **_a) -> Response:
+        """Ctrl+Shift+F: a list of the kinds of feature inside the current feature, each with its count from
+        the stored relationships, whatever the zoom (SRB-4). Choosing one lists every feature of that kind in
+        the Search group."""
+        current = self.current_feature
+        if current is None:
+            return Response().earcon("blocked").speak(say("browse.none_here"), ASSERTIVE)
+        counts = self.store.relationships(current.id).get("counts", {})
+        layers = [layer for layer in self.layers.layers() if counts.get(layer.id)]
+        if not layers:
+            return Response().earcon("blocked").speak(say("browse.nothing_inside", name=current.name), ASSERTIVE)
+        return self._choose(say("browse.title", name=current.name), say("browse.help", name=current.name),
+                            [say("contains.heading", layer=layer.name, count=counts[layer.id]) for layer in layers],
+                            [("layer", layer.id) for layer in layers], go="browse.choose")
+
+    def _browse_choose(self, index: int = -1, **_a) -> Response:
+        """A kind chosen: every feature of it inside the current feature goes into the Search group, by name,
+        up to BROWSE_LIMIT."""
+        current = self.current_feature
+        if current is None or not 0 <= index < len(self._choices):
+            return Response().earcon("blocked")
+        layer = self.layers.get(self._choices[index][1])
+        found = self.store.browse(layer.id, current.id)
+        self.search_found = {f.id: f for f in found[:BROWSE_LIMIT]}
+        key = "browse.done_capped" if len(found) > BROWSE_LIMIT else "browse.done"
+        text = say(key, count=len(found), layer=layer.name, name=current.name, limit=BROWSE_LIMIT)
+        return Response(panel_stale=True).speak(text, ASSERTIVE)
 
     def _layer_on(self, area) -> bool:
         layer = self.layers.get(area.layer)
@@ -2067,12 +2138,13 @@ class MapSession:
                        zoom=say("movement.zoom_only", zoom=words.distance_text(w.zoom_m, self._units())))
         return r.speak(text, ASSERTIVE)
 
-    def _choose(self, title: str, help_text: str, lines: list[str], choices: list[tuple]) -> Response:
+    def _choose(self, title: str, help_text: str, lines: list[str], choices: list[tuple],
+                go: str = "hierarchy.choose") -> Response:
         """A list to choose from, with Cancel (ACC-7): the ambiguous up and the down lists. The shell runs
         hierarchy.choose with the index of the line chosen; Cancel runs nothing, so you stay."""
         self._choices = choices
         return Response(dialog={"kind": "choose", "title": title, "help": help_text, "lines": lines,
-                                "text": "\n".join(lines), "go": "hierarchy.choose", "current": 0,
+                                "text": "\n".join(lines), "go": go, "current": 0,
                                 "cancel": say("ui.cancel")})
 
     def _hierarchy_choose(self, index: int = -1, **_a) -> Response:

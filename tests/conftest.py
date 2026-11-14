@@ -23,9 +23,7 @@ if str(ROOT) not in sys.path:
 import pytest  # noqa: E402
 
 
-@pytest.fixture(scope="session")
-def test_pack(tmp_path_factory) -> Path:
-    """The test pack, built once per test run from the samples in tests/samples (architecture 11.1)."""
+def _build_pack(tmp_path_factory, name: str) -> Path:
     from mapdata.paths import DataFolders
     from mapdata.pipeline.build import build
     from mapdata.pipeline.switch import Switch
@@ -33,5 +31,18 @@ def test_pack(tmp_path_factory) -> Path:
     data = tmp_path_factory.mktemp("data")
     lines: list[str] = []
     switch = Switch(data.parent / "no switch here.txt")  # never the data manager's own continue.txt
-    assert build("test", DataFolders(data, "a test"), say=lines.append, switch=switch) == 0, "\n".join(lines)
-    return data / "tobymap" / "output" / "test" / "test.pack"
+    assert build(name, DataFolders(data, "a test"), say=lines.append, switch=switch) == 0, "\n".join(lines)
+    return data / "tobymap" / "output" / name / f"{name}.pack"
+
+
+@pytest.fixture(scope="session")
+def test_pack(tmp_path_factory) -> Path:
+    """The test pack, built once per test run from the samples in tests/samples (architecture 11.1)."""
+    return _build_pack(tmp_path_factory, "test")
+
+
+@pytest.fixture(scope="session")
+def continents_pack(tmp_path_factory) -> Path:
+    """The test pack with the continents stage, built once per run, for the world tree (P3-T9a). The plain
+    test pack has no continents, and adding them changed 88 other tests."""
+    return _build_pack(tmp_path_factory, "test-continents")

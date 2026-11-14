@@ -506,6 +506,24 @@ search:
   item: "{description}, {direction}"
   gone: "{description}"
 
+# The world tree (P3-T9a, SRB-3) and browsing by category (P3-T9b, SRB-4).
+tree:
+  title: "World tree"
+  help: "Use the arrow keys to move round the tree: Right opens an item and Left closes it. Enter goes to the item."
+  world: "World"
+  item: "{name}, {type}"
+  go_button: "Go"
+  gone: "{name}"
+  leaf: "{name} has no areas below it in the tree."
+  world_go: "The World is the top of the tree. Choose a continent, country or area to go there."
+browse:
+  title: "Inside {name}"
+  help: "Choose a kind of feature to list every one inside {name}, or Cancel to stay."
+  none_here: "No feature to look inside. Search for one, or go to one first."
+  nothing_inside: "No features are stored inside {name}."
+  done: "{layer}: {count} inside {name}, in the Search group."
+  done_capped: "{layer}: {count} inside {name}. The first {limit} are in the Search group."
+
 # Hierarchy mode (P3-T6a; NAV-4, NAV-11, DP77). M switches it on and off; the arrow keys go up, down and
 # round the neighbours. A move says the feature, then the zoom it was fitted to: "England. Zoom 250 kilometres."
 # A neighbour is said as Bordering says it: "Spain, south-west, shared border 452 kilometres. Zoom ..."

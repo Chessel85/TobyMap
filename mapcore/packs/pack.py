@@ -578,6 +578,16 @@ class Pack:
         g = bisect.bisect_right(self.group_starts, number) - 1
         return self._group(g)[number - self.group_starts[g]]
 
+    def scan(self, layers):
+        """The feature records of these layers, group by group (P3-T9). A group is read again each time unless
+        already held, and none is kept, so a scan of one layer does not fill the memory with the others."""
+        wanted = set(layers)
+        for g in range(len(self.group_starts)):
+            records = self._groups[g] if g in self._groups else (self.get_json(f"features/{g}") or [])
+            for record in records:
+                if record["layer"] in wanted:
+                    yield record
+
     def feature_number(self, identifier: str) -> int | None:
         g = feature_group(identifier, len(self.group_starts))
         for i, record in enumerate(self._group(g)):

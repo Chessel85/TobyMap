@@ -258,6 +258,87 @@ class SearchDialog(QDialog):
         self.accept()
 
 
+class WorldTreeDialog(QDialog):
+    """The world tree (P3-T9a, SRB-3): World, then its continents, countries and so on, in the Information
+    panel's own tree, so NVDA says each item's level and position. A branch is read from the core, with the
+    command in dialog["children"], only when it is opened. Enter, or Go, on an item goes there and closes;
+    Cancel closes (ACC-7). The core gives every word; `run` is session.run."""
+
+    def __init__(self, parent, dialog: dict, run, speak=None):
+        super().__init__(parent)
+        self._run, self._speak, self._dialog = run, speak, dialog
+        self.response = None
+        self.setWindowTitle(dialog["title"])
+        layout = QVBoxLayout(self)
+        self.tree = PanelTree()
+        self.tree.setHeaderHidden(True)
+        self.tree.setAccessibleName(dialog["title"])
+        self.tree.setAccessibleDescription(dialog["help"])
+        layout.addWidget(self.tree)
+        root = dialog["root"]
+        self.world = self._item(root["label"], root["id"])
+        self.tree.addTopLevelItem(self.world)
+        self._fill(self.world, root["items"])
+        self.world.setExpanded(True)
+        self.go_button, self.cancel_button = button_row(layout, [dialog["go_label"], dialog["cancel"]])
+        self.go_button.setAutoDefault(False)
+        self.go_button.setDefault(False)
+        self.go_button.clicked.connect(self.go_to_selected)
+        self.cancel_button.clicked.connect(self.reject)
+        self.tree.itemExpanded.connect(self._opened)
+        self.tree.itemActivated.connect(lambda _item, _c: self.go_to_selected())
+        self.tree.installEventFilter(self)
+        first = self.world.child(0)
+        self.tree.setCurrentItem(first if first is not None else self.world)
+        self.resize(560, 480)
+        self.tree.setFocus()
+
+    @staticmethod
+    def _item(label: str, identifier: str) -> QTreeWidgetItem:
+        item = QTreeWidgetItem([label])
+        item.setData(0, Qt.ItemDataRole.UserRole, identifier)
+        return item
+
+    def _fill(self, parent: QTreeWidgetItem, nodes: list[dict]) -> None:
+        for node in nodes:
+            child = self._item(node["label"], node["id"])
+            # Opened when asked for: a branch is read only then (SRB-3).
+            child.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
+            parent.addChild(child)
+
+    def _opened(self, item: QTreeWidgetItem) -> None:
+        if item.childCount() or item is self.world or item.data(0, Qt.ItemDataRole.UserRole + 1):
+            return
+        item.setData(0, Qt.ItemDataRole.UserRole + 1, True)   # read once
+        branch = self._run(self._dialog["children"], id=item.data(0, Qt.ItemDataRole.UserRole)).branch or {}
+        self._fill(item, branch.get("items", []))
+        if not item.childCount():   # nothing below it: not a branch after all, and it is said
+            item.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.DontShowIndicator)
+            if branch.get("none") and self._speak is not None:
+                self._speak(branch["none"])
+
+    def eventFilter(self, obj, event):
+        from PySide6.QtCore import QEvent
+
+        if obj is self.tree and event.type() == QEvent.Type.KeyPress and not event.modifiers() \
+                and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.go_to_selected()
+            return True
+        return super().eventFilter(obj, event)
+
+    def go_to_selected(self) -> None:
+        item = self.tree.currentItem()
+        if self.response is not None or item is None:   # Enter can arrive twice: go once
+            return
+        response = self._run(self._dialog["go"], id=item.data(0, Qt.ItemDataRole.UserRole))
+        if response.error:
+            if self._speak is not None:
+                self._speak(response.error)
+            return
+        self.response = response
+        self.accept()
+
+
 class InputDialog(QDialog):
     """A box to type in, with OK and Cancel (ACC-7): a bearing or coordinates. The core reads what
     was typed; if it can't, its words open in a message box with an OK button, and after OK you are

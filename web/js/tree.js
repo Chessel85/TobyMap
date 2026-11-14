@@ -13,16 +13,20 @@
 // opened; opening or closing a group calls onOpen with the ids of the open groups, and the page asks
 // the core to fill them.
 //
+// An item given `expandable` can be opened before it has items: opening it calls onItem(id, open), and the
+// page fills it in, as the world tree does (P3-T9a).
+//
 // The layers list uses this tree too (P2-T18b), so its groups open and close as the panel's do.
 // Its items are check boxes: an item given `checked` has aria-checked, and Space or a click
 // ticks or clears it and calls onToggle(id, checked).
 
 export class Tree {
-  constructor(element, onSelect, onToggle = null, onOpen = null) {
+  constructor(element, onSelect, onToggle = null, onOpen = null, onItem = null) {
     this.el = element;
     this.onSelect = onSelect;
     this.onToggle = onToggle;
     this.onOpen = onOpen;
+    this.onItem = onItem;
     this.current = null;
     this.expanded = new Set();
     this.el.addEventListener("keydown", (e) => this._key(e));
@@ -87,7 +91,7 @@ export class Tree {
       li.setAttribute("aria-setsize", String(items.length));
       const kids = item.children || [];
       let sub = li.querySelector(':scope > [role="group"]');
-      if (kids.length) {
+      if (kids.length || item.expandable) {
         if (!sub) {
           sub = document.createElement("ul");
           sub.setAttribute("role", "group");
@@ -213,6 +217,7 @@ export class Tree {
     const was = this.expanded.has(gid);
     if (open) this.expanded.add(gid); else this.expanded.delete(gid);
     if (top && was !== open && this.onOpen) this.onOpen(this.openGroups());
+    if (!top && was !== open && this.onItem) this.onItem(item.dataset.id, open);
   }
 
   _toggle(item) {

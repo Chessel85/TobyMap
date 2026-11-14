@@ -155,6 +155,26 @@ class Found:
     similarity: float
 
 
+def _record_name(rec: dict) -> str:
+    names = rec.get("names") or {}
+    return names.get("en") or next(iter(names.values()), rec["id"])
+
+
+TREE_LAYERS = ("continents", "countries", "regions", "counties")   # the layers of the world tree (P3-T9a)
+
+
+def _boxes_meet(a, b) -> bool:
+    """Whether two boxes (west, south, east, north) share any ground; west greater than east is a box across
+    the 180 degree line (AD-17)."""
+    if a[3] < b[1] or b[3] < a[1]:
+        return False
+
+    def spans(box):
+        return [(box[0], box[2])] if box[0] <= box[2] else [(box[0], 180.0), (-180.0, box[2])]
+
+    return any(x0 <= y1 and y0 <= x1 for x0, x1 in spans(a) for y0, y1 in spans(b))
+
+
 def _in_box(lat: float, lon: float, box) -> bool:
     west, south, east, north = box
     if not south <= lat <= north:
@@ -342,6 +362,7 @@ class Store:
         self.cache = TileCache(cache_bytes) if cache_bytes else TileCache()
         self._indexes: list[_PackIndex] = []
         self._lock = threading.RLock()
+        self._tree_children: dict[str, list[tuple[str, str]]] | None = None   # the world tree (P3-T9a)
         # A tile's shapes are shared and prepared, and Shapely builds a prepared shape's index on
         # its first use, which is not safe from two threads at once: the Crossed and passed
         # search and a step's lookup together made Windows stop the program (P2-T17w). Every
@@ -723,6 +744,96 @@ class Store:
         if inside is None:
             return ranked[:limit]
         return self._inside(ranked, inside, limit)
+
+    # The world tree and browsing by category (P3-T9; SRB-3, SRB-4) -------------------------------------------
+
+    def tree_children(self, identifier: str = "world") -> list[tuple[str, str]]:
+        """The next level of the world tree under "world" or a feature, as (identifier, English name), by
+        name (SRB-3): under the world, the continents; under a continent, the countries that are in it or
+        lie mostly or partly across it (Russia is under Europe and Asia); under a country, an area of the
+        countries, regions or counties layer that has it as a parent, or as the sovereign of a distant
+        part (Hawaii under the United States), and under a constituent country, such as England, its own
+        areas. The first call scans the feature records of those layers once; the rest take no reading."""
+        with self._lock:
+            if self._tree_children is None:
+                self._tree_children = self._build_tree()
+            return list(self._tree_children.get(identifier, ()))
+
+    def _build_tree(self) -> dict[str, list[tuple[str, str]]]:
+        rows: dict[str, dict] = {}
+        for index in self._indexes:
+            try:
+                for rec in index.pack.scan(TREE_LAYERS):
+                    rows.setdefault(rec["id"], rec)
+            except DamagedRecord as exc:
+                self._note(exc)
+        tree: dict[str, set] = {}
+
+        def add(parent: str, identifier: str) -> None:
+            tree.setdefault(parent, set()).add(identifier)
+
+        for identifier, rec in rows.items():
+            layer = rec["layer"]
+            if layer == "continents":
+                add("world", identifier)
+            elif layer != "countries":
+                for parent in rec.get("parents", ()):
+                    if parent in rows:
+                        add(parent, identifier)
+                    break
+            else:
+                self._place_country(identifier, rec, rows, add)
+        return {parent: sorted(((i, _record_name(rows[i])) for i in members),
+                               key=lambda t: (t[1].casefold(), t[0]))
+                for parent, members in tree.items()}
+
+    def _place_country(self, identifier: str, rec: dict, rows: dict, add) -> None:
+        """An area of the countries layer goes under its sovereign, if it is a distant part; else under the
+        country that holds it, if it is a constituent country; else under each continent it is in, or that
+        it is mostly or partly across (a tenth of it, or the one with most of it)."""
+        sovereign = rec.get("sovereign_id")
+        if sovereign and sovereign in rows and sovereign != identifier:
+            add(sovereign, identifier)
+            return
+        rel = self.relationships(identifier)
+        same = set(rel.get("same", ()))
+        for holder in rel.get("in", ()):
+            if holder in rows and holder not in same and rows[holder]["layer"] == "countries":
+                add(holder, identifier)
+                return
+        continents = [i for i in rel.get("in", ()) if i in rows and rows[i]["layer"] == "continents"]
+        if not continents:
+            across = [(o[1], o[0]) for o in rel.get("overlaps", ()) if o[0] in rows and rows[o[0]]["layer"] == "continents"]
+            continents = [c for share, c in across if share >= 0.1] or [c for _s, c in sorted(across, reverse=True)[:1]]
+        for continent in continents:
+            add(continent, identifier)
+
+    def browse(self, layer: str, identifier: str) -> list[Found]:
+        """Every feature of a layer inside a feature, fully or partly, or crossing it (SRB-4), by name, with no
+        limit by zoom: such as every lake in Finland. The layer's feature records are read in a scan, each
+        first tested against the feature's box, and only the ones that may be inside have their stored
+        relationships read."""
+        holder = self.feature(identifier)
+        if holder is None:
+            return []
+        box = holder.record.get("bbox")
+        out: list[Found] = []
+        for p, index in enumerate(self._indexes):
+            try:
+                for rec in index.pack.scan((layer,)):
+                    if rec["id"] == identifier or (box is not None and rec.get("bbox") is not None
+                                                   and not _boxes_meet(box, rec["bbox"])):
+                        continue
+                    rel = self.relationships(rec["id"])
+                    if identifier in rel.get("in", ()) or identifier in rel.get("same", ())                             or identifier in rel.get("crosses", ())                             or any(x[0] == identifier for x in (*rel.get("partly", ()), *rel.get("overlaps", ()))):
+                        point = rec.get("point")
+                        name = _record_name(rec)
+                        out.append(Found(p, rec["id"], name, layer, 0, point[1] if point else None,
+                                         point[0] if point else None, name, "", 0, 1.0))
+            except DamagedRecord as exc:
+                self._note(exc)
+        out.sort(key=lambda f: (f.name.casefold(), f.id))
+        return out
 
     def _inside(self, ranked: list[Found], identifier: str, limit: int) -> list[Found]:
         """The results that are the feature, or inside it, partly inside or crossing it, by the stored

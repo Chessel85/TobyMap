@@ -69,6 +69,10 @@ commands:
   - {name: history.list, label: Location history, key: Ctrl+Shift+Space, region: global, menu: Map}
   # Search (P3-T8c, SRB-1): Ctrl+F, from the map, the Information panel and Details.
   - {name: search.open, label: Search, key: Ctrl+F, region: global, menu: Map}
+  # The world tree (P3-T9a, SRB-3): W, on the map, so letters in the Information panel still go to the item starting with that letter.
+  - {name: tree.open, label: World tree, key: W, region: map, menu: Map}
+  # Browse by category (P3-T9b, SRB-4): every feature of a kind inside the current feature.
+  - {name: browse.open, label: List every feature of a kind in the current feature, key: Ctrl+Shift+F, region: global, menu: Map}
   # The layers list (SCP-6, SCP-7).
   - {name: layers.open, label: Layers, key: Ctrl+Shift+L, region: global, menu: Map}
   # Themes and isolate (VIS-2): your keys, from the key list. Escape is kept for the screen reader and the browser.
@@ -143,4 +147,7 @@ commands:
   - {name: hierarchy.choose, label: Choose from the ambiguous up or a down list in hierarchy mode, key: "", region: global, menu: "", pointer: true}
   - {name: search.query, label: Search for what was typed, key: "", region: global, menu: "", pointer: true}
   - {name: search.go, label: Go to a search result, key: "", region: global, menu: "", pointer: true}
+  - {name: tree.children, label: Open a branch of the world tree, key: "", region: global, menu: "", pointer: true}
+  - {name: tree.go, label: Go to an item of the world tree, key: "", region: global, menu: "", pointer: true}
+  - {name: browse.choose, label: Choose a kind of feature to list, key: "", region: global, menu: "", pointer: true}
   - {name: settings.reset_confirm, label: Reset all settings once asked, key: "", region: global, menu: "", pointer: true}

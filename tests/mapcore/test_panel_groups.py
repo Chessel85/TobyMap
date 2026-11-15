@@ -73,7 +73,7 @@ def test_the_open_groups_are_kept_until_the_shell_says_again(swiss):
 
 def test_going_to_a_group_fills_it_though_the_shell_has_not_opened_it(swiss):
     r = swiss.press("Shift+5", "map")
-    assert r.focus == {"region": "panel", "group": "bordering"}
+    assert r.focus == {"region": "panel", "group": "bordering", "heading": True}   # on its heading (P3-T19c)
     assert group(swiss.panel(), "bordering")["filled"]
 
 
@@ -109,7 +109,8 @@ def test_bordering_switzerland_lists_its_five_neighbours_by_bearing_with_their_b
     assert bearings == sorted(bearings)   # clockwise from ahead, which is north here
     france = next(i for i in items if i["name"] == "France")
     # West: France's point is no longer pulled towards French Guiana, an area of its own (DP191).
-    assert france["label"].startswith("France, west, shared border ") and " kilometres" in france["label"]
+    # With its distance, as every item now says (P3-T19c): "France, 210 kilometres west, shared border 573 kilometres".
+    assert france["label"].startswith("France, ") and " kilometres west, shared border " in france["label"]
     assert all({"id", "label", "level", "name", "distance_m", "bearing_deg"} <= set(i) for i in items)
     assert all(i["level"] == 1 for i in items)
 
@@ -126,7 +127,7 @@ def test_enter_and_space_work_on_a_bordering_item(swiss):
     items = group(swiss.panel(open={"bordering"}), "bordering")["items"]
     france = next(i for i in items if i["name"] == "France")
     assert swiss.run("panel.hear", item=france["id"], group="bordering").label.startswith("France, ")
-    lat, lon = box_centre(swiss.store.feature(france["id"]).record["bbox"])
+    lat, lon = swiss._point_of(swiss.store.feature(france["id"]))   # its own point (P3-T19g)
     r = swiss.run("panel.go", item=france["id"], group="bordering")
     assert (swiss.world.lat, swiss.world.lon) == pytest.approx((lat, lon))
     assert r.focus == {"region": "panel", "group": "bordering", "item": None}

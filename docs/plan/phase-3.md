@@ -325,10 +325,15 @@ Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP
   * Tests: tests/mapcore/test_controls.py, tests/desktop/test_controls_desktop.py, tests/web/test_controls_page.py (Chromium and Firefox).
   * Still to do by a sighted helper: the checklist item in P3-T15's checklists.
 * [ ] P3-T15 Help.
+* [ ] P3-T19 Fixes from your first desktop checklist pass (15 November 2026). The detail is in docs/plan/phase-3-tidy-up.md, part 1: Enter on an item makes it the current feature, Details follows a jump, the panel's focus and leaf items, Details' sources, the world tree, the direction in look around, the Moselle condominium, Ceuta and Melilla, the first-run step, and the faults already listed in the checklist.
+* [ ] P3-T20 Speed: Contains, Down from Europe, Alt+Comma to Europe, drawing at 1,000 kilometres and the world tree, measured and fixed (tidy-up plan, part 2; DP194).
+* [ ] P3-T21 The builds: a Western Europe trial, then the world, with DP194's stored contents, the layer sounds and the data changes chosen in DP198 to DP206 (tidy-up plan, part 4).
+* [ ] P3-T22 Testing again: a short second desktop checklist with section 20, then the web and sighted checklists (tidy-up plan, part 5).
 
 ## Closing the phase
 
 * [ ] The checklists for the desktop, the web and a sighted helper.
+  * Written on 14 November 2026: docs/checklists/phase-3-desktop.md, phase-3-web.md and phase-3-sighted.md. The expected words were taken from the core on the world pack of 14 November. Section 20 of the desktop checklist, layer sounds, waits for the world build of the night of 14 November, which writes the pack again with them. The checklist lists what is already known: the Isle of Wight said twice, the Rhine's countries out of order, the search ranking, the slow first opening of the world tree (DP194, not yet built), Hampshire with no Wikipedia article, Hawaii's "Source: part", and Ctrl+Shift+F's counts (Lakes 13) not matching the list (17 lakes in Switzerland).
 * [ ] The phase report, docs/plan/phase-3-report.md.
 * [ ] Your acceptance.
 * [ ] The question about publishing (DP110).

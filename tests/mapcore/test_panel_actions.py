@@ -68,13 +68,16 @@ def test_within_says_the_distance_and_direction_to_the_area_centre(session):
 
 # Enter goes to the item (desktop 11.7, DP155) -------------------------------------------------
 
-def test_enter_on_a_within_item_goes_to_the_area_centre(session):
+def test_enter_on_a_within_item_goes_to_its_own_point_and_makes_it_current(session):
+    """P3-T19a and P3-T19g: to the area's own point, on its land, as search and hierarchy mode go, not the
+    centre of its bounding box, which can be outside it; it becomes the current feature, and is said first."""
     england = next(a for a in session.areas if a.name == "England")
     session.run("panel.select", item=england.id, group="within")
     r = session.press("Enter", "panel")
-    lat, lon = box_centre(england.record["bbox"])
+    lat, lon = session._point_of(england)
     assert (session.world.lat, session.world.lon) == (round(lat, 6), round(lon, 6))
-    assert spoken(r) == [session._place_text()] and r.redraw and r.panel_stale
+    assert spoken(r) == ["England. " + session._place_text()] and r.redraw and r.panel_stale
+    assert session.current_feature.id == england.id
     assert r.focus == {"region": "panel", "group": "within", "item": None}
 
 

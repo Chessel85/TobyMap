@@ -214,6 +214,7 @@ class MapSession:
         self._across: dict | None = None
         self._choices: list[tuple] = []
         self._down: dict = {}
+        self._tree_path: list[str] = []   # the world tree's focused item, from World down, until TobyMap closes (P3-T19e)
         # The last search's results, by identifier (P3-T8b), so Enter says the same description.
         self.search_found: dict = {}
         self.search_title: str | None = None   # the Search group's heading after a query (P3-T10a), else None
@@ -308,6 +309,7 @@ class MapSession:
             "tree.open": self._tree_open,
             "tree.children": self._tree_children,
             "tree.go": self._tree_go,
+            "tree.at": self._tree_at,
             "browse.open": self._browse_open,
             "browse.choose": self._browse_choose,
             "query.open": self._query_open,
@@ -622,7 +624,8 @@ class MapSession:
         """Shift and a number: go to that group (INF-10, DP109). The focus is then in it, so a lazy
         group is filled, whether or not the shell has it open yet."""
         self.panel_at_group = group
-        return Response(focus={"region": "panel", "group": group}, panel_stale=True)
+        # On the group's heading, opened, so its count is heard first (P3-T19c, checklist 6.3).
+        return Response(focus={"region": "panel", "group": group, "heading": True}, panel_stale=True)
 
     @property
     def current_feature(self):
@@ -677,12 +680,26 @@ class MapSession:
             return lat, lon
         return box_centre(rec["bbox"])
 
-    def _feature_item(self, gid: str, area, label_key: str, heading: float | None, **fields) -> dict:
+    def _feature_items(self, gid: str, areas: list, label_key: str, heading: float | None) -> list[dict]:
+        """Items for many features at once, as _feature_item, with their distances and bearings worked out
+        together (geodesy.inverse_many), so a list of thousands, such as Contains for Europe, takes a fraction
+        of a second rather than many seconds (P3-T20b)."""
+        if not areas:
+            return []
+        spots = [self._spot_of(a) for a in areas]
+        dist, bear = geodesy.inverse_many(self.world.lat, self.world.lon, [p[0] for p in spots], [p[1] for p in spots])
+        return [self._feature_item(gid, a, label_key, heading, at=(float(d), float(b)))
+                for a, d, b in zip(areas, dist.tolist(), bear.tolist())]
+
+    def _feature_item(self, gid: str, area, label_key: str, heading: float | None, at=None, **fields) -> dict:
         """One item about a feature in a group about the current feature, with its direction from where
         you are, its sort keys, and its place kept for Enter and Space. label_key is its template, which
         gets name and direction, and any other fields given."""
         lat, lon = self._spot_of(area)
-        distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, lat, lon)
+        if at is None:
+            distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, lat, lon)
+        else:
+            distance, bearing = at
         self._spots[(gid, area.id)] = (area, lat, lon)
         label = say(label_key, name=area.name, distance=words.distance_text(distance, self._units()),
                     direction=words.direction_text(bearing, self.settings["bearing"], heading), **fields)
@@ -709,15 +726,19 @@ class MapSession:
                 items.append(self._feature_item("bordering", area, key, heading, **{field: text}))
         return self._sorted("bordering", items), say("bordering.none", name=current.name)
 
-    def _group_contains(self, current, heading) -> tuple[list[dict], str]:
-        """Contains (INF-1, ANN-7, DP70): the visible features whose stored relationships put the current
-        feature in them, fully or partly (partly counts, with no label), grouped by layer under a heading
-        such as "Regions 13", in the catalogue's layer order, only for layers with something visible."""
+    def _contained(self, current) -> dict[str, list]:
+        """The visible features the current feature holds, fully or partly (partly counts, with no label), by
+        layer id: what Contains lists and hierarchy mode's Down counts."""
         lat, lon, zoom = self.world.lat, self.world.lon, self.world.zoom_m
         by_layer: dict[str, list] = {}
+        box = current.record.get("bbox")
         # Layers outside their zoom range count, as the PO chose, so Down from England, fitted at 250 km,
         # still lists its counties; the size rule still leaves out what is too small to see (DP188).
-        for identifier in self.visible.features(lat, lon, zoom, any_zoom_range=True):
+        # A feature whose bounding box does not meet the current feature's cannot be inside it, so only those
+        # whose boxes meet it are looked at, and the edge of the view is decided by the boxes (P3-T20b).
+        candidates = (self.visible.features_meeting(lat, lon, zoom, box) if box is not None
+                      else self.visible.features(lat, lon, zoom, any_zoom_range=True))
+        for identifier in candidates:
             if identifier == current.id:
                 continue
             area = self.store.feature(identifier)
@@ -729,17 +750,19 @@ class MapSession:
             # current feature holds this one when it is listed; an overlapping area only when it is the smaller,
             # so England is not listed under the park.
             rel = self.store.relationships(identifier)
-            if current.id in rel.get("in", ()) or any(p[0] == current.id for p in rel.get("partly", ())) \
-                    or (any(p[0] == current.id for p in rel.get("overlaps", ()))
+            if current.id in rel.get("in", ()) or any(p[0] == current.id for p in rel.get("partly", ()))                     or (any(p[0] == current.id for p in rel.get("overlaps", ()))
                         and area.area_km2 < current.area_km2):
                 by_layer.setdefault(area.layer, []).append(area)
+        return {layer.id: by_layer[layer.id] for layer in self.layers.layers() if by_layer.get(layer.id)}
+
+    def _group_contains(self, current, heading) -> tuple[list[dict], str]:
+        """Contains (INF-1, ANN-7, DP70): the visible features whose stored relationships put the current
+        feature in them, fully or partly, grouped by layer under a heading such as "Regions 13", in the
+        catalogue's layer order, only for layers with something visible."""
         items = []
-        for layer in self.layers.layers():
-            areas = by_layer.get(layer.id)
-            if not areas:
-                continue
-            children = self._sorted("contains", [self._feature_item("contains", a, "contains.item", heading)
-                                                 for a in areas])
+        for layer_id, areas in self._contained(current).items():
+            layer = self.layers.get(layer_id)
+            children = self._sorted("contains", self._feature_items("contains", areas, "contains.item", heading))
             items.append(panel_table.heading(layer.id, say("contains.heading", layer=layer.name, count=len(children)),
                                              children, name=layer.name))
         return items, say("contains.none", name=current.name)
@@ -962,20 +985,41 @@ class MapSession:
         (SRB-3). The shell reads each branch as it is opened with tree.children, and Enter on an item runs
         tree.go. The shells' own tree gives the screen reader each item's level and position."""
         continents = [self._tree_node(i, n) for i, n in self.store.tree_children("world")] + self._special_nodes()
+        # Where you were when it last closed: each branch from World down to the item focused is opened again,
+        # with its items, and the focus goes back to that item (P3-T19e, checklist 11.5).
+        reopen, at = [], "world"
+        for identifier in self._tree_path[1:-1]:
+            items = self._branch_items(identifier)
+            if not items:
+                break
+            reopen.append({"id": identifier, "items": items})
+        if self._tree_path and len(reopen) == len(self._tree_path[1:-1]):
+            at = self._tree_path[-1]
         return Response(dialog={
             "kind": "tree", "title": say("tree.title"), "help": say("tree.help"),
             "root": {"id": "world", "label": say("tree.world"), "items": continents},
-            "children": "tree.children", "go": "tree.go", "go_label": say("tree.go_button"),
+            "open": reopen, "focus": at if self._tree_path else None,
+            "children": "tree.children", "go": "tree.go", "at": "tree.at", "go_label": say("tree.go_button"),
             "cancel": say("ui.cancel")})
+
+    def _tree_at(self, path: list | None = None, **_a) -> Response:
+        """The shell tells the core which item of the world tree has the focus, as its path of ids from World,
+        so W opens the tree there again until TobyMap closes (P3-T19e). Nothing is said."""
+        self._tree_path = [str(i) for i in (path or [])]
+        return Response()
+
+    def _branch_items(self, id: str) -> list[dict]:
+        if id.startswith("special:"):
+            return self._special_items(id[len("special:"):])
+        return [self._tree_node(i, n) for i, n in self.store.tree_children(id)]
 
     def _tree_children(self, id: str = "world", **_a) -> Response:
         """One branch of the tree, opened: its items by name, or the words for a branch with none."""
+        items = self._branch_items(id)
         if id.startswith("special:"):
-            items = self._special_items(id[len("special:"):])
             kind = say("tree." + id[len("special:"):]).lower()
             return Response(branch={"id": id, "items": items,
                                     "none": "" if items else say("tree.special_none", kind=kind)})
-        items = [self._tree_node(i, n) for i, n in self.store.tree_children(id)]
         area = self.store.feature(id)
         return Response(branch={"id": id, "items": items,
                                 "none": "" if items else say("tree.leaf", name=area.name if area else say("tree.world"))})
@@ -1296,12 +1340,11 @@ class MapSession:
             if key == "capital" and fact["value"] == [rec.get("names", {}).get("en")]:   # a town is its own seat
                 continue
             value = words.fact_value_text(key, fact["value"], self.settings["units"])
-            if fact.get("date"):
+            if not self.settings["show_sources"]:
+                out.append(say("details.fact_bare", name=name, value=value))
+            else:   # the fact's own date, such as a census's, else when it was fetched
                 out.append(say("details.fact", name=name, value=value, source=fact["source"],
-                               date=words.date_text(fact["date"])))
-            else:
-                out.append(say("details.fact_fetched", name=name, value=value, source=fact["source"],
-                               date=words.date_text(fact["fetched"])))
+                               date=words.date_text(fact.get("date") or fact["fetched"])))
         if rec.get("wikipedia"):
             out.append(say("details.wikipedia", value=rec["wikipedia"]))
         return out
@@ -2154,7 +2197,7 @@ class MapSession:
         r = Response(sounds=[sound], voice=voice)
         return self._label_out(r, voice["text"])
 
-    def _heard_from(self, area, lat: float, lon: float) -> tuple[dict, dict]:
+    def _heard_from(self, area, lat: float, lon: float, direction: bool = False) -> tuple[dict, dict]:
         """A feature heard from (lat, lon): its layer's sound placed there, and its label, the name and
         distance, in the spatial voice from the same place, waiting for the sound (SON-3, SCP-7). Hear
         its direction and look around both use this, so they sound the same."""
@@ -2163,6 +2206,10 @@ class MapSession:
         w = self.world
         distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
         label = say("hear.label", name=area.name, distance=words.distance_text(distance, self._units()))
+        if direction and self.settings["look_direction"]:   # look around, while in development (P3-T19f)
+            label = say("hear.label_direction", name=area.name, distance=words.distance_text(distance, self._units()),
+                        direction=words.direction_text(bearing, self.settings["bearing"],
+                                                       describer.words_facing(w, self.settings)))
         layer = self.layers.get(area.layer)
         sound = self.place_sound((layer.sound if layer else None) or "item_direction", lat, lon)
         voice = place("voice", bearing, distance, describer.facing(w) or 0.0, w.zoom_m, self.curve(),
@@ -2206,7 +2253,7 @@ class MapSession:
         items = []
         self._scan = []
         for area, lat, lon in found:
-            sound, voice = self._heard_from(area, lat, lon)
+            sound, voice = self._heard_from(area, lat, lon, direction=True)
             items.append({"id": area.id, "sound": sound, "voice": voice})
             self._scan.append((area, lat, lon, voice["text"]))
         return Response(scan={"items": items, "gap_s": SCAN_GAP_S})
@@ -2250,11 +2297,21 @@ class MapSession:
         return r
 
     def _go_to_item(self, area, lat: float, lon: float) -> Response:
-        """Go to an item's feature as a jump: a point or line to the item's place, an area to its centre."""
+        """Go to an item's feature as a jump: a point or line to the item's place, an area to its own point. It
+        becomes the current feature, as after search or hierarchy mode, and its name is said before the place
+        there, so Enter on Winchester says "Winchester", not only "Hampshire" (P3-T19a, LOC-4)."""
         layer = self.layers.get(area.layer)
         if (layer is None or layer.geometry == "area") and area.record.get("bbox"):
-            lat, lon = box_centre(area.record["bbox"])
-        return self._land(self._jump(lat, lon))
+            # Its own point, on its land, as search and hierarchy mode use: the centre of its bounding box can
+            # be outside it, as for the Moselle condominium, a long strip of river (P3-T19g, checklist 13.2).
+            lat, lon = self._point_of(area)
+        r = self._jump(lat, lon)
+        self.areas = self._here()
+        self.set_current_feature(area.id)
+        r.panel_stale = r.details_stale = True
+        place = self._place_text()
+        text = place if self.areas and self.areas[0].id == area.id else say("panel.gone", name=area.name, place=place)
+        return r.speak(text, ASSERTIVE)
 
     def _measure(self, item: str | None = None, group: str | None = None, **_a) -> Response:
         """Shift+M: the distance and bearing from where you are to the item focused in the Information
@@ -2358,14 +2415,16 @@ class MapSession:
         """Down: the kinds of visible feature inside the current one, each with its count, the same list as
         Contains (INF-4); then, once a kind is chosen, its features."""
         current = self.current_feature
-        items, empty = self._group_contains(current, describer.words_facing(self.world, self.settings))
-        if not items:
-            return Response().earcon("blocked").speak(empty, ASSERTIVE)
-        how = self.panel_sorts.get("contains")
+        kinds = self._contained(current)
+        if not kinds:
+            return Response().earcon("blocked").speak(say("contains.none", name=current.name), ASSERTIVE)
+        # Only the counts are said now; a kind's items, with their distances, are made when it is chosen, so
+        # Down from Europe does not make tens of thousands of items to list 41 countries (P3-T20b).
         self._down = {"name": current.name,
-                      "kinds": {h["id"]: (h["name"], self._sorted("contains", h["children"], how)) for h in items}}
+                      "kinds": {k: (self.layers.get(k).name, areas) for k, areas in kinds.items()}}
         return self._choose(say("hierarchy.down_title", name=current.name), say("hierarchy.down_help"),
-                            [h["label"] for h in items], [("kind", h["id"]) for h in items])
+                            [say("contains.heading", layer=name, count=len(areas)) for name, areas in self._down["kinds"].values()],
+                            [("kind", k) for k in kinds])
 
     def _hierarchy_across(self, step: int) -> Response:
         """Left and Right: round the current feature's neighbours, clockwise from ahead (NAV-4, INF-2): first
@@ -2402,7 +2461,8 @@ class MapSession:
                 lat, lon = self._point_of(area)
                 _, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
                 field = "length" if key == "bordering.item" else "across"
-                text = say(key, name=area.name, direction=words.direction_text(bearing, style, heading),
+                text = say("hierarchy.across" if key == "bordering.item" else "hierarchy.across_near", name=area.name,
+                           direction=words.direction_text(bearing, style, heading),
                            **{field: words.distance_text(km * 1000.0, units)})
                 found.append(((bearing - ahead) % 360.0, area.name.casefold(), area, text))
         found.sort(key=lambda f: f[:2])
@@ -2459,7 +2519,10 @@ class MapSession:
             return Response().earcon("blocked")
         kind, value = self._choices[index]
         if kind == "kind":
-            label, children = self._down["kinds"][value]
+            label, areas = self._down["kinds"][value]
+            heading = describer.words_facing(self.world, self.settings)
+            children = self._sorted("contains", self._feature_items("contains", areas, "contains.item", heading),
+                                    self.panel_sorts.get("contains"))
             return self._choose(say("hierarchy.kind_title", kind=label, name=self._down["name"]),
                                 say("hierarchy.kind_help"), [c["label"] for c in children],
                                 [("feature", c["id"]) for c in children])
@@ -2745,11 +2808,25 @@ class MapSession:
         own switch does not, so you can hear one before switching it on (P2-T8)."""
         return Response().earcon(event)
 
+    # Which of a pack's sources each record's source code means, by words in the source's name (P3-T19j). A code
+    # matched by its own letters alone went wrong: "ne", Natural Earth, is in "planet", and "part" and
+    # "continent", made from OpenStreetMap's countries, are in no source's name, so Hawaii said "Source: part".
+    # Natural Earth has several sources, so its code is matched by layer.
+    _SOURCE_WORDS = {"osm": "openstreetmap", "part": "openstreetmap",
+                     "continent": "openstreetmap", "island": "land polygons", "water": "land polygons",
+                     "gmba": "gmba", "vliz": "vliz", "special": "geographic lines"}
+    _NE_WORDS = {"seas": "marine areas", "physical-regions": "physical regions", "rivers": "rivers",
+                 "special-lines": "geographic lines"}
+
     def _source_text(self, area) -> str:
         source = area.record.get("source", "")
+        if source == "graticule":   # lines TobyMap draws itself
+            return say("details.source_tobymap")
+        words_in = self._NE_WORDS.get(area.layer, "natural earth") if source == "ne" else self._SOURCE_WORDS.get(source)
         for pack in self.store.packs:
             for s in pack.manifest.get("sources", []):
-                if source and source.lower() in s["name"].lower().replace("openstreetmap", "osm"):
+                name = s["name"].lower()
+                if (words_in and words_in in name) or (not words_in and source and source.lower() in name):
                     return f"{s['name']}, {s['licence']}"
         return source
 

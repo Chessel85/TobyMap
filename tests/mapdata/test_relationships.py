@@ -77,6 +77,20 @@ def test_the_bay_of_biscay_is_in_the_north_atlantic(pack):
     assert r["water_in"] == ATLANTIC and ATLANTIC in r["in"]
 
 
+def test_each_count_is_the_number_ctrl_shift_f_lists(test_pack):
+    """P3-T19j, checklist 12.3: Switzerland said "Lakes 13" and listed 17, as the count left out lakes partly
+    inside, such as Lake Geneva. Each count is now made by the same test as the list."""
+    from mapcore.store import Store
+
+    store = Store([test_pack])
+    try:
+        for holder in (SWITZERLAND, ENGLAND, HAMPSHIRE):
+            for layer, count in store.relationships(holder)["counts"].items():
+                assert len(store.browse(layer, holder)) == count, (holder, layer)
+    finally:
+        store.close()
+
+
 def test_an_area_counts_what_is_inside_it_by_layer(pack):
     counts = pack.relationships(ENGLAND)["counts"]
     assert counts["counties"] >= 21 and counts["rivers"] == 1 and counts["stations"] == 2   # Southampton Central, Brockenhurst
@@ -110,10 +124,23 @@ def test_a_shared_border_is_measured_and_cut_box_edges_are_not():
 
 def test_a_line_in_parts_is_ordered_along_its_longest_part():
     main = shapely.LineString([(0, 0), (10, 0)])
-    branch = shapely.LineString([(8, 1), (9, 2)])            # given first, but near the end of the main part
+    branch = shapely.LineString([(8, 0.3), (9, 2)])          # given first, but near the end of the main part
     z = rel.with_distance(shapely.MultiLineString([branch, main]))
     first = rel.first_distance(list(shapely.get_parts(z)))
     assert first[0] > 800 and first[1] == pytest.approx(0)
+
+
+def test_a_river_in_parts_is_measured_along_its_chain_of_parts():
+    """P3-T19j: the Rhine's countries came out of order, as every part was measured along its longest part only,
+    so the river above a lake all fell at its start. Now each part goes on from the part it starts near."""
+    above = shapely.LineString([(0, 0), (2, 0)])          # about 222 km, from the source
+    below = shapely.LineString([(2.3, 0), (8, 0)])        # below a lake 33 km long, the longest part
+    branch = shapely.LineString([(7, 0), (7.5, -0.5)])    # a delta branch, leaving near the end
+    z = rel.with_distance(shapely.MultiLineString([below, branch, above]))
+    first = rel.first_distance(list(shapely.get_parts(z)))
+    assert first[2] == pytest.approx(0)                   # the source
+    assert first[0] == pytest.approx(222.6 + 33.4, rel=0.01)
+    assert first[1] == pytest.approx(222.6 + 33.4 + 4.7 * 111.3, rel=0.01)   # where it leaves, 4.7 degrees on
 
 
 def test_a_covering_area_is_noted_and_not_cut_further():

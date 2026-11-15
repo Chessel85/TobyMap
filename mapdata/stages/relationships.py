@@ -86,20 +86,69 @@ def lengths_km(geoms) -> np.ndarray:
     return out
 
 
-def with_distance(line):
-    """A line with each point's distance from the line's start, in km, as its third coordinate. A river in several
-    parts, such as one split round islands or a delta, is measured along its longest part, from that part's start:
-    each point's distance is where it falls on that part, so the parts' own order does not matter."""
+CHAIN_KM = 50.0      # a part of a line starting this near another part goes on from it (P3-T19j)
+KM_PER_DEG = 111.32  # rough: only to compare a gap with CHAIN_KM
+CHAIN_MOST = 500     # with more parts than this, a line is measured along its longest part only
+
+
+def _along_km(c: np.ndarray) -> np.ndarray:
+    """Each point's distance in km from the first, over the great circle between points."""
+    lon, lat = np.radians(c[:, 0]), np.radians(c[:, 1])
+    a = np.sin((lat[1:] - lat[:-1]) / 2) ** 2 + np.cos(lat[1:]) * np.cos(lat[:-1]) * np.sin((lon[1:] - lon[:-1]) / 2) ** 2
+    return np.concatenate([[0.0], np.cumsum(2 * R_KM * np.arcsin(np.sqrt(np.clip(a, 0, 1))))])
+
+
+def with_distance(line, chain_km: float = CHAIN_KM):
+    """A line with each point's distance from the line's start, in km, as its third coordinate.
+
+    A river in several parts is measured by chaining them (P3-T19j, the Rhine's countries out of order): a part
+    whose start is within chain_km of another part goes on from the nearest point of that part, plus the gap, as
+    a delta branch leaves the main river and the river below a lake goes on from the river above it. A part whose
+    start is near no other part is a source, at 0. The parts' own order does not matter. A part the chain does
+    not reach, or a line of very many parts, is measured along the longest part, from that part's start, as
+    before: each point's distance is where it falls on that part."""
     parts = [p for p in shapely.get_parts(line) if shapely.get_num_coordinates(p) >= 2]
     if not parts:
         return shapely.MultiLineString()
     km = lengths_km(np.array(parts, dtype=object))
     main = parts[int(np.argmax(km))]
     main_deg = max(shapely.length(main), 1e-12)
+    coords = [shapely.get_coordinates(p) for p in parts]
+    offset = [math.inf] * len(parts)
+    if 1 < len(parts) <= CHAIN_MOST:
+        links: list[list[tuple[int, float]]] = [[] for _ in parts]   # for each part: (part it goes on from, km)
+        for b, c in enumerate(coords):
+            start = shapely.Point(c[0])
+            for a, pa in enumerate(parts):
+                if a == b:
+                    continue
+                gap_deg = shapely.distance(pa, start)
+                gap_km = gap_deg * KM_PER_DEG
+                if gap_km <= chain_km:
+                    pos = shapely.line_locate_point(pa, start) / max(shapely.length(pa), 1e-12) * float(km[a])
+                    links[b].append((a, pos + gap_km))
+        for b in range(len(parts)):
+            if not links[b]:
+                offset[b] = 0.0
+        if not any(o == 0.0 for o in offset):   # every start near another part: the one farthest from the rest
+            far = max(range(len(parts)), key=lambda b: min(add for _a, add in links[b]))
+            offset[far], links[far] = 0.0, []
+        for _ in range(len(parts)):   # the shortest way from a source to each part's start
+            changed = False
+            for b in range(len(parts)):
+                for a, add in links[b]:
+                    if offset[a] + add < offset[b] - 1e-9:
+                        offset[b], changed = offset[a] + add, True
+            if not changed:
+                break
+    elif len(parts) == 1:
+        offset[0] = 0.0
     out = []
-    for p in parts:
-        c = shapely.get_coordinates(p)
-        at = shapely.line_locate_point(main, shapely.points(c)) / main_deg * float(km.max())
+    for p, c, off in zip(parts, coords, offset):
+        if math.isfinite(off):
+            at = off + _along_km(c)
+        else:
+            at = shapely.line_locate_point(main, shapely.points(c)) / main_deg * float(km.max())
         out.append(shapely.LineString(np.column_stack([c, at])))
     return shapely.MultiLineString(out)
 
@@ -567,9 +616,12 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
                                                                                      records[v[0]]["id"]))]
         if "water_in" in rel:
             rel["water_in"] = rel["water_in"][0]
-    # Counts by layer of what is inside each area, fully or partly.
+    # Counts by layer of what is inside each area, fully or partly, by the same test as listing them with
+    # Ctrl+Shift+F (Store.browse), so the count said is the number listed: an area overlapping it, such as Lake
+    # Geneva for Switzerland, and a line crossing it, count too (P3-T19j, checklist 12.3).
     for i, rel in list(out.items()):
-        for a in rel.get("in", []) + [v[0] for v in rel.get("partly", [])]:
+        holders = set(rel.get("in", [])) | set(rel.get("same", [])) | set(rel.get("crosses", []))             | {v[0] for v in rel.get("partly", [])} | {v[0] for v in rel.get("overlaps", [])}
+        for a in sorted(holders):
             counts = out[a].setdefault("counts", {})
             counts[records[i]["layer"]] = counts.get(records[i]["layer"], 0) + 1
     for rel in out.values():

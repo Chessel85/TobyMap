@@ -152,12 +152,13 @@ export class Tree {
 
   // F3: go to an item by its id (the item last focused, or Within's first), opening its group.
   // An area can be in two groups, so the item is looked for in its own group first.
-  focusItem(id, groupId) {
+  focusItem(id, groupId, heading = false) {
+    // heading: Shift and a number puts the focus on the group's heading, opened, so its count is heard first.
     const g = groupId ? this._byId(`group:${groupId}`) : null;
     let item = id ? (g && this._byId(id, g)) || this._byId(id) : null;
     if (!item && g) {
       this._expand(g, true);
-      item = g.querySelector('[role="group"] > [role="treeitem"]') || g;
+      item = heading ? g : g.querySelector('[role="group"] > [role="treeitem"]') || g;
     }
     if (!item) item = this.current;
     if (!item) return;

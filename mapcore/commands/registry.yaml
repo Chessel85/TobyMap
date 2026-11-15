@@ -153,6 +153,7 @@ commands:
   - {name: search.go, label: Go to a search result, key: "", region: global, menu: "", pointer: true}
   - {name: tree.children, label: Open a branch of the world tree, key: "", region: global, menu: "", pointer: true}
   - {name: tree.go, label: Go to an item of the world tree, key: "", region: global, menu: "", pointer: true}
+  - {name: tree.at, label: The item focused in the world tree, kept to open there again, key: "", region: global, menu: "", pointer: true}
   - {name: browse.choose, label: Choose a kind of feature to list, key: "", region: global, menu: "", pointer: true}
   # The query builder (P3-T10a, P3-T10b, INF-9): Q opens the form; query.run is sent by its OK button.
   - {name: query.open, label: Query builder, key: Q, region: global, menu: Map}

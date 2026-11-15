@@ -7,8 +7,10 @@ point is still in exactly one area of the Countries layer (LOC-6).
 
 * A country's parts are put in groups, and each group given a continent, exactly as the continents stage does:
   the same settings, mapdata/config/continents.yaml, and the same code. A group on a different continent from
-  the country's main group is a distant part. Alaska stays in the United States, as it is in North America;
-  Ceuta and Melilla stay in Spain, as they are within distant_km of it (architecture 6.12). Countries the
+  the country's main group is a distant part. Alaska stays in the United States, as it is in North America.
+  Parts on different continents are never grouped, however near, so Ceuta and Melilla, in Africa, are distant
+  parts of Spain, as the PO was told in DP191 (P3-T19h; before, architecture 6.12 kept them, as within
+  distant_km). Countries the
   continents settings split, such as Russia, are cut along continent lines instead, and are left whole here.
 * The distant land is shared out by the country's regions, then by the counties of those regions: an area with
   at least min_share of its land in the country's distant parts becomes an area of the Countries layer, with its
@@ -71,8 +73,8 @@ def distant_groups(geom, zone_geoms: list, tree, distant_km: float,
         return list(parts), []
     if len(parts) == 0:
         return [], []
-    gid = continents.groups(parts, distant_km)
     sh = continents.shares(parts, zone_geoms, tree)
+    gid = continents.groups(parts, distant_km, continents.main_zones(sh))
     by_group: dict = defaultdict(lambda: defaultdict(float))
     for g, s in zip(gid, sh):
         for z, a in s.items():

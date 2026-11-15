@@ -165,6 +165,18 @@ tabs:
         kind: choice
         default: english
         choices: [[english, "English where there is one"], [local, "Always the local name"]]
+      # Whether each fact in Details names where it came from and its date, "Wikidata, 13 November 2026"
+      # (P3-T19d, checklist 4.6). The last line, the pack's source and licence, is always shown.
+      - id: show_sources
+        label: Show where each fact in Details comes from
+        kind: yes_no
+        default: true
+      # While in development, look around says each item's direction as well as its name and distance, to
+      # check the direction the voice is heard from (P3-T19f, checklist 14.4).
+      - id: look_direction
+        label: Say the direction in look around
+        kind: yes_no
+        default: true
   - id: layers
     label: Layers
     fields:

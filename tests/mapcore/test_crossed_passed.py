@@ -180,7 +180,8 @@ def test_shift_and_a_number_goes_to_that_group_for_as_many_groups_as_there_are(s
     assert groups == ["within", "nearby", "crossed", "contains", "bordering", "overlapping", "crossing", "search"]
     for number, group in enumerate(groups, start=1):
         for region in ("map", "panel"):
-            assert session.press(f"Shift+{number}", region).focus == {"region": "panel", "group": group}
+            assert session.press(f"Shift+{number}", region).focus == {"region": "panel", "group": group,
+                                                                       "heading": True}   # P3-T19c
     assert session.press(f"Shift+{len(groups) + 1}", "map") is None   # no ninth group, so no key
     items = {i["name"]: (i["label"], i["key"]) for m in session.registry()["menus"] for i in m["items"]}
     assert items["panel.within"] == ("Go to Within", "Shift+1")

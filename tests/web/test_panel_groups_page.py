@@ -25,10 +25,12 @@ def test_a_closed_group_opens_with_right_and_is_filled(page, site_url):
 def test_shift_5_goes_to_bordering_filled(page, site_url):
     app = open_app(page, site_url, state=SWITZERLAND)
     app.keyboard.press("Shift+Digit5")
+    # On the group's heading, opened and filled, so its count is heard first (P3-T19c).
     app.wait_for_function("document.getElementById('tree').contains(document.activeElement)"
-                          " && document.activeElement.getAttribute('aria-level') === '2'")
-    assert app.evaluate("document.activeElement.textContent").split(",")[0] in {
-        "Austria", "France", "Germany", "Italy", "Liechtenstein"}
+                          " && document.activeElement.getAttribute('aria-level') === '1'"
+                          " && document.activeElement.getAttribute('aria-expanded') === 'true'"
+                          " && document.activeElement.querySelectorAll('[role=\"treeitem\"]').length === 5")
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')").startswith("Bordering Switzerland, 5 items")
 
 
 def test_an_item_under_a_heading_is_level_3(page, site_url):

@@ -67,6 +67,56 @@ def rough_distances_m(lat: float, lon: float, lats, lons) -> np.ndarray:
     return 2 * R_MEAN_M * np.arcsin(np.minimum(1.0, np.sqrt(h)))
 
 
+def inverse_many(lat: float, lon: float, lats, lons) -> tuple[np.ndarray, np.ndarray]:
+    """Distances in metres and bearings at the start, from one point to many, on the ellipsoid, as two arrays
+    (P3-T20b). Vincenty's method over NumPy arrays, which agrees with GeographicLib to well under a millimetre
+    and a millionth of a degree; the few pairs it cannot settle, nearly opposite sides of the Earth, are worked
+    out by GeographicLib one by one. For lists of many items, such as Contains, where inverse one item at a
+    time takes seconds. Bearings are degrees clockwise from north, from 0 up to 360."""
+    lats = np.asarray(lats, dtype=np.float64)
+    lons = np.asarray(lons, dtype=np.float64)
+    b = A_M * (1.0 - F)
+    u1 = math.atan((1.0 - F) * math.tan(math.radians(lat)))
+    u2 = np.arctan((1.0 - F) * np.tan(np.radians(lats)))
+    su1, cu1 = math.sin(u1), math.cos(u1)
+    su2, cu2 = np.sin(u2), np.cos(u2)
+    big_l = np.radians((lons - lon + 180.0) % 360.0 - 180.0)
+    lam = big_l.copy()
+    settled = np.zeros(lats.shape, dtype=bool)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        for _ in range(200):
+            sl, cl = np.sin(lam), np.cos(lam)
+            sin_s = np.hypot(cu2 * sl, cu1 * su2 - su1 * cu2 * cl)
+            cos_s = su1 * su2 + cu1 * cu2 * cl
+            sigma = np.arctan2(sin_s, cos_s)
+            sin_a = np.where(sin_s == 0.0, 0.0, cu1 * cu2 * sl / sin_s)
+            cos2_a = 1.0 - sin_a * sin_a
+            cos_2sm = np.where(cos2_a == 0.0, 0.0, cos_s - 2.0 * su1 * su2 / cos2_a)
+            c = F / 16.0 * cos2_a * (4.0 + F * (4.0 - 3.0 * cos2_a))
+            nxt = big_l + (1.0 - c) * F * sin_a * (sigma + c * sin_s * (cos_2sm + c * cos_s * (-1.0 + 2.0 * cos_2sm ** 2)))
+            settled = np.abs(nxt - lam) < 1e-12
+            lam = nxt
+            if settled.all():
+                break
+        sl, cl = np.sin(lam), np.cos(lam)
+        sin_s = np.hypot(cu2 * sl, cu1 * su2 - su1 * cu2 * cl)
+        cos_s = su1 * su2 + cu1 * cu2 * cl
+        sigma = np.arctan2(sin_s, cos_s)
+        sin_a = np.where(sin_s == 0.0, 0.0, cu1 * cu2 * sl / sin_s)
+        cos2_a = 1.0 - sin_a * sin_a
+        cos_2sm = np.where(cos2_a == 0.0, 0.0, cos_s - 2.0 * su1 * su2 / cos2_a)
+        uu = cos2_a * (A_M * A_M - b * b) / (b * b)
+        big_a = 1.0 + uu / 16384.0 * (4096.0 + uu * (-768.0 + uu * (320.0 - 175.0 * uu)))
+        big_b = uu / 1024.0 * (256.0 + uu * (-128.0 + uu * (74.0 - 47.0 * uu)))
+        d_sigma = big_b * sin_s * (cos_2sm + big_b / 4.0 * (cos_s * (-1.0 + 2.0 * cos_2sm ** 2)
+                                   - big_b / 6.0 * cos_2sm * (-3.0 + 4.0 * sin_s ** 2) * (-3.0 + 4.0 * cos_2sm ** 2)))
+        dist = b * big_a * (sigma - d_sigma)
+        bearing = np.degrees(np.arctan2(cu2 * sl, cu1 * su2 - su1 * cu2 * cl)) % 360.0
+    for i in np.flatnonzero(~settled | ~np.isfinite(dist)).tolist():
+        dist[i], bearing[i], _ = inverse(lat, lon, float(lats[i]), float(lons[i]))
+    return dist, bearing
+
+
 def meridian_to_pole_m(lat: float, north: bool) -> float:
     """The distance along the meridian from a latitude to the North or South Pole."""
     return WGS84.Inverse(lat, 0.0, 90.0 if north else -90.0, 0.0, Geodesic.DISTANCE)["s12"]

@@ -54,10 +54,41 @@ def test_details_say_each_fact_with_its_source_and_date(test_pack):
     s.run("panel.select", item=FRANCE)
     lines = s.details().splitlines()
     s.store.close()
-    assert "Population: 64,897,954, from Wikidata, 1 January 2020" in lines
-    assert "Capital: Paris, from Wikidata, as fetched on 13 November 2026" in lines
-    assert "Area, as published: 544,000 square kilometres, from Wikidata, as fetched on 13 November 2026" in lines
+    # Shorter since P3-T19d, and the published area is left out (the PO's notes on checklist 4.6).
+    assert "Population: 64,897,954, Wikidata, 1 January 2020" in lines
+    assert "Capital: Paris, Wikidata, 13 November 2026" in lines
+    assert not any(line.startswith("Area, as published") for line in lines)
     assert "Wikipedia article: Metropolitan France" in lines
+
+
+def test_details_leave_out_the_sources_when_the_setting_is_off(test_pack):
+    s = MapSession(packs=[test_pack], saved_state={"lat": 47.0, "lon": 2.5, "zoom_m": 250000, "step_m": 25000},
+                   settings={"values": {"show_sources": False}})
+    s.start()
+    s.run("panel.select", item=FRANCE)
+    lines = s.details().splitlines()
+    s.store.close()
+    assert "Population: 64,897,954" in lines and "Capital: Paris" in lines
+    assert lines[-1].startswith("Source: ")   # the pack's own source and licence stay
+
+
+def test_a_related_article_is_taken_only_with_exactly_the_same_name():
+    """P3-T19j: Hampshire's item has no English article; the item it is different from, with the same English
+    label, has the article "Hampshire"."""
+    assert wikidata.related_article("Hampshire", [["Hampshire", "Hampshire"]]) == "Hampshire"
+    assert wikidata.related_article("Hampshire", [["Hampshire County Council", "Hampshire County Council"]]) is None
+    assert wikidata.related_article("Hampshire", [["Hampshire", "Hampshire (UK)"]]) is None
+    assert wikidata.related_article(None, [["Hampshire", "Hampshire"]]) is None
+
+
+def test_related_articles_are_fetched_for_each_item_and_kept_as_empty_where_none():
+    def query(text):
+        assert "wd:Q21694653" in text and "P1889" in text
+        return {"results": {"bindings": [
+            {"item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q21694653"}, "value": {"value": "Hampshire"},
+             "label": {"value": "Hampshire"}}]}}
+    got = wikidata.fetch_articles(["Q21694653", "Q2"], query=query, say=lambda s: None, today="2026-11-15")
+    assert got["Q21694653"]["rows"] == [["Hampshire", "Hampshire"]] and got["Q2"]["rows"] == []
 
 
 # The rules for choosing a fact ------------------------------------------------------------------------

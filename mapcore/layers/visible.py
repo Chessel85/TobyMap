@@ -305,6 +305,36 @@ class VisibleRule:
             out.update(self.store._area(p, n).id for n in by_shape)
         return frozenset(out)
 
+    def features_meeting(self, lat: float, lon: float, zoom_m: float, box) -> list[str]:
+        """The ids of the features whose bounding boxes reach into the view and meet `box` (west, south, east,
+        north; west greater than east across the 180 degree line), passing the size rule at any zoom range: the
+        candidates for what a feature with that box contains (P3-T20b). The edge of the view is decided by the
+        boxes alone, never the shapes, as features() does: that loaded thousands of pack tiles for Down from
+        Europe. The caller checks each candidate against the stored relationships, so the boxes only choose
+        which are checked."""
+        lon = geodesy.wrap_lon(lon)
+        rho = zoom_m / geodesy.R_MEAN_M
+        west, south, east, north = box
+        spans = [(west, east)] if west <= east else [(west, 180.0), (-180.0, east)]
+        out: list[str] = []
+        for p in self.store._covering(lat, lon)[:1]:
+            numbers, boxes, _w, _l = self._table(p)
+            rows = self._candidates(p, zoom_m, lat, math.degrees(rho), lon, rho * MARGIN, any_zoom_range=True)
+            if not len(rows):
+                continue
+            near, _far = box_reach(boxes[rows], lat, lon)
+            rows = rows[near <= rho]
+            b = boxes[rows]
+            keep = (b[:, 3] >= south) & (b[:, 1] <= north)
+            b_spans = _spans(b[:, 0], b[:, 2])   # each box's width in longitude, across the 180 degree line
+            meets = np.zeros(len(rows), dtype=bool)
+            for x0, x1 in spans:
+                for shift in (-360.0, 0.0, 360.0):
+                    w = b[:, 0] + shift
+                    meets |= (w <= x1) & (w + b_spans >= x0)
+            out.extend(self.store._indexes[p].ids[rows[keep & meets]].tolist())
+        return out
+
     def numbers(self, lat: float, lon: float, zoom_m: float) -> set:
         """Every visible feature as (pack, feature number)."""
         out: set = set()

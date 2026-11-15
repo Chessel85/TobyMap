@@ -648,7 +648,11 @@ class MainWindow(QMainWindow):
             target = self._item_by_id(focus.get("item"), focus.get("group")) if focus.get("item") else None
             if target is None:
                 group = self._group_item(focus.get("group") or "within")
-                target = group.child(0) if group is not None and group.childCount() else group
+                if focus.get("heading") and group is not None:   # Shift and a number: the heading, opened
+                    group.setExpanded(True)
+                    target = group
+                else:
+                    target = group.child(0) if group is not None and group.childCount() else group
             if target is not None:
                 parent = target.parent()
                 while parent is not None:   # an item under a heading inside a group, as in Contains

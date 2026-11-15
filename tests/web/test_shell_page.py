@@ -701,7 +701,9 @@ def test_crossed_and_passed_is_filled_between_key_presses_and_shift_3_goes_there
     assert len(said(app)) == 0   # still Southampton: only the tick; the river is never spoken
     app.keyboard.press("Shift+Digit3")
     app.wait_for_function("document.getElementById('tree').contains(document.activeElement)")
-    assert app.evaluate("document.activeElement.textContent").startswith("River Itchen, crossed")
+    # On the group's heading, so its count is heard first (P3-T19c); the river is the item under it.
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Crossed and passed, 1 item"
+    assert "River Itchen, crossed" in app.evaluate("document.activeElement.textContent")
 
 
 def test_the_web_player_turns_the_scene_into_the_cores_pan_pitch_and_filter_values(app, test_pack):

@@ -183,7 +183,7 @@ function refreshRegions(result) {
 }
 
 function applyFocus(focus) {
-  if (focus.region === "panel") tree.focusItem(focus.item, focus.group || "within");
+  if (focus.region === "panel") tree.focusItem(focus.item, focus.group || "within", !!focus.heading);
   else if (focus.region === "menu") menubar.focusBar();
   else if (focus.region === "map") { menubar.closeAll(false); mapEl.focus(); }
   else if (focus.region === "details") {
@@ -922,6 +922,8 @@ function openTree(d) {
   message.setAttribute("role", "status");
   const branches = { world: d.root.items };   // each opened branch, by id
   const leaves = new Set();                   // opened branches with nothing below
+  // The branches open when the tree last closed, with their items from the core (P3-T19e).
+  for (const b of d.open || []) branches[b.id] = b.items;
   let current = "world", sending = false;
   const ask = (name, args) => {
     const { width, height } = mapSize();
@@ -930,7 +932,15 @@ function openTree(d) {
   const node = (n) => ({ id: n.id, label: n.label, expandable: !leaves.has(n.id),
                          children: (branches[n.id] || []).map(node) });
   const show = () => tree.fill([{ id: "world", label: d.root.label, items: branches.world.map(node) }]);
-  const tree = new Tree(list, (id) => { current = id || "world"; }, null, null, (id, open) => {
+  // Each move tells the core where the focus is, as its path of ids from World, so W opens the tree there again.
+  const moved = (id) => {
+    current = id || "world";
+    if (!d.at || !tree.current) return;
+    const path = [];
+    for (let i = tree.current; i; i = i.parentElement.closest('[role="treeitem"]')) path.unshift(i.dataset.id);
+    ask(d.at, { path }).catch(showError);
+  };
+  const tree = new Tree(list, (id) => moved(id), null, null, (id, open) => {
     if (!open || branches[id] || leaves.has(id)) return;
     ask(d.children, { id }).then((r) => {
       const b = r.response.branch || { items: [], none: "" };
@@ -941,6 +951,7 @@ function openTree(d) {
     }).catch(showError);
   });
   tree.expanded.add("world");
+  for (const b of d.open || []) tree.expanded.add(b.id);
   show();
   const go = () => {
     if (sending) return;   // Enter can arrive twice: one answer at a time
@@ -956,7 +967,9 @@ function openTree(d) {
   const cancel = button(d.cancel, () => box.close(), "world-tree-cancel");
   box.append(title, help, list, message, goButton, cancel);
   box.showModal();
-  const first = list.querySelector('[role="group"] [role="treeitem"]') || list.querySelector('[role="treeitem"]');
+  const first = (d.focus && tree._byId(d.focus)) || list.querySelector('[role="group"] [role="treeitem"]')
+    || list.querySelector('[role="treeitem"]');
+  if (d.focus && first && first.dataset.id === d.focus) current = d.focus;
   tree._setCurrent(first, false, true);
   if (first) first.focus();
 }

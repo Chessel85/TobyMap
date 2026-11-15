@@ -90,3 +90,21 @@ def test_the_world_itself_is_not_a_place_and_cancel_closes(window, qtbot):
     assert box.isVisible()
     qtbot.mouseClick(box.cancel_button, Qt.MouseButton.LeftButton)
     assert not box.isVisible()
+
+
+def test_w_opens_the_tree_again_where_the_focus_was(window, qtbot):
+    """P3-T19e, checklist 11.5: Europe opened, Switzerland focused, Cancel; W again opens Europe on Switzerland."""
+    box = open_box(window, qtbot)
+    europe = item_named(box.world, "Europe")
+    europe.setExpanded(True)
+    QApplication.processEvents()
+    box.tree.setCurrentItem(item_named(europe, "Switzerland"))
+    box.cancel_button.click()
+    QApplication.processEvents()
+    window.activateWindow()   # offscreen: the window is not given back the keyboard when a box closes
+    window.map.setFocus()
+    QApplication.processEvents()
+    box = open_box(window, qtbot)
+    current = box.tree.currentItem()
+    assert current.text(0).startswith("Switzerland") and current.parent().text(0).startswith("Europe")
+    assert current.parent().isExpanded()

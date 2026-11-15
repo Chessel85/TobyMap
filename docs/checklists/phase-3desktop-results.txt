@@ -1,0 +1,162 @@
+Phase 3 desktop first pass
+
+1.1 pass
+1.2 pass
+1.3 pass
+1.4 pass
+1.5 pass
+1.6 pass
+1.7 When in kent, full order announced is Kent, Great Britain, England, British Isles, United Kingdom, Europe
+This is a little odd because Great Britain is larger than England so would expect these two entries to be the other way around.
+It also seems over the top to say Great Britain and the British Isles.  These are island entries I know but they feel superfluous and detracting.
+But then is it my choice to have the islands layer on?  I could switch it off.  Oh, this only removes Great Britain, not the British Isles.  So where does that come from?
+But if I go to Islay off west coast of Scotland, I definitely want it to say Islay.
+So I don't know what the answer is at the moment.
+
+2.1 Pass.  But first time I tried this test I just heard a click. But then I went to the Map menu and did a 'Clear all settings' and then it worked as per the test.
+2.2 Fail. There is a 5km step between 10km and 2.5km.  Is that a poor test or actually not how it should be?
+2.3 pass
+
+3.1 pass
+3.2 Pass. But not saying Spain feels wrong.
+So I get that I'm being contradictoary with Grench Guyana and Tenerife.  I'm just saying for now that it feels wrong.
+I don't know what the right behaviour is.
+Can we be guided by other mapping solutions?  What does Google Maps/google Earth/www.openstreetmap.org report for the Tenerife and French Guyana examples?
+3.3 Pass.  But again feels wrong not to say it is part of the United States.  Checking with Alaska, Alaska reports it is part of the United States.
+3.4 pass
+3.5 Pass. Only comment is that subsequently pressing space says that Guiana Highlands  is between French Guiana and South America.
+
+4.1 pass
+4.2 pass
+4.3 pass
+4.4 Behaves as written in test.
+4.5 Pass. but the map took a long time to draw at zoom 1000km.
+4.6 Info is relevant and good.  I'd shorten the source phrase down to Wikidata 13 November 2026.
+Potential for having a setting to not show sources in the details panel.
+
+Why does area get quoted twice. Once just giving the area. and second time as Area, as published. and then the source?  Not helpful really having the second.
+
+5.1 pass
+5.2 pass
+5.3 pass
+5.4 pass. though why is this a test in the disputed areas section?
+
+6.1 pass
+6.2 pass. but the text in the level 3 entries says only name and direction, not distance. yet pressing spacebar does announce the distance. so distance should be included.  In general, distance and direction should be in all end node entries in the information panel.
+It also took a long time, about 10 seconds, for shift+4 to do something.
+6.3 pass. focus arrives on the first element within bordering rather than on the bordering level 1 entry itself.  think it would be better if it did so you can immediately find out how many entries there are.
+In bordering, the length of the border is given. want some way of knowing how much of the whole border an entry makes up.  Options are to change the distance to a percentage, add a percentage, add total perimeter length to either bordering node, or in details.
+6.4 Pass. Yes, wording is clear.  But puzzled how Lake Lucerne, a lake, can overlap Obwalden, a canton.  Surely they should just butt up against each other.  They only overlap by small amounts so is this a data quality issue?
+And going to Lake Lucerne with enter, tells me that 32 items overlap it and nothing borders it. this isn't intuitive.  feels like nothing should overlap it and 32 items should border it.
+But can this be done robustly and consistently?
+6.5 Pass. A road and a river cross Obwalden.  What does it mean to say though that the A8 south-west, crosses it. 
+I am guessing you are reporting the nearest point where the A8 crosses the Obwalden border.   Don't we need two points?
+The Alba announcement would need to come in two parts, one for each distance and direction of the two points.
+If the same thing crosses the parent multiple times we'd have to have multiple entries.
+6.7 pass
+6.8 pass
+
+7.1 pass. remind me how the volume of the earcon and spoken message is calculated?  
+I thought it might be based on zoom, so I increased zoom to 50km but I then entered Lugern.  Which meant I could no longer get the distances to the items that border Obwalden because focus was on Lugern.
+If I went to the Within section, I saw Obwalden, but pressing enter on that moves me to the centre of Obwalden.  Well, is that so bad?  Perhaps this is okay.
+Oh, that didn't work because Kerns is at the centre of Obwalden. A municipality of Obwalden just like Lungern.
+Any thoughts on how to solve this problem? Namely, to put focus on an item which isn't the smallest at a given location?
+7.2 Pass. although quick nav will move onto other groups and not stay within the current one. e.g. when in peaks, I arrowed down so I was past those beginning with 'g'.  then I pressed 'g' and it went to Giswil in counties.  I would rather stick with standard behaviour whatever that is.
+7.3 pass
+
+section 8.
+I think this is a redundant feature.Each entry in the information panel already shows distance and direction.
+We need a more considered requirement for measuring distances.  My initial thought is to have the ability to set two markers. Call them M1 and M2.  Then you can request the distance and bearing from M1 to M2.
+but then perhaps it is useful to have a whole range of markers and be able to measure the direction and distance between any of them, or the distance of their concatenation.
+Does this overlap with bookmarks?  Bookmarks sound similar.
+Perhaps markers/bookmarks could be organised by the user into groups e.g. Places I've Been On Holiday, My Favourite Castles.
+All up for discussion I think and probably phase 4.
+
+9.1 pass
+9.2 pass
+9.3 pass
+9.4 pass
+9.5 pass
+As I select the item I get moved, presumably to the centre of the item.   i guess this makes more sense visually and I also presume you are changing the zoom level so the item fits within the current view?
+9.6 pass
+Is Kazakhstan really in Europe?
+9.7 Mostly pass.  Performance is very poor. It takes roughly 10 seconds to display the dialogue listing what is contained in Europe.  I select country, then Austria, and this works as expected.  I press alt comma, but NVDA says nothing. I wait about 10-15 seconds, press spacebar, and it tells me I am in Central Russian Upland, Russia, Europe.
+Pressing alt comma on smaller areas does seem to work. When I move back to Austria with this keystroke, Austria is announced.
+9.8 Pass. Though where is this 17km of Europe bordering Africa South?  Sounds unlikely.
+9.9 pass 
+9.10 pass
+9.11 pass for now.
+In general, the performance problem needs fixing. is this the rebuild of the world pack to include what things contain?
+Europe apparently only has 17 islands.  What's the logic that arrives at that answer since there are obviously thousands of islands in Europe.
+I think there will be a lot more testing needed on this feature once the performance problem is sorted out.  Much of it probably comes down to data quality / data management.
+
+10.1 pass
+10.2 pass
+10.3 pass. does this work because londn is still just a good match for mondon - there isn't some fuzzy matching going on is there?
+10.4 pass
+10.5 pass
+10.6 pass
+10.7 pass
+10.8 pass
+10.9 pass
+10.10 pass
+10.11 pass
+10.12 pass
+
+11.1 pass
+11.2 pass
+11.3 pass. except that items when you first land on them allways say 'collapsed' and if you try opening it then, if there is nothing actually in it, you get a message.  better to not actually say collapsed in the first place.
+11.4 pass. but this is a massive list.  can't the disputed areas be grouped better?  I'm sure kashmir is better listed as just one disputed area.
+11.5 i came across one area which had 0 area.  that doesn't sound worthwhile.  Need a better way to group them.  Are they clustered at all?  Could we quote their coordinates to help distinguish them in the list?
+Can opening the world view return  to the previous state of the world view and put focus back  where the user last had it?  This memory is just for the current session.
+But in practice, how does this vary from the hierarchy view?  Is this just a political hierarchy?
+11.6 pass 
+
+12.1 pass except that pressing space tells me I am in Obwalden,  plus the hierarchy including Switzerland.  The test makes it sound like it would say Switzerland as the first item.
+12.2 pass
+12.3 pass
+12.4 pass
+
+13.1 pass
+13.2 pass. but when I had germany as the current focus, and then used q to find countries that border germany, one entry was Moselle Condominium.  But pressing enter on this got me nowhere and I don't recognize it as a country bordering Germany.
+13.3 Pass. but in the search results I found Rhine. I hit enter on it.  Then I went to the details pane but it told me about Aare (a river, instead of the Rhine.
+13.4 pass
+13.5 pass
+13.6 pass
+13.7 fail. rhine is not the current feature after pressing cancel in the search dialogue.
+
+14.1 pass
+14.2 cannot test
+14.3 pass
+14.4 fail. It might have jumped to Winchester but it didn't announce Winchester, just Hampshire still.
+I moved to the Southampton area and pressed L. I hit enter on Southampton, then pressed L again but Southampton appeared again in the announcement list although from a different direction and distance.
+The distance to Hampshire was also quoted as about 2.4km southerly. Presumably this is the nearest point of the Hampshire border.    It isn't logical to say this.  Could say "Hampshire border 2.5km" since I am inside it.   That would also make sense if I was near West Sussex so it would say "West Sussex border".  
+I moved nearer the coast.  I was told both English Channel and Atlantic Ocean were 390 metres to the south.  That isn't good enough.  Do we just pick the smaller of the two?
+I was also told England was nearby.  Again, as already in Hampshire, doesn't make sense to call this one out.
+The voice also just says name and distance.  Perhaps whilst still in development, add on the direction as well to help confirm the direction indicated by the directional voice.
+14.5 pass
+14.6 pass
+14.7 pass. yes is fine.
+
+15.1 pass
+15.2 pass
+15.3 pass
+
+16.1 pass
+16.2 pass
+16.3 pass
+16.4 pass
+
+
+17.1 pass
+17.2 pass
+17.3 pass. yes they are clear.
+
+18.1 pass
+18.2 pass
+
+
+19.1 There is a lot to do to tidy up this phase. given it is now real and sitting in front of me it is clear that some things need addressing but they are all documented above.
+I need you to write a phase-3 tidy-up plan to address bugs I have found, or to group related comments into discussion areas so we can look at options on how to improve the user experience whilst being realistic from an implementation and computational point of view.
+Set 20 of the tests is not done.  A world build is going to be needed to address points I've raised so the layer sounds  can be done then.
+Mind you, we'll probably do a western europe build first.

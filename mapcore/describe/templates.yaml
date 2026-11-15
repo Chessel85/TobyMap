@@ -70,6 +70,9 @@ panel:
   count_one: "{group}, 1 item"
   count: "{group}, {count} items"
   empty_later: "Nothing yet. This group is filled from Phase 2."
+  # Enter on an item, or on the map while look around plays one: its name, then the place there, as it
+  # becomes the current feature (P3-T19a). Where the place starts with the item, only the place is said.
+  gone: "{name}. {place}"
 
 details:
   nothing: "No area here."
@@ -118,22 +121,25 @@ details:
   also_held_as: "OpenStreetMap also has this area as {name}."
   area: "Area: {value}"
   # Facts from Wikidata, each with its source and date (P3-T2b, INF-1, DAT-7). The date is the fact's own, such
-  # as a census's; a fact with none is dated by when it was fetched.
+  # as a census's; a fact with none is dated by when it was fetched. The published area is not shown: the area
+  # measured from the shape is, above (P3-T19d, checklist 4.6).
   facts:
     population: Population
-    area_km2: "Area, as published"
     capital: Capital
     elevation_m: Elevation
     length_km: Length
     official_name: Official name
-  fact: "{name}: {value}, from {source}, {date}"
-  fact_fetched: "{name}: {value}, from {source}, as fetched on {date}"
+  # Shorter since P3-T19d: "Population: 1,505,036, Wikidata, 31 December 2025". With "Show where each fact in
+  # Details comes from" off, only "Population: 1,505,036".
+  fact: "{name}: {value}, {source}, {date}"
+  fact_bare: "{name}: {value}"
   wikipedia: "Wikipedia article: {value}"
   wikipedia_opening: "Opening the Wikipedia article for {name}."
   wikipedia_none: "No Wikipedia article for {name}."
   months: [January, February, March, April, May, June, July, August, September, October, November, December]
   centre: "The location is {value}"
   source: "Source: {value}"
+  source_tobymap: "drawn by TobyMap"
 
 beacon:
   "on": "Beacon on."
@@ -165,6 +171,8 @@ sound:
 # Hear its direction (DP143, SON-3): the label said in the spatial voice, from the item's place.
 hear:
   label: "{name}, {distance}"
+  # In look around, with "Say the direction in look around" on (P3-T19f): "A34, north-east, 1.7 kilometres".
+  label_direction: "{name}, {direction}, {distance}"
 
 # Look around (P3-T11a, SON-4): the Nearby group played as sound, clockwise from ahead. Each item's
 # label is hear.label, said in the spatial voice. These are said by the screen reader.
@@ -516,21 +524,22 @@ bookmark:
 # Bordering (INF-2): each neighbour, its direction from where you are, and the length of the shared
 # border; or, for an area that only nearly touches, the distance across.
 bordering:
-  item: "{name}, {direction}, shared border {length}"
-  near: "{name}, {direction}, nearly touches, {across} across"
+  # Every item says its distance and direction, as Nearby does (P3-T19c, checklist 6.2).
+  item: "{name}, {distance} {direction}, shared border {length}"
+  near: "{name}, {distance} {direction}, nearly touches, {across} across"
   none: "Nothing borders {name}."
 contains:
   heading: "{layer} {count}"
-  item: "{name}, {direction}"
+  item: "{name}, {distance} {direction}"
   none: "Nothing visible inside {name}."
 overlapping:
-  item: "{name}, {direction}, {mine} percent of {current} and {theirs} percent of {name} overlap"
-  partly: "{name}, {direction}, {share} percent of {current} is inside it"
+  item: "{name}, {distance} {direction}, {mine} percent of {current} and {theirs} percent of {name} overlap"
+  partly: "{name}, {distance} {direction}, {share} percent of {current} is inside it"
   none: "Nothing overlaps {name}."
 crossing:
-  item: "{name}, {direction}"
-  crosses: "{name}, {direction}, crosses it"
-  along: "{name}, {direction}, along its border"
+  item: "{name}, {distance} {direction}"
+  crosses: "{name}, {distance} {direction}, crosses it"
+  along: "{name}, {distance} {direction}, along its border"
   none: "Nothing crosses {name}."
 search:
   none: "No search yet."
@@ -631,6 +640,9 @@ hierarchy:
   down_help: "Choose a kind of feature, or Cancel to stay."
   kind_title: "{kind} in {name}"
   kind_help: "Choose a feature to go to it, or Cancel to stay."
+  # Left and Right: a neighbour as you approved in DP190, without the distance the Bordering group now says.
+  across: "{name}, {direction}, shared border {length}"
+  across_near: "{name}, {direction}, nearly touches, {across} across"
 
 # Which unit system, bearing style and coordinate format is chosen (ANN-5, LOC-1).
 # Why a pack was not opened, or what is wrong with it (PCK-5, NFR-4, P1-T2).

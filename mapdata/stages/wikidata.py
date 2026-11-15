@@ -394,6 +394,72 @@ def fetch_sites(qids: list[str], query=post, batch: int = SITES_BATCH, say=print
     return out
 
 
+# An English article on a closely related item (P3-T19j) -------------------------------------------------
+
+ARTICLES_QUERY = """SELECT ?item ?value ?label WHERE {
+  VALUES ?item { %s }
+  ?item wdt:P1889 ?other .
+  ?other rdfs:label ?label FILTER(LANG(?label) = "en")
+  ?article schema:about ?other ; schema:isPartOf <https://en.wikipedia.org/> ; schema:name ?value .
+}"""
+
+
+def articles_path(facts: Path) -> Path:
+    """articles-<refresh>.jsonl beside the facts: one line for each item with no English article of its own,
+    {"id", "fetched", "rows": [[article, label], ...]}."""
+    return facts.with_name(facts.name.replace("facts-", "articles-", 1))
+
+
+def fetch_articles(qids: list[str], query=post, batch: int = SITES_BATCH, say=print, pause_s: float = PAUSE_S,
+                   sleep=time.sleep, today: str | None = None, keep=None) -> dict[str, dict]:
+    """For items with no English Wikipedia article, the English articles of the items each is said to be
+    "different from" (P1889), with those items' English labels. OpenStreetMap links Hampshire to the
+    non-metropolitan county, Q21694653, which has no English article; it is "different from" the ceremonial
+    county, Q23204, whose article is "Hampshire". Kept in its own file, so nothing fetched before is fetched
+    again."""
+    import datetime as dt
+
+    today = today or dt.date.today().isoformat()
+    out: dict[str, dict] = {}
+    started = time.monotonic()
+
+    def ask(part: list[str]) -> dict[str, list]:
+        try:
+            result = query(ARTICLES_QUERY % " ".join(f"wd:{q}" for q in part))
+        except CutOff:
+            if len(part) == 1:
+                say(f"Wikidata's answer for {part[0]} was cut off every time; no related article is kept.")
+                return {}
+            half = len(part) // 2
+            return {**ask(part[:half]), **ask(part[half:])}
+        got: dict[str, list] = {}
+        for b in result["results"]["bindings"]:
+            got.setdefault(_plain(b.get("item")), []).append([_plain(b.get("value")), _plain(b.get("label"))])
+        return {q: sorted(rows) for q, rows in got.items()}
+
+    for n in range(0, len(qids), batch):
+        part = qids[n:n + batch]
+        got = ask(part)
+        entries = {q: {"id": q, "fetched": today, "rows": got.get(q, [])} for q in part}
+        out.update(entries)
+        if keep is not None:
+            keep(entries)
+        done = min(n + batch, len(qids))
+        if done < len(qids):
+            took = time.monotonic() - started
+            say(f"Looked for related articles for {done:,} of {len(qids):,} Wikidata items; about "
+                f"{(len(qids) - done) * took / done / 60:.0f} minutes to go.")
+            sleep(pause_s)
+    return out
+
+
+def related_article(name: str | None, rows: list[list]) -> str | None:
+    """The one related article whose title and item's English label are both exactly the feature's name; None
+    where there is none, or more than one, so no article of something else is ever linked."""
+    found = {a for a, label in rows if name and a == name and label == name}
+    return found.pop() if len(found) == 1 else None
+
+
 def fetch_names(names: list[str], query=post, batch: int = BATCH, say=print, pause_s: float = PAUSE_S,
                 sleep=time.sleep, today: str | None = None, keep=None) -> dict[str, dict]:
     """The items with each English name and their coordinates: {name: {"name", "fetched", "items": [[q, lon,
@@ -553,6 +619,28 @@ def run(ctx) -> None:
             r["kinds"] = got["kinds"]
     line(f"Facts from Wikidata for {with_facts:,} features of {len(records):,}; {len(wanted):,} have a "
          "Wikidata link.")
+
+    # An English article on a closely related item, for those with none of their own (P3-T19j).
+    apath = articles_path(path)
+    related = read_file(apath)
+    lacking = sorted({r["wikidata"] for r in records if r.get("wikidata") and not r.get("wikipedia")}, key=qid_order)
+    missing = [q for q in lacking if q not in related]
+    if missing and not offline:
+        line(f"Looking for related English articles for {len(missing):,} Wikidata items with none of their own; "
+             f"the rest were looked for before and kept in {apath}.")
+        related.update(fetch_articles(missing, say=line, batch=int(s.get("sites_batch", SITES_BATCH)),
+                                      keep=lambda e: append_file(ctx.claim(apath), e)))
+    linked = 0
+    for r in records:
+        q = r.get("wikidata")
+        if q and not r.get("wikipedia") and q in related:
+            article = related_article(r.get("name"), related[q].get("rows") or [])
+            if article:
+                r["wikipedia"] = article
+                linked += 1
+                say(f"Related article: {r['name']} ({r['id']}, {q}) takes the English article {article!r} of an "
+                    "item it is said to be different from, with the same name.")
+    line(f"English articles from a related item with the same name: {linked:,} features. The log lists each.")
 
     # How many Wikimedia sites have each item, for search's importance (P3-T8a), kept in a file of its own.
     spath = sites_path(path)

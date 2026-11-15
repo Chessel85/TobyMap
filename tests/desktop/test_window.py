@@ -904,7 +904,8 @@ def test_crossed_and_passed_is_filled_in_the_background_and_shift_3_goes_there(q
     assert len(w.announcer.texts) == spoken    # still Southampton: only the tick; the river is never spoken
     qtbot.keyClick(w.map, Qt.Key.Key_3, Qt.KeyboardModifier.ShiftModifier)
     assert region(w) == "panel"
-    assert w.tree.currentItem().text(0).startswith("River Itchen, crossed")
+    # On the group's heading, so its count is heard first (P3-T19c).
+    assert w.tree.currentItem() is group and group.text(0) == "Crossed and passed, 1 item"
 
 
 # Enter on a button presses that button (P2-T17b; desktop checklist 3.5, 5.3, 8.2, 8.6; ACC-7) -------------
@@ -1130,13 +1131,15 @@ def test_each_group_heading_has_its_count_and_within_its_distances(window):
     assert within.child(0).text(0) == "Kent, centre 35 kilometres west"
 
 
-def test_enter_on_a_within_item_goes_to_its_centre_and_stays_in_the_panel(window, qtbot):
+def test_enter_on_a_within_item_goes_to_its_point_and_stays_in_the_panel(window, qtbot):
     window.focus_region("panel")
     window.tree.setCurrentItem(window.tree.topLevelItem(0).child(1))   # England
     before = len(window.announcer.texts)
     press(qtbot, window.tree, Qt.Key.Key_Return)
-    assert window.session.world.lon < 0   # England's centre is west of Greenwich in the test pack
-    assert window.announcer.texts[before:] == [window.session._place_text()]
+    assert window.session.world.lon < 0   # England's own point is west of Greenwich
+    # Its name, then the place there; it is the current feature (P3-T19a).
+    assert window.announcer.texts[before:] == ["England. " + window.session._place_text()]
+    assert window.session.current_feature.name == "England"
     assert region(window) == "panel"
     assert window.tree.currentItem() is window.tree.topLevelItem(0).child(0)
 

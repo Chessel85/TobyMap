@@ -83,7 +83,10 @@ def test_each_item_sounds_as_hear_its_direction_does(session):
         session.run("panel.select", item=item["id"], group="nearby")
         heard = session.press("Space", "panel")
         assert item["sound"] == heard.sounds[0]
-        assert item["voice"] == heard.voice
+        # The same but for the words: look around says the direction too, while in development (P3-T19f).
+        assert {**item["voice"], "text": heard.voice["text"]} == heard.voice
+        name, distance = heard.voice["text"].rsplit(", ", 1)
+        assert item["voice"]["text"].startswith(name + ", ") and item["voice"]["text"].endswith(", " + distance)
         assert item["voice"]["after"], "the label waits for the item's sound"
         assert item["voice"]["placed"]["relative_deg"] == item["sound"]["relative_deg"]
 
@@ -127,7 +130,7 @@ def test_enter_during_an_item_goes_to_it(session):
     area, lat, lon = next(s for k, s in session._spots.items() if k == ("nearby", target["id"]))
     r = session.press("Enter", "map")
     if session._geometry(area) == "area" and area.record.get("bbox"):
-        lat, lon = box_centre(area.record["bbox"])
+        lat, lon = session._point_of(area)   # its own point (P3-T19g)
     assert (session.world.lat, session.world.lon) == pytest.approx((lat, lon))
     assert r.announcements and r.stop_voice and r.focus is None, "the place is said; the focus stays on the map"
     assert session.back_places, "a jump, so Alt+comma comes back"

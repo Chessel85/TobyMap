@@ -54,6 +54,17 @@ def test_a_distant_part_on_the_same_continent_stays_with_its_country():
     assert new == [] and changed == {} and reparent == {}
 
 
+def test_a_part_on_another_continent_is_distant_however_near():
+    """P3-T19h: Ceuta, in Africa about 15 km across the strait from Spain's mainland, is a distant part, as the PO
+    was told in DP191. Before, it was grouped with Spain, so Europe's area reached into Africa."""
+    ceuta = shapely.box(-5.38, 35.87, -5.28, 35.91)
+    spain = country("osm:r1", "Spain", shapely.box(-6.0, 36.05, -1.0, 42.0), ceuta, wikidata="Q29")
+    region = ({"id": "osm:r5", "layer": "regions", "name": "Ceuta", "parent": "osm:r1"}, ceuta)
+    _, new, _, _, lines, _ = run([spain, region])
+    assert [r["name"] for r, _s in new] == ["Ceuta"]
+    assert "in Africa" in lines[0]
+
+
 def test_a_country_split_along_continent_lines_is_left_whole():
     russia = country("osm:r4", "Russia", shapely.box(37.0, 55.0, 39.0, 56.0), shapely.box(130.0, 43.0, 132.0, 44.0),
                      wikidata="Q159")

@@ -370,9 +370,42 @@ class WorldTreeDialog(QDialog):
         self.tree.itemActivated.connect(lambda _item, _c: self.go_to_selected())
         self.tree.installEventFilter(self)
         first = self.world.child(0)
-        self.tree.setCurrentItem(first if first is not None else self.world)
+        self.tree.setCurrentItem(self._reopen(dialog) or (first if first is not None else self.world))
+        # Each move tells the core where the focus is, so W opens the tree there again (P3-T19e).
+        self.tree.currentItemChanged.connect(self._moved)
         self.resize(560, 480)
         self.tree.setFocus()
+
+    def _reopen(self, dialog: dict) -> QTreeWidgetItem | None:
+        """The branches open when the tree last closed, with their items from the core, and the item that had
+        the focus; None the first time."""
+        node = self.world
+        for branch in dialog.get("open") or []:
+            child = next((node.child(i) for i in range(node.childCount())
+                          if node.child(i).data(0, Qt.ItemDataRole.UserRole) == branch["id"]), None)
+            if child is None:
+                return None
+            if not child.childCount():
+                child.setData(0, Qt.ItemDataRole.UserRole + 1, True)   # read already
+                self._fill(child, branch["items"])
+            child.setExpanded(True)
+            node = child
+        focus = dialog.get("focus")
+        if not focus:
+            return None
+        if node.data(0, Qt.ItemDataRole.UserRole) == focus:
+            return node
+        return next((node.child(i) for i in range(node.childCount())
+                     if node.child(i).data(0, Qt.ItemDataRole.UserRole) == focus), None)
+
+    def _moved(self, current, _previous) -> None:
+        if current is None or not self._dialog.get("at"):
+            return
+        path = []
+        while current is not None:
+            path.insert(0, current.data(0, Qt.ItemDataRole.UserRole))
+            current = current.parent()
+        self._run(self._dialog["at"], path=path)
 
     @staticmethod
     def _item(label: str, identifier: str) -> QTreeWidgetItem:

@@ -442,6 +442,7 @@ class Pack:
         self.reads = 0
         self._groups: dict[int, list[dict]] = {}
         self._relations: dict[int, dict] = {}
+        self._group_ids: dict[int, dict[str, int]] = {}   # each group's identifiers, to their place in it
         self._search: OrderedDict[int, list] = OrderedDict()
         try:
             self._open(app_version, check_app)
@@ -590,10 +591,13 @@ class Pack:
 
     def feature_number(self, identifier: str) -> int | None:
         g = feature_group(identifier, len(self.group_starts))
-        for i, record in enumerate(self._group(g)):
-            if record["id"] == identifier:
-                return self.group_starts[g] + i
-        return None
+        ids = self._group_ids.get(g)
+        if ids is None:   # made once for each group, so a look-up is not a search through the group (P3-T20b)
+            ids = self._group_ids[g] = {}
+            for i, record in enumerate(self._group(g)):
+                ids.setdefault(record["id"], i)   # the first, as before, should an identifier be there twice
+        i = ids.get(identifier)
+        return None if i is None else self.group_starts[g] + i
 
     def relationships(self, identifier: str) -> dict:
         """A feature's relationships, from format 4 (P3-T3e): what it is inside, beside, overlapping and crossing,

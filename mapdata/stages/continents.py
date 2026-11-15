@@ -6,7 +6,8 @@ the first, and a place in none to the continent marked rest. Together they
 cover the world once, so no land is in no continent and none in two.
 
 * A country goes whole to one continent. Its parts are put in groups: parts
-  within distant_km of each other are in one group. The group with the
+  within distant_km of each other, and on the same continent, are in one group
+  (P3-T19h: Ceuta and Melilla are not in Spain's main group). The group with the
   country's largest part is its main group, and goes to the continent whose
   area holds most of its land. Every other group goes to the continent whose
   area holds most of that group's land: "by where they are" (DP88), so the
@@ -143,24 +144,33 @@ def shares(parts: np.ndarray, zone_geoms: list, tree) -> list[dict[int, float]]:
     return out
 
 
-def groups(parts: np.ndarray, distant_km: float) -> list:
+def main_zones(sh: list[dict[int, float]]) -> list[int]:
+    """Each part's continent: the zone holding most of its land, from shares()."""
+    return [max(s, key=lambda z: (s[z], -z)) if s else 0 for s in sh]
+
+
+def groups(parts: np.ndarray, distant_km: float, zone_of_part: list[int] | None = None) -> list:
     """The group of each part: parts within about distant_km of each other, through the parts between, are in
-    one group. The land is marked on cells of CELL degrees, and occupied cells near each other are joined."""
-    cells_of: list[set[tuple[int, int]]] = []
+    one group. The land is marked on cells of CELL degrees, and occupied cells near each other are joined.
+    With zone_of_part, each part's continent, parts on different continents are never in one group, however
+    near: so Ceuta and Melilla, in Africa a few kilometres from Spain, are not grouped with it (P3-T19h, DP191).
+    Each cell is then kept by its continent as well as its place."""
+    cells_of: list[set[tuple[int, int, int]]] = []
     ncol = int(round(360 / CELL))
-    for g in parts:
+    for i, g in enumerate(parts):
+        zone = zone_of_part[i] if zone_of_part is not None else 0
         x0, y0, x1, y1 = g.bounds
         c0, c1 = int((x0 + 180) // CELL), int((x1 + 180) // CELL)
         r0, r1 = int((y0 + 90) // CELL), int((y1 + 90) // CELL)
         if c0 == c1 and r0 == r1:
-            cells_of.append({(r0, c0 % ncol)})
+            cells_of.append({(zone, r0, c0 % ncol)})
             continue
         shapely.prepare(g)
         boxes = [(r, c) for r in range(r0, r1 + 1) for c in range(c0, c1 + 1)]
         hit = g.intersects(np.array([shapely.box(c * CELL - 180, r * CELL - 90, (c + 1) * CELL - 180,
                                                  (r + 1) * CELL - 90) for r, c in boxes]))
-        found = {(r, c % ncol) for (r, c), h in zip(boxes, np.atleast_1d(hit)) if h}
-        cells_of.append(found or {(r0, c0 % ncol)})
+        found = {(zone, r, c % ncol) for (r, c), h in zip(boxes, np.atleast_1d(hit)) if h}
+        cells_of.append(found or {(zone, r0, c0 % ncol)})
     parent: dict = {}
 
     def find(a):
@@ -175,15 +185,15 @@ def groups(parts: np.ndarray, distant_km: float) -> list:
         for c in cells:
             parent[find(c)] = find(first)
     dr = int(math.ceil(distant_km / (CELL * KM_PER_DEGREE)))
-    for (r, c) in occupied:
+    for (z, r, c) in occupied:
         lat = (r + 0.5) * CELL - 90
         cos = max(math.cos(math.radians(lat)), 1e-3)
         dc = min(ncol // 2, int(math.ceil(distant_km / (CELL * KM_PER_DEGREE * cos))))
         for rr in range(max(0, r - dr), r + dr + 1):
             for cc in range(c - dc, c + dc + 1):
-                other = (rr, cc % ncol)
-                if other in occupied and other != (r, c):
-                    parent[find(other)] = find((r, c))
+                other = (z, rr, cc % ncol)
+                if other in occupied and other != (z, r, c):
+                    parent[find(other)] = find((z, r, c))
     return [find(next(iter(cells))) for cells in cells_of]
 
 
@@ -213,7 +223,7 @@ def assign_country(record: dict, geom, zone_geoms: list, tree, split: bool, dist
                 out.append((z, piece))
             out.append((main, shapely.difference(p, shapely.union_all(cut))))
         return out
-    gid = groups(parts, distant_km) if len(parts) > 1 else [0]
+    gid = groups(parts, distant_km, main_zones(sh)) if len(parts) > 1 else [0]
     by_group: dict = defaultdict(lambda: defaultdict(float))
     for g, s in zip(gid, sh):
         for z, a in s.items():

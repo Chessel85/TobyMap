@@ -1,6 +1,6 @@
 # Discussion points in detail: responses
 
-Responses to "Discussion points in detail.txt" (17 November 2026). The first part is a statement of how TobyMap draws the map and orders what it says. It is written from your comments and decisions of 17 November, so it can become the definition. The rest, from DP199, is still my first response.
+Responses to your notes on the discussion points (17 November 2026), written from your comments and decisions of 17 November, so they can become the definition of how TobyMap draws the map, orders what it says, and handles distant parts, lakes, borders, the current layer, and enclaves and exclaves.
 
 ## How TobyMap draws the map (DP198)
 
@@ -112,159 +112,184 @@ All of this is built in the Phase 3 tidy-up, as task P3-T23. Nothing is fixed on
 * Island names drawn on the map. Today names are drawn only for filled areas.
 * An island and an area with the same name and nearly the same land said once. Comparing the shapes is done by the build, so this one comes with the new Western Europe and world builds, task P3-T21. Everything else needs no new build.
 
-## DP199: distant parts and the legal position
+## Distant parts and the sovereign state (DP199)
 
-### Is what you said right?
+### The rule
 
-Mostly yes. The law does give a clear distinction, and it is not the continent.
+The law decides whether a country is said, not the continent. The sovereign state is said after any area that is legally part of it, and not after a dependent territory. Details gives every such area's status and its sovereign state in words.
 
-* Canary Islands and Madrid: right. Both are autonomous communities of Spain, and fully part of Spain. The Canary Islands have some extra arrangements, such as their own tax system and the EU status of an "outermost region", but they are no less Spanish.
-* French Guiana, Corsica and Marseille: legally, all three are part of France. French Guiana is an overseas region and department, under French law with some adaptations, part of the EU, and it uses the euro. Corsica has a special status of its own, but is also fully part of France. So legally French Guiana is no more separate than Corsica. That is why option 2 (as Google does it) gets it backwards: it leaves out France for exactly the place that is legally part of France. Google may do so because French Guiana has its own country code in addresses, but that is a postal habit, not the law.
-* Jersey and Guernsey: these are Crown Dependencies. They belong to the British Crown but are not part of the United Kingdom, have their own parliaments and laws, and were never in the EU. The UK looks after their defence and foreign affairs. The Isle of Man is the same.
-* The Falkland Islands: a British Overseas Territory. It is under British sovereignty but not part of the United Kingdom, and Argentina claims it.
+### The two kinds of area
 
-### The two kinds of distant part
+* Integral parts are legally as much part of their country as its capital, even when they have special arrangements of their own: the Canary Islands, Ceuta and Melilla, Madeira and the Azores, French Guiana and Réunion, Corsica, Hawaii, and Svalbard. Their sovereign state is said.
+* Dependent territories belong to a country but are not part of it, and usually have their own government: Jersey, Guernsey and the Isle of Man, the Falkland Islands and the other British Overseas Territories, Greenland and the Faroe Islands, Aruba and Curaçao, Puerto Rico and Guam, French Polynesia and New Caledonia. Their sovereign state is not said.
 
-The law sorts places into two kinds:
+There are grey cases. French Polynesia is part of the French Republic, but governs itself and is outside the EU. Bonaire is a municipality of the Netherlands itself, while Curaçao, nearby, is a country within the Kingdom of the Netherlands. Each grey case is decided once, in the territories list.
 
-* Integral parts, legally as much part of the country as its capital: the Canary Islands, Madeira and the Azores, French Guiana and Réunion, Hawaii, Corsica, and Svalbard.
-* Dependent territories, which belong to a country but are not part of it, and usually have their own government: Jersey, Guernsey and the Isle of Man, the Falkland Islands and the other British Overseas Territories, Greenland and the Faroe Islands, Aruba and Curaçao, Puerto Rico and Guam, French Polynesia and New Caledonia.
+### What is said
 
-There are grey cases. French Polynesia is part of the French Republic, but governs itself and is outside the EU. Bonaire is a municipality of the Netherlands itself, while Curaçao, nearby, is a country within the Kingdom of the Netherlands. This is why your idea of a list is a good one.
+* Tenerife: "Santa Cruz de Tenerife, Tenerife, Canary Islands, Spain, Africa".
+* Honolulu: "Honolulu County, Oahu, Hawaii, United States, Oceania".
+* Cayenne: "Cayenne, French Guiana, France, South America".
+* Ceuta: "Ceuta, Spain, Africa".
+* Jersey: "Saint Lawrence, Jersey, Europe". Details says: Crown Dependency of the British Crown, not part of the United Kingdom.
+* Stanley: "East Falkland, Falkland Islands, South America". Details says: British Overseas Territory, claimed by Argentina.
+* Puerto Rico: "Orocovis, Puerto Rico, North America". Details says: territory of the United States.
 
-### What the world pack does now
+A distant part is still an area of its own in the Countries layer (DP191), so France still fits Europe and its neighbours are in Europe. Saying the sovereign state is a change to what is said, not to the pack.
 
-I checked these with the world pack today. The continent rule and the legal rule disagree:
+A dependent territory is always an area of its own in the Countries layer, wherever it is. Most already are, because OpenStreetMap keeps them separate. Puerto Rico is not: OpenStreetMap maps it inside the United States, and it is on the same continent, so today it says "United States". The build makes it an area of its own, from the territories list.
 
-* Jersey, the Isle of Man, the Falkland Islands and Greenland are countries of their own, with no sovereign state said. This matches the law, because OpenStreetMap already keeps them separate.
-* The Canary Islands, Madeira, French Guiana, Réunion and Hawaii are distant parts: areas of their own, with the sovereign state stored but not said. Legally they are integral parts, so this is the case that feels wrong to you.
-* Puerto Rico says United States, because it is on the same continent as the rest of the United States. Hawaii, a full US state, does not. Legally it is the other way round: Puerto Rico is a territory, not a state.
-* Svalbard says Norway, because Norway's mainland is on the same continent. This happens to be legally right.
+### The territories list
 
-### Recommendation: a legal rule, held in a list
+The list of territories is a file in the build settings, about 70 entries, one for each place. Each entry gives:
 
-One rule: say the sovereign state after any area that is legally part of it, and not after a dependent territory. Details gives every area's status and sovereign state in words.
-
-What you would hear:
-
-* Tenerife: Santa Cruz de Tenerife, Tenerife, Canary Islands, Spain, Africa.
-* Honolulu: Honolulu County, Oahu, Hawaii, United States, Oceania.
-* Cayenne: Cayenne, French Guiana, France, South America.
-* Jersey: Saint Lawrence, Jersey, Europe. Details says: Crown Dependency of the British Crown, not part of the United Kingdom.
-* Stanley: East Falkland, Falkland Islands, South America. Details says: British Overseas Territory, claimed by Argentina.
-* Puerto Rico: Orocovis, Puerto Rico, North America. Details says: territory of the United States. This would make Puerto Rico an area of its own in the Countries layer, a change to the build.
-
-The pack keeps the distant parts as areas of their own (DP191), so France still fits Europe and its neighbours stay in Europe. Only what is said changes, apart from places such as Puerto Rico.
-
-> go with this recommendation 
-
-### The list you suggested
-
-Yes. A small CSV file in the build settings, one row for each place, about 70 rows. Its columns would be:
-
-* The place.
+* The place, with its OpenStreetMap and Wikidata identifiers.
 * The sovereign state.
 * The legal status, in plain words: integral part, autonomous part, Crown Dependency, overseas territory, freely associated state, or disputed.
 * Whether the sovereign state is said.
-* What is said under each of the rule options, so you can compare them.
-> is csv robust enough?  I thought there would be more robust ways to keep this list which are still human readable enough.
+* A note, for a grey case, saying why it was decided as it was.
 
+The file is YAML, not CSV, as the other build settings are. Each entry is a short block with one field on each line, so it reads well line by line with NVDA, and it can carry comments. A CSV row puts every field on one long line, and a comma or quote in a note can break it, especially after editing in a spreadsheet. A test checks every entry when the build starts: each field is present, the status is one of the known ones, and each identifier is found in the data. So a mistake stops the build at once, with the entry named, instead of being heard on the map later.
 
-A ready-made starting point exists. Natural Earth, which TobyMap already uses, marks each country-level area as a sovereign country, a country, a dependency, disputed or indeterminate, and names its sovereign state. Wikidata says what kind of territory each place is. I'd build the list from these, check each row, and give you the grey cases to decide. I can make the list next if you want it.
-> make the entire list, but flag any you want my input on.
+The list is made from Natural Earth, which marks each country-level area as a sovereign country, a country, a dependency, disputed or indeterminate, and names its sovereign state, and from Wikidata, which says what kind of territory each place is. Every entry is checked, and the grey cases are marked for you to decide.
 
-## DP200: lakes and the areas round them
+### What changes from today
 
-### Is what you said right?
+* The sovereign state is said after an integral part, in the core, with no new build.
+* Details gives the status and sovereign state.
+* Puerto Rico, and any other dependent territory OpenStreetMap maps inside its country, becomes an area of its own. This needs the builds, task P3-T21.
+* Ceuta and Melilla, in the world pack today, say "Spain, Europe", although they are in Africa. The next builds make them distant parts, as for the Canary Islands (P3-T19h), so they will say "Spain, Africa".
 
-Yes. Being on a lake and in a canton at the same time is right, and the hierarchy already says it that way: Lake Geneva, Upper Savoy, Auvergne-Rhône-Alpes, France, Europe.
+## Lakes, seas and the areas round them (DP200)
 
-### How cantons in a lake are drawn
+### Being on a lake
 
-See "How TobyMap draws the map": the lake is painted over the land, and the borders are drawn across it as lines.
+On a lake you are on the water and in the area that owns that part of it, at the same time. Swiss cantons own their part of each lake, and the borders run across the water. Being in one canton's part of a lake is no different from being on a lake wholly in one canton. "Where am I" says the lake first, then the areas, in the view's order: "Lake Geneva, Upper Savoy, Auvergne-Rhône-Alpes, France, Europe".
 
-### Bordering seas
+The lake is painted over the land, and the borders are drawn across it as lines (see "How TobyMap draws the map").
 
-Your point is a good one, and it is the mirror of option 1's "Shores" heading:
+### Shores and coast
 
-* For a lake or sea, Bordering gets a heading "Shores", listing the land areas round it with their length of shore: "Obwalden, south, 12 kilometres of shore".
-* For a country, county or other land area, Bordering gets a heading "Coast", listing the seas and oceans it touches with its length of coast on each: "Bay of Biscay, north, 712 kilometres of coast".
+Bordering lists areas of the same layer. Two headings join it, which list the land round water, and the water round land:
 
-Land and sea never overlap, so both lists are exact. Both are worked out in the build.
+* For a lake or sea, "Shores" lists the countries, regions and counties round it, under a heading for each layer, with the length of shore each has: "Obwalden, south, 12 kilometres of shore".
+* For a country, region, county or other land area, "Coast" lists the oceans and seas it touches, with its length of coast on each: "Bay of Biscay, north, 712 kilometres of coast".
 
-### Recommendation
+Land and sea never overlap, as countries are cut to the coast, so the Coast lengths are exact. Both lists are worked out in the build. The distances here are rough figures for illustration, not measured.
 
-Option 1 with the Coast heading added. Overlapping then keeps only the natural areas, under headings by kind.
+### Overlapping
 
-## DP201: border share, crossings, and where a border starts and ends
+Overlapping keeps only the natural areas, such as the Swiss Prealps, under headings by kind, as Contains has. Today, on Lake Lucerne, Overlapping lists 32 mixed items: every canton, district, municipality, mountain range and physical region that shares some of the lake. The government areas move to Shores.
 
-Your answer is already in the discussion points file, and the recommendations stand. On your new idea:
+### What changes from today
+
+* The Shores and Coast headings, with the lengths stored in the builds, task P3-T21.
+* Overlapping with headings by kind, and without the government areas round a lake.
+
+## Borders, their ends, and crossings (DP201)
+
+### Bordering
+
+Each Bordering item gives the direction and distance to the neighbour, the length of the shared border, and its share of the whole border: "Nidwalden, north-east, shared border 69 kilometres, 28 percent". Details gives the whole border's length, land and coast.
 
 ### The ends of a shared border
 
-Yes, this can be done. Each Bordering item can be opened to list the ends of the shared border, each with its direction and distance, so that Space and Enter work on each one as on any item.
+Each Bordering item opens to list the ends of the shared border, each as an item with its direction and distance, so Space and Enter work on each one as on any item. Each end says what is there: the coast, or the country where three borders meet.
 
 From Madrid:
 
 * Portugal: two ends. North-west, where the Minho river meets the Atlantic. South-west, where the Guadiana meets the Atlantic.
-* France: four ends, as you say, because Andorra splits the border into two stretches. One stretch runs from the Atlantic at the Bidasoa river to Andorra. The other runs from Andorra to the Mediterranean.
-* Also with France: Llívia, a small Spanish town wholly inside France. Its border with France is a closed loop, with no ends. I'd list it as one item, "Llívia, a stretch with no ends, 13 kilometres round", with the direction and distance to its nearest point.
+* France: four ends, because Andorra splits the border into two stretches. One stretch runs from the Atlantic at the Bidasoa river to Andorra. The other runs from Andorra to the Mediterranean. For example: "End of the border with France, at the coast, Mediterranean Sea, 590 kilometres east"; "End of the border with France, where Andorra meets it, 480 kilometres north-east".
+* Also with France: Llívia, a small Spanish town wholly inside France. Its border with France is a closed loop, with no ends. It is one item, "Llívia, a stretch with no ends, 13 kilometres round", with the direction and distance to its nearest point.
 
-Each end would say what is there: the coast, or the country where three borders meet. The distances in these examples, and in DP200's, are rough figures for illustration, not measured. For example: "End of the border with France, at the coast, Mediterranean Sea, 590 kilometres east"; "End of the border with France, where Andorra meets it, 480 kilometres north-east".
+The distances are rough figures for illustration, not measured. The ends are worked out when the item is opened, from the shared border the build already stores.
 
-The ends would be worked out when the item is opened, from the shared border the build already stores, like the crossing points in the recommendation you accepted.
+### Crossing
 
-## DP202: the current feature
+Each line that crosses the current feature's border is one item, saying how many times it crosses and where the nearest crossing is: "A8, crosses twice, nearest 6 kilometres south-west". It opens to list each crossing point with its direction and distance, so Space and Enter work on each. The points are worked out from the line and the shape when the group is filled. If that is too slow on large areas, the build stores them.
 
-### Is there a current feature?
+### Enclaves and exclaves
 
-Yes. It is in the glossary: the current feature is what you are on. When stepping, it is the smallest area where you are. In hierarchy mode, it is the feature you last moved to.
+A shared border round an enclave, such as Llívia's, is the stretch with no ends above. What is said about enclaves and exclaves is in their own section (DP207).
 
-### What can you do with it without moving?
+### What changes from today
 
-* The Information panel's Contains, Bordering, Overlapping and Crossing groups are all about the current feature.
-* Details describes it.
-* It is outlined on the map, and can be isolated, so that nothing else is drawn.
-* Browse by category (Ctrl+Shift+F) lists the kinds of feature inside it.
+All of this is in the core, with no new build: the share, the whole border in Details, the ends of a shared border, and the crossing points. Only if crossing points are too slow on large areas does the build store them.
 
-But your challenge is fair. If it changes back the moment you move, it is a one-off look, not a way of working.
+## The current layer (DP202)
 
-### Your idea: keep the same kind of area
+### The current feature
 
-Your idea is better than my option 1. Shift+Enter on an item makes its layer the current layer, and its feature the current feature. As you step, the current feature stays in that layer: the area of that layer you are in, not the smallest area.
+The current feature is what you are on. When stepping, it is the smallest area where you are. In hierarchy mode, it is the feature you last moved to. The Information panel's Contains, Bordering, Overlapping and Crossing groups, Details, the outline on the map, isolating it, and Browse by category (Ctrl+Shift+F) are all about the current feature.
+
+### The current layer
+
+Shift+Enter on an item makes its layer the current layer, and its feature the current feature. As you step, the current feature stays in that layer: the area of that layer you are in, not the smallest area.
 
 * Shift+Enter on Obwalden in Within: the Regions layer becomes the current layer, and Obwalden the current feature. The groups are about Obwalden. Step into Nidwalden, and Nidwalden becomes the current feature. The groups follow the cantons.
-* Where the current layer has nothing, such as Deserts in the Atlantic: the current feature goes back to the smallest area, and the status line says "Deserts: none here". Step back into a desert, and it is picked up again.
-* To stop, Shift+Enter on the smallest area, or a key to be chosen, goes back to the usual rule.
+* Where the current layer has nothing, such as Deserts in the Atlantic, the current feature goes back to the smallest area, and the status line says "Deserts: none here". Step back into a desert, and it is picked up again.
+* Shift+Enter on the smallest area, or a key to be chosen, goes back to the usual rule.
 * What "where am I" says does not change. Only the current feature, and so the groups, the outline and Details, follow the current layer.
+* A current layer is your own choice, so it is followed at any zoom, whatever the layer's zoom range.
 
-### The zoom rules, and grinding to a halt
+This is standard in GIS programs. QGIS has an "active layer", which its tools work on, and its Identify tool can look at the current layer only. What is new for an audio atlas is that sight filters the map for free, while speech has to choose. "Current layer" goes in the glossary.
 
-Neither is a problem here:
+### Drawing never silences TobyMap
 
-* Following a layer finds only the one feature of that layer at your point. The core already looks this up on every move. It never draws or lists the whole layer, so following villages over Africa costs no more than following countries.
-* The zoom rules decide what is drawn and said by itself. A current layer is your own choice, so it is followed at any zoom.
+A current layer adds almost nothing to the drawing: only its one feature is outlined and tinted. Following wards zoomed out to the whole world draws one ward. Finding the area of that layer where you are is a look-up the core already makes on every move.
 
-### Is this an industry standard, or a new problem?
+But your worry is right in general. What can slow drawing is a layer shown at far zooms. You can already widen a layer's zoom range in the Layers settings, and a view will do the same. Two things limit this today:
 
-It is standard in GIS programs. The audio atlas only makes it matter more.
+* An area narrower than 2 percent of the zoom distance is not drawn. This is decided from its record, at almost no cost. At a 2,500 kilometre zoom, nothing under 50 kilometres across is drawn, so wards and villages never are.
+* Zoomed out, shapes come from the simplified drawing tiles, not the exact shapes.
 
-* QGIS has an "active layer": the layer chosen in its layers list, which its tools work on.
-* QGIS's Identify tool, which tells you what is at the point you click, has modes: the current layer only, the top layer only, or all layers.
-* Showing each layer only within a range of zooms is standard too. GIS programs call it scale-dependent visibility. It is the same idea as TobyMap's zoom ranges.
+On the world pack, the slowest drawing measured in P2-T14 was 135 milliseconds on the desktop, and 238 milliseconds in the browsers.
 
-What is new for an audio atlas is that sight filters the map for free, while speech has to choose an order. The current layer is how GIS programs answer "which feature does the user mean?", and it suits TobyMap for the same reason.
+What I found when I looked at the code:
 
-### Recommendation
+* On the desktop, the map is drawn in a thread of its own. Keys and speech never wait for it. So the desktop cannot go silent while drawing.
+* In the web version, the map is drawn in the same worker that answers the keys, and a key's answer is sent together with the drawing. So a slow drawing holds up what is said. This is the one place TobyMap could seem to have crashed.
 
-Your version, with Shift+Enter, in place of options 1 and 2. "Current layer" would go in the glossary first. It is simple for the user: one key, one idea (follow this kind of area), and the usual behaviour returns with the same key.
+The rule, in both versions:
 
-## What I need from you
+1. What is said is sent before the map is drawn. A key's answer never waits for a drawing.
+2. The map is drawn in steps, in the drawing order. Between steps, a new key is answered first, and a drawing no longer needed is dropped.
+3. A drawing has a limit on its shapes. If a view would draw more, the smallest areas are left out, and the status line says "Some small areas are not drawn at this zoom".
+4. If a drawing still takes more than 2 seconds, TobyMap says "Still drawing the map" once.
+5. A test holds this: with every layer shown at every zoom, on the world pack, in both versions, no answer waits more than 100 milliseconds for a drawing. The timings are reported, as in P2-T14.
 
-* DP199: the legal rule, and shall I make the list of about 70 territories next?
-* DP200: option 1 with the Coast heading added?
-* DP201: the ends of a shared border as items under each Bordering item?
-* DP202: a current layer, set with Shift+Enter, in place of options 1 and 2?
+### What changes from today
+
+* The current layer and Shift+Enter, in the core, with no new build.
+* The drawing rule above. Its first step, sending the answer before the drawing in the web version, comes first, as it fixes the silence even before the rest.
+
+## Enclaves and exclaves (DP207)
+
+### The words
+
+* An enclave is an area wholly surrounded by one other country. Llívia is an enclave in France. San Marino, the Vatican and Lesotho are whole countries that are enclaves.
+* An exclave is a part of a country with a land border, cut off from its main part by another country. Llívia is an exclave of Spain: the same place, seen from Spain. Kaliningrad is an exclave of Russia, and Alaska of the United States.
+* Ceuta and Melilla are exclaves of Spain on the African coast, but not enclaves, as each touches the sea as well as Morocco.
+* Islands and other parts with no land border, such as Hawaii, are neither.
+
+### How they are found
+
+The build finds them from the shapes alone, so no list is needed. A part of a country with a land border, away from its main part, is an exclave. If its border touches only one other country, and no sea, it is also an enclave in that country. An exclave too small to be an area of its own, such as Llívia, is named after the largest place in it.
+
+### What is said
+
+* "Where am I" says it after the country: "Girona, Catalonia, Spain, exclave in France, Europe". For Ceuta: "Ceuta, Spain, exclave on the coast of Morocco, Africa".
+* Details of the country lists its exclaves, and Details of the surrounding country lists the enclaves inside it: "Contains enclaves: Llívia, Spain".
+
+Ceuta and Melilla are not in Morocco's Contains, which is right, as they are not inside Morocco. In the world pack today, Morocco's Bordering lists Spain, with 17 kilometres of shared border, which is the two towns' borders together. After the next builds, Ceuta and Melilla are areas of their own (see DP199), so Morocco's Bordering lists each of them, and each says "Spain".
+
+### What changes from today
+
+Today nothing says Llívia is cut off from Spain: at Llívia you hear "Girona, Catalonia, Spain, Europe". The enclaves and exclaves are worked out in the builds, task P3-T21.
+
+## Next
+
+The tasks for DP199 to DP202 and DP207, with the territories list, are in the Phase 3 tidy-up plan, task P3-T24. The data changes go into the builds, task P3-T21.
 
 ## Sources
 

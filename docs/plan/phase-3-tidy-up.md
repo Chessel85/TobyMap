@@ -125,6 +125,18 @@ Data changes chosen in these go into the builds, task P3-T21.
 
 From your decisions on DP198, 17 November 2026. The definition is "How TobyMap draws the map" in docs/design/Discussion points detail - responses.md: the political and physical map views and the view manager, the drawing order in the views file read at start-up (which fixes the hidden lakes), an outline setting for each layer, areas said in the view's order, the most detailed layer shown in colours with thicker country borders, the current feature's tint, island names on the map, and an island with the same name and land as an area said once. Only the last needs the builds, task P3-T21.
 
+### Distant parts, lakes, borders, the current layer, enclaves, task P3-T24
+
+From your decisions on DP199 to DP202 and DP207, 17 November 2026. The definitions are the sections of the same name in docs/design/Discussion points detail - responses.md.
+
+* P3-T24a The drawing never holds up speech (DP202). In the web version, the answer to a key is sent before the map is drawn; then, in both versions, the map is drawn in steps, with a limit on its shapes and "Still drawing the map" after 2 seconds. A test with every layer at every zoom on the world pack, in both versions, where no answer waits more than 100 milliseconds for a drawing. Done first.
+* P3-T24b The current layer, set with Shift+Enter (DP202). "Current layer" is in the glossary.
+* P3-T24c The territories list, a YAML file in the build settings, about 70 entries, made from Natural Earth and Wikidata and checked online, with the grey cases marked for you (DP199).
+* P3-T24d The sovereign state said after an integral part, and the status in Details (DP199). A dependent territory mapped inside its country, such as Puerto Rico, becomes an area of its own in the builds.
+* P3-T24e Shores and Coast in Bordering, and Overlapping with headings by kind (DP200). The lengths are stored in the builds.
+* P3-T24f The share of the border, the whole border in Details, the ends of a shared border, and the crossing points (DP201).
+* P3-T24g Enclaves and exclaves, found in the builds, said by "where am I" and listed in Details (DP207).
+
 ## 4. The builds, task P3-T21
 
 * P3-T21a Western Europe trial build, with DP194's stored contents, the layer sounds, Ceuta and Melilla, and the data changes you choose. Checks and timings on it. It also tries the code fixes on fresh data.

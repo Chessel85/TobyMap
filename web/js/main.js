@@ -954,7 +954,8 @@ function openTree(d) {
     const { width, height } = mapSize();
     return client.send({ type: "run", commands: [[name, args]], width, height });
   };
-  const node = (n) => ({ id: n.id, label: n.label, expandable: !leaves.has(n.id),
+  // An item the core knows has nothing under it is not a branch, so it is not said as collapsed (P3-T19e).
+  const node = (n) => ({ id: n.id, label: n.label, expandable: !n.leaf && !leaves.has(n.id),
                          children: (branches[n.id] || []).map(node) });
   const show = () => tree.fill([{ id: "world", label: d.root.label, items: branches.world.map(node) }]);
   // Each move tells the core where the focus is, as its path of ids from World, so W opens the tree there again.

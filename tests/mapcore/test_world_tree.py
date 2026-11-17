@@ -118,10 +118,15 @@ def test_the_world_ends_with_disputed_and_unclaimed_areas(s):
 
 
 def test_crimea_is_in_disputed_areas_with_its_claimants(s):
+    """Crimea is one dispute of several areas, so one item, which opens to them (P3-T26a, DP205)."""
     items = branch(s, "special:disputed")["items"]
     crimea = next(i for i in items if i["label"].startswith("Crimea"))
-    assert crimea["label"].endswith("claimed by Russia, Ukraine") or "claimed by" in crimea["label"]
-    assert s.run("tree.go", id=crimea["id"]).error is None
+    assert crimea["id"] == "dispute:Crimea" and not crimea["leaf"]
+    assert "claimed by" in crimea["label"] and crimea["label"].endswith(" areas")
+    assert "is a list" in s.run("tree.go", id=crimea["id"]).error
+    areas = branch(s, crimea["id"])["items"]
+    assert len(areas) >= 2 and all(a["leaf"] for a in areas)
+    assert s.run("tree.go", id=areas[0]["id"]).error is None
 
 
 def test_a_list_is_not_a_place_and_an_empty_one_says_so(s):
@@ -152,3 +157,80 @@ def test_browsing_inside_a_country_lists_its_disputed_areas(s):
     s.run("browse.choose", index=index)
     group = next(g for g in s.panel(open=["search"]) if g["id"] == "search")
     assert any(i["label"].startswith("Crimea") for i in group["items"])
+
+
+# P3-T20c, DP194: the world tree and what each area holds, stored in the pack ---------------------------------------
+
+def test_the_pack_stores_the_world_tree_the_same_as_the_store_works_it_out(continents_pack):
+    from mapcore.store import Store
+
+    stored = Store([continents_pack])
+    worked = Store([continents_pack])
+    try:
+        assert stored._indexes[0].pack.has_contents
+        worked._read_tree = lambda: None   # as for a pack written before P3-T20c
+        for parent in ("world", "continent:europe", "special:disputed", "special:unclaimed"):
+            assert stored.tree_children(parent) == worked.tree_children(parent), parent
+        assert stored._tree_children == worked._tree_children
+        assert stored._tree_rows == worked._tree_rows
+    finally:
+        stored.close()
+        worked.close()
+
+
+def test_the_first_opening_of_the_world_tree_reads_no_feature_records(continents_pack):
+    """The stored tree is one read; the scan read every group of feature records."""
+    from mapcore.store import Store
+
+    store = Store([continents_pack])
+    try:
+        pack = store._indexes[0].pack
+        before = pack.reads
+        assert store.tree_children("world")
+        assert pack.reads - before == 1
+    finally:
+        store.close()
+
+
+def test_browse_reads_what_an_area_holds_and_finds_what_the_scan_found(continents_pack):
+    from mapcore.store import Store
+
+    store = Store([continents_pack])
+    try:
+        pack = store._indexes[0].pack
+        holders = [i for i, _n in store.tree_children("continent:europe")][:8] + ["continent:europe"]
+        checked = partly = 0
+        for holder in holders:
+            for layer in store.relationships(holder).get("counts", {}):
+                assert pack.has_contents
+                held = store.browse(layer, holder)
+                with pytest.MonkeyPatch.context() as m:   # the scan, as for a pack written before P3-T20c
+                    m.setattr(type(pack), "has_contents", property(lambda self: False))
+                    scanned = store.browse(layer, holder)
+                assert [f.id for f in held] == [f.id for f in scanned], (holder, layer)
+                # "partly in" the same both ways (P3-T25b)
+                assert [f.description for f in held] == [f.description for f in scanned], (holder, layer)
+                partly += sum(", partly in " in f.description for f in held)
+                checked += 1
+        assert checked > 10 and partly
+    finally:
+        store.close()
+
+
+def test_an_item_with_nothing_under_it_is_not_a_branch(s):
+    """P3-T19e, checklist 11.3: such an item said "collapsed"; the core now says which items are leaves."""
+    europe = branch(s, "continent:europe")["items"]
+    assert not find(europe, "France")["leaf"]
+    root = s.run("tree.open").dialog["root"]["items"]
+    assert not find(root, "Europe")["leaf"]
+    for item in root + europe:   # each item's mark is what opening it gives
+        assert item["leaf"] == (not branch(s, item["id"])["items"]), item["label"]
+    assert any(i["leaf"] for i in europe)   # such as a country with no regions in the test pack
+
+
+def test_the_steps_give_back_the_feature_numbers():
+    from mapcore.store import contents
+
+    numbers = [0, 3, 4, 10, 1000]
+    assert contents.to_steps(numbers) == [0, 3, 1, 6, 990]
+    assert contents.from_steps(contents.to_steps(numbers)) == numbers

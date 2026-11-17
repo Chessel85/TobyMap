@@ -76,13 +76,15 @@ def run_desktop(pack: Path) -> str:
     session = MapSession(packs=[pack], saved_state={"lat": PLACES[0][1], "lon": PLACES[0][2], "zoom_m": ZOOMS[0]})
     session.start()
     every_layer(session)
+    session.scene(*SIZE)   # what start-up reads, read once
     for place, lat, lon in PLACES:
         for zoom_m in ZOOMS:
             session.world.lat, session.world.lon = lat, lon
             session.world.zoom_index = min(range(len(session.world.zoom_list)),
                                            key=lambda i: abs(session.world.zoom_list[i] - zoom_m))
             session.areas = session._here()
-            session.scene(*SIZE)   # what start-up reads, read once
+            # The map is not drawn here before the move: drawing it first read most of the pack tiles the timed
+            # drawing then needed, so it took about 40 ms and tested nothing (17 November 2026).
             quiet = []
             for _ in range(10):
                 t = time.perf_counter()

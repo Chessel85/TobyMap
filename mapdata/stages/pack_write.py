@@ -506,6 +506,16 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
     numbers = writer.add_features(made)
     if relationships:   # P3-T3e: by id, beside the feature records
         writer.add_relationships(relationships)
+        # P3-T20c, DP194: the world tree and what each area of its layers holds, by the core's own rules.
+        from mapcore.store import contents
+
+        rel_of = lambda fid: relationships.get(fid) or {}   # noqa: E731
+        rows = {r["id"]: r for r in made if r["layer"] in contents.TREE_LAYERS}
+        tree = contents.build_tree(rows, rel_of)
+        holds = contents.contents(made, rel_of, numbers)
+        writer.add_contents({k: sorted(v) for k, v in sorted(tree.items())}, contents.tree_names(rows, tree), holds)
+        step(f"Stored the world tree, {sum(len(v) for v in tree.values()):,} items, and what {len(holds):,} areas "
+             f"hold, {sum(len(n) for h in holds.values() for n, _p in h.values()):,} features in all")
     if index is not None:
         writer.add_search(*index)
     number_of = [numbers[r["id"]] for r in records]

@@ -165,6 +165,15 @@ From format 4 (P3-T3e, architecture 6.5): the relationships of group G's feature
 
 `Pack.relationships(identifier)` returns the object, or an empty one for a feature with none or a pack written before format 4.
 
+### tree and holds/G
+
+From 17 November 2026, in format 4 (P3-T20c, DP194): what is inside each area, so the world tree and browsing by category read a few records instead of every feature record. Both are optional, so the format number did not change. A pack without them works as before: the application works them out from the feature records. The rules are in `mapcore/store/contents.py`, used by both the build and the application.
+
+* Record tree: JSON, `{"children": {parent: [ids]}, "names": {id: {"id", "names", "local_lang"}}}`. The parents are "world", "special:disputed", "special:unclaimed" and areas of the continents, countries, regions and counties layers; each list of children is sorted by identifier. "names" holds, for each child, what says its name.
+* Record holds/G: in the feature records' groups, a JSON object by the identifier of an area of the continents, countries, regions and counties layers, of `{layer: [[steps], [steps]]}`: first, the feature numbers of every feature of that layer inside the area fully or partly, the same land, or crossing it; second, those of them only partly inside it, partly inside or overlapping, not inside whole or the same land, which are said as "partly in" (P3-T25b). Each list is ascending, stored as the first number and then each step from the one before. A group with no such areas has no record.
+
+`Pack.has_contents` says whether a pack has them, `Pack.tree()` gives the tree record, and `Pack.holds(identifier)` gives an area's feature numbers by layer, with the set of those only partly inside.
+
 ### search/B
 
 From 13 November 2026, in format 4 (P3-T8a, architecture 7.9): the search index. The manifest's `search` is `{"buckets": N, "rows": R}`, set by the writer; a pack without it has no search index, and a search finds nothing. The rules are in `mapcore/search.py`, used by both the build and the application:

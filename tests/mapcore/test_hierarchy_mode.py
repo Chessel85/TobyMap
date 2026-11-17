@@ -238,3 +238,39 @@ def test_switzerland_has_its_five_neighbours(test_pack):
     s = session(test_pack, {"lat": 46.8, "lon": 8.2, "zoom_m": 100000, "step_m": 1000})
     assert sorted(n for n, *_ in neighbours(s)) == ["Austria", "France", "Germany", "Italy", "Liechtenstein"]
     s.store.close()
+
+
+# What Down's lines count, and "partly in" (P3-T25, DP204) ------------------------------------------------------
+
+def test_a_line_says_how_many_are_shown_and_how_many_are_inside_in_all(continents_pack):
+    """When the size rule leaves some out at the zoom (DP188), the line says both: "Islands: 11 shown at this
+    zoom, 109,292 in all" for Europe on the world pack."""
+    s = session(continents_pack, {"lat": 46.95, "lon": 7.45, "zoom_m": 100000, "step_m": 10000})
+    s._hierarchy_go(s.store.feature("continent:europe"), "Europe")   # at the zoom that fits it
+    counts = s.store.relationships(s.current_feature.id)["counts"]
+    kinds = s._contained(s.current_feature)
+    lines = down_kinds(s)
+    both = 0
+    for (layer_id, areas), line in zip(kinds.items(), lines):
+        name = s.layers.get(layer_id).name
+        if counts.get(layer_id, 0) > len(areas):
+            assert line == f"{name}: {len(areas):,} shown at this zoom, {counts[layer_id]:,} in all"
+            both += 1
+        else:
+            assert line == f"{name} {len(areas)}"
+    assert both, "the test pack has a kind the size rule thins at Europe's zoom"
+    s.store.close()
+
+
+def test_a_feature_only_partly_inside_says_so(test_pack):
+    """The New Forest National Park is partly in Hampshire (DP70), so it says "partly in Hampshire" in Down and in
+    Contains; a station inside whole does not."""
+    s = session(test_pack, HAMPSHIRE, zoom_m=100000)
+    kinds = down_kinds(s)
+    r = s.run("hierarchy.choose", index=kinds.index("National parks 1"))
+    assert r.dialog["lines"][0].startswith("New Forest National Park, partly in Hampshire, ")
+    s.run("hierarchy.choose", index=-1)
+    kinds = down_kinds(s)
+    r = s.run("hierarchy.choose", index=kinds.index("Railway stations 1"))
+    assert "partly" not in r.dialog["lines"][0]
+    s.store.close()

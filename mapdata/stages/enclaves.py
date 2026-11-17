@@ -29,6 +29,9 @@ of the countries it borders), coast (whether it touches the sea) and enclave (wh
 exclaves (the ids of its exclaves) and enclaves (the ids of the enclaves inside it); on a whole country that is
 an enclave, enclave_in. The log lists every one found, with its size.
 
+Before that, the stage tidies unclaimed land (mapdata/stages/unclaimed.py, P3-T26b), as it needs the towns: its
+setting "unclaimed" holds min_km2.
+
 Settings: min_km2 (0.01), the least land for a part to be looked at; border_km (0.05), the least shared border
 for two countries to touch; coast_km (0.2), the least outline left over, once the land borders are taken away,
 for a part to be on the coast; land_share (0.5); coast_ratio (100); sea_km2 (1000); names, a list of {point: [lon, lat], name}
@@ -50,7 +53,7 @@ EXCLAVES = "exclaves"
 ID_PREFIX = "exclave:"
 OWN_TYPES = ("disputed land", "unclaimed land", "condominium")
 SETTINGS = {"min_km2": 0.01, "border_km": 0.05, "coast_km": 0.2, "land_share": 0.5, "coast_ratio": 100.0, "sea_km2": 1000.0,
-            "names": []}
+            "names": [], "unclaimed": {}}
 
 
 def _km2(g) -> float:
@@ -241,6 +244,13 @@ def run(ctx) -> None:
     t = time.perf_counter()
     records, geoms = features.load(ctx.previous)
     settings = {k: v for k, v in ctx.settings.items() if k in SETTINGS}
+    # Unclaimed land tidied first, with the towns this stage has (P3-T26b, DP205): slivers left out, the rest named.
+    from mapdata.stages import unclaimed
+
+    records, geoms, left_out = unclaimed.tidy(records, geoms, settings.get("unclaimed"), ctx.progress.log)
+    ctx.progress.line(f"Unclaimed land: {left_out} areas under "
+                      f"{(settings.get('unclaimed') or {}).get('min_km2', unclaimed.SETTINGS['min_km2'])} km2 left out. "
+                      f"The log lists each one.")
     found = find(records, geoms, settings, ctx.progress.log)
     new = apply(records, geoms, found, settings, ctx.progress.log)
     for rec, g in new:

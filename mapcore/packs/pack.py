@@ -272,6 +272,35 @@ class PackWriter:
         for g in sorted(per):
             self._put(f"relations/{g}", _json(per[g]))
 
+    def add_contents(self, tree: dict[str, list[str]], names: dict[str, dict],
+                     holds: dict[str, dict[str, tuple[list[int], list[int]]]]) -> None:
+        """Write what is inside each area (P3-T20c, DP194): record tree, the world tree as {"children": {parent:
+        [ids]}, "names": {id: what says its name}}; and records holds/G, in the feature records' groups, each a JSON
+        object by an area's identifier of {layer: [[feature numbers], [those only partly inside]]}, each list as
+        steps (mapcore.store.contents)."""
+        from mapcore.store import contents
+
+        if self.numbers is None:
+            raise PackWriteError("add_features comes before the contents")
+        if "tree" in self.directory:
+            raise PackWriteError("add_contents is called once")
+        named = {i for ids in tree.values() for i in ids if not i.startswith(contents.DISPUTE_PREFIX)}
+        unknown = sorted((named | set(holds)) - set(self.numbers))
+        if unknown:
+            raise PackWriteError(f"the contents name features not in the pack: {', '.join(unknown[:5])}")
+        self._put("tree", _json({"children": {k: list(v) for k, v in tree.items()}, "names": names}))
+        groups = max(1, len(self.group_starts))
+        per: dict[int, dict] = {}
+        for fid, by_layer in holds.items():
+            for layer, (numbers, partly) in by_layer.items():
+                if any(not 0 <= n < len(self.features) for n in numbers) or not set(partly) <= set(numbers):
+                    raise PackWriteError(f"the contents of {fid} give a feature number not in the pack")
+            per.setdefault(feature_group(fid, groups), {})[fid] = {
+                layer: [contents.to_steps(sorted(numbers)), contents.to_steps(sorted(partly))]
+                for layer, (numbers, partly) in by_layer.items() if numbers}
+        for g in sorted(per):
+            self._put(f"holds/{g}", _json(per[g]))
+
     def add_search(self, buckets: int, records: dict[int, list[list]], rows: int) -> None:
         """Write the search index (P3-T8a, architecture 7.9): record search/B holds the rows filed under the
         prefixes that mapcore.search.bucket puts in B, as a JSON list. The manifest gets search: {"buckets",
@@ -600,6 +629,29 @@ class Pack:
                 ids.setdefault(record["id"], i)   # the first, as before, should an identifier be there twice
         i = ids.get(identifier)
         return None if i is None else self.group_starts[g] + i
+
+    @property
+    def has_contents(self) -> bool:
+        """Whether the pack stores the world tree and what is inside each area (P3-T20c, DP194)."""
+        return "tree" in self.directory
+
+    def tree(self) -> dict | None:
+        """The stored world tree, {"children": {parent: [ids]}, "names": {id: {...}}}, or None for a pack with none.
+        Not kept here: the store keeps what it needs."""
+        return self.get_json("tree") if self.has_contents else None
+
+    def holds(self, identifier: str) -> dict[str, tuple[list[int], set[int]]] | None:
+        """The feature numbers of every feature inside an area of the tree's layers, by layer, with those only
+        partly inside (P3-T20c, P3-T25b); empty for an area with nothing inside, or none of those layers; None for
+        a pack that does not store them."""
+        from mapcore.store import contents
+
+        if not self.has_contents:
+            return None
+        g = feature_group(identifier, len(self.group_starts))
+        got = (self.get_json(f"holds/{g}") or {}).get(identifier, {})
+        return {layer: (contents.from_steps(every), set(contents.from_steps(partly)))
+                for layer, (every, partly) in got.items()}
 
     def relationships(self, identifier: str) -> dict:
         """A feature's relationships, from format 4 (P3-T3e): what it is inside, beside, overlapping and crossing,

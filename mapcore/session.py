@@ -12,6 +12,7 @@ the packs through the Store. Every word comes from the templates (3.4).
 from __future__ import annotations
 
 import copy
+import dataclasses
 from collections.abc import Iterable
 import math
 import time
@@ -34,6 +35,7 @@ from mapcore.geo import formats, geodesy, parse
 from mapcore import panel as panel_table
 from mapcore.layers import LayerCatalogue
 from mapcore.layers.visible import VisibleRule
+from mapcore.store import contents
 from mapcore.store.store import Found, special_kind
 from mapcore.world import WorldState
 from mapcore.sound.stretch import split_rate
@@ -983,16 +985,23 @@ class MapSession:
             return lat, lon
         return box_centre(rec["bbox"])
 
-    def _feature_items(self, gid: str, areas: list, label_key: str, heading: float | None) -> list[dict]:
+    def _feature_items(self, gid: str, areas: list, label_key: str, heading: float | None, holder=None) -> list[dict]:
         """Items for many features at once, as _feature_item, with their distances and bearings worked out
         together (geodesy.inverse_many), so a list of thousands, such as Contains for Europe, takes a fraction
-        of a second rather than many seconds (P3-T20b)."""
+        of a second rather than many seconds (P3-T20b). With a holder, a feature only partly inside it says so,
+        "Kazakhstan, partly in Europe" (P3-T25b, DP204)."""
         if not areas:
             return []
         spots = [self._spot_of(a) for a in areas]
         dist, bear = geodesy.inverse_many(self.world.lat, self.world.lon, [p[0] for p in spots], [p[1] for p in spots])
-        return [self._feature_item(gid, a, label_key, heading, at=(float(d), float(b)))
-                for a, d, b in zip(areas, dist.tolist(), bear.tolist())]
+        out = []
+        for a, d, b in zip(areas, dist.tolist(), bear.tolist()):
+            if holder is not None and contents.partly_in(self.store.relationships(a.id), holder.id):
+                out.append(self._feature_item(gid, a, "contains.item_partly", heading, at=(float(d), float(b)),
+                                              holder=holder.name))
+            else:
+                out.append(self._feature_item(gid, a, label_key, heading, at=(float(d), float(b))))
+        return out
 
     def _feature_item(self, gid: str, area, label_key: str, heading: float | None, at=None, **fields) -> dict:
         """One item about a feature in a group about the current feature, with its direction from where
@@ -1165,7 +1174,8 @@ class MapSession:
         items = []
         for layer_id, areas in self._contained(current).items():
             layer = self.layers.get(layer_id)
-            children = self._sorted("contains", self._feature_items("contains", areas, "contains.item", heading))
+            children = self._sorted("contains", self._feature_items("contains", areas, "contains.item", heading,
+                                                                    holder=current))
             items.append(panel_table.heading(layer.id, say("contains.heading", layer=layer.name, count=len(children)),
                                              children, name=layer.name))
         return items, say("contains.none", name=current.name)
@@ -1280,12 +1290,16 @@ class MapSession:
             area = self.store.feature(f.id)
             if area is None:
                 continue
-            f = self._found_named(f, area)
+            row = self.store.tree_row(contents.DISPUTE_PREFIX + f.name) if special_kind(area.record) else None
+            if row is not None:   # one dispute, named by it, going to its largest area (P3-T26a)
+                f = dataclasses.replace(f, description=f.name)
+            else:
+                f = self._found_named(f, area)
             kept.append(f)
             key = "search.result_via" if f.via else "search.result"
             label = say(key, description=f.description, type=self._type_text(area), via=f.via)
             if special_kind(area.record):   # disputed and unclaimed land says its claimants (P3-T16a)
-                label = self._special_label(area)
+                label = self._dispute_label(row) if row else self._special_label(area)
             out.append({"id": f.id, "name": f.name, "description": f.description, "layer": f.layer,
                         "label": label})
         self.search_found = {f.id: f for f in kept}
@@ -1399,7 +1413,8 @@ class MapSession:
     def _tree_node(self, identifier: str, name: str) -> dict:
         area = self.store.feature(identifier)
         label = say("tree.item", name=name, type=self._type_text(area)) if area is not None else name
-        return {"id": identifier, "label": label}
+        # An item with nothing under it is shown as one, so it is not said as "collapsed" (P3-T19e, P3-T20c).
+        return {"id": identifier, "label": label, "leaf": not self.store.has_tree_children(identifier)}
 
     def _special_label(self, area) -> str:
         """An item of Disputed areas or Unclaimed areas, with its claimants or "no claimant" (P3-T16a)."""
@@ -1413,13 +1428,31 @@ class MapSession:
         return say("tree.special_unclaimed", name=area.name, type=kind)
 
     def _special_nodes(self) -> list[dict]:
-        return [{"id": "special:" + k, "label": say("tree." + k)} for k in ("disputed", "unclaimed")]
+        return [{"id": "special:" + k, "label": say("tree." + k), "leaf": not self.store.has_tree_children("special:" + k)}
+                for k in ("disputed", "unclaimed")]
 
-    def _special_items(self, kind: str) -> list[dict]:
+    def _dispute_label(self, row: dict) -> str:
+        """A dispute's item in Disputed areas (P3-T26a, DP205): its name, its claimants or Natural Earth's note,
+        and how many areas it holds, "Jammu and Kashmir, claimed by India and Pakistan, 82 areas"."""
+        name = row["names"]["en"]
+        if row.get("claimants"):
+            names = [c.name if c is not None else i for c, i in ((self.store.feature(i), i) for i in row["claimants"])]
+            return say("tree.dispute_claimed", name=name, count=row["count"],
+                       claimants=say("place.list_separator").join(names))
+        if row.get("view"):
+            return say("tree.dispute_view", name=name, count=row["count"], view=row["view"])
+        return say("tree.dispute", name=name, count=row["count"])
+
+    def _special_items(self, parent: str) -> list[dict]:
+        """The items of Disputed areas, Unclaimed areas or a dispute, by parent id."""
         out = []
-        for identifier, name in self.store.tree_children("special:" + kind):
+        for identifier, name in self.store.tree_children(parent):
+            if identifier.startswith(contents.DISPUTE_PREFIX):
+                row = self.store.tree_row(identifier)
+                out.append({"id": identifier, "label": self._dispute_label(row) if row else name, "leaf": False})
+                continue
             area = self.store.feature(identifier)
-            out.append({"id": identifier, "label": self._special_label(area) if area is not None else name})
+            out.append({"id": identifier, "label": self._special_label(area) if area is not None else name, "leaf": True})
         return out
 
     def _tree_open(self, **_a) -> Response:
@@ -1451,8 +1484,8 @@ class MapSession:
         return Response()
 
     def _branch_items(self, id: str) -> list[dict]:
-        if id.startswith("special:"):
-            return self._special_items(id[len("special:"):])
+        if id.startswith(("special:", contents.DISPUTE_PREFIX)):
+            return self._special_items(id)
         return [self._tree_node(i, n) for i, n in self.store.tree_children(id)]
 
     def _tree_children(self, id: str = "world", **_a) -> Response:
@@ -1462,6 +1495,8 @@ class MapSession:
             kind = say("tree." + id[len("special:"):]).lower()
             return Response(branch={"id": id, "items": items,
                                     "none": "" if items else say("tree.special_none", kind=kind)})
+        if id.startswith(contents.DISPUTE_PREFIX):
+            return Response(branch={"id": id, "items": items, "none": ""})
         area = self.store.feature(id)
         return Response(branch={"id": id, "items": items,
                                 "none": "" if items else say("tree.leaf", name=area.name if area else say("tree.world"))})
@@ -1472,6 +1507,8 @@ class MapSession:
             return Response(error=say("tree.world_go"))
         if id.startswith("special:"):
             return Response(error=say("tree.special_go", name=say("tree." + id[len("special:"):])))
+        if id.startswith(contents.DISPUTE_PREFIX):   # a dispute is a list of areas (P3-T26a)
+            return Response(error=say("tree.special_go", name=id[len(contents.DISPUTE_PREFIX):]))
         area = self.store.feature(id)
         if area is None:
             return Response(error=say("place.none"))
@@ -2914,10 +2951,17 @@ class MapSession:
             return Response().earcon("blocked").speak(say("contains.none", name=current.name), ASSERTIVE)
         # Only the counts are said now; a kind's items, with their distances, are made when it is chosen, so
         # Down from Europe does not make tens of thousands of items to list 41 countries (P3-T20b).
-        self._down = {"name": current.name,
+        self._down = {"name": current.name, "id": current.id,
                       "kinds": {k: (self.layers.get(k).name, areas) for k, areas in kinds.items()}}
-        return self._choose(say("hierarchy.down_title", name=current.name), say("hierarchy.down_help"),
-                            [say("contains.heading", layer=name, count=len(areas)) for name, areas in self._down["kinds"].values()],
+        # Each line says what it counts: those shown at this zoom, and all inside, from the stored counts, when
+        # the size rule leaves some out (P3-T25a, DP204, DP188): "Islands: 11 shown at this zoom, 109,292 in all".
+        totals = self.store.relationships(current.id).get("counts", {})
+        lines = []
+        for k, (name, areas) in self._down["kinds"].items():
+            total = totals.get(k, 0)
+            lines.append(say("hierarchy.down_line", layer=name, count=f"{len(areas):,}", total=f"{total:,}") if total > len(areas)
+                         else say("contains.heading", layer=name, count=len(areas)))
+        return self._choose(say("hierarchy.down_title", name=current.name), say("hierarchy.down_help"), lines,
                             [("kind", k) for k in kinds])
 
     def _hierarchy_across(self, step: int) -> Response:
@@ -3015,7 +3059,9 @@ class MapSession:
         if kind == "kind":
             label, areas = self._down["kinds"][value]
             heading = describer.words_facing(self.world, self.settings)
-            children = self._sorted("contains", self._feature_items("contains", areas, "contains.item", heading),
+            holder = self.store.feature(self._down.get("id", ""))
+            children = self._sorted("contains", self._feature_items("contains", areas, "contains.item", heading,
+                                                                    holder=holder),
                                     self.panel_sorts.get("contains"))
             return self._choose(say("hierarchy.kind_title", kind=label, name=self._down["name"]),
                                 say("hierarchy.kind_help"), [c["label"] for c in children],

@@ -60,16 +60,21 @@ def test_opening_a_continent_reads_its_countries_and_gives_the_screen_reader_lev
     assert item.attributes.level == 3 and item.text(QAccessible.Text.Name) == "France, country"
 
 
-def test_a_branch_with_nothing_below_is_said_and_stops_being_a_branch(window, qtbot):
+def test_an_item_with_nothing_below_is_not_a_branch(window, qtbot):
+    """P3-T19e, checklist 11.3: the core says which items have nothing under them, so they are never shown as
+    branches and NVDA does not say "collapsed"; Right on one does nothing."""
+    from PySide6.QtWidgets import QTreeWidgetItem
+
     box = open_box(window, qtbot)
     europe = item_named(box.world, "Europe")
     box.tree.setCurrentItem(europe)
     qtbot.keyClick(box.tree, Qt.Key.Key_Right)
     swiss = item_named(europe, "Switzerland")
+    assert swiss.childIndicatorPolicy() == QTreeWidgetItem.ChildIndicatorPolicy.DontShowIndicator
+    assert item_named(europe, "France").childIndicatorPolicy() == QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator
     box.tree.setCurrentItem(swiss)
     qtbot.keyClick(box.tree, Qt.Key.Key_Right)
-    assert swiss.childCount() == 0
-    assert "Switzerland has no areas below it in the tree." in window.announcer.texts
+    assert swiss.childCount() == 0 and not swiss.isExpanded()
 
 
 def test_enter_goes_to_the_item_and_closes_into_the_map(window, qtbot):

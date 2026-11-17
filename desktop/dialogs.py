@@ -416,8 +416,10 @@ class WorldTreeDialog(QDialog):
     def _fill(self, parent: QTreeWidgetItem, nodes: list[dict]) -> None:
         for node in nodes:
             child = self._item(node["label"], node["id"])
-            # Opened when asked for: a branch is read only then (SRB-3).
-            child.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
+            # Opened when asked for: a branch is read only then (SRB-3). An item the core knows has nothing
+            # under it is not a branch, so NVDA does not say "collapsed" (P3-T19e).
+            child.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.DontShowIndicator if node.get("leaf")
+                                          else QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
             parent.addChild(child)
 
     def _opened(self, item: QTreeWidgetItem) -> None:

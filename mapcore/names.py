@@ -41,6 +41,12 @@ class Naming:
 
     def name_of(self, record: dict) -> Name:
         name = name_of(record, self.choice)
+        if record.get("type") == "condominium" and record.get("sovereign"):
+            # Said with its owners wherever its name is said (P3-T26c, DP205): "Moselle condominium, shared by
+            # Germany and Luxembourg".
+            from mapcore.describe import say
+
+            name = Name(say("place.condominium", name=str(name), owners=record["sovereign"]), name.lang)
         if name.lang:
             hear(name)
         return name

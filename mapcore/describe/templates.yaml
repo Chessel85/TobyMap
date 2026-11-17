@@ -380,6 +380,8 @@ coordinates:
 
 # Where the location is, and what changed (ANN-1, LOC-2).
 place:
+  # A condominium, said with its owners wherever its name is said (P3-T26c, DP205).
+  condominium: "{name}, shared by {owners}"
   list_separator: ", "
   and: " and "
   none: "No area here"
@@ -616,6 +618,9 @@ bordering:
 contains:
   heading: "{layer} {count}"
   item: "{name}, {distance} {direction}"
+  # A feature only partly inside the current one (P3-T25b, DP204), in Contains and Down; and in Browse by category.
+  item_partly: "{name}, partly in {holder}, {distance} {direction}"
+  partly_name: "{name}, partly in {holder}"
   none: "Nothing visible inside {name}."
 overlapping:
   item: "{name}, {distance} {direction}, {mine} percent of {current} and {theirs} percent of {name} overlap"
@@ -675,6 +680,10 @@ tree:
   special_claimed: "{name}, {type}, claimed by {claimants}"
   special_view: "{name}, {type}, {view}"
   special_unclaimed: "{name}, {type}, no claimant"
+  # A dispute, which opens to its areas (P3-T26a, DP205).
+  dispute: "{name}, {count} areas"
+  dispute_claimed: "{name}, claimed by {claimants}, {count} areas"
+  dispute_view: "{name}, {view} {count} areas"
 browse:
   title: "Inside {name}"
   help: "Choose a kind of feature to list every one inside {name}, or Cancel to stay."
@@ -730,6 +739,8 @@ hierarchy:
   # Down: the kinds of visible feature inside, each with its count, then a kind's features (INF-4).
   down_title: "Inside {name}"
   down_help: "Choose a kind of feature, or Cancel to stay."
+  # A kind of which the size rule leaves some out at this zoom, with how many are inside in all (P3-T25a, DP204).
+  down_line: "{layer}: {count} shown at this zoom, {total} in all"
   kind_title: "{kind} in {name}"
   kind_help: "Choose a feature to go to it, or Cancel to stay."
   # Left and Right: a neighbour as you approved in DP190, without the distance the Bordering group now says.

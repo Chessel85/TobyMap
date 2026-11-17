@@ -24,22 +24,26 @@ from __future__ import annotations
 
 import math
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
 from mapcore import memory
 from mapcore import names as names_mod
 from mapcore import search
+from mapcore.describe import say
 from mapcore.geo import geodesy
 from mapcore.packs import tiles
 from mapcore.packs.pack import DamagedRecord, Pack
+from mapcore.store import contents
+from mapcore.store.contents import TREE_LAYERS, special_kind  # noqa: F401 (special_kind is used by the session)
 from mapcore.store.cache import TileCache, TileData
 from mapcore.store.projection import Flat
 
 NEAR_EXACT_M = 50_000.0
 FIRST_SEARCH_M = 2_000.0   # the first search box for an area's nearest point
 SEARCH_GROWTH = 3.0
+PART_SKIP_MARGIN = 1.1   # a part whose box is a tenth further than the best point found is not measured
 M_PER_DEG_LAT_MIN = 110_574.0  # the shortest degree of latitude, at the equator
 
 
@@ -156,19 +160,6 @@ class Found:
     via: str
     level: int
     similarity: float
-
-
-TREE_LAYERS = ("continents", "countries", "regions", "counties")   # the layers of the world tree (P3-T9a)
-
-
-def special_kind(rec: dict) -> str | None:
-    """"unclaimed" for land in no country, "disputed" for land more than one party holds or claims, else None
-    (P3-T16a, ANN-6, DAT-8, LOC-6)."""
-    if rec.get("type") == "unclaimed land":
-        return "unclaimed"
-    if rec.get("disputed") or rec.get("type") == "disputed land":
-        return "disputed"
-    return None
 
 
 def _boxes_meet(a, b) -> bool:
@@ -825,16 +816,43 @@ class Store:
 
     def tree_children(self, identifier: str = "world") -> list[tuple[str, str]]:
         """The next level of the world tree under "world" or a feature, as (identifier, English name), by
-        name (SRB-3): under the world, the continents; under a continent, the countries that are in it or
-        lie mostly or partly across it (Russia is under Europe and Asia); under a country, an area of the
-        countries, regions or counties layer that has it as a parent, or as the sovereign of a distant
-        part (Hawaii under the United States), and under a constituent country, such as England, its own
-        areas. The first call scans the feature records of those layers once; the rest take no reading."""
+        name (SRB-3), by the rules of mapcore.store.contents: Russia is under Europe and Asia, Hawaii under the
+        United States, and a constituent country, such as England, holds its own areas. A pack that stores the
+        tree gives it in one read (P3-T20c, DP194); else the first call scans the feature records of the tree's
+        layers once. The rest take no reading."""
         with self._lock:
             if self._tree_children is None:
-                self._tree_children = self._build_tree()
+                self._tree_children = self._read_tree() or self._build_tree()
             named = [(i, self._name(self._tree_rows[i])) for i in self._tree_children.get(identifier, ())]
         return sorted(named, key=lambda t: (t[1].casefold(), t[0]))
+
+    def has_tree_children(self, identifier: str) -> bool:
+        """Whether an item of the world tree has anything under it, so the tree can show it as a branch or not."""
+        with self._lock:
+            if self._tree_children is None:
+                self._tree_children = self._read_tree() or self._build_tree()
+            return bool(self._tree_children.get(identifier))
+
+    def _read_tree(self) -> dict[str, set] | None:
+        """The world tree stored in the packs, each pack's joined; None if any pack has none."""
+        if not self._indexes or not all(index.pack.has_contents for index in self._indexes):
+            return None
+        tree: dict[str, set] = {}
+        rows: dict[str, dict] = {}
+        for index in self._indexes:
+            try:
+                stored = index.pack.tree() or {}
+            except DamagedRecord as exc:
+                self._note(exc)
+                return None
+            for parent, ids in (stored.get("children") or {}).items():
+                tree.setdefault(parent, set()).update(ids)
+            for identifier, row in (stored.get("names") or {}).items():
+                rows.setdefault(identifier, row)
+        if any(i not in rows for ids in tree.values() for i in ids):
+            return None
+        self._tree_rows = rows
+        return tree
 
     def _build_tree(self) -> dict[str, set]:
         rows: dict[str, dict] = {}
@@ -844,87 +862,84 @@ class Store:
                     rows.setdefault(rec["id"], rec)
             except DamagedRecord as exc:
                 self._note(exc)
-        tree: dict[str, set] = {}
-
-        def add(parent: str, identifier: str) -> None:
-            tree.setdefault(parent, set()).add(identifier)
-
-        for identifier, rec in rows.items():
-            layer = rec["layer"]
-            if layer == "continents":
-                add("world", identifier)
-            elif layer != "countries":
-                for parent in rec.get("parents", ()):
-                    if parent in rows:
-                        add(parent, identifier)
-                    break
-            else:
-                self._place_country(identifier, rec, rows, add)
-        for identifier, rec in rows.items():   # the two lists of land that is not plainly one country's (P3-T16a)
-            kind = special_kind(rec)
-            if kind:
-                add("special:" + kind, identifier)
-        # Only what a name needs is kept, as the whole records of every county would take much memory in the browser.
-        members = {i for ids in tree.values() for i in ids}
-        self._tree_rows = {i: {k: rows[i][k] for k in ("id", "names", "local_lang") if k in rows[i]} for i in members}
+        tree = contents.build_tree(rows, self.relationships)
+        self._tree_rows = contents.tree_names(rows, tree)
         return tree
+
+    def tree_row(self, identifier: str) -> dict | None:
+        """What the world tree keeps of an item: for a dispute's item (P3-T26a), its name, claimants, Natural
+        Earth's note and how many areas it holds."""
+        self.tree_children("world")
+        return self._tree_rows.get(identifier)
 
     def special_areas(self, kind: str, inside: str | None = None) -> list[Found]:
         """The disputed areas or unclaimed areas (kind "disputed" or "unclaimed"), by name, as search results,
-        all of them or only those the stored relationships put inside, partly inside or crossing a feature."""
+        all of them or only those the stored relationships put inside, partly inside or crossing a feature.
+        Disputed areas are one for each dispute (P3-T26a, DP205): the largest of its areas there, named and
+        described by the dispute, so Enter goes to that area."""
         out = []
         for identifier, name in self.tree_children("special:" + kind):
-            rec = self.feature(identifier)
-            point = rec.record.get("point") if rec is not None else None
-            out.append(Found(0, identifier, name, rec.layer if rec is not None else "countries", 0,
-                             point[1] if point else None, point[0] if point else None, name, "", 0, 1.0))
-        if inside is None:
+            members = self.tree_children(identifier) if identifier.startswith(contents.DISPUTE_PREFIX) else [(identifier, name)]
+            for member, member_name in members:
+                rec = self.feature(member)
+                point = rec.record.get("point") if rec is not None else None
+                out.append(Found(0, member, member_name, rec.layer if rec is not None else "countries", 0,
+                                 point[1] if point else None, point[0] if point else None, name, "", 0, 1.0))
+        if inside is not None:
+            out = self._inside(out, inside, len(out))
+        if kind != "disputed":
             return out
-        return self._inside(out, inside, len(out))
-
-    def _place_country(self, identifier: str, rec: dict, rows: dict, add) -> None:
-        """An area of the countries layer goes under its sovereign, if it is a distant part; else under the
-        country that holds it, if it is a constituent country; else under each continent it is in, or that
-        it is mostly or partly across (a tenth of it, or the one with most of it)."""
-        sovereign = rec.get("sovereign_id")
-        if sovereign and sovereign in rows and sovereign != identifier:
-            add(sovereign, identifier)
-            return
-        rel = self.relationships(identifier)
-        same = set(rel.get("same", ()))
-        for holder in rel.get("in", ()):
-            if holder in rows and holder not in same and rows[holder]["layer"] == "countries":
-                add(holder, identifier)
-                return
-        continents = [i for i in rel.get("in", ()) if i in rows and rows[i]["layer"] == "continents"]
-        if not continents:
-            across = [(o[1], o[0]) for o in rel.get("overlaps", ()) if o[0] in rows and rows[o[0]]["layer"] == "continents"]
-            continents = [c for share, c in across if share >= 0.1] or [c for _s, c in sorted(across, reverse=True)[:1]]
-        for continent in continents:
-            add(continent, identifier)
+        largest: dict[str, tuple[float, Found]] = {}
+        for f in out:
+            rec = self.feature(f.id)
+            size = rec.area_km2 if rec is not None else 0.0
+            if f.description not in largest or size > largest[f.description][0]:
+                largest[f.description] = (size, f)
+        grouped = [replace(f, name=dispute) for dispute, (_s, f) in largest.items()]
+        return sorted(grouped, key=lambda f: (f.name.casefold(), f.id))
 
     def browse(self, layer: str, identifier: str) -> list[Found]:
         """Every feature of a layer inside a feature, fully or partly, or crossing it (SRB-4), by name, with no
-        limit by zoom: such as every lake in Finland. The layer's feature records are read in a scan, each
-        first tested against the feature's box, and only the ones that may be inside have their stored
-        relationships read."""
+        limit by zoom: such as every lake in Finland. For an area of the tree's layers, a pack that stores what
+        each holds gives their feature numbers in one read (P3-T20c, DP194). Otherwise the layer's feature records
+        are read in a scan, each first tested against the feature's box, and only the ones that may be inside
+        have their stored relationships read."""
         holder = self.feature(identifier)
         if holder is None:
             return []
         box = holder.record.get("bbox")
         out: list[Found] = []
+        seen: set[str] = set()
+
+        def found(p: int, rec: dict, partly: bool) -> None:
+            if rec["id"] in seen:
+                return
+            seen.add(rec["id"])
+            point = rec.get("point")
+            name = self._name(rec)
+            # A feature only partly inside says so: "Kazakhstan, partly in Europe" (P3-T25b, DP204).
+            description = say("contains.partly_name", name=name, holder=holder.name) if partly else name
+            out.append(Found(p, rec["id"], name, layer, 0, point[1] if point else None,
+                             point[0] if point else None, description, "", 0, 1.0))
+
         for p, index in enumerate(self._indexes):
+            pack = index.pack
             try:
-                for rec in index.pack.scan((layer,)):
+                held = pack.holds(identifier) if holder.layer in contents.HOLDER_LAYERS else None
+                if held is not None:
+                    numbers, partly = held.get(layer, ((), set()))
+                    for number in numbers:
+                        rec = pack.feature(number)
+                        if rec["layer"] == layer and rec["id"] != identifier:
+                            found(p, rec, number in partly)
+                    continue
+                for rec in pack.scan((layer,)):
                     if rec["id"] == identifier or (box is not None and rec.get("bbox") is not None
                                                    and not _boxes_meet(box, rec["bbox"])):
                         continue
                     rel = self.relationships(rec["id"])
-                    if identifier in rel.get("in", ()) or identifier in rel.get("same", ())                             or identifier in rel.get("crosses", ())                             or any(x[0] == identifier for x in (*rel.get("partly", ()), *rel.get("overlaps", ()))):
-                        point = rec.get("point")
-                        name = self._name(rec)
-                        out.append(Found(p, rec["id"], name, layer, 0, point[1] if point else None,
-                                         point[0] if point else None, name, "", 0, 1.0))
+                    if identifier in contents.holders(rel):
+                        found(p, rec, contents.partly_in(rel, identifier))
             except DamagedRecord as exc:
                 self._note(exc)
         out.sort(key=lambda f: (f.name.casefold(), f.id))
@@ -1228,7 +1243,7 @@ class Store:
         else:
             kinds = [("tile", level, level) for level in index.pack.tile_levels]
         origin = shapely.Point(0.0, 0.0)
-        best = None
+        parts = []   # (data, entry, where, box)
         for west, south, east, north in self._search_box(lat, lon, r, area.record["bbox"]):
             for kind, ident, level in kinds:
                 x0, y0 = tiles.tile_of(west, south, level)
@@ -1236,10 +1251,35 @@ class Store:
                 for x, y in index.tiles_in(kind, ident, x0, x1, y0, y1):
                     data = self._tile(p, kind, ident, x, y)
                     for i in data.by_feature.get(area.number, ()):
-                        found = self._part_distance(data, i, (x, y, level), flat, lat, lon, origin, border)
-                        if found is not None and (best is None or found[0] < best[0]):
-                            best = found
+                        parts.append((data, i, (x, y, level)))
+        if not parts:
+            return None
+        # Each part's box first, nearest first: a part whose box is further than the best point found so far
+        # cannot hold a nearer one, so it is never put into the flat view, which was most of the time Nearby
+        # took at wide zooms, refilled after every move (17 November 2026). The bound and the flat view each
+        # differ from the true distance by a few percent, so a part is skipped only with a tenth to spare.
+        boxes = np.array([self._part_box(data, i, where) for data, i, where in parts], dtype=np.float64)
+        bound = self._box_distance_m(boxes, lat, lon)
+        best = None
+        for k in np.argsort(bound, kind="stable").tolist():
+            if best is not None and bound[k] > best[0] * PART_SKIP_MARGIN:
+                break
+            data, i, where = parts[k]
+            found = self._part_distance(data, i, where, flat, lat, lon, origin, border)
+            if found is not None and (best is None or found[0] < best[0]):
+                best = found
         return best
+
+    def _part_box(self, data: TileData, i: int, where) -> tuple[float, float, float, float]:
+        """A part's box (west, south, east, north): the pack tile's for a covered note, else its shape's."""
+        import shapely
+
+        if data.entries[i].kind == tiles.COVERED:
+            x, y, level = where
+            return tiles.tile_box(level, x, y)
+        with self._shapes:
+            shape = data.shape(i)
+        return tuple(shapely.bounds(shape).tolist())
 
     def _part_distance(self, data: TileData, i: int, where, flat: Flat, lat: float, lon: float, origin,
                        border: bool = False):

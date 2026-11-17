@@ -23,8 +23,13 @@ from mapcore.session import MapSession
 
 _session: MapSession | None = None
 _slow_ms = 0.0   # a stand-in for a slow drawing, for the held key test only (?slowdraw= in the address)
+# The drawing being made, in steps, while the worker has nothing else to do (P3-T24a, DP202), and the size
+# of a newer one wanted while an older one is finished first.
+_drawing = None
+_wanted: tuple | None = None
 _ARRAYS = {"coords": "f32", "rings": "i32", "shapes": "i32", "shape_style": "i32", "seam": "u8",
-           "line_coords": "f32", "line_runs": "i32", "line_style": "i32", "marker_coords": "f32", "marker_style": "i32"}
+           "line_coords": "f32", "line_runs": "i32", "line_style": "i32", "marker_coords": "f32", "marker_style": "i32",
+           "outline_shapes": "i32", "outline_style": "i32"}
 
 
 class HandleSource:
@@ -48,17 +53,40 @@ def _js(value):
     return to_js(value, dict_converter=Object.fromEntries)
 
 
-def _scene(width: int, height: int) -> dict:
-    if _slow_ms:
-        import time
-
-        until = time.perf_counter() + _slow_ms / 1000
-        while time.perf_counter() < until:
-            pass
-    scene = _session.scene(width, height)
+def _packed(scene: dict) -> dict:
     for key, kind in _ARRAYS.items():
         scene[key] = {"type": kind, "bytes": scene[key].tobytes()}
     return scene
+
+
+def _slowed(drawing):
+    """The held key test's slow drawing (?slowdraw=): _slow_ms of busy steps of 10 ms, then the drawing."""
+    import time
+
+    until = time.perf_counter() + _slow_ms / 1000
+    while time.perf_counter() < until:
+        step = time.perf_counter() + 0.01
+        while time.perf_counter() < min(step, until):
+            pass
+        yield
+    while drawing.advance(0.0) is None:
+        yield
+    return drawing.frame
+
+
+def _want_drawing(width: int, height: int) -> None:
+    """A new drawing is wanted. A young one being made is dropped for it; one already half a second old is
+    finished first, and the new one made next, so a held key still moves the map (P3-T24a)."""
+    global _drawing, _wanted
+    if _drawing is not None and _drawing.keep_over_newer():
+        _wanted = (width, height)
+        return
+    _wanted = None
+    _drawing = _session.start_drawing(width, height)
+    if _slow_ms:
+        from mapcore.render.drawing import Drawing
+
+        _drawing = Drawing(_slowed(_drawing), width, height)
 
 
 def progress_text(percent: int) -> str:
@@ -79,8 +107,9 @@ def _extras(response, out: dict, width: int, height: int) -> dict:
         out["map_label"] = _session.map_label()
     if response.details_stale:
         out["details"] = _session.details()
-    if response.redraw:
-        out["scene"] = _scene(width, height)
+    if response.redraw:   # sent without the drawing, which the page asks for when the worker is idle (P3-T24a)
+        _want_drawing(width, height)
+        out["drawing"] = True
     out["controls"] = _session.controls()   # the status line and the buttons' names, which follow the orientation (P3-T18)
     if response.settings_changed:
         out["registry"] = _session.registry()
@@ -106,7 +135,8 @@ def start(width: int, height: int, startup_ms: float, packs, saved_json: str, st
     out["start_label"] = _session.start_label()   # the map's name as the focus first arrives (P2-T17d)
     out["details"] = _session.details()
     out["panel"] = _session.panel()
-    out["scene"] = _scene(width, height)
+    _want_drawing(width, height)
+    out["drawing"] = True
     out["controls"] = _session.controls()
     return _js(_extras_start(response, out))
 
@@ -169,7 +199,31 @@ def hold():
 
 
 def scene(width: int, height: int):
-    return _js({"scene": _scene(width, height)})
+    """The map region changed size: a new drawing, made by scene_more."""
+    _want_drawing(width, height)
+    return _js({"drawing": True})
+
+
+def scene_more(width: int, height: int):
+    """Some steps of the drawing being made (P3-T24a, DP202), which the page asks for only when nothing else
+    is waiting, so a key's answer never waits for more than one step. Returns the scene once it is done;
+    more is true while there is more to draw. A drawing that has taken 2 seconds says so, once, as an answer."""
+    from mapcore.render.drawing import STEP_S
+
+    global _drawing
+    if _drawing is None:
+        if _wanted is None:
+            return _js({"more": False})
+        _want_drawing(*_wanted)
+    frame = _drawing.advance(STEP_S)
+    if frame is None:
+        if _drawing.still_due():
+            return _js(_extras(_session.still_drawing(), {"more": True}, width, height))
+        return _js({"more": True})
+    done, _drawing = _drawing, None
+    out = {"scene": _packed(frame), "controls": _session.controls(), "more": _wanted is not None,
+           "step_ms": done.longest_step_s * 1000, "draw_ms": done.age_s() * 1000}   # for the timings (P3-T24a)
+    return _js(out)
 
 
 def settings_schema():

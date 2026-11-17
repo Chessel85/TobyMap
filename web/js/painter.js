@@ -26,7 +26,7 @@ export function paintScene(canvas, scene) {
   ctx.clip();
 
   const { coords, rings, shapes, seam, shape_style: shapeStyle, styles } = scene;
-  const outlines = [];
+  const outlines = [], fills = [];
   for (let s = 0; s < shapes.length - 1; s++) {
     const fill = new Path2D();
     const outline = new Path2D();
@@ -40,16 +40,37 @@ export function paintScene(canvas, scene) {
     const style = styles[shapeStyle[s]];
     ctx.fillStyle = style.fill;
     ctx.fill(fill, "evenodd");
-    ctx.lineWidth = style.width;
-    ctx.strokeStyle = style.stroke;
-    ctx.stroke(outline);
+    if (style.width > 0) {   // only the item selected in the panel has a stroke of its own
+      ctx.lineWidth = style.width;
+      ctx.strokeStyle = style.stroke;
+      ctx.stroke(outline);
+    }
     outlines.push(outline);
+    fills.push(fill);
   }
-  ctx.lineWidth = scene.current_style.width;
-  ctx.strokeStyle = scene.current_style.stroke;
-  for (const s of scene.current) ctx.stroke(outlines[s]);
-  paintLines(ctx, scene);
+  // The drawing order (P3-T23, DP198): the rivers, then every area's outline over what is painted, the
+  // country borders last, then the roads and railways and the places, then the current feature, tinted.
+  const under = scene.lines_under || 0;
+  paintLines(ctx, scene, 0, under);
+  const outlineStyles = scene.outline_styles || [];
+  const outlineShapes = scene.outline_shapes || [], outlineStyle = scene.outline_style || [];
+  for (let k = 0; k < outlineShapes.length; k++) {
+    const st = outlineStyles[outlineStyle[k]];
+    if (!(st.width > 0)) continue;
+    ctx.lineWidth = st.width;
+    ctx.strokeStyle = st.stroke;
+    ctx.stroke(outlines[outlineShapes[k]]);
+  }
+  paintLines(ctx, scene, under, undefined);
   paintMarkers(ctx, scene);
+  const cs = scene.current_style;
+  ctx.globalAlpha = cs.tint_alpha || 0;
+  ctx.fillStyle = cs.tint || cs.stroke;
+  for (const s of scene.current) ctx.fill(fills[s], "evenodd");
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = cs.width;
+  ctx.strokeStyle = cs.stroke;
+  for (const s of scene.current) ctx.stroke(outlines[s]);
   paintNames(ctx, scene);
   ctx.restore();
 
@@ -83,11 +104,13 @@ export function paintScene(canvas, scene) {
   return performance.now() - start;
 }
 
-// Line features, such as the graticule: each run of points is one stroke (P2-T10a).
-function paintLines(ctx, scene) {
+// Line features, such as the graticule: each run of points is one stroke (P2-T10a), from run first
+// to before run last. The rivers come first, drawn under the areas' outlines (P3-T23).
+function paintLines(ctx, scene, first, last) {
   const { line_coords: xy, line_runs: runs, line_style: style, line_styles: styles } = scene;
   if (!runs) return;
-  for (let k = 0; k < runs.length - 1; k++) {
+  const end = last === undefined ? runs.length - 1 : last;
+  for (let k = first; k < end; k++) {
     const a = runs[k], b = runs[k + 1];
     const s = styles[style[k]];
     ctx.beginPath();

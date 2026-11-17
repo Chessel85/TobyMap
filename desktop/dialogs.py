@@ -662,6 +662,11 @@ class LayerSettingsDialog(QDialog):
                            (words["crossing"], self.crossing), (words["layer_sound"], self.sound)):
             form.addRow(label, box)
         layout.addLayout(form)
+        # Whether its areas' outlines are drawn on the map, for an area layer (P3-T23, DP198).
+        self.outline = QCheckBox(words["outline"])
+        self.outline.setChecked(bool(layer.get("outline", True)))
+        self.outline.setVisible(layer.get("geometry", "area") == "area")
+        layout.addWidget(self.outline)
         self.message = QLabel("")
         self.message.setWordWrap(True)
         layout.addWidget(self.message)
@@ -684,7 +689,8 @@ class LayerSettingsDialog(QDialog):
 
     def values(self) -> dict:
         return {"min_zoom_m": self.min_zoom.currentData() or 0.0, "max_zoom_m": self.max_zoom.currentData(),
-                "crossing_earcon": self.crossing.currentData(), "sound": self.sound.currentData()}
+                "crossing_earcon": self.crossing.currentData(), "sound": self.sound.currentData(),
+                "outline": self.outline.isChecked()}
 
     def _ok(self):
         v = self.values()
@@ -764,7 +770,7 @@ class LayersDialog(QDialog):
     def changes(self) -> list[tuple[str, dict]]:
         out = []
         for layer_id, now in self.layers.items():
-            changed = {f: now.get(f) for f in ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound")
+            changed = {f: now.get(f) for f in ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound", "outline")
                        if now.get(f) != self._start[layer_id].get(f)}
             if changed:
                 out.append((layer_id, changed))

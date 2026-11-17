@@ -562,6 +562,11 @@ class MainWindow(QMainWindow):
         if response.background:
             self._background.start()
 
+    def drawing_shown(self) -> None:
+        """A new drawing of the map is on the screen: the status line may now say some small areas are not
+        drawn (P3-T24a)."""
+        self._refresh_controls()
+
     def _refresh_controls(self) -> None:
         """The status line says what C and H say, after every move; a setting hides it and the buttons (P3-T18)."""
         c = self.session.controls()
@@ -805,10 +810,24 @@ class MainWindow(QMainWindow):
         return None
 
     def _open_groups(self) -> set[str]:
-        """The groups open in the tree, which the core fills (P3-T4a)."""
-        return {str(g.data(0, ITEM_ID)).removeprefix("group:")
-                for g in (self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount()))
-                if g.isExpanded()}
+        """The groups open in the tree, which the core fills (P3-T4a), and the items open in them, such as a
+        neighbour in Bordering, which lists the ends of the shared border (P3-T24f)."""
+        out = set()
+
+        def walk(node, top):
+            if not node.isExpanded():
+                return
+            item_id = str(node.data(0, ITEM_ID))
+            if top:
+                out.add(item_id.removeprefix("group:"))
+            elif not item_id.startswith("heading:"):
+                out.add(item_id)
+            for k in range(node.childCount()):
+                walk(node.child(k), False)
+
+        for i in range(self.tree.topLevelItemCount()):
+            walk(self.tree.topLevelItem(i), True)
+        return out
 
     def _fill_tree(self):
         """Bring the tree up to date in place: existing items keep their identity and only
@@ -848,11 +867,16 @@ class MainWindow(QMainWindow):
             if child.text(0) != item["label"]:
                 child.setText(0, item["label"])
             child.setData(0, ITEM_ID, item["id"])
+            # An item that can be opened before it has items, such as a neighbour in Bordering (P3-T24f).
+            child.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator
+                                          if item.get("expandable") and not item.get("children")
+                                          else QTreeWidgetItem.ChildIndicatorPolicy.DontShowIndicatorWhenChildless)
             self._fill_children(child, item.get("children") or [])
 
     def _tree_item_expanded(self, item) -> None:
-        """A group opened: fill it if it was not. Its items appear under the focused heading."""
-        if item.parent() is None and item.childCount() == 0:
+        """A group opened: fill it if it was not. Its items appear under the focused heading. An item opened
+        with nothing under it yet, such as a neighbour in Bordering, is filled the same way (P3-T24f)."""
+        if item.childCount() == 0:
             self._fill_tree()
 
     def _tree_item_changed(self, current, _previous):

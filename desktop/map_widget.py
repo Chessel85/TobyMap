@@ -5,6 +5,11 @@ worked out and painted onto an image there, and the widget only shows the
 latest image. So the window, the screen reader and the clicks of a held arrow
 key never wait for a drawing. A drawing asked for while one is being made is
 made next, and only the latest is kept.
+
+The core makes each drawing in short steps (P3-T24a, DP202, mapcore/render/drawing.py).
+Between steps the thread looks for a newer drawing: a young drawing is dropped for
+it, and one already half a second old is finished first, so a held key still moves
+the map. A drawing that takes more than 2 seconds says "Still drawing the map", once.
 """
 from __future__ import annotations
 
@@ -44,17 +49,25 @@ def _add_outline(path: QPainterPath, points: list, seam) -> None:
             path.lineTo(points[(i + 1) % n])
 
 
-def _paint_lines_and_markers(painter: QPainter, scene: dict) -> None:
-    """Line features as strokes, one for each run of points, and point features as
-    small round markers (P2-T10a). The core has placed every point already."""
+def _paint_lines(painter: QPainter, scene: dict, first: int, last: int | None) -> None:
+    """Line features as strokes, one for each run of points, from run first to before run last (P2-T10a).
+    The rivers come first, drawn under the areas' outlines (P3-T23). The core has placed every point."""
     runs = scene.get("line_runs")
-    if runs is not None and len(runs) > 1:
-        xy = np.asarray(scene["line_coords"], dtype=np.float64).reshape(-1, 2).tolist()
-        pens = [QPen(QColor(s["stroke"]), s["width"]) for s in scene["line_styles"]]
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        for k in range(len(runs) - 1):
-            painter.setPen(pens[scene["line_style"][k]])
-            painter.drawPolyline(QPolygonF([QPointF(x, y) for x, y in xy[runs[k]:runs[k + 1]]]))
+    if runs is None or len(runs) <= 1:
+        return
+    last = len(runs) - 1 if last is None else last
+    if last <= first:
+        return
+    xy = np.asarray(scene["line_coords"], dtype=np.float64).reshape(-1, 2).tolist()
+    pens = [QPen(QColor(s["stroke"]), s["width"]) for s in scene["line_styles"]]
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    for k in range(first, last):
+        painter.setPen(pens[scene["line_style"][k]])
+        painter.drawPolyline(QPolygonF([QPointF(x, y) for x, y in xy[runs[k]:runs[k + 1]]]))
+
+
+def _paint_markers(painter: QPainter, scene: dict) -> None:
+    """Point features as small round markers (P2-T10a)."""
     marks = scene.get("marker_style")
     if marks is not None and len(marks):
         xy = np.asarray(scene["marker_coords"], dtype=np.float64).reshape(-1, 2).tolist()
@@ -107,7 +120,7 @@ def paint_scene(painter: QPainter, scene: dict) -> None:
     seam = np.asarray(scene["seam"])
     rings, shapes = scene["rings"], scene["shapes"]
     styles = [(QBrush(QColor(s["fill"])), QPen(QColor(s["stroke"]), s["width"])) for s in scene["styles"]]
-    outlines = []
+    outlines, fills = [], []
     for si in range(len(shapes) - 1):
         fill = QPainterPath()
         fill.setFillRule(Qt.FillRule.OddEvenFill)
@@ -122,17 +135,36 @@ def paint_scene(painter: QPainter, scene: dict) -> None:
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(brush)
         painter.drawPath(fill)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(pen)
-        painter.drawPath(outline)
+        if pen.widthF() > 0:   # only the item selected in the panel has a stroke of its own
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(pen)
+            painter.drawPath(outline)
         outlines.append(outline)
+        fills.append(fill)
 
+    # The drawing order (P3-T23, DP198): the rivers, then every area's outline over what is painted, the
+    # country borders last, then the roads and railways and the places, then the current feature, tinted.
+    under = int(scene.get("lines_under", 0))
+    _paint_lines(painter, scene, 0, under)
+    pens = [QPen(QColor(s["stroke"]), s["width"]) for s in scene.get("outline_styles", [])]
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    for si, k in zip(scene.get("outline_shapes", []), scene.get("outline_style", [])):
+        if pens[k].widthF() > 0:
+            painter.setPen(pens[k])
+            painter.drawPath(outlines[si])
+    _paint_lines(painter, scene, under, None)
+    _paint_markers(painter, scene)
     cs = scene["current_style"]
+    tint = QColor(cs.get("tint", cs["stroke"]))
+    tint.setAlphaF(float(cs.get("tint_alpha", 0.0)))
+    for si in scene["current"]:
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(tint))
+        painter.drawPath(fills[si])
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.setPen(QPen(QColor(cs["stroke"]), cs["width"]))
     for si in scene["current"]:
         painter.drawPath(outlines[si])
-    _paint_lines_and_markers(painter, scene)
     _paint_names(painter, scene)
     painter.setClipping(False)
 
@@ -159,6 +191,7 @@ class Drawer(QObject):
     in the window's thread, with each finished image."""
 
     drawn = Signal(QImage)
+    slow = Signal()   # a drawing has taken more than 2 seconds (P3-T24a)
 
     def __init__(self, session):
         super().__init__()
@@ -166,6 +199,7 @@ class Drawer(QObject):
         self._wake = threading.Condition()
         self._wanted: tuple | None = None
         self._busy = False
+        self._in_progress = False   # a drawing begun and not finished, between its steps
         self._stopped = False
         self.made = 0
         # The window's timer and the drawing share Python: let them take turns
@@ -181,7 +215,7 @@ class Drawer(QObject):
 
     def idle(self) -> bool:
         with self._wake:
-            return self._wanted is None and not self._busy
+            return self._wanted is None and not self._busy and not self._in_progress
 
     def stop(self) -> None:
         with self._wake:
@@ -190,29 +224,40 @@ class Drawer(QObject):
         self._thread.join(timeout=5)
 
     def _run(self) -> None:
+        from mapcore.render.drawing import STEP_S
+
+        drawing, ratio = None, 1.0
         while True:
             with self._wake:
-                while self._wanted is None and not self._stopped:
+                while self._wanted is None and drawing is None and not self._stopped:
                     self._wake.wait()
                 if self._stopped:
                     return
-                width, height, ratio = self._wanted
-                self._wanted = None
+                if self._wanted is not None and (drawing is None or not drawing.keep_over_newer()):
+                    width, height, ratio = self._wanted   # a young drawing no longer needed is dropped
+                    self._wanted = None
+                    drawing = self._session.start_drawing(width, height)
                 self._busy = True
+            image = None
             try:
-                image = self._draw(width, height, ratio)
+                frame = drawing.advance(STEP_S)
+                if frame is None and drawing.still_due():
+                    self.slow.emit()
+                if frame is not None:
+                    image = self._paint(frame, drawing.width, drawing.height, ratio)
+                    drawing = None
             except Exception:   # a fault in one drawing never stops the map being drawn again
                 traceback.print_exc()
-                image = None
+                drawing = None
             with self._wake:
                 self._busy = False
+                self._in_progress = drawing is not None
                 stopped = self._stopped
             if image is not None and not stopped:
                 self.made += 1
                 self.drawn.emit(image)
 
-    def _draw(self, width: int, height: int, ratio: float) -> QImage:
-        scene = self._session.scene(width, height)
+    def _paint(self, scene: dict, width: int, height: int, ratio: float) -> QImage:
         start = time.perf_counter()
         image = QImage(round(width * ratio), round(height * ratio), QImage.Format.Format_ARGB32_Premultiplied)
         image.setDevicePixelRatio(ratio)
@@ -263,6 +308,7 @@ class MapWidget(QWidget):
         self._image: QImage | None = None
         self._drawer = Drawer(session)
         self._drawer.drawn.connect(self._show)
+        self._drawer.slow.connect(self._still_drawing)
         self.caret = CaretTracker(self)   # where a magnifier looks: the map centre (ACC-8)
 
     def redraw(self) -> None:
@@ -290,6 +336,10 @@ class MapWidget(QWidget):
         self._image = image
         self.last_paint_ms = self._session.paint_ms
         self.update()
+        self._window.drawing_shown()   # the status line says if the drawing's limit left some out (P3-T24a)
+
+    def _still_drawing(self) -> None:
+        self._window.handle(self._session.still_drawing())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

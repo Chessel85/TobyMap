@@ -58,6 +58,8 @@ stages:
     # What is left of OpenStreetMap's whole French state after the country units (DP86), New Caledonia, French
     # Polynesia, and Wallis and Futuna, is shared out by its regions too, with France as sovereign (DP192).
     whole: {osm:r2202162: osm:r1403916}
+    # Every entry of the territories list, mapdata/config/territories.yaml, must be found in the world's data (P3-T24c).
+    territories_must_match: true
   # The continents, from the countries, split along the lines in mapdata/config/continents.yaml (P3-T1e, DP174).
   - stage: continents
   # Lakes, reservoirs and lagoons of 10 km2 or more, from OpenStreetMap, checked against HydroLAKES (P3-T1h, DP169).
@@ -158,6 +160,17 @@ stages:
       - {countries: [osm:r1656678, osm:r192789], id: "disputed:abyei", name: Abyei, wikidata: Q336494}
       - {countries: [osm:r167454, osm:r286393], id: "disputed:southern-patagonian-ice-field", name: Southern Patagonian Ice Field, wikidata: Q1031467}
       - {countries: [osm:r148838, osm:r307829], id: "disputed:navassa-island", name: Navassa Island, wikidata: Q25359}
+  # Enclaves and exclaves, found from the countries' shapes, after the towns, which name them (P3-T24g, DP207).
+  - stage: enclaves
+    # Exclaves whose largest place is a village, so not in the Cities and towns layer, named by hand (P3-T24g).
+    names:
+      - {point: [1.980, 42.465], name: Llívia}
+      - {point: [10.444, 47.574], name: Jungholz}
+      - {point: [8.690, 47.697], name: Büsingen am Hochrhein}
+      - {point: [8.971, 45.969], name: Campione d'Italia}
+      - {point: [-123.07, 48.985], name: Point Roberts}
+      - {box: [4.86, 51.41, 4.98, 51.47], name: Baarle-Hertog, of: Belgium}
+      - {box: [4.86, 51.41, 4.98, 51.47], name: Baarle-Nassau, of: Netherlands}
   # Facts from Wikidata for every feature with a Wikidata link, kept in the data folder so they are fetched once
   # (P3-T2a, DAT-7). Features with no link in these layers are matched by name and place.
   - stage: wikidata

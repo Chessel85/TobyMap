@@ -147,6 +147,7 @@ self.onmessage = async (event) => {
     else if (type === "release") out = finish(bridge.release(width, height));
     else if (type === "crossed") out = finish(bridge.crossed(width, height));
     else if (type === "scene") out = finish(bridge.scene(width, height));
+    else if (type === "scene_more") out = finish(bridge.scene_more(width, height));   // the drawing's next steps (P3-T24a)
     else if (type === "hold") out = { result: bridge.hold(), transfer: [] };
     else if (type === "panel") out = { result: bridge.panel_open(JSON.stringify(open || [])), transfer: [] };
     else if (type === "schema") out = { result: bridge.settings_schema(), transfer: [] };

@@ -12,6 +12,10 @@ P2-T5 Crossed and passed. A layer that is off is gone from all of them (SCP-6).
 
 A pack built before P2-T3 has only each layer's id and name. Its layers get
 the defaults below: an area layer, on, at every zoom, with no sounds.
+
+Between the pack's definition and the user's changes is the map view in use (P3-T23, DP198,
+mapcore/views.py): it may change how a layer is filled, whether its outline and names are drawn,
+and whether it is shown and at which zooms. A change of the user's is a change from the view.
 """
 from __future__ import annotations
 
@@ -20,7 +24,7 @@ from dataclasses import dataclass, replace
 
 GEOMETRIES = ("area", "line", "point")
 LINE_STYLES = ("plain", "special")   # how a line layer is drawn (P2-T17v, DAT-13)
-FILLS = ("land", "water", "none")    # how an area layer is painted (P3-T1e)
+FILLS = ("land", "water", "none", "colours", "plain", "kind")   # how an area is painted (P3-T1e, P3-T23); land is colours
 DEFAULT_MIN_SIZE = 0.02   # an area must be at least 2% of the zoom distance across (DP80)
 
 # What a layer definition may hold, with the value used when a pack leaves it out.
@@ -36,9 +40,13 @@ DEFAULTS = {
     "sound": None,             # the sound of its features in "hear its direction" and look around
     "line_style": "plain",     # plain, or special: drawn thicker and in the theme's colour for special lines
     "fill": None,              # land, water or none: how the map paints an area (P3-T1e); None: as before
+    "outline": True,           # whether an area's outline is drawn (P3-T23)
+    "names": None,             # whether an area's name is drawn on the map; None: when it is filled (P3-T23)
 }
-# What the user can change in the layers list (SCP-7).
-USER_FIELDS = ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound")
+# What the user can change in the layers list (SCP-7), and the outline (P3-T23).
+USER_FIELDS = ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound", "outline")
+# What a map view may set (P3-T23).
+VIEW_FIELDS = ("on", "min_zoom_m", "max_zoom_m", "fill", "outline", "names")
 
 
 @dataclass(frozen=True)
@@ -56,7 +64,9 @@ class Layer:
     sound: str | None = None
     line_style: str = "plain"
     fill: str | None = None
-    changed: tuple = ()        # the fields the user has changed from the pack's definition
+    outline: bool = True
+    names: bool | None = None
+    changed: tuple = ()        # the fields the user has changed from the view's (or the pack's) layer
 
     def in_zoom(self, zoom_m: float) -> bool:
         """Whether a zoom distance is within the layer's zoom range (NAV-13)."""
@@ -74,7 +84,8 @@ class Layer:
     def to_dict(self) -> dict:
         return {"id": self.id, "name": self.name, "group": self.group, "geometry": self.geometry, "on": self.on,
                 "min_zoom_m": self.min_zoom_m, "max_zoom_m": self.max_zoom_m, "min_size": self.min_size,
-                "crossing_earcon": self.crossing_earcon, "sound": self.sound, "changed": list(self.changed)}
+                "crossing_earcon": self.crossing_earcon, "sound": self.sound, "outline": self.outline,
+                "changed": list(self.changed)}
 
 
 def _number(value, field: str) -> float:
@@ -90,9 +101,9 @@ def checked(field: str, value):
     """A user's change in the type the field wants, or ValueError."""
     if field not in USER_FIELDS:
         raise ValueError(f"{field!r} is not something a user can change in a layer")
-    if field == "on":
+    if field in ("on", "outline"):
         if not isinstance(value, bool):
-            raise ValueError("on must be yes or no")
+            raise ValueError(f"{field} must be yes or no")
         return value
     if field == "min_zoom_m":
         return _number(value, field)
@@ -122,6 +133,8 @@ def from_definition(d: dict) -> Layer:
         values["max_zoom_m"] = float(values["max_zoom_m"])
     values["min_size"] = float(values["min_size"])
     values["on"] = bool(values.pop("switched_on"))
+    values["outline"] = bool(values["outline"])
+    values["names"] = None if values["names"] is None else bool(values["names"])
     by_type = values["crossing_earcons"]
     values["crossing_earcons"] = tuple(sorted((str(k), str(v)) for k, v in by_type.items())) \
         if isinstance(by_type, dict) else ()
@@ -137,15 +150,34 @@ class LayerCatalogue:
     come back when a pack with that layer is installed.
     """
 
-    def __init__(self, packs, changes):
+    def __init__(self, packs, changes, view=None):
         self._changes = changes
+        self._view = view or (lambda: {})   # {layer id: values} of the map view in use (P3-T23)
         self._defined: dict[str, Layer] = {}
         for pack in packs:
             for d in getattr(pack, "layers", None) or []:
                 if d.get("id") and d["id"] not in self._defined:   # the first pack's definition wins
                     self._defined[d["id"]] = from_definition(d)
 
+    def _viewed(self, layer: Layer) -> Layer:
+        """The pack's layer as the map view in use has it (P3-T23)."""
+        theirs = self._view().get(layer.id) or {}
+        values = {}
+        for field, value in theirs.items():
+            if field == "fill":
+                if value in FILLS:
+                    values["fill"] = value
+            elif field == "names":
+                values["names"] = bool(value)
+            elif field in VIEW_FIELDS:
+                try:
+                    values[field] = checked(field, value)
+                except (ValueError, TypeError):
+                    continue   # a mistake in the views file is left out, never stops the map
+        return replace(layer, **values) if values else layer
+
     def _with_changes(self, layer: Layer) -> Layer:
+        layer = self._viewed(layer)
         mine = self._changes().get(layer.id) or {}
         values = {}
         for field, value in mine.items():
@@ -192,6 +224,7 @@ class LayerCatalogue:
         base = self._defined.get(layer_id)
         if base is None:
             raise ValueError(f"there is no layer {layer_id!r}")
+        base = self._viewed(base)   # a change back to the view's value is forgotten
         values = {field: checked(field, value) for field, value in values.items()}
         current = self.get(layer_id)
         low = values.get("min_zoom_m", current.min_zoom_m)

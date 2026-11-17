@@ -2,6 +2,19 @@
 
 Written on 15 November 2026, from your first pass of the desktop checklist (docs/checklists/phase-3desktop-results.txt).
 
+## Next steps, written 17 November 2026
+
+P3-T23 and P3-T24 are done and committed. Your answers of 17 November: the choices listed in the progress section are fine, and these come next, in this order.
+
+1. Rerun the enclaves rehearsal: the enclaves stage alone on the world's data on disk, the disputes stage's output, with the names setting from world.yaml, nothing written. Check that Ceuta is found once, that Llívia, Jungholz, Büsingen, Campione d'Italia, Point Roberts and Baarle are named, and that French Guiana, Saint Martin and Northern Ireland are not exclaves. It takes about 5 minutes and one process.
+2. Write P3-T20c: store in the pack what is directly inside each area (DP194), so the world tree knows at once which items have nothing under them, and the first branches open quickly.
+3. Write P3-T25, the build and the core: Down's lines say what is held directly and what is inside in all, and "partly in" for a feature only partly inside; and the list of Europe's 17 islands for you.
+4. Write P3-T26, the build and the core: disputed areas grouped by dispute, unclaimed land under 1 square kilometre left out and the rest named by a place near it, and a condominium said with its owners.
+5. Run tools/time_drawing_wait.py on the desktop with the world pack, with memory protected: nothing else heavy running, the free memory checked first and watched, and the tool now using one session. Then the same in the browsers, one browser at a time.
+6. Tell you, then run the Western Europe trial build, P3-T21a, with a stall watch. It rebuilds most stages.
+
+## The plan
+
 The plan has six parts:
 
 1. Fixes I make without asking, task P3-T19.
@@ -136,6 +149,64 @@ From your decisions on DP199 to DP202 and DP207, 17 November 2026. The definitio
 * P3-T24e Shores and Coast in Bordering, and Overlapping with headings by kind (DP200). The lengths are stored in the builds.
 * P3-T24f The share of the border, the whole border in Details, the ends of a shared border, and the crossing points (DP201).
 * P3-T24g Enclaves and exclaves, found in the builds, said by "where am I" and listed in Details (DP207).
+
+### Progress on 17 November 2026, P3-T23 and P3-T24
+
+All done in the code, with tests in both versions. What needs the builds is noted.
+
+P3-T24a, the drawing never holds up speech:
+
+* In the web version a key's answer is sent at once, and the page then asks for the drawing, a step at a time, only when the worker has nothing else to do. On the desktop the drawing thread works in the same steps, and drops a drawing no longer needed. A drawing half a second old is finished first, so a held key still moves the map.
+* The steps and the "Still drawing the map" words are in the core (mapcore/render/drawing.py), so both versions behave the same.
+* The drawing limit is 15,000 features. With every layer at every zoom on the world pack, one drawing took up to 17 seconds; now 3 to 5. Most of that time was decoding every road and town from the exact pack tiles.
+* A finding: Python's memory clean-up looked at every feature record the store holds, about 4 million objects, and paused everything for about a second, keys included, in both versions. The store now sets what it keeps aside from that clean-up (mapcore/memory.py), and the pauses are gone.
+* tools/time_drawing_wait.py measures rule 5, the 100 milliseconds, on the world pack in both versions. Measured by hand on the desktop, most steps take under 60 milliseconds. The tool's first run was stopped as the laptop ran short of memory: it opened a new session for each place, and each kept its records. It now uses one session, as TobyMap does; it has not been run again.
+
+P3-T23, map views:
+
+* The views file, mapcore/views.yaml, with the drawing order and the political and physical views. The view manager is Map views in the Map menu, Ctrl+Shift+V: choose a view, save the layers as a view, rename or delete one of your own. It is a list with Cancel, and the name is typed in a box with OK and Cancel.
+* The outlines are drawn over everything painted, the country borders thicker; rivers go under them, roads over. Each layer's settings have "Draw the outlines of its areas". "Draw the borders of regions" is gone: the regions are painted in colours over their countries.
+* In the physical view the countries are painted one plain land colour, not left empty, as the globe behind them is the sea's colour; their borders are outlines.
+* The continents are said but not outlined, as their lines across the land, such as the Urals, are not a map's. This is one line in the views file if you would rather see them.
+* An island and an area with the same name and nearly the same land are said once: the build marks them as the same land when each is at least 90 percent inside the other (same_name_share), so the island of Ireland is not the country.
+* A difference to look at: the definition says Tenerife as "Santa Cruz de Tenerife, Tenerife, Canary Islands, Spain, Africa", but the political view's order puts islands after countries, so it will say "Santa Cruz de Tenerife, Canary Islands, Spain, Tenerife, Africa".
+
+P3-T24b, the current layer: Shift+Enter in the Information panel, as defined.
+
+P3-T24c and P3-T24d, the territories list: mapdata/config/territories.yaml, 59 entries, checked against Natural Earth and Wikidata on 17 November 2026, with 11 grey cases marked for you, each with a note. The distant-parts stage checks it when it starts, makes Puerto Rico and the United States Virgin Islands areas of their own, and gives each area its status. The core says the sovereign state after an integral part, and Details gives the status and any claim, such as "Claimed by Argentina."
+
+P3-T24e and P3-T24f, borders: Shores and Coast in Bordering, Overlapping by kind, each neighbour's share of the whole border, the whole border in Details, and each neighbour opening to the ends of the shared border, worked out when it is opened. Lines crossing a border say how many times, and open to each crossing. Working the crossings out when the group is filled took 14 seconds for Spain on the world pack, so the build stores them, as the definition allowed. The coast, shores, whole outlines and crossings come with the builds.
+
+P3-T24g, enclaves and exclaves: a new stage, enclaves, after the towns. Rehearsed on the world's data on disk: about 190 found in 4 to 5 minutes, among them Llivia, Alaska, Cabinda, Nakhchivan, Musandam, Point Roberts, Ceuta and Melilla, the Vennbahn and Baarle enclaves, and Lesotho as a whole country. Also many small river islands of Argentina and North Korea inside their neighbours' waters, which are real but many. A part the sea cuts off, such as Northern Ireland, is not an exclave. Villages are not in the Cities and towns layer, so a few are named by hand in the build settings, such as Llivia and Jungholz.
+
+### What hierarchy mode's Down lists count, task P3-T25
+
+From your answer to DP204, 17 November 2026: accept the recommendation.
+
+* P3-T25a Each line of the Down list says what it counts: what the area holds directly, and everything inside it, such as "Islands: 17 directly in Europe, 109,292 in all". Choosing the line lists the ones held directly; the rest are reached through the areas that hold them, such as the countries. The total comes from the stored relationships, as Browse by category's counts do, so it needs no new build.
+* P3-T25b A feature only partly inside says so, in the Down list, in Contains and in Browse by category: "Kazakhstan, partly in Europe".
+* P3-T25c A list for you of the 17 islands held directly by Europe, from the world pack, with why no country holds each, to check they make sense. Any that are faults go into the builds, task P3-T21.
+
+### Disputed, unclaimed and odd areas, task P3-T26
+
+From your answer to DP205, 17 November 2026: accept the recommendation.
+
+* P3-T26a Disputed areas in the world tree, and in Browse by category, lists one item for each dispute, by Natural Earth's name, such as Kashmir, with its claimants. The areas in that dispute are under it. The build stores which dispute each disputed area belongs to.
+* P3-T26b Unclaimed areas leaves out anything under 1 square kilometre, and names the rest by the nearest named place or island and its coordinates: "Unclaimed land near X, 12.3 N, 45.6 E". The build report counts what was left out.
+* P3-T26c A condominium stays in the Countries layer, and is said with its owners wherever its name is said: "Moselle condominium, shared by Germany and Luxembourg".
+* The build parts of a and b go into the builds, task P3-T21. Part c needs no new build.
+
+### Bookmarks and measuring, written before Phase 4, task P3-T27
+
+From your answer to DP203, 17 November 2026: accept the recommendation.
+
+* Markers and bookmarks become one thing in Phase 4, "bookmarks", kept in groups you name. A bookmark can be a feature or a position. Any two can be measured, distance and bearing, and a chain of them gives its total length.
+* Shift+M stays as it is: it measures to a search result without going there, which nothing else does.
+* P3-T27 is writing the requirements, INF-3 and USR-1 to USR-4, for you to approve before Phase 4 starts. Phase 4 builds them, as P4-T8 and P4-T9.
+
+### What Nearby and look around list, DP206, parked
+
+You parked DP206 on 17 November 2026, to come back to later, so it has no task yet. Its fourth part, the direction in look around, is already done as P3-T19f. The double "Isle of Wight" is also covered by P3-T23, which says an island and an area with the same name and land once.
 
 ## 4. The builds, task P3-T21
 

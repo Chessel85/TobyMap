@@ -19,9 +19,12 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from urllib.parse import quote
 
+import numpy as np
 import yaml
 
 import mapcore
+from mapcore import memory
+from mapcore import views as views_mod
 from mapcore import names as names_mod
 from mapcore import settings as settings_mod
 from mapcore.commands import registry
@@ -44,6 +47,8 @@ PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158
 SEARCH_LIMIT = 20    # search results listed (P3-T8b)
 SEARCH_DELAY_MS = 300   # the pause in typing before the search dialog searches (P3-T8c)
 QUERY_RELATIONS = ("inside", "crossing", "bordering", "near")   # the query builder's relations (P3-T10a, INF-9)
+END_PROBE_M = 300.0   # how far round the end of a shared border is looked at, for what is there (P3-T24f)
+DRAW_LIMIT = 15000   # features a drawing holds at most; the smallest are left out (P3-T24a, DP202)
 SCAN_LIMIT = 12    # items look around plays (P3-T11a, SON-4)
 SCAN_GAP_S = 0.3   # the pause after one item's label before the next item's sound
 REGIONS = ("map", "panel", "details", "menu")
@@ -51,6 +56,16 @@ REGIONS = ("map", "panel", "details", "menu")
 # the times the core gives, so the clicks never wait for the map to be drawn.
 HOLD_SILENCE_S = 1.5     # no key repeat from the system for this long: the key was let go unseen
 HOLD_LOOKAHEAD_S = 2.0   # how far ahead the core says whether held steps will move (the web's clicks)
+
+
+@dataclass(frozen=True)
+class _Said:
+    """Something said among the areas that is not an area itself, such as a territory's sovereign state after it
+    (P3-T24d): its id, its name and the layer it is said with."""
+    id: str
+    name: str
+    layer: str
+    record: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -163,7 +178,9 @@ class MapSession:
         self.settings = settings_mod.Settings.from_dict(settings)
         self.store.set_names(self.settings["names"])   # English or local names (P3-T12a)
         # The layers, with the user's changes from the settings in use (SCP-6, SCP-7).
-        self.layers = LayerCatalogue(self.store.packs, lambda: self.settings.layers)
+        # The layers as the map view in use has them, with the user's changes on top (P3-T23, DP198).
+        self.layers = LayerCatalogue(self.store.packs, lambda: self.settings.layers,
+                                     lambda: views_mod.layer_values(self.view()))
         # Which features are visible: layer, zoom range, size and view (NAV-13, P2-T4a).
         self.visible = VisibleRule(self.store, self.layers)
         # Why nothing is said here although there are areas: "layers_off" or "out_of_zoom" (LOC-6, DP160).
@@ -241,6 +258,10 @@ class MapSession:
         # area can be in both, at its nearest point in one and where it was crossed in the other.
         self._spots: dict[tuple[str, str], tuple] = {}
         self._scene = None
+        # The current layer (P3-T24b, DP202): the current feature is the area of this layer where you are.
+        self.current_layer: str | None = None
+        self._layer_here: tuple | None = None   # ((lat, lon, layer), the area or None), worked out once a place
+        self.drawing_trimmed = False   # the last drawing left out its smallest features (P3-T24a)
         self._beacon_near: bool | None = None   # the beacon is on and silent near the North Pole (P2-T9)
         self.isolated: str | None = None        # the one feature shown, with Isolate (VIS-2)
         # Look around (P3-T11a): the items of the scan playing, (area, lat, lon, label), and the one the
@@ -275,6 +296,7 @@ class MapSession:
             "look.go": self._look_go,
             "measure.to": self._measure,
             "panel.go": self._panel_go,
+            "panel.current_layer": self._current_layer_set,
             "panel.sort": lambda **a: self._sort(1, **a),
             "panel.sort_back": lambda **a: self._sort(-1, **a),
             "panel.bookmark": self._bookmark,
@@ -319,6 +341,11 @@ class MapSession:
             "settings.reset": self._reset_ask,
             "settings.reset_confirm": self._reset_all,
             "layers.open": self._layers_open,
+            "views.open": self._views_open,
+            "views.choose": self._views_choose,
+            "views.save": self._views_save,
+            "views.rename": self._views_rename,
+            "views.delete": self._views_delete,
             "layers.check": self._layers_check,
             "layers.set": self._layers_set,
             "keys.remap": self._remap,
@@ -499,6 +526,52 @@ class MapSession:
         return False
 
     def scene(self, width: int, height: int) -> dict:
+        """The map's frame, made at once (see start_drawing)."""
+        return self.start_drawing(width, height).finish()
+
+    def start_drawing(self, width: int, height: int):
+        """A drawing of the map as it is now, made in steps by the shell (P3-T24a, DP202): the desktop's
+        drawing thread, or the web worker between keys. See mapcore/render/drawing.py."""
+        from mapcore.render.drawing import Drawing
+
+        return Drawing(self._drawing_steps(width, height), width, height)
+
+    def still_drawing(self) -> Response:
+        """A drawing has taken more than 2 seconds: said once, politely, so a slow map never seems a crash
+        (P3-T24a, DP202)."""
+        return Response().speak(say("map.still_drawing"), POLITE)
+
+    def _limit(self, world, width: int, height: int, layers) -> tuple[dict | None, bool]:
+        """The drawing's limit (P3-T24a, DP202): when more than DRAW_LIMIT features of the layers shown reach
+        into the view, the largest are drawn and the rest left out, by their boxes in the feature table,
+        before any pack tile is read. ({pack: feature numbers to draw} or None for all, whether any were
+        left out.) An area's size is its width; a line's is its box's; a place has none, so places go first."""
+        from mapcore.render import globe, scene as scene_mod
+
+        view = scene_mod.view_for(world, width, height)
+        r = globe._radius(view, width, height)
+        rho = math.asin(min(1.0, math.hypot(width / 2, height / 2) / r))
+        limit, trimmed = {}, False
+        for p in self.store._covering(world.lat, world.lon)[:1]:
+            rows = self.visible._candidates(p, world.zoom_m, world.lat, math.degrees(rho) * 1.15, world.lon, rho * 1.15)
+            numbers, boxes, widths, layer_of = self.visible._table(p)
+            if layers is not None:
+                ids, code = self.visible._layer_codes(p)
+                shown = np.fromiter((i in layers for i in ids), bool, len(ids))
+                rows = rows[shown[code[rows]]]
+            if len(rows) <= DRAW_LIMIT:
+                continue
+            b = boxes[rows]
+            span = np.abs(b[:, 2] - b[:, 0])
+            span = np.where(span > 180.0, 360.0 - span, span) * np.cos(np.radians((b[:, 1] + b[:, 3]) / 2))
+            size_km = np.maximum(span, b[:, 3] - b[:, 1]) * 111.0
+            size_km = np.where(np.isfinite(widths[rows]), widths[rows], size_km)
+            largest = np.argsort(-size_km, kind="stable")[:DRAW_LIMIT]
+            limit[p] = set(numbers[rows[largest]].tolist())
+            trimmed = True
+        return (limit or None), trimmed
+
+    def _drawing_steps(self, width: int, height: int):
         from mapcore.render import scene as scene_mod
 
         self.map_size = (width, height)
@@ -511,28 +584,205 @@ class MapSession:
         # A copy of the place: on the desktop the map is drawn in a thread of its
         # own while the held key steps on (P2-T14).
         v = self.settings
-        frame = self._scene.build(copy.copy(self.world), width, height, current=current, highlight=self.selected,
+        world = copy.copy(self.world)
+        layers = self.visible.shown_layers(world.zoom_m)
+        yield
+        limit, trimmed = (None, False) if self.isolated else self._limit(world, width, height, layers)
+        frame = yield from self._scene.steps(world, width, height, current=current, highlight=self.selected,
                                   centre_cross=v["centre_cross"],
-                                  layers=self.visible.shown_layers(self.world.zoom_m),
-                                  min_widths=self.visible.min_widths(self.world.zoom_m),
+                                  layers=layers, limit=limit,
+                                  min_widths=self.visible.min_widths(world.zoom_m),
                                   interval=self._interval(), theme=self.theme(), isolate=self.isolated,
                                   # Names are left out while a key is held, and drawn on the release.
                                   names=v["map_names"] and self.holding is None,
                                   label_scale=v["label_size"] / 100.0, heading_up=v["heading_up"],
                                   special_layers=frozenset(layer.id for layer in self.layers.layers()
                                                            if layer.line_style == "special"),
-                                  fills=self._fills())
+                                  fills=self._fills(), paint=self._paint(layers))
+        frame["trimmed"] = trimmed
+        self.drawing_trimmed = trimmed   # the status line says so (P3-T24a)
+        memory.settle()   # what the drawing read is kept out of full garbage collections (P3-T24a)
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
 
     def _fills(self) -> dict:
-        """How each layer is painted. With "Draw the borders of regions" off, as it is at first, the
-        regions are not painted, so the countries and counties are clearer; they are still said, and the
-        current area is still outlined (P3-T17, DP165)."""
-        fills = {layer.id: layer.fill for layer in self.layers.layers()}
-        if not self.settings["map_region_borders"] and "regions" in fills:
-            fills["regions"] = "none"
-        return fills
+        """How each layer is painted, as the layers have it."""
+        return {layer.id: layer.fill for layer in self.layers.layers()}
+
+    # Map views (P3-T23, DP198; VIS-1, LOC-2) -----------------------------------------------------------------
+
+    def view(self) -> dict:
+        """The map view in use: a built-in one, or one the user saved (mapcore/views.py)."""
+        return views_mod.find(self.settings.view or views_mod.default_id(), self.settings.views)
+
+    def view_name(self) -> str:
+        """The view's name, or Custom once a layer has been changed from it."""
+        return say("views.custom") if self.settings.layers else self.view()["name"]
+
+    def _paint(self, shown) -> dict:
+        """The map view's plan for each layer, for the scene (P3-T23): its fill, whether its outline and names
+        are drawn, its place in the drawing order, whether its outline is the thicker one of the country
+        borders, and, for a line layer, whether it is drawn under the outlines, as rivers are."""
+        order = views_mod.drawing_order()
+        outlines_at = order.index(views_mod.OUTLINES) if views_mod.OUTLINES in order else len(order)
+        political = views_mod.political_layers()
+        out = {}
+        for n, layer in enumerate(self.layers.layers()):
+            fill = layer.fill or ("water" if layer.id in ("oceans", "seas") else "colours")
+            fill = "colours" if fill == "land" else fill
+            if layer.id in order:
+                place = float(order.index(layer.id))
+            elif layer.geometry == "area":
+                place = outlines_at - 0.5 + n / 1000.0   # after the listed areas, before the outlines
+            else:
+                place = len(order) + n / 1000.0
+            out[layer.id] = {"fill": fill, "outline": bool(layer.outline), "names": layer.names, "order": place,
+                             "thick": bool(political) and layer.id == political[0],
+                             "under": layer.geometry == "line" and place < outlines_at}
+        return out
+
+    def _views_open(self, **_a) -> Response:
+        """The view manager (P3-T23, DP198): the views to choose from, the one in use said as in use, or
+        Custom once a layer has been changed from it; then saving the layers as a view, and renaming and
+        deleting your own. A list with Cancel (ACC-7). The two built-in views cannot be renamed or deleted."""
+        custom = bool(self.settings.layers)
+        in_use = self.view()["id"]
+        lines, choices = [], []
+        if custom:
+            lines.append(say("views.custom_line", name=self.view()["name"]))
+            choices.append(("custom", ""))
+        every = [(v["id"], v["name"]) for v in views_mod.built_in()] + [(n, n) for n in sorted(self.settings.views)]
+        for identifier, name in every:
+            lines.append(say("views.item_in_use" if identifier == in_use and not custom else "views.item", name=name))
+            choices.append(("view", identifier))
+        lines.append(say("views.save"))
+        choices.append(("save", ""))
+        if self.settings.views:
+            lines += [say("views.rename"), say("views.delete")]
+            choices += [("rename", ""), ("delete", "")]
+        return self._choose(say("views.title"), say("views.help"), lines, choices, go="views.choose")
+
+    def _views_choose(self, index: int = -1, **_a) -> Response:
+        if not 0 <= index < len(self._choices):
+            return Response().earcon("blocked")
+        kind, value = self._choices[index]
+        if kind == "custom":
+            return Response().speak(say("views.custom_said"), ASSERTIVE)
+        if kind == "view":
+            self.settings.view = value
+            self.settings.layers.clear()   # a view chosen is used as it is
+            return self._view_changed(say("views.chosen", name=self.view()["name"]))
+        if kind == "save":
+            return Response(dialog={"kind": "input", "title": say("views.save_title"), "label": say("views.name_label"),
+                                    "help": say("views.name_help"), "submit": "views.save", "ok": say("ui.ok"),
+                                    "cancel": say("ui.cancel")})
+        if kind in ("rename", "delete"):
+            names = sorted(self.settings.views)
+            return self._choose(say(f"views.{kind}_choose"), say("views.help"), names,
+                                [(kind + "_one", n) for n in names], go="views.choose")
+        self._view_target = value
+        if kind == "rename_one":
+            return Response(dialog={"kind": "input", "title": say("views.rename_title", name=value),
+                                    "label": say("views.name_label"), "help": say("views.name_help"),
+                                    "submit": "views.rename", "ok": say("ui.ok"), "cancel": say("ui.cancel")})
+        return Response(dialog={"kind": "confirm", "title": say("views.delete_title"),
+                                "text": say("views.delete_question", name=value), "ok": say("views.delete_ok"),
+                                "cancel": say("ui.cancel"), "submit": "views.delete"})
+
+    def _view_name_problem(self, name: str, allowed: str | None = None) -> str | None:
+        """Why a typed name cannot be a view's, or None: it is empty, or another view's or Custom's."""
+        if not name:
+            return say("views.name_empty")
+        taken = [v["name"] for v in views_mod.built_in()] + [v["id"] for v in views_mod.built_in()] \
+            + [say("views.custom")] + [n for n in self.settings.views if n != allowed]
+        if name.casefold() in {t.casefold() for t in taken}:
+            return say("views.name_taken", name=name)
+        return None
+
+    def _views_save(self, text: str = "", **_a) -> Response:
+        """The layers as they are now, the view's with your changes, saved as a view of your own and used."""
+        name = " ".join(str(text).split())
+        problem = self._view_name_problem(name)
+        if problem:
+            return Response(error=problem)
+        fields = ("on", "min_zoom_m", "max_zoom_m", "outline", "fill", "names")
+        self.settings.views[name] = {"base": self.view()["base"],
+                                     "layers": {layer.id: {f: getattr(layer, f) for f in fields
+                                                           if getattr(layer, f) is not None}
+                                                for layer in self.layers.layers()}}
+        self.settings.view = name
+        self.settings.layers.clear()
+        return self._view_changed(say("views.saved", name=name))
+
+    def _views_rename(self, text: str = "", **_a) -> Response:
+        old = getattr(self, "_view_target", None)
+        if old not in self.settings.views:
+            return Response().earcon("blocked")
+        name = " ".join(str(text).split())
+        problem = self._view_name_problem(name, allowed=old)
+        if problem:
+            return Response(error=problem)
+        self.settings.views = {(name if k == old else k): v for k, v in self.settings.views.items()}
+        if self.settings.view == old:
+            self.settings.view = name
+        return Response(settings_changed=True).speak(say("views.renamed", old=old, name=name), ASSERTIVE)
+
+    def _views_delete(self, **_a) -> Response:
+        name = getattr(self, "_view_target", None)
+        if name not in self.settings.views:
+            return Response().earcon("blocked")
+        del self.settings.views[name]
+        if self.settings.view == name:
+            self.settings.view = None
+            return self._view_changed(say("views.deleted_in_use", name=name, view=self.view()["name"]))
+        return Response(settings_changed=True).speak(say("views.deleted", name=name), ASSERTIVE)
+
+    def _view_changed(self, text: str) -> Response:
+        """A new view in use: the map is drawn again and the place is said in the view's order."""
+        self.areas = self._here()
+        self._panel_cache = None
+        return Response(redraw=True, panel_stale=True, details_stale=True, settings_changed=True).speak(text, ASSERTIVE)
+
+    def _said(self, areas: list) -> list:
+        """The areas as they are said: an area with the same name as one said before it, that the build found to
+        be the same land by their shapes, is left out, so it is said once. The Isle of Wight is an island and a
+        county; the island of Ireland is not the country, as it holds Northern Ireland too (P3-T23, DP198).
+        After an integral part of a country, such as the Canary Islands, its sovereign state is said, unless it is
+        said already: "Canary Islands, Spain" (P3-T24d, DP199)."""
+        out = []
+        for a in areas:
+            if any(b.name == a.name and b.id in self.store.relationships(a.id).get("same", ()) for b in out):
+                continue
+            rec = getattr(a, "record", None) or {}
+            if a.layer == "exclaves":   # said as what it is, after the country: "exclave in France" (P3-T24g)
+                if rec.get("exclave"):
+                    out.append(_Said(a.id, self._exclave_words(rec["exclave"]), a.layer, rec))
+                continue
+            out.append(a)
+            if rec.get("say_sovereign") and rec.get("sovereign"):
+                if not any(str(b.name) == rec["sovereign"] for b in areas):
+                    out.append(_Said("sovereign:" + str(rec.get("sovereign_id") or rec["sovereign"]),
+                                     rec["sovereign"], a.layer))
+            if rec.get("exclave") and a.layer != "exclaves":   # an exclave that is an area of its own, as Ceuta
+                out.append(_Said("exclave:" + a.id, self._exclave_words(rec["exclave"]), a.layer))
+        return out
+
+    def _exclave_words(self, info: dict) -> str:
+        """What an exclave is, from its record: "exclave in France", "exclave on the coast of Morocco", or
+        "exclave beside Lithuania and Poland" (P3-T24g, DP207)."""
+        names = [a.name for a in (self.store.feature(i) for i in info.get("beside", ())) if a is not None]
+        where = say("place.and").join([", ".join(str(n) for n in names[:-1]), str(names[-1])]) if len(names) > 1 \
+            else (str(names[0]) if names else "")
+        key = "place.exclave_coast" if info.get("coast") else "place.exclave_in" if info.get("enclave") \
+            else "place.exclave_beside"
+        return say(key, where=where)
+
+    def _said_order(self, areas: list) -> list:
+        """The areas in the order the map view says them (P3-T23, DP198): by the view's list of layers, a lake
+        or sea you are on first, then within a layer the smallest first."""
+        view = self.view()
+        position = {a.id: n for n, a in enumerate(areas)}
+        return sorted(areas, key=lambda a: (views_mod.said_rank(view, a.layer, a.rank), position[a.id]))
 
     def focus_rect(self, width: int, height: int) -> dict:
         """Where a magnifier should look on a map of this size: a small square round the
@@ -576,7 +826,7 @@ class MapSession:
         # changes, as its bearing order is clockwise from ahead.
         context = (base["key"], current.id if current else None, describer.facing(self.world),
                    frozenset(layer.id for layer in self.layers.layers() if layer.on), tuple(self.search_found),
-                   self.search_title)
+                   self.search_title, self.panel_open)
         for gid in registry.panel_groups():
             g = panel_table.GROUPS[gid]
             if g.lazy and gid not in wanted:
@@ -607,8 +857,11 @@ class MapSession:
             return g
         items = [dict(i, children=self._sorted(g["id"], i["children"], how)) if i.get("children") is not None else i
                  for i in g["items"]]
-        if not any(i.get("children") is not None for i in items):
-            items = self._sorted(g["id"], items, how)
+        # Items not under a heading are sorted among themselves, before the headings, as Bordering's neighbours
+        # come before its Shores and Coast (P3-T24e).
+        plain = [i for i in items if not panel_table.is_heading(i["id"])]
+        if plain:
+            items = self._sorted(g["id"], plain, how) + [i for i in items if panel_table.is_heading(i["id"])]
         return dict(g, items=items)
 
     def _sort(self, step: int, **_a) -> Response:
@@ -638,7 +891,57 @@ class MapSession:
                 if area is not None:
                     return area
             self._current = None
-        return self.areas[0] if self.areas else None
+        if self.current_layer is not None:
+            area = self._area_of_layer_here()
+            if area is not None:
+                return area
+        return self._smallest_here()
+
+    def _area_of_layer_here(self):
+        """The area of the current layer where you are, whatever the zoom: a current layer is your own choice,
+        so it is followed at any zoom (P3-T24b, DP202). The smallest, if there are several."""
+        w = self.world
+        key = (w.lat, w.lon, self.current_layer)
+        if self._layer_here is None or self._layer_here[0] != key:
+            found = [a for a in self.store.at(w.lat, w.lon) if a.layer == self.current_layer]
+            self._layer_here = (key, found[0] if found else None)
+        return self._layer_here[1]
+
+    def _current_layer_set(self, item: str | None = None, group: str | None = None, **_a) -> Response:
+        """Shift+Enter on an item of the Information panel (P3-T24b, DP202): its layer becomes the current
+        layer, and it the current feature, so the groups, the outline and Details follow that layer as you
+        step. On the smallest area here, the usual rule comes back. What "where am I" says does not change."""
+        self.panel()
+        if not item and self.panel_on_item:
+            item, group = self.panel_item, self.panel_group
+        groups = [group] if group else registry.panel_groups()
+        spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
+        area = spot[0] if spot else (self.store.feature(item) if item and not panel_table.is_heading(item) else None)
+        if area is None:
+            return Response().earcon("blocked").speak(say("current_layer.no_item"), ASSERTIVE)
+        smallest = self._smallest_here()
+        r = Response(panel_stale=True, details_stale=True, redraw=True)
+        self._layer_here = None
+        if smallest is not None and area.id == smallest.id and self.current_layer in (None, area.layer):
+            self.current_layer = None
+            self._current = None
+            return r.speak(say("current_layer.back", name=smallest.name), ASSERTIVE)
+        self.current_layer = area.layer
+        layer = self.layers.get(area.layer)
+        here = self._area_of_layer_here()
+        if here is None:
+            self._current = None
+            return r.speak(say("current_layer.none_here", layer=layer.name if layer else area.layer,
+                               name=smallest.name if smallest else say("place.none")), ASSERTIVE)
+        self._current = None if here.id == area.id else (area.id, self.world.lat, self.world.lon)
+        return r.speak(say("current_layer.chosen", layer=layer.name if layer else area.layer, name=area.name),
+                       ASSERTIVE)
+
+    def _smallest_here(self):
+        """The smallest area here, the most specific (LOC-2), whatever order the view says them in (P3-T23)."""
+        from mapcore.store.store import most_specific_first
+
+        return most_specific_first(self.areas, self.store.tiers)[0] if self.areas else None
 
     def set_current_feature(self, identifier: str) -> None:
         """Make a feature the current one at the place you are now (LOC-4), as hierarchy mode does when
@@ -701,10 +1004,22 @@ class MapSession:
         else:
             distance, bearing = at
         self._spots[(gid, area.id)] = (area, lat, lon)
+        return self._item_at(gid, area, area.id, label_key, lat, lon, heading, distance, bearing, **fields)
+
+    def _item_at(self, gid: str, area, item_id: str, label_key: str, lat: float, lon: float, heading,
+                 distance: float, bearing: float, **fields) -> dict:
         label = say(label_key, name=area.name, distance=words.distance_text(distance, self._units()),
                     direction=words.direction_text(bearing, self.settings["bearing"], heading), **fields)
         ahead = describer.facing(self.world) or 0.0
-        return panel_table.item(area.id, label, area.name, distance, bearing - ahead)
+        return panel_table.item(item_id, label, area.name, distance, bearing - ahead)
+
+    def _point_item(self, gid: str, area, item_id: str, label_key: str, lat: float, lon: float, heading,
+                    **fields) -> dict:
+        """An item about one point, such as the end of a shared border or a crossing (P3-T24f): Space hears it
+        from there, and Enter goes there, not to the feature's own point."""
+        distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, lat, lon)
+        self._spots[(gid, item_id)] = (area, lat, lon, True)
+        return self._item_at(gid, area, item_id, label_key, lat, lon, heading, distance, bearing, **fields)
 
     # The groups' fillers (P3-T4). Each takes the current feature and the heading directions are said
     # from, and gives (items, the words for an empty group). ---------------------------------------
@@ -715,6 +1030,7 @@ class MapSession:
         limited by the zoom (DP80), but only from layers that are on. Sorted by bearing at first."""
         rel = self.store.relationships(current.id)
         units = self._units()
+        whole = rel.get("outline_km")
         items = []
         for key, entries in (("bordering.item", rel.get("next", [])), ("bordering.near", rel.get("near", []))):
             for identifier, km in entries:
@@ -722,9 +1038,96 @@ class MapSession:
                 if area is None or not self._layer_on(area):
                     continue
                 text = words.distance_text(km * 1000.0, units)
-                field = "length" if key == "bordering.item" else "across"
-                items.append(self._feature_item("bordering", area, key, heading, **{field: text}))
-        return self._sorted("bordering", items), say("bordering.none", name=current.name)
+                if key == "bordering.item" and whole:   # its share of the whole border (P3-T24f, DP201)
+                    item = self._feature_item("bordering", area, "bordering.item_share", heading, length=text,
+                                              share=self._percent(km / whole))
+                else:
+                    field = "length" if key == "bordering.item" else "across"
+                    item = self._feature_item("bordering", area, key, heading, **{field: text})
+                if key == "bordering.item":   # it opens to the ends of the shared border (P3-T24f, DP201)
+                    item["expandable"] = True
+                    if area.id in self.panel_open:
+                        item["children"] = [dict(c, level=2) for c in self._border_ends(current, area, heading)]
+                items.append(item)
+        items = self._sorted("bordering", items)
+        return items + self._shores_and_coast(rel, heading), say("bordering.none", name=current.name)
+
+    def _border_ends(self, current, other, heading) -> list[dict]:
+        """The ends of the border two areas share, each an item with its direction and distance, saying what is
+        there: the coast and its sea, or the area of their layer where three borders meet (P3-T24f, DP201). A
+        stretch with no ends, as round an enclave, is one item, with its length round and its nearest point."""
+        import shapely
+
+        units = self._units()
+        out = []
+        for k, line in enumerate(self.store.shared_border(current, other)):
+            coords = shapely.get_coordinates(line)
+            if shapely.is_closed(line) or len(coords) < 2:
+                from mapcore.store.projection import Flat
+
+                flat = Flat(self.world.lat, self.world.lon)   # its nearest point to where you are
+                x, y = shapely.get_coordinates(shapely.shortest_line(flat.transform(line), shapely.Point(0.0, 0.0)))[0]
+                lat, lon = (float(v) for v in flat.inverse(x, y))
+                length = sum(geodesy.inverse(a[1], a[0], b[1], b[0])[0] for a, b in zip(coords[:-1], coords[1:]))
+                out.append(self._point_item("bordering", other, f"end:{other.id}:{k}:ring", "bordering.ring", lat, lon,
+                                            heading, length=words.distance_text(length, units)))
+                continue
+            for e, (lon, lat) in enumerate((coords[0], coords[-1])):
+                lat, lon = float(lat), float(lon)
+                key, extra = self._what_is_at_end(current, other, lat, lon)
+                out.append(self._point_item("bordering", other, f"end:{other.id}:{k}:{e}", key, lat, lon, heading,
+                                            **extra))
+        return out or [panel_table.item(f"heading:no-ends:{other.id}", say("bordering.no_ends"), "", 0.0, 0.0)]
+
+    def _what_is_at_end(self, a, b, lat: float, lon: float) -> tuple[str, dict]:
+        """What is at an end of the border of a and b: the sea, or a third area of their layer, found just round
+        the end; else nothing named."""
+        seas, others = {}, {}
+        for bearing in range(0, 360, 45):
+            probe = geodesy.WGS84.Direct(lat, lon, bearing, END_PROBE_M)
+            plat, plon = probe["lat2"], geodesy.wrap_lon(probe["lon2"])
+            for area in self.store.at(plat, plon):
+                if area.id in (a.id, b.id):
+                    continue
+                if area.layer in ("oceans", "seas"):
+                    seas[area.id] = seas.get(area.id, 0) + 1 + (area.layer == "seas")
+                elif area.layer == a.layer:
+                    others[area.id] = others.get(area.id, 0) + 1
+        if others:
+            third = self.store.feature(max(others, key=others.get))
+            return "bordering.end_meets", {"other": third.name}
+        if seas:
+            sea = self.store.feature(max(seas, key=seas.get))
+            return "bordering.end_coast", {"sea": sea.name}
+        return "bordering.end", {}
+
+    def _shores_and_coast(self, rel: dict, heading) -> list[dict]:
+        """Bordering's two headings for land and water (P3-T24e, DP200): for a lake or sea, "Shores", the land
+        round it, a heading for each layer, with its length of shore; for land, "Coast", the oceans and seas it
+        touches, with its length of coast. Longest first."""
+        units = self._units()
+        out = []
+        by_layer: dict[str, list] = {}
+        for identifier, km in rel.get("shores", []):
+            area = self.store.feature(identifier)
+            if area is not None and self._layer_on(area):
+                by_layer.setdefault(area.layer, []).append(
+                    self._feature_item("bordering", area, "bordering.shore", heading,
+                                       length=words.distance_text(km * 1000.0, units)))
+        for layer in self.layers.layers():
+            children = by_layer.get(layer.id)
+            if children:
+                out.append(panel_table.heading("shores:" + layer.id, say("bordering.shores_heading", layer=layer.name,
+                                                                         count=len(children)), children))
+        coast = []
+        for identifier, km in rel.get("coast", []):
+            area = self.store.feature(identifier)
+            if area is not None and self._layer_on(area):
+                coast.append(self._feature_item("bordering", area, "bordering.coast", heading,
+                                                length=words.distance_text(km * 1000.0, units)))
+        if coast:
+            out.append(panel_table.heading("coast", say("bordering.coast_heading", count=len(coast)), coast))
+        return out
 
     def _contained(self, current) -> dict[str, list]:
         """The visible features the current feature holds, fully or partly (partly counts, with no label), by
@@ -774,12 +1177,24 @@ class MapSession:
         rel = self.store.relationships(current.id)
         items = []
         if self._geometry(current) == "area":
+            # The land round a lake or sea is in Bordering's Shores (P3-T24e, DP200), so not here; the rest is
+            # under a heading for each kind, as Contains has.
+            shores = {i for i, _km in rel.get("shores", [])}
+            by_layer: dict[str, list] = {}
             for identifier, mine, theirs in rel.get("overlaps", []):
                 area = self.store.feature(identifier)
-                if area is not None and self._layer_on(area):
-                    items.append(self._feature_item("overlapping", area, "overlapping.item", heading,
-                                                    mine=self._percent(mine), theirs=self._percent(theirs),
-                                                    current=current.name))
+                if area is None or not self._layer_on(area) or identifier in shores:
+                    continue
+                by_layer.setdefault(area.layer, []).append(
+                    self._feature_item("overlapping", area, "overlapping.item", heading, mine=self._percent(mine),
+                                       theirs=self._percent(theirs), current=current.name))
+            for layer in self.layers.layers():
+                children = by_layer.get(layer.id)
+                if children:
+                    children = self._sorted("overlapping", children)
+                    items.append(panel_table.heading("overlapping:" + layer.id, say(
+                        "contains.heading", layer=layer.name, count=len(children)), children, name=layer.name))
+            return items, say("overlapping.none", name=current.name)
         else:
             for identifier, share in rel.get("partly", []):
                 area = self.store.feature(identifier)
@@ -799,14 +1214,41 @@ class MapSession:
                 if area is not None and self._layer_on(area):
                     items.append(self._feature_item("crossing", area, "crossing.item", heading))
             return items, say("crossing.none", name=current.name)
+        crossed_at = {i: pts for i, pts in rel.get("crossed_at", [])}   # stored by the build (P3-T24f)
         for key, label in (("crossed_by", "crossing.crosses"), ("along", "crossing.along")):
             part = []
             for identifier in rel.get(key, []):
                 line = self.store.feature(identifier)
-                if line is not None and self._layer_on(line):
+                if line is None or not self._layer_on(line):
+                    continue
+                # A line along the border, such as the Rhine for Switzerland, weaves across it: it is said as along.
+                along = identifier in rel.get("along", ())
+                points = [tuple(p) for p in crossed_at.get(identifier, [])] if key == "crossed_by" and not along else []
+                if points:   # where it crosses the border: how many times, the nearest, and each when opened
+                    part.append(self._crossing_item(current, line, points, heading))
+                else:
                     part.append(self._feature_item("crossing", line, label, heading))
             items += self._sorted("crossing", part, "name")
         return items, say("crossing.none", name=current.name)
+
+    def _crossing_item(self, current, line, points: list, heading) -> dict:
+        """A line crossing the current feature's border (P3-T24f, DP201): "A8, crosses twice, nearest 6
+        kilometres south-west", opening to each crossing point, nearest first."""
+        w = self.world
+        dist, bear = geodesy.inverse_many(w.lat, w.lon, [p[0] for p in points], [p[1] for p in points])
+        order = sorted(range(len(points)), key=lambda k: float(dist[k]))
+        n = len(points)
+        times = say("crossing.times_1") if n == 1 else say("crossing.times_2") if n == 2 else \
+            say("crossing.times_n", count=n)
+        lat, lon = points[order[0]]
+        item = self._point_item("crossing", line, line.id, "crossing.crosses_border", lat, lon, heading, times=times)
+        item["name"] = str(line.name)
+        if line.id in self.panel_open:
+            item["children"] = [self._point_item("crossing", line, f"crossing:{line.id}:{k}", "crossing.point",
+                                                 points[j][0], points[j][1], heading, number=k + 1) | {"level": 2}
+                                for k, j in enumerate(order)]
+        item["expandable"] = True
+        return item
 
     @staticmethod
     def _percent(share: float) -> int:
@@ -1314,12 +1756,40 @@ class MapSession:
                 d = rec["dispute"]
                 key = "details.dispute_view" if d["name"] == area.name else "details.dispute_view_named"
                 lines.append(say(key, source=d["source"], name=d["name"], view=d["view"]))
+        names_of = lambda ids: say("place.list_separator").join(   # noqa: E731
+            str(a.name) for a in (self.store.feature(i) for i in ids) if a is not None)
+        if rec.get("exclave"):   # P3-T24g, DP207
+            lines.append(say("details.exclave_of", sovereign=rec["exclave"].get("sovereign", ""),
+                             where=names_of(rec["exclave"].get("beside", ()))))
+        if rec.get("exclaves"):
+            lines.append(say("details.exclaves", value=names_of(rec["exclaves"])))
+        if rec.get("enclaves"):
+            lines.append(say("details.enclaves", value=say("place.list_separator").join(
+                f"{a.name}, {a.record.get('exclave', {}).get('sovereign') or a.name}" if a.record.get("exclave")
+                else str(a.name) for a in (self.store.feature(i) for i in rec["enclaves"]) if a is not None)))
+        if rec.get("enclave_in"):
+            lines.append(say("details.enclave_in", value=names_of(rec["enclave_in"])))
+        if rec.get("status") and rec.get("sovereign"):   # from the territories list (P3-T24d, DP199)
+            lines.append(say(f"details.status.{rec['status']}", sovereign=words.name_after_of(rec["sovereign"])))
+            if rec.get("claimed_by"):
+                lines.append(say("details.claimed_by", claimant=rec["claimed_by"]))
         if rec.get("also_held_as"):   # held twice in one layer (DP104), said as disputed only in disputed land
             other = rec["also_held_as"]
             lines.append(say("details.also_held_as", name=other.get("name_en") or other.get("name")))
         layer = self.layers.get(area.layer)
         if layer is None or layer.geometry == "area":   # a line or a point has no area (P2-T5)
             lines.append(say("details.area", value=words.area_text(area.area_km2, self.settings["units"])))
+            rel = self.store.relationships(area.id)
+            if rel.get("outline_km"):   # the whole border, land and coast (P3-T24f, DP201)
+                units = self.settings["units"]
+                land = sum(km for _i, km in rel.get("next", []))
+                coast = sum(km for _i, km in rel.get("coast", []))
+                whole = rel["outline_km"]
+                key = ("details.border" if land and coast else "details.border_land" if land >= 0.99 * whole
+                       else "details.border_coast" if coast >= 0.99 * whole else "details.border_whole")
+                lines.append(say(key, whole=words.distance_text(rel["outline_km"] * 1000.0, units),
+                                 land=words.distance_text(land * 1000.0, units),
+                                 coast=words.distance_text(coast * 1000.0, units)))
         lines += self._fact_lines(rec)
         s = self.world
         if self.selected and (not self.areas or self.areas[0].id != self.selected):
@@ -1356,6 +1826,10 @@ class MapSession:
         own county, is a region of Germany, not of Berlin."""
         words_for = templates()["details"]
         rec = area.record
+        if rec.get("status") and rec["status"] != "integral part" and rec.get("sovereign"):
+            # A territory, such as Jersey or Puerto Rico, by its status (P3-T24d, DP199): "Crown Dependency of the
+            # British Crown", "overseas territory of the United States".
+            return say("details.tier_of", tier=rec["status"], owner=words.name_after_of(rec["sovereign"]))
         if rec.get("type") in words_for["own_types"]:   # such as Crimea, "disputed land" (P3-T2c)
             return rec["type"]
         tier = rec.get("tier")
@@ -1621,14 +2095,14 @@ class MapSession:
         some are on but outside their zoom range, None when there are no areas here."""
         everything = self.store.at(lat, lon)
         shown = self.visible.shown_layers(self.world.zoom_m)
-        areas = [a for a in everything if a.layer in shown]
+        areas = self._said_order([a for a in everything if a.layer in shown])
         if areas or not everything:
             return areas, None
         active = self.layers.active()
         return areas, "out_of_zoom" if any(a.layer in active for a in everything) else "layers_off"
 
     def _place_text(self) -> str:
-        return describer.place_text(self.areas, self.why_none_here)
+        return describer.place_text(self._said(self.areas), self.why_none_here)
 
     def _units(self) -> str:
         return self.settings["units"]
@@ -1781,7 +2255,7 @@ class MapSession:
     def _arrived(self, r: Response) -> Response:
         """Describe the new place against the last described one (ANN-1)."""
         new = self._here()
-        text = describer.announcement(self.areas, new, self.why_none_here, self.settings["say_area"],
+        text = describer.announcement(self._said(self.areas), self._said(new), self.why_none_here, self.settings["say_area"],
                                       self.settings["say_place_always"])
         self.areas = new
         r.panel_stale = r.details_stale = True
@@ -2026,7 +2500,7 @@ class MapSession:
             self._areas_at[key] = self.store.at(place["lat"], place["lon"])
         shown = self.visible.shown_layers(place["zoom_m"])
         areas = [a for a in self._areas_at[key] if a.layer in shown]
-        return describer.place_text(areas, None) if areas else None
+        return describer.place_text(self._said(areas), None) if areas else None
 
     def _history_place(self, offset: int) -> dict:
         """The place offset places back (-) or forward (+) from where you are now."""
@@ -2128,8 +2602,13 @@ class MapSession:
         """The status line under the map (P3-T18a): what C and H say, in one line."""
         coordinates = words.coordinates_text(self.world.lat, self.world.lon, self.settings["coordinates"],
                                              self._coordinate_step())
-        return say("status.line", coordinates=coordinates,
-                   heading=describer.heading_report(self.world, self._units()))
+        line = say("status.line", coordinates=coordinates, heading=describer.heading_report(self.world, self._units()))
+        if self.current_layer is not None and self._area_of_layer_here() is None:   # P3-T24b, DP202
+            layer = self.layers.get(self.current_layer)
+            line = say("status.layer_none", line=line, layer=layer.name if layer else self.current_layer)
+        if self.drawing_trimmed:   # the drawing's limit left some out (P3-T24a, DP202)
+            line = say("status.trimmed", line=line)
+        return line
 
     def controls(self) -> dict:
         """The status line and the buttons for the shells (P3-T18): whether they show, the line,
@@ -2192,7 +2671,7 @@ class MapSession:
         spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
         if spot is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
-        area, lat, lon = spot
+        area, lat, lon = spot[:3]
         sound, voice = self._heard_from(area, lat, lon)
         r = Response(sounds=[sound], voice=voice)
         return self._label_out(r, voice["text"])
@@ -2291,10 +2770,18 @@ class MapSession:
         found = next(((g, self._spots[(g, item)]) for g in groups if (g, item) in self._spots), None)
         if found is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
-        group, (area, lat, lon) = found
-        r = self._go_to_item(area, lat, lon)
+        group, (area, lat, lon, *point) = found
+        r = self._jump_to_point(area, lat, lon) if point else self._go_to_item(area, lat, lon)
         r.focus = {"region": "panel", "group": group, "item": None}
         return r
+
+    def _jump_to_point(self, area, lat: float, lon: float) -> Response:
+        """Enter on an item about one point, such as an end of a shared border (P3-T24f): go to that point, as a
+        jump, and say the place there. The current feature stays as it was there."""
+        r = self._jump(lat, lon)
+        self.areas = self._here()
+        r.panel_stale = r.details_stale = True
+        return r.speak(self._place_text(), ASSERTIVE)
 
     def _go_to_item(self, area, lat: float, lon: float) -> Response:
         """Go to an item's feature as a jump: a point or line to the item's place, an area to its own point. It
@@ -2322,6 +2809,13 @@ class MapSession:
             item, group = self.panel_item, self.panel_group
         groups = [group] if group else registry.panel_groups()
         spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
+        if spot is not None and len(spot) > 3:   # one point, such as an end of a shared border (P3-T24f)
+            w = self.world
+            distance, bearing, _ = geodesy.inverse(w.lat, w.lon, spot[1], spot[2])
+            text = say("measure.point", distance=words.distance_text(distance, self._units()),
+                       direction=words.direction_text(bearing, self.settings["bearing"],
+                                                      describer.words_facing(w, self.settings)))
+            return Response().speak(text, ASSERTIVE)
         area = spot[0] if spot else (self.store.feature(item) if item and not panel_table.is_heading(item) else None)
         if area is None:
             area = self.current_feature
@@ -2558,7 +3052,7 @@ class MapSession:
         for offset in range(len(self.forward_places), -len(self.back_places) - 1, -1):
             if offset == 0:
                 areas, why = self._said_at(self.world.lat, self.world.lon)
-                text = say("history.here", place=describer.place_text(areas, why))
+                text = say("history.here", place=describer.place_text(self._said(areas), why))
             else:
                 text = self._history_words(self._history_place(offset))
             if text is not None:
@@ -2633,8 +3127,9 @@ class MapSession:
             return self._isolate_off()
         if not self.areas:
             return Response().speak(say("display.isolate_none"), ASSERTIVE)
-        self.isolated = self.areas[0].id
-        return Response(redraw=True).speak(say("display.isolated", name=self.areas[0].name), ASSERTIVE)
+        smallest = self._smallest_here()
+        self.isolated = smallest.id
+        return Response(redraw=True).speak(say("display.isolated", name=smallest.name), ASSERTIVE)
 
     def _isolate_off(self, **_a) -> Response:
         if self.isolated is None:
@@ -2716,7 +3211,8 @@ class MapSession:
             "zooms": zooms, "every_zoom": every,
             "earcons": [{"event": e["event"], "label": e["label"]} for e in earcon_list()],
             "words": {k: say(f"layers.{k}") for k in ("settings_button", "settings_title", "min_zoom", "max_zoom",
-                                                      "crossing", "layer_sound", "no_sound", "choose_layer", "list")}
+                                                      "crossing", "layer_sound", "no_sound", "choose_layer", "list",
+                                                      "outline")}
             | {"ok": say("ui.ok"), "cancel": say("ui.cancel")},
             "set": "layers.set", "check": "layers.check"})
 

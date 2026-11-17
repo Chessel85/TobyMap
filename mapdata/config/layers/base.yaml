@@ -49,4 +49,7 @@ layers:
   - {id: towns, name: Cities and towns, rank: 8, kind: land, group: Places, geometry: point, switched_on: true, max_zoom_m: 250000, sound: layer_town}
   # Lakes of 10 km2 or more (P3-T1h, DP169), above the counties, so on Lake Geneva you hear the lake first.
   # Of kind land, as nothing is taken out of a lake: it lies on the land. It is painted as water.
+  # Enclaves and exclaves too small to be an area of their own, such as Llivia, a part of Spain inside France
+  # (P3-T24g, DP207). Not drawn, and said only as "exclave in France" after the country.
+  - {id: exclaves, name: Enclaves and exclaves, rank: 2, kind: land, made_by: enclaves, group: Boundaries, geometry: area, switched_on: true, fill: none, sound: layer_region}
   - {id: lakes, name: Lakes, rank: 7, kind: land, made_by: osm-layer, group: Water, geometry: area, switched_on: true, fill: water, sound: layer_water}

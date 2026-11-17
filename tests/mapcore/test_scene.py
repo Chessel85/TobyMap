@@ -141,7 +141,9 @@ def test_every_drawn_layer_is_one_where_am_i_can_find(test_pack):
     s = make(test_pack, lat=51.2, lon=1.2, zoom_m=500_000, step_m=25_000)
     f = s.scene(800, 600)
     layers = {s.store.feature(a).layer for a in set(f["shape_area"])}
-    findable = {a.layer for a in s.store.at(51.2, 1.2)} | {"countries", "regions", "counties", "oceans", "seas"}
+    # Since P3-T23 the National parks, not filled, are outlined, so drawn too.
+    findable = {a.layer for a in s.store.at(51.2, 1.2)} | {"countries", "regions", "counties", "oceans", "seas",
+                                                            "national_parks"}
     assert layers <= findable
 
 

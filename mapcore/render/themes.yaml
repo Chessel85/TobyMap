@@ -37,6 +37,14 @@ standard:
   marker_radius: 4
   name_text: "#1b1f24"
   name_halo: "#ffffff"
+  country_border_width: 2.5   # the country borders, thicker than the others (P3-T23, DP198)
+  current_tint_alpha: 0.25     # the current feature is filled with its outline colour, this opaque (P3-T23)
+  plain_land: "#ece4cc"        # the land in the physical view, under the physical features
+  physical:                    # the physical view's colour for each kind of area
+    islands: "#c9dfa8"
+    mountain-ranges: "#cfae86"
+    physical-regions: "#e6d59c"
+    default: "#d9d2bd"
 
 # Dark land, white borders, yellow for the current area; every outline and text 7 to 1.
 high_contrast_dark:
@@ -70,6 +78,14 @@ high_contrast_dark:
   marker_radius: 5
   name_text: "#ffffff"
   name_halo: "#000000"
+  country_border_width: 3
+  current_tint_alpha: 0.3
+  plain_land: "#333333"
+  physical:
+    islands: "#1f4d1f"
+    mountain-ranges: "#5c3d1f"
+    physical-regions: "#3d3d14"
+    default: "#3a3a3a"
 
 # Pale land, black borders, dark blue for the current area; every outline and text 7 to 1.
 high_contrast_light:
@@ -103,6 +119,14 @@ high_contrast_light:
   marker_radius: 5
   name_text: "#000000"
   name_halo: "#ffffff"
+  country_border_width: 3
+  current_tint_alpha: 0.3
+  plain_land: "#f2f2f2"
+  physical:
+    islands: "#d6f5d6"
+    mountain-ranges: "#f5d6b3"
+    physical-regions: "#fff0b3"
+    default: "#e6e6e6"
 
 # Seven colours after the Okabe and Ito palette, lightened for filling, that still differ
 # for each of the three common kinds of colour blindness (tested by simulation), with
@@ -138,6 +162,14 @@ colour_blind_safe:
   marker_radius: 4
   name_text: "#000000"
   name_halo: "#ffffff"
+  country_border_width: 3
+  current_tint_alpha: 0.25
+  plain_land: "#efe7d4"
+  physical:
+    islands: "#66c2a5"
+    mountain-ranges: "#d9a066"
+    physical-regions: "#f7ef99"
+    default: "#e0e0e0"
 
 # The colours the map display setting can choose for the fill, the borders and the
 # current outline (DP108). Their names are in the settings' choices.

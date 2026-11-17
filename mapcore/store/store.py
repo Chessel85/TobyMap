@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from mapcore import memory
 from mapcore import names as names_mod
 from mapcore import search
 from mapcore.geo import geodesy
@@ -464,7 +465,9 @@ class Store:
         def load() -> TileData:
             try:
                 read = index.pack.tile if kind == "tile" else index.pack.drawing_tile
-                return TileData(read(level, x, y))
+                data = TileData(read(level, x, y))
+                memory.settle()   # its entries stay while it is cached, out of full garbage collections (P3-T24a)
+                return data
             except DamagedRecord as exc:
                 self._note(exc)
                 return TileData([])
@@ -1028,6 +1031,63 @@ class Store:
                                 with self._shapes:
                                     out.append(data.shape(i))
         return out
+
+    def _pieces_with_tiles(self, area: Area, boxes) -> list[tuple]:
+        """Like _parts, each with the box of its pack tile: [(shape, tile box)]."""
+        import shapely
+
+        index = self._indexes[area.pack]
+        out, seen = [], set()
+        for box in boxes:
+            for w, s, e, n in _meet_boxes(box, area.record["bbox"]):
+                for level in index.pack.tile_levels:
+                    x0, y0 = tiles.tile_of(w, s, level)
+                    x1, y1 = tiles.tile_of(e, n, level)
+                    for x, y in index.tiles_in("tile", level, x0, x1, y0, y1):
+                        if (level, x, y) in seen:
+                            continue
+                        seen.add((level, x, y))
+                        data = self._tile(area.pack, "tile", level, x, y)
+                        tbox = tiles.tile_box(level, x, y)
+                        for i in data.by_feature.get(area.number, ()):
+                            if data.entries[i].kind == tiles.COVERED:
+                                out.append((shapely.box(*tbox), tbox))
+                            else:
+                                with self._shapes:
+                                    out.append((data.shape(i), tbox))
+        return out
+
+    def shared_border(self, a: Area, b: Area) -> list:
+        """The border two areas share, as lines in longitude and latitude, each stretch whole (P3-T24f, DP201):
+        a stretch with two ends, or a closed ring with none, as round an enclave. Only the pack tiles where both
+        have shapes are read, and the cuts along pack tile edges are left out."""
+        import shapely
+
+        boxes_a = _grown_boxes(b.record["bbox"], 1000.0)
+        boxes_b = _grown_boxes(a.record["bbox"], 1000.0)
+        mine = self._pieces_with_tiles(a, boxes_a)
+        theirs = self._pieces_with_tiles(b, boxes_b)
+        if not mine or not theirs:
+            return []
+        # Only the pieces whose tiles meet a tile of the other: the border is there.
+        tiles_b = shapely.STRtree([shapely.box(*t) for _g, t in theirs])
+        tiles_a = shapely.STRtree([shapely.box(*t) for _g, t in mine])
+        mine = [m for m in mine if len(tiles_b.query(shapely.box(*m[1]), predicate="intersects"))]
+        theirs = [t for t in theirs if len(tiles_a.query(shapely.box(*t[1]), predicate="intersects"))]
+        if not mine or not theirs:
+            return []
+        ua = shapely.union_all([g for g, _t in mine])
+        ub = shapely.union_all([g for g, _t in theirs])
+        shared = shapely.intersection(shapely.boundary(ua), shapely.boundary(ub))
+        # The edges of the pack tiles read are cuts, not borders.
+        frame = shapely.union_all([shapely.boundary(shapely.union_all([shapely.box(*t) for _g, t in mine])),
+                                   shapely.boundary(shapely.union_all([shapely.box(*t) for _g, t in theirs]))])
+        shared = shapely.difference(shared, shapely.buffer(frame, 1e-9))
+        lines = [g for g in shapely.get_parts(shared) if shapely.get_type_id(g) in (1, 2, 5)]
+        if not lines:
+            return []
+        merged = shapely.line_merge(shapely.union_all(lines))
+        return [g for g in shapely.get_parts(merged) if shapely.length(g) > 0]
 
     def _shapes_apart(self, p: int, holder: Area, area: Area, metres: float) -> float | None:
         """The least distance between two features' shapes, from the pack tiles where each comes within reach of

@@ -44,6 +44,8 @@ stages:
     source: sample-ne-disputed
     held_twice:
       - {countries: [osm:r60189, osm:r60199], id: "disputed:crimea", name: Crimea, wikidata: Q7835}
+  # Enclaves and exclaves, found from the countries' shapes, after the towns, which name them (P3-T24g, DP207).
+  - stage: enclaves
   # Facts from Wikidata, read offline from the repository: tests never use the network (P3-T2a).
   - stage: wikidata
     source: sample-wikidata

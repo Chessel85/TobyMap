@@ -94,41 +94,42 @@ def test_where_two_tiers_share_a_rank_the_lower_tier_comes_first():
         "an old area", "a constituent country", "a region"]
 
 
-# Draw the borders of regions (VIS-1, DP165) --------------------------------------------------
+# The regions in the political view (VIS-1, DP165, P3-T23, DP198) ----------------------------------------
 
 def _at(session, zoom_m):
     session.world.zoom_index = session.world.zoom_list.index(zoom_m)
     session.areas = session._here()   # as a zoom command does
 
 
-def test_draw_the_borders_of_regions_is_off_at_first(session):
-    assert session.settings["map_region_borders"] is False
+def test_draw_the_borders_of_regions_is_gone(session):
+    # The most detailed of the countries, regions and counties shown has the colours (DP198).
+    assert "map_region_borders" not in session.settings.values
 
 
-def test_with_region_borders_off_the_map_draws_no_region_but_where_am_i_still_says_it(session):
+def test_the_regions_are_painted_in_colours_over_their_country_with_the_country_borders_thicker(session):
     _at(session, 500000)   # England is the current area here, as the counties' zoom range is passed
     assert session.areas[0].id == ENGLAND
     frame = session.scene(800, 600)
-    drawn = [a for a in frame["shape_area"] if session.store.feature(a).layer == "regions"]
-    assert set(drawn) == {ENGLAND}, "only the current region, for its outline"
-    from mapcore.render.scene import CLEAR_STYLE
-
-    styles = {frame["shape_style"][i] for i, a in enumerate(frame["shape_area"]) if a == ENGLAND}
-    assert styles == {CLEAR_STYLE}, "not painted: no fill and no border"
-    assert frame["styles"][CLEAR_STYLE]["fill"] == "#00000000" and frame["styles"][CLEAR_STYLE]["width"] == 0
-    assert frame["current"] and all(frame["shape_area"][i] == ENGLAND for i in frame["current"])
-    assert spoken(session.press("Space")) == ["England, United Kingdom"]
-
-
-def test_with_region_borders_on_the_regions_are_painted(session):
-    _at(session, 500000)
-    session.run("settings.set", field="map_region_borders", value=True)
-    frame = session.scene(800, 600)
     regions = {a for a in frame["shape_area"] if session.store.feature(a).layer == "regions"}
     assert ENGLAND in regions and len(regions) > 1
-    from mapcore.render.scene import CLEAR_STYLE
+    from mapcore.render.scene import CLEAR_STYLE, OCEAN_STYLE, THICK_OUTLINE, THIN_OUTLINE
 
-    assert CLEAR_STYLE not in set(frame["shape_style"].tolist())
+    colours = {frame["shape_style"][i] for i, a in enumerate(frame["shape_area"]) if a in regions}
+    assert colours and all(0 <= c < OCEAN_STYLE for c in colours), "filled in the land colours"
+    assert CLEAR_STYLE not in colours
+    # Painted after their countries, so over them.
+    first_region = min(i for i, a in enumerate(frame["shape_area"]) if a in regions)
+    last_country = max(i for i, a in enumerate(frame["shape_area"]) if session.store.feature(a).layer == "countries")
+    assert last_country < first_region
+    # The outlines: the countries' thicker, and drawn last.
+    style_of = dict(zip(frame["outline_shapes"].tolist(), frame["outline_style"].tolist()))
+    layer_of = [session.store.feature(a).layer for a in frame["shape_area"]]
+    assert {style_of[i] for i, l in enumerate(layer_of) if l == "countries" and i in style_of} == {THICK_OUTLINE}
+    assert {style_of[i] for i, l in enumerate(layer_of) if l == "regions" and i in style_of} == {THIN_OUTLINE}
+    assert frame["outline_styles"][THICK_OUTLINE]["width"] > frame["outline_styles"][THIN_OUTLINE]["width"]
+    assert list(frame["outline_style"]) == sorted(frame["outline_style"])
+    assert frame["current"] and all(frame["shape_area"][i] == ENGLAND for i in frame["current"])
+    assert spoken(session.press("Space")) == ["England, United Kingdom"]
 
 
 def test_with_region_borders_off_an_isolated_region_is_still_painted(session):
@@ -140,12 +141,6 @@ def test_with_region_borders_off_an_isolated_region_is_still_painted(session):
 
     assert BRITTANY in frame["shape_area"]
     assert {frame["shape_style"][i] for i, a in enumerate(frame["shape_area"]) if a == BRITTANY} != {CLEAR_STYLE}
-
-
-def test_the_setting_is_in_the_display_tab(session):
-    display = next(t for t in session.settings_schema()["tabs"] if t["id"] == "display")
-    field = next(f for f in display["fields"] if f["id"] == "map_region_borders")
-    assert field["label"] == "Draw the borders of regions" and field["kind"] == "yes_no"
 
 
 def test_the_regions_layer_is_called_regions_and_constituent_countries(session):

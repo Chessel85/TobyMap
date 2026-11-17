@@ -13,7 +13,7 @@ export class WorkerClient {
     this.inFlight = null;
     this.nextId = 1;
     this.latestOnly = new Set();
-    this.waiting = null;        // background work, sent only when nothing else is waiting (P2-T5)
+    this.waiting = new Map();   // background work, by type, sent only when nothing else is waiting (P2-T5, P3-T24a)
     this.onNotice = () => {};   // progress messages from the worker, such as the map download
   }
 
@@ -35,12 +35,15 @@ export class WorkerClient {
     });
   }
 
-  // Background work, such as the Crossed and passed search: sent when the worker has
-  // nothing else to do, so a key press never waits for it. A newer one replaces one not yet sent.
+  // Background work, such as the Crossed and passed search and the drawing's steps: sent when
+  // the worker has nothing else to do, so a key press never waits for it. A newer one of the
+  // same type replaces one not yet sent.
   idle(message) {
     return new Promise((resolve, reject) => {
-      if (this.waiting) this.waiting.resolve(null);
-      this.waiting = { message, resolve, reject };
+      const old = this.waiting.get(message.type);
+      if (old) old.resolve(null);
+      this.waiting.delete(message.type);
+      this.waiting.set(message.type, { message, resolve, reject });
       this._pump();
     });
   }
@@ -51,9 +54,10 @@ export class WorkerClient {
 
   _pump() {
     if (this.inFlight) return;
-    if (!this.queue.length && this.waiting) {
-      this.queue.push({ ...this.waiting, message: { ...this.waiting.message, id: this.nextId++ } });
-      this.waiting = null;
+    if (!this.queue.length && this.waiting.size) {
+      const [type, next] = this.waiting.entries().next().value;
+      this.waiting.delete(type);
+      this.queue.push({ ...next, message: { ...next.message, id: this.nextId++ } });
     }
     if (!this.queue.length) return;
     this.inFlight = this.queue.shift();
@@ -72,8 +76,8 @@ export class WorkerClient {
   }
 
   _fail(message) {
-    const all = [this.inFlight, ...this.queue, this.waiting].filter(Boolean);
-    this.waiting = null;
+    const all = [this.inFlight, ...this.queue, ...this.waiting.values()].filter(Boolean);
+    this.waiting = new Map();
     this.inFlight = null;
     this.queue = [];
     for (const entry of all) entry.reject(new Error(message));

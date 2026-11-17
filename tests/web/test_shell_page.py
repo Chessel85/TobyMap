@@ -83,7 +83,8 @@ def test_start_is_the_map_name_as_focus_arrives_and_the_map_has_focus(app):
 
 
 def test_the_map_is_painted(app):
-    assert app.evaluate("window.tobymap.paints") >= 1
+    # The drawing is made when the worker is idle, after the start's answer (P3-T24a).
+    app.wait_for_function("window.tobymap.paints >= 1")
     colour = app.evaluate("""() => {
         const c = document.getElementById('canvas');
         const d = c.getContext('2d').getImageData(Math.floor(c.width * 0.3), Math.floor(c.height / 2), 1, 1).data;
@@ -664,6 +665,24 @@ def test_a_layers_sound_is_chosen_in_its_settings_and_kept_when_reopened(app):
     app.click("#layers-settings")
     assert sound.evaluate("e => e.options[e.selectedIndex].textContent") == "Peak"
     app.click("#layer-settings-cancel")
+
+
+def test_a_layers_outline_is_chosen_in_its_settings(app):
+    """P3-T23, DP198: the check box for drawing an area layer's outlines, kept when the settings reopen."""
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    app.focus("[data-layer=counties]")
+    app.click("#layers-settings")
+    box = app.get_by_label("Draw the outlines of its areas")
+    assert box.is_checked()
+    box.uncheck()
+    app.click("#layer-settings-ok")
+    app.wait_for_function("document.activeElement.dataset.layer === 'counties'")
+    app.click("#layers-settings")
+    assert not app.get_by_label("Draw the outlines of its areas").is_checked()
+    app.click("#layer-settings-cancel")
+    app.click("#layers-ok")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
 
 
 def test_cancel_in_the_layers_dialog_changes_nothing_and_a_wrong_range_is_refused(app):

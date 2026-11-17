@@ -75,6 +75,8 @@ commands:
   - {name: browse.open, label: List every feature of a kind in the current feature, key: Ctrl+Shift+F, region: global, menu: Map}
   # The layers list (SCP-6, SCP-7).
   - {name: layers.open, label: Layers, key: Ctrl+Shift+L, region: global, menu: Map}
+  # Map views (P3-T23, DP198): the political and physical views and your own.
+  - {name: views.open, label: Map views, key: Ctrl+Shift+V, region: global, menu: Map}
   # Themes and isolate (VIS-2): your keys, from the key list. Escape is kept for the screen reader and the browser.
   - {name: theme.next, label: Next theme, key: T, region: map, menu: Map}
   - {name: theme.previous, label: Previous theme, key: Shift+T, region: map, menu: Map}
@@ -107,6 +109,8 @@ commands:
   - {name: measure.to, label: Measure to the item, key: Shift+M, region: global, menu: Map}
   # Enter on an item goes there: to a point, or to an area's centre (P2-T17k, INF-10, DP155).
   - {name: panel.go, label: Go there, key: Enter, region: panel, menu: ""}
+  # The current layer (P3-T24b, DP202): the item's layer, followed as you step; on the smallest area, back to it.
+  - {name: panel.current_layer, label: Make its layer the current layer, key: Shift+Enter, region: panel, menu: ""}
   # Sort the group the focus is in: next order, and the previous (P3-T4d, INF-10; the key list).
   - {name: panel.sort, label: Sort the group, key: Ctrl+S, region: panel, menu: ""}
   - {name: panel.sort_back, label: Sort the group the other way round, key: Ctrl+Shift+S, region: panel, menu: ""}
@@ -159,3 +163,7 @@ commands:
   - {name: query.open, label: Query builder, key: Q, region: global, menu: Map}
   - {name: query.run, label: Run a query, key: "", region: global, menu: "", pointer: true}
   - {name: settings.reset_confirm, label: Reset all settings once asked, key: "", region: global, menu: "", pointer: true}
+  - {name: views.choose, label: Choose from the map views list, key: "", region: global, menu: "", pointer: true}
+  - {name: views.save, label: Save the layers as a view with the typed name, key: "", region: global, menu: "", pointer: true}
+  - {name: views.rename, label: Rename a view to the typed name, key: "", region: global, menu: "", pointer: true}
+  - {name: views.delete, label: Delete a view once asked, key: "", region: global, menu: "", pointer: true}

@@ -26,7 +26,13 @@ point is still in exactly one area of the Countries layer (LOC-6).
   "region of the United States". It is not inside its country: its country is not its parent, and France's
   neighbours are no longer Brazil and Suriname. A region that became an area of its own has it as its parent.
 
+The territories list (P3-T24c, DP199, mapdata/stages/territories.py) is checked when the stage starts. A
+territory OpenStreetMap maps inside its country, such as Puerto Rico, is then made an area of its own here, and
+every area the list names is given its legal status, its sovereign state, and whether that is said after it.
+
 Settings: min_share, the least share of a region's or county's land in the distant parts, 0.5 by default.
+territories_must_match: in a build of the whole world, every entry of the territories list must be found in the
+data, or the build stops; in a trial, those not found are listed in the log.
 whole: countries whose land is all shared out this way, none kept, each with the country to name as the
 sovereign state of the new areas, such as {osm:r2202162: osm:r1403916}: what is left of OpenStreetMap's whole
 French state, in Oceania, after the country units (DP86), with metropolitan France as sovereign (DP192). The
@@ -56,8 +62,12 @@ NAMING_LAYERS = ("regions", "counties")
 
 
 def fingerprint_extra(stage: dict) -> dict:
-    """The continents settings decide which parts are distant, so they are part of what the stage reads."""
-    return {"continents": (CONFIG_DIR / continents.SETTINGS).read_text(encoding="utf-8")}
+    """The continents settings decide which parts are distant, so they are part of what the stage reads, as is
+    the territories list (P3-T24c)."""
+    from mapdata.stages import territories
+
+    return {"continents": (CONFIG_DIR / continents.SETTINGS).read_text(encoding="utf-8"),
+            "territories": territories.text()}
 
 
 # Finding the distant parts ---------------------------------------------------------------------------
@@ -262,8 +272,22 @@ def run(ctx) -> None:
     whole = dict(ctx.settings.get("whole") or {})
     data = json.loads((ctx.previous / "features.json").read_text(encoding="utf-8"))
     records, offsets = data["records"], data["shapes"]
+    from mapdata.stages import territories
+
+    entries = territories.load()
+    territories.check(entries)   # each field and status, at once, before any work (P3-T24c)
     new, changed, reparent = split_countries(records, lambda idx: read_shapes(ctx.previous, offsets, idx),
                                              settings, min_share, ctx.progress.line, ctx.progress.log, whole)
+
+    def shapes_now(idx):   # the shapes as they are after the distant parts left their countries
+        got = read_shapes(ctx.previous, offsets, [i for i in idx if changed.get(i) is None])
+        got.update({i: changed[i] for i in idx if changed.get(i) is not None})
+        return got
+
+    more, cut, moved = territories.separate(entries, records, shapes_now, ctx.progress.line)
+    new += more
+    changed.update(cut)
+    reparent.update(moved)
     gone = {i for i, g in changed.items() if g is None}
     changed = {i: g for i, g in changed.items() if g is not None}
     shapes_out = ctx.claim(ctx.folder / "shapes.wkb")
@@ -291,6 +315,10 @@ def run(ctx) -> None:
             ctx.progress.line(f"{records[i]['name']} ({records[i]['id']}) is shared out whole, so it is no longer an "
                               f"area of its own (DP192).")
         records, offsets = take_away(records, offsets, gone, whole)
+    missing = territories.check(entries, records, whole_world=bool(ctx.settings.get("territories_must_match")))
+    for place in missing:
+        ctx.progress.log(f"Territories list: {place} is not in this build's data.")
+    territories.apply(entries, records, ctx.progress.line)
     text = json.dumps({"records": records, "shapes": offsets}, ensure_ascii=False, sort_keys=True, indent=0)
     ctx.claim(ctx.folder / "features.json").write_text(text, encoding="utf-8", newline="\n")
     ctx.progress.line(f"Distant parts made areas of their own: {len(new)}, from {len(changed)} countries, in "

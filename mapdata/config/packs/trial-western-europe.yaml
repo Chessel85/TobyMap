@@ -156,6 +156,17 @@ stages:
       - {countries: [osm:r1656678, osm:r192789], id: "disputed:abyei", name: Abyei, wikidata: Q336494}
       - {countries: [osm:r167454, osm:r286393], id: "disputed:southern-patagonian-ice-field", name: Southern Patagonian Ice Field, wikidata: Q1031467}
       - {countries: [osm:r148838, osm:r307829], id: "disputed:navassa-island", name: Navassa Island, wikidata: Q25359}
+  # Enclaves and exclaves, found from the countries' shapes, after the towns, which name them (P3-T24g, DP207).
+  - stage: enclaves
+    # Exclaves whose largest place is a village, so not in the Cities and towns layer, named by hand (P3-T24g).
+    names:
+      - {point: [1.980, 42.465], name: Llívia}
+      - {point: [10.444, 47.574], name: Jungholz}
+      - {point: [8.690, 47.697], name: Büsingen am Hochrhein}
+      - {point: [8.971, 45.969], name: Campione d'Italia}
+      - {point: [-123.07, 48.985], name: Point Roberts}
+      - {box: [4.86, 51.41, 4.98, 51.47], name: Baarle-Hertog, of: Belgium}
+      - {box: [4.86, 51.41, 4.98, 51.47], name: Baarle-Nassau, of: Netherlands}
   # Facts from Wikidata for every feature with a Wikidata link, kept in the data folder so they are fetched once
   # (P3-T2a, DAT-7). Features with no link in these layers are matched by name and place.
   - stage: wikidata

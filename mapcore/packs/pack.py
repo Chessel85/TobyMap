@@ -32,6 +32,7 @@ import zlib
 from collections import OrderedDict
 from pathlib import Path
 
+from mapcore import memory
 from mapcore.describe import say
 from mapcore.packs import coords, tiles
 from mapcore.packs.source import FileSource
@@ -570,6 +571,7 @@ class Pack:
     def _group(self, g: int) -> list[dict]:
         if g not in self._groups:
             self._groups[g] = self.get_json(f"features/{g}") or []
+            memory.settle()   # kept for as long as TobyMap runs, so out of full garbage collections (P3-T24a)
         return self._groups[g]
 
     def feature(self, number: int) -> dict:

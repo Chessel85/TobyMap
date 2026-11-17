@@ -43,10 +43,102 @@ OCEAN_STYLE = 7
 HIGHLIGHT_STYLE = 8
 CLEAR_STYLE = 9   # an area in a layer not painted, drawn only for the current area's outline (P3-T17)
 CLEAR = "clear"   # its fill
+PLAIN_STYLE = 10   # one plain land colour, as the physical view paints the countries (P3-T23)
+KIND_STYLE = 11    # the first of the physical colours, one for each kind of layer (P3-T23)
+THIN_OUTLINE, THICK_OUTLINE = 0, 1   # the outline styles: every area's, and the country borders (P3-T23)
 LINE_STYLE, HIGHLIGHT_LINE_STYLE, SPECIAL_LINE_STYLE = 0, 1, 2   # the line styles (P2-T17v)
 LINE_DRAW_ORDER = {LINE_STYLE: 0, SPECIAL_LINE_STYLE: 1, HIGHLIGHT_LINE_STYLE: 2}
 MIN_RING = 3
 WATER_LAST = 100   # added to a land layer's order, so all water is painted first
+CLIP_CHUNK = 2000   # shapes cut to the view in one step of a drawing (P3-T24a)
+NAMES_PER_STEP = 15   # names placed in one step
+LINE_CHUNK = 3000   # lines turned into screen points in one step
+FRAME_CHUNK_POINTS = 150_000   # area points turned into screen pixels in one step
+
+
+DECODE_CHUNK_BYTES = 30_000   # stored bytes of a tile decoded in one step of a drawing (P3-T24a)
+
+
+def _decode_in_chunks(data, indices, box):
+    """Decode a tile's entries a chunk at a time, yielding between chunks. The shapes are kept with the
+    tile (TileData.shapes_of), where drawing_shapes then finds them. A small tile is left to be decoded at once."""
+    entries = data.entries
+    todo = [i for i in indices if entries[i].kind != tiles.COVERED]
+    if sum(len(entries[i].data) for i in todo) <= DECODE_CHUNK_BYTES:
+        return
+    chunk, size = [], 0
+    for i in todo:
+        chunk.append(i)
+        size += len(entries[i].data)
+        if size >= DECODE_CHUNK_BYTES:
+            data.shapes_of(chunk, box)
+            chunk, size = [], 0
+            yield
+    if chunk:
+        data.shapes_of(chunk, box)
+        yield
+
+
+def _outline_order(frame: dict, shapes, styles) -> None:
+    """The outlines, in the order drawn: every area's first, then the country borders on top (P3-T23)."""
+    order = np.argsort(np.asarray(styles, np.intp), kind="stable")
+    frame["outline_shapes"] = np.asarray(shapes, np.int32)[order] if len(order) else np.zeros(0, np.int32)
+    frame["outline_style"] = np.asarray(styles, np.int32)[order] if len(order) else np.zeros(0, np.int32)
+
+
+def _drain(steps):
+    """Run a generator of steps to its end, and return what it returns."""
+    while True:
+        try:
+            next(steps)
+        except StopIteration as done:
+            return done.value
+
+
+def paint_plan(feats: list, paint: dict | None, fills: dict | None, theme: dict, current=None, isolate=None) -> dict:
+    """How each feature is painted (P3-T23, DP198): arrays, one entry for each of feats, of its fill style
+    (an index into the frame's styles, or -1 for not painted), its outline style (-1 for none), whether
+    its name is drawn, and its place in the drawing order. paint is {layer id: {fill, outline, names, order,
+    thick}} from the map view in use (MapSession._paint); without it, the layers' fills are used, as before
+    the views. The current feature is always kept, so it can be outlined and tinted, and an isolated one is
+    always filled (VIS-2)."""
+    kinds = sorted((theme.get("physical") or {}).keys())
+    n = len(feats)
+    style = np.full(n, -1, np.intp)
+    outline = np.full(n, -1, np.intp)
+    named = np.zeros(n, bool)
+    order = np.zeros(n, float)
+    land_count = len(theme["land"])
+    for k, f in enumerate(feats):
+        ident, rank, colour, layer = f[0], f[1], f[2], f[3]
+        if paint is not None and layer in paint:
+            spec = paint[layer]
+            fill = spec.get("fill", "colours")
+            line = (THICK_OUTLINE if spec.get("thick") else THIN_OUTLINE) if spec.get("outline", True) else -1
+            name = spec.get("names")
+            order[k] = spec.get("order", 0.0)
+        else:
+            fill = fill_of(f, fills)
+            fill = "colours" if fill == "land" else fill
+            line = -1 if fill in ("water", "none") else THIN_OUTLINE
+            name = None
+            order[k] = (0 if fill == "water" else WATER_LAST) + rank
+        if ident == isolate and fill == "none":
+            fill = "colours"
+        if fill == "water":
+            style[k] = OCEAN_STYLE
+        elif fill == "plain":
+            style[k] = PLAIN_STYLE
+        elif fill == "kind":
+            style[k] = KIND_STYLE + kinds.index(layer) if layer in kinds else (
+                KIND_STYLE + kinds.index("default") if "default" in kinds else PLAIN_STYLE)
+        elif fill in ("colours", "land"):
+            style[k] = (int(colour) - 1) % land_count
+        elif line >= 0 or ident == current:
+            style[k] = CLEAR_STYLE   # not filled, but outlined or the current feature
+        named[k] = (fill != "none") if name is None else bool(name)
+        outline[k] = line
+    return {"style": style, "outline": outline, "names": named, "order": order}
 
 
 def fill_of(feature: tuple, fills: dict | None) -> str:
@@ -170,15 +262,22 @@ class SceneBuilder:
     def _source(self, zoom_km: float, index):
         return drawing_source(index, zoom_km)
 
-    def _collect(self, lat, lon, rho, zoom_km, layers=None, min_widths=None, interval=None, isolate=None):
-        """The shapes (Shapely) for the cap in view, with the feature of each and
+    def _collect(self, lat, lon, rho, zoom_km, layers=None, min_widths=None, interval=None, isolate=None, limit=None):
+        """The shapes for the cap in view (see _collect_steps), all at once."""
+        return _drain(self._collect_steps(lat, lon, rho, zoom_km, layers, min_widths, interval, isolate, limit))
+
+    def _collect_steps(self, lat, lon, rho, zoom_km, layers=None, min_widths=None, interval=None, isolate=None,
+                       limit=None):
+        """A generator that yields between pack tiles, so a drawing can give way to a key (P3-T24a, DP202),
+        and returns the shapes (Shapely) for the cap in view, with the feature of each and
         the box of its tile. Each tile's shapes are decoded together, once, and
         kept with the tile (P2-T14c). `layers`, when given, is the set of layer ids
         that are shown: the shapes of every other layer are left out (SCP-6). `min_widths`,
         when given, is {layer id: the least width in km} for an area layer, and an area
         narrower than that is left out (the size rule, NAV-13, DP80). `interval`, when given, leaves out
         a line that is not in the set of intervals its record names (DAT-13). `isolate`, when given,
-        is the one feature to keep (VIS-2)."""
+        is the one feature to keep (VIS-2). `limit`, when given, is {pack: the set of feature numbers to
+        draw}, the drawing's limit (P3-T24a): only those entries of a tile are decoded."""
         geoms, feats, boxes, tile_of = [], [], [], []
         intervals, south, north = _cap(lat, lon, rho * 1.15)
         for p in self.store._covering(lat, lon)[:1]:
@@ -196,11 +295,36 @@ class SceneBuilder:
                 for x0, x1 in spans:
                     for x, y in index.tiles_in("draw" if tkind == "draw" else "tile", ident if tkind == "draw" else level,
                                                x0, x1, y0, y1):
+                        yield
                         data = self.store._tile(p, "draw" if tkind == "draw" else "tile", ident if tkind == "draw" else level, x, y)
                         if not data.entries:
                             continue
                         box = tiles.tile_box(level, x, y)
-                        shapes, numbers = data.drawing_shapes(box)
+                        wanted_here = None if limit is None or isolate is not None else limit.get(p, set())
+                        drawn_here = None if wanted_here is None else wanted_here.intersection(data.by_feature)
+                        partial = drawn_here is not None and data.drawing is None and len(drawn_here) < len(data.by_feature)
+                        if data.drawing is None:
+                            # A large tile, such as the roads round a city, is decoded in chunks, a step each.
+                            todo = (sorted(i for n in drawn_here for i in data.by_feature[n]) if partial
+                                    else range(len(data.entries)))
+                            yield from _decode_in_chunks(data, todo, box)
+                        if partial:
+                            # The drawing's limit: decode only the entries of the features drawn.
+                            entries = sorted(i for n in drawn_here for i in data.by_feature[n])
+                            if not entries:
+                                continue
+                            got = data.shapes_of(entries, box)
+                            shapes = np.empty(len(entries), object)
+                            shapes[:] = [got[i] for i in entries]
+                            numbers = np.fromiter((data.entries[i].feature for i in entries), np.int64, len(entries))
+                        else:
+                            shapes, numbers = data.drawing_shapes(box)
+                            if wanted_here is not None:
+                                mask = np.fromiter((n in wanted_here for n in numbers.tolist()), bool, len(numbers))
+                                if not mask.all():
+                                    shapes, numbers = shapes[mask], numbers[mask]
+                                if not len(numbers):
+                                    continue
                         found = [self._feature(p, n) for n in numbers.tolist()]
                         if allowed is not None:   # a level read only for layers the chosen level leaves out
                             keep = np.fromiter((f[3] in allowed for f in found), bool, len(found))
@@ -233,18 +357,26 @@ class SceneBuilder:
         box_of_shape = np.asarray(boxes, float).reshape(-1, 4)[np.concatenate(tile_of)]
         return np.concatenate(geoms), feats, box_of_shape, intervals, south, north
 
-    def build(self, world, width: int, height: int, current: str | None = None, highlight: str | None = None,
+    def build(self, world, width: int, height: int, **options) -> dict:
+        """One frame, made at once (see steps)."""
+        return _drain(self.steps(world, width, height, **options))
+
+    def steps(self, world, width: int, height: int, current: str | None = None, highlight: str | None = None,
               centre_cross: bool = True, layers=None, min_widths=None, interval=None, theme: dict | None = None,
               isolate: str | None = None, names: bool = False, label_scale: float = 1.0,
-              heading_up: bool = False, special_layers=frozenset(), fills: dict | None = None) -> dict:
-        """One frame. theme is the theme to draw with (themes.effective), the builder's own when
+              heading_up: bool = False, special_layers=frozenset(), fills: dict | None = None, limit=None,
+              paint: dict | None = None):
+        """One frame, made in steps: a generator that yields between them, so that the drawing never holds
+        up what is said (P3-T24a, DP202), and returns the frame. limit is the drawing's limit, the features
+        to draw by pack (see _collect_steps). theme is the theme to draw with (themes.effective), the builder's own when
         None. isolate keeps only that feature (VIS-2). names places the areas' names, at
         label_scale times their size (VIS-3, P2-T12d). heading_up turns the map (VIS-5).
         special_layers are the line layers drawn in the special line style (P2-T17v, DAT-13).
         fills is {layer id: land, water or none}, from the layers' definitions: water is painted in
         the ocean's colour, under the land; none is not painted, for a layer whose areas lie over
         the others, such as continents or mountain ranges (P3-T1e). A layer it leaves out is land,
-        except the oceans."""
+        except the oceans. paint, when given, is the map view's plan for each layer, which replaces fills
+        (P3-T23, see paint_plan): the drawing order, the fill, the outline and the names."""
         import shapely
 
         if theme is not None:
@@ -253,24 +385,28 @@ class SceneBuilder:
         view = view_for(world, width, height, heading_up)
         cx, cy, r = width / 2, height / 2, globe._radius(view, width, height)
         rho = math.asin(min(1.0, math.hypot(cx, cy) / r))
-        geoms, feats, boxes, intervals, south, north = self._collect(world.lat, world.lon, rho, world.zoom_m / 1000.0,
-                                                                     layers, min_widths, interval, isolate)
+        geoms, feats, boxes, intervals, south, north = yield from self._collect_steps(
+            world.lat, world.lon, rho, world.zoom_m / 1000.0, layers, min_widths, interval, isolate, limit)
+        yield
         empty = np.zeros(0, np.intp)
         lines, line_idx, dots, dot_idx = np.empty(0, object), empty, np.empty(0, object), empty
         if len(geoms):
             parts_all, idx_all = [], []
             other_all, other_idx_all = [], []
             for west, east in intervals:
-                clipped = shapely.clip_by_rect(geoms, west, south, east, north)
-                parts, idx = shapely.get_parts(clipped, return_index=True)
-                kinds = shapely.get_type_id(parts)
-                live = ~shapely.is_empty(parts)
-                keep = (kinds == 3) & live
-                parts_all.append(parts[keep])
-                idx_all.append(idx[keep])
-                other = ((kinds == 1) | (kinds == 0)) & live   # lines and points (P2-T10a)
-                other_all.append(parts[other])
-                other_idx_all.append(idx[other])
+                for at in range(0, len(geoms), CLIP_CHUNK):   # in chunks, a step each
+                    clipped = shapely.clip_by_rect(geoms[at:at + CLIP_CHUNK], west, south, east, north)
+                    parts, idx = shapely.get_parts(clipped, return_index=True)
+                    idx = np.asarray(idx, np.intp) + at
+                    kinds = shapely.get_type_id(parts)
+                    live = ~shapely.is_empty(parts)
+                    keep = (kinds == 3) & live
+                    parts_all.append(parts[keep])
+                    idx_all.append(idx[keep])
+                    other = ((kinds == 1) | (kinds == 0)) & live   # lines and points (P2-T10a)
+                    other_all.append(parts[other])
+                    other_idx_all.append(idx[other])
+                    yield
             parts = np.concatenate(parts_all)
             idx = np.concatenate(idx_all).astype(np.intp)
             others = np.concatenate(other_all)
@@ -281,35 +417,39 @@ class SceneBuilder:
                 dots, dot_idx = others[~is_line], other_idx[~is_line]
         else:
             parts, idx = np.empty(0, object), empty
+        plan = paint_plan(feats, paint, fills, self.theme, current, isolate)
         if len(parts):
-            fill = [fill_of(feats[i], fills) for i in idx.tolist()]
-            # A layer that is not painted still has the current area's outline (VIS-1), as for a region with
-            # "Draw the borders of regions" off (P3-T17); and an area isolated is painted, as it is all there is.
-            if current or isolate:
-                fill = [("land" if feats[i][0] == isolate else CLEAR if feats[i][0] == current else f) if f == "none"
-                        else f for f, i in zip(fill, idx.tolist())]
-            painted = np.array([f != "none" for f in fill], bool)
-            if not painted.all():
-                parts, idx = parts[painted], idx[painted]
-                fill = [f for f, k in zip(fill, painted) if k]
-            clear = {feats[i][0] for i, f in zip(idx.tolist(), fill) if f == CLEAR}
-            # Water first, the oceans before the seas and lakes, then the land, each in its layer order.
-            order = np.argsort(np.array([(0 if f == "water" else WATER_LAST) + feats[i][1]
-                                         for f, i in zip(fill, idx.tolist())], np.intp), kind="stable")
+            # A shape neither filled nor outlined is left out, unless it is the current feature's, which is
+            # always outlined and tinted (VIS-1, P3-T23).
+            drawn = plan["style"][idx] >= 0
+            if not drawn.all():
+                parts, idx = parts[drawn], idx[drawn]
+            # In the drawing order of the views file, and within a layer the larger under the smaller.
+            size_km = np.fromiter(((f[4] or 0.0) for f in feats), float, len(feats))
+            order = np.lexsort((-size_km[idx], plan["order"][idx]))
             parts, idx = parts[order], idx[order]
+            yield
             _t, xy, (ring_off, poly_off) = shapely.to_ragged_array(parts)
             ring_off = np.asarray(ring_off, np.intp)
             poly_off = np.asarray(poly_off, np.intp)
         else:
             xy, ring_off, poly_off = np.zeros((0, 2)), np.zeros(1, np.intp), np.zeros(1, np.intp)
-            clear = set()
         chosen = time.perf_counter()
-        frame = self._frame(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
-                            current, highlight, fills, clear)
-        frame.update(self._lines(view, cx, cy, r, lines, line_idx, feats, highlight, special_layers))
+        yield
+        frame = yield from self._frame_steps(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats,
+                                             boxes, current, highlight, plan)
+        yield
+        under = frozenset(k for k, v in (paint or {}).items() if v.get("under"))
+        frame.update((yield from self._lines_steps(view, cx, cy, r, lines, line_idx, feats, highlight, special_layers,
+                                                   under)))
+        yield
         frame.update(self._markers(view, width, height, cx, cy, r, dots, dot_idx, feats, highlight))
         frame["points"] += int(len(frame["line_coords"]) // 2)
-        frame.update(place_names(frame, self.theme, label_scale) if names else no_names(self.theme))
+        if names:
+            yield
+            frame.update((yield from place_names_steps(frame, self.theme, label_scale)))
+        else:
+            frame.update(no_names(self.theme))
         frame["choose_ms"] = (chosen - start) * 1000            # finding and cutting the shapes in view (P2-T14b)
         frame["projecting_ms"] = (time.perf_counter() - chosen) * 1000   # turning them into screen pixels
         if centre_cross:
@@ -323,11 +463,19 @@ class SceneBuilder:
         frame["project_ms"] = (time.perf_counter() - start) * 1000   # the whole of the core's part
         return frame
 
-    def _lines(self, view, cx, cy, r, lines, idx, feats, highlight, special_layers=frozenset()) -> dict:
+    def _lines(self, view, cx, cy, r, lines, idx, feats, highlight, special_layers=frozenset(), under=frozenset()) -> dict:
+        """The lines' runs (see _lines_steps), all at once."""
+        return _drain(self._lines_steps(view, cx, cy, r, lines, idx, feats, highlight, special_layers, under))
+
+    def _lines_steps(self, view, cx, cy, r, lines, idx, feats, highlight, special_layers=frozenset(),
+                     under=frozenset()):
         """Each line cut into runs of points on the near side of the globe, in screen pixels.
         A run's style is LINE_STYLE, HIGHLIGHT_LINE_STYLE for the item selected in the
         Information panel, or SPECIAL_LINE_STYLE for a line of a layer whose line_style is
-        special, such as the equator (P2-T17v). The special lines are drawn last, on top."""
+        special, such as the equator (P2-T17v). The special lines are drawn last, on top.
+        A generator, a step for each chunk of lines (P3-T24a), that returns them. The lines of the layers in
+        under, such as rivers, come first, and lines_under says how many runs they are: the shells draw them
+        before the areas' outlines, the rest after (P3-T23, the drawing order)."""
         import shapely
 
         theme = self.theme
@@ -336,38 +484,62 @@ class SceneBuilder:
                   {"stroke": theme["special_line"], "width": theme["special_line_width"]}]
         if not len(lines):
             return {"line_coords": np.zeros(0, np.float32), "line_runs": np.zeros(1, np.int32),
-                    "line_style": np.zeros(0, np.int32), "line_area": [], "line_styles": styles}
-        xy, which = shapely.get_coordinates(lines, return_index=True)
-        px, py, depth = globe.project_points(view, xy[:, 1], xy[:, 0])
-        seen = depth >= 0
-        which = np.asarray(which, np.intp)
-        # A run starts at a point on the near side whose point before is hidden or on another line.
-        starts = seen.copy()
-        starts[1:] &= ~(seen[:-1] & (which[1:] == which[:-1]))
-        run_of = np.cumsum(starts) - 1
-        keep_runs = np.bincount(run_of[seen], minlength=int(starts.sum())) >= 2
-        keep = seen & keep_runs[run_of]
-        run_ids, counts = np.unique(run_of[keep], return_counts=True)
-        coords = np.empty(int(keep.sum()) * 2, np.float32)
-        coords[0::2] = cx + r * px[keep]
-        coords[1::2] = cy - r * py[keep]
-        first_point = np.searchsorted(run_of[keep], run_ids)
-        line_of_run = which[keep][first_point]
-        found = [feats[idx[k]] for k in line_of_run.tolist()]
-        area = [f[0] for f in found]
-        style = np.array([HIGHLIGHT_LINE_STYLE if highlight and f[0] == highlight
-                          else SPECIAL_LINE_STYLE if f[3] in special_layers else LINE_STYLE for f in found], np.int32)
-        runs = np.concatenate([[0], np.cumsum(counts)]).astype(np.int32)
+                    "line_style": np.zeros(0, np.int32), "line_area": [], "line_styles": styles, "lines_under": 0}
+        idx = np.asarray(idx, np.intp)
+        coords_all, counts_all, feat_all = [], [], []
+        for at in range(0, len(lines), LINE_CHUNK):
+            xy, which = shapely.get_coordinates(lines[at:at + LINE_CHUNK], return_index=True)
+            px, py, depth = globe.project_points(view, xy[:, 1], xy[:, 0])
+            seen = depth >= 0
+            if not seen.any():   # every line of the chunk is on the far side of the globe
+                yield
+                continue
+            which = np.asarray(which, np.intp)
+            # A run starts at a point on the near side whose point before is hidden or on another line.
+            starts = seen.copy()
+            starts[1:] &= ~(seen[:-1] & (which[1:] == which[:-1]))
+            run_of = np.cumsum(starts) - 1
+            keep_runs = np.bincount(run_of[seen], minlength=int(starts.sum())) >= 2
+            keep = seen & keep_runs[run_of]
+            run_ids, counts = np.unique(run_of[keep], return_counts=True)
+            coords = np.empty(int(keep.sum()) * 2, np.float32)
+            coords[0::2] = cx + r * px[keep]
+            coords[1::2] = cy - r * py[keep]
+            first_point = np.searchsorted(run_of[keep], run_ids)
+            coords_all.append(coords)
+            counts_all.append(counts)
+            feat_all.append(idx[at + which[keep][first_point]])
+            yield
+        if not coords_all:
+            return {"line_coords": np.zeros(0, np.float32), "line_runs": np.zeros(1, np.int32),
+                    "line_style": np.zeros(0, np.int32), "line_area": [], "line_styles": styles, "lines_under": 0}
+        coords = np.concatenate(coords_all).astype(np.float32)
+        counts = np.concatenate(counts_all).astype(np.intp)
+        feat_of_run = np.concatenate(feat_all).astype(np.intp)
+        # Each run's feature, layer and style, worked out once for each feature, not for each run.
+        used, inverse = np.unique(feat_of_run, return_inverse=True)
+        used_ids = [feats[k][0] for k in used.tolist()]
+        special = np.fromiter((feats[k][3] in special_layers for k in used.tolist()), bool, len(used))
+        high = np.fromiter((bool(highlight) and i == highlight for i in used_ids), bool, len(used))
+        below = np.fromiter((feats[k][3] in under for k in used.tolist()), bool, len(used))[inverse]
+        style_of_used = np.where(high, HIGHLIGHT_LINE_STYLE, np.where(special, SPECIAL_LINE_STYLE, LINE_STYLE))
+        style = style_of_used[inverse].astype(np.int32)
+        run_feature = inverse
         # Plain lines first, then the special lines, then the highlighted line, so each is on top.
-        order = np.argsort(np.array([LINE_DRAW_ORDER[s] for s in style.tolist()], np.intp), kind="stable")
+        rank = np.array([LINE_DRAW_ORDER[k] for k in range(len(LINE_DRAW_ORDER))], np.intp)[style] \
+            + np.where(below, 0, len(LINE_DRAW_ORDER))
+        order = np.argsort(rank, kind="stable")
         if len(order) and (order != np.arange(len(order))).any():
-            pieces = [coords[2 * runs[k]:2 * runs[k + 1]] for k in order.tolist()]
-            coords = np.concatenate(pieces).astype(np.float32)
-            runs = np.concatenate([[0], np.cumsum(counts[order])]).astype(np.int32)
-            style = style[order]
-            area = [area[k] for k in order.tolist()]
+            point_run = np.repeat(np.arange(len(counts), dtype=np.intp), counts)
+            position = np.empty(len(order), np.intp)
+            position[order] = np.arange(len(order), dtype=np.intp)
+            moved = np.argsort(position[point_run], kind="stable")
+            coords = coords.reshape(-1, 2)[moved].ravel()
+            counts, style, run_feature = counts[order], style[order], run_feature[order]
+        runs = np.concatenate([[0], np.cumsum(counts)]).astype(np.int32)
+        area = np.asarray(used_ids, object)[run_feature].tolist() if len(run_feature) else []
         return {"line_coords": coords, "line_runs": runs, "line_style": style,
-                "line_area": area, "line_styles": styles}
+                "line_area": area, "line_styles": styles, "lines_under": int(below.sum())}
 
     def _markers(self, view, width, height, cx, cy, r, dots, idx, feats, highlight) -> dict:
         """Each point feature's points on the near side of the globe and on the map, in screen pixels."""
@@ -391,7 +563,66 @@ class SceneBuilder:
                 "marker_style": np.array([1 if highlight and a == highlight else 0 for a in area], np.int32)}
 
     def _frame(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current, highlight,
-               fills=None, clear=frozenset()):
+               plan=None):
+        """The areas in screen pixels (see _frame_steps), all at once."""
+        return _drain(self._frame_steps(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
+                                        current, highlight, plan))
+
+    def _frame_steps(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current,
+                     highlight, plan=None):
+        """The areas in screen pixels, made a chunk of polygons at a time, a step each (P3-T24a), and joined.
+        Each chunk is independent: its rings and shapes are counted from its own start, then moved on."""
+        n_polys = len(poly_off) - 1
+        if n_polys <= 0:
+            return self._frame_part(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
+                                    current, highlight, plan)
+        point_at_poly = ring_off[poly_off]   # the first point of each polygon, and the end
+        cuts = [0]
+        while cuts[-1] < n_polys:
+            target = point_at_poly[cuts[-1]] + FRAME_CHUNK_POINTS
+            nxt = int(np.searchsorted(point_at_poly, target, side="right")) - 1
+            cuts.append(min(n_polys, max(nxt, cuts[-1] + 1)))
+        if len(cuts) == 2:
+            return self._frame_part(view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes,
+                                    current, highlight, plan)
+        pieces = []
+        for p0, p1 in zip(cuts, cuts[1:]):
+            r0, r1 = int(poly_off[p0]), int(poly_off[p1])
+            q0, q1 = int(ring_off[r0]), int(ring_off[r1])
+            pieces.append(self._frame_part(view, width, height, cx, cy, r, xy[q0:q1], ring_off[r0:r1 + 1] - q0,
+                                           poly_off[p0:p1 + 1] - r0, idx[p0:p1], feats, boxes, current, highlight,
+                                           plan))
+            yield
+        frame = pieces[0]
+        points, rings_so_far, shapes_so_far = len(frame["coords"]) // 2, len(frame["rings"]) - 1, len(frame["shapes"]) - 1
+        coords, seam, rings, shapes, styles_of = [frame["coords"]], [frame["seam"]], [frame["rings"]], [frame["shapes"]], [frame["shape_style"]]
+        outlined, outline_style = [frame["outline_shapes"]], [frame["outline_style"]]
+        for part in pieces[1:]:
+            outlined.append(part["outline_shapes"] + shapes_so_far)
+            outline_style.append(part["outline_style"])
+            coords.append(part["coords"])
+            seam.append(part["seam"])
+            rings.append(part["rings"][1:] + points)
+            shapes.append(part["shapes"][1:] + rings_so_far)
+            styles_of.append(part["shape_style"])
+            frame["shape_area"] += part["shape_area"]
+            frame["shape_name"] += part["shape_name"]
+            frame["current"] += [i + shapes_so_far for i in part["current"]]
+            frame["highlight"] += [i + shapes_so_far for i in part["highlight"]]
+            points += len(part["coords"]) // 2
+            rings_so_far += len(part["rings"]) - 1
+            shapes_so_far += len(part["shapes"]) - 1
+        frame["coords"] = np.concatenate(coords).astype(np.float32)
+        frame["seam"] = np.concatenate(seam).astype(np.uint8)
+        frame["rings"] = np.concatenate(rings).astype(np.int32)
+        frame["shapes"] = np.concatenate(shapes).astype(np.int32)
+        frame["shape_style"] = np.concatenate(styles_of).astype(np.int32)
+        frame["points"] = int(points)
+        _outline_order(frame, np.concatenate(outlined), np.concatenate(outline_style))
+        return frame
+
+    def _frame_part(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current,
+                    highlight, plan=None):
         theme = self.theme
         n_pts = len(xy)
         lon, lat = (xy[:, 0], xy[:, 1]) if n_pts else (np.zeros(0), np.zeros(0))
@@ -465,33 +696,50 @@ class SceneBuilder:
         rings_per_poly = np.bincount(ring_poly[kept_rings], minlength=len(poly_ok))[kept_polys] if len(poly_ok) else np.zeros(0, np.intp)
         shapes = np.concatenate([[0], np.cumsum(rings_per_poly)]).astype(np.int32)
 
-        land = theme["land"]
-        styles = [{"fill": c, "stroke": theme["border"], "width": theme.get("border_width", 1)} for c in land]
+        if plan is None:
+            plan = paint_plan(feats, None, None, theme, current)
+        none = "#00000000"
+        # The fills: the outlines are drawn after, as lines over everything painted (P3-T23), so a fill has none.
+        styles = [{"fill": c, "stroke": none, "width": 0} for c in theme["land"]]
         while len(styles) < OCEAN_STYLE:
             styles.append(styles[-1])
-        styles.append({"fill": theme["ocean"], "stroke": "#00000000", "width": 0})   # OCEAN_STYLE
+        styles.append({"fill": theme["ocean"], "stroke": none, "width": 0})   # OCEAN_STYLE
         styles.append({"fill": theme["highlight_fill"], "stroke": theme["highlight_outline"], "width": 2})
-        styles.append({"fill": "#00000000", "stroke": "#00000000", "width": 0})   # CLEAR_STYLE
-        shape_area, shape_style, shape_name = [], [], []
+        styles.append({"fill": none, "stroke": none, "width": 0})   # CLEAR_STYLE
+        physical = theme.get("physical") or {}
+        styles.append({"fill": theme.get("plain_land", theme["land"][0]), "stroke": none, "width": 0})   # PLAIN_STYLE
+        styles += [{"fill": physical[k], "stroke": none, "width": 0} for k in sorted(physical)]   # KIND_STYLE on
+        shape_area, shape_style, shape_name, line_style = [], [], [], []
         for j in kept_polys:
-            ident, layer, colour = feats[tile_of_poly[j]][:3]
+            k = tile_of_poly[j]
+            ident = feats[k][0]
             shape_area.append(ident)
-            shape_name.append(feats[tile_of_poly[j]][6])
-            water = fill_of(feats[tile_of_poly[j]], fills) == "water"
-            shape_style.append(CLEAR_STYLE if ident in clear else OCEAN_STYLE if water else (colour - 1) % len(land))
+            shape_name.append(feats[k][6] if plan["names"][k] else "")
+            shape_style.append(int(plan["style"][k]))
+            line_style.append(int(plan["outline"][k]))
         hi = [i for i, a in enumerate(shape_area) if highlight and a == highlight]
         for i in hi:
             shape_style[i] = HIGHLIGHT_STYLE
         cur = [i for i, a in enumerate(shape_area) if current and a == current]
-        return {
+        line_style = np.asarray(line_style, np.intp)
+        frame = {
             "width": width, "height": height, "background": theme["background"],
             "globe": {"cx": cx, "cy": cy, "r": r, "fill": theme["ocean"], "edge": theme["globe_edge"]},
             "coords": coords, "seam": seam[point_ok].astype(np.uint8), "rings": rings, "shapes": shapes,
             "shape_style": np.asarray(shape_style, np.int32), "shape_area": shape_area, "styles": styles,
             "shape_name": shape_name,
-            "current": cur, "current_style": {"stroke": theme["current_outline"], "width": theme.get("current_width", 3)},
+            # The current feature: outlined and filled with a translucent tint, on top of everything (P3-T23).
+            "current": cur, "current_style": {"stroke": theme["current_outline"], "width": theme.get("current_width", 3),
+                                              "tint": theme.get("current_tint", theme["current_outline"]),
+                                              "tint_alpha": float(theme.get("current_tint_alpha", 0.2))},
             "highlight": hi, "points": int(len(coords) // 2),
+            "outline_styles": [{"stroke": theme["border"], "width": theme.get("border_width", 1)},
+                               {"stroke": theme["border"], "width": theme.get("country_border_width",
+                                                                             2 * theme.get("border_width", 1))}],
         }
+        keep = np.nonzero(line_style >= 0)[0]
+        _outline_order(frame, keep.astype(np.intp), line_style[keep])
+        return frame
 
 
 # Names on the map (P2-T12d; VIS-3, SCP-2) ------------------------------------------------
@@ -525,7 +773,12 @@ def name_box(x: float, y: float, text: str, size: float) -> tuple[float, float, 
 
 
 def place_names(frame: dict, theme: dict, scale: float = 1.0) -> dict:
-    """Where to put each visible area's name, as plain data for the shells: {"text", "x",
+    """The names' places (see place_names_steps), all at once."""
+    return _drain(place_names_steps(frame, theme, scale))
+
+
+def place_names_steps(frame: dict, theme: dict, scale: float = 1.0):
+    """A generator, yielding every few names (P3-T24a), that returns where to put each visible area's name, as plain data for the shells: {"text", "x",
     "y", "size"}, centred on (x, y), in pixels. Larger areas first. A name goes inside its
     area, at the point furthest from its edges, only where the whole name fits; it never
     overlaps another name or the centre cross. Only areas on the map have names, so every
@@ -567,7 +820,9 @@ def place_names(frame: dict, theme: dict, scale: float = 1.0) -> dict:
     cx, cy = width / 2, height / 2
     taken = [(cx - CENTRE_CLEAR_PX, cy - CENTRE_CLEAR_PX, cx + CENTRE_CLEAR_PX, cy + CENTRE_CLEAR_PX)]
     placed = []
-    for k in order.tolist():
+    for n, k in enumerate(order.tolist()):
+        if n % NAMES_PER_STEP == NAMES_PER_STEP - 1:
+            yield
         piece = pieces[k]
         if piece is None or sizes[k] <= 0:
             continue

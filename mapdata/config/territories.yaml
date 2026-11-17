@@ -1,0 +1,486 @@
+# The territories list (P3-T24c, DP199): the legal status of each place in the Countries layer that belongs to
+# a country but is not the country itself, and whether its sovereign state is said after it.
+#
+# The definition is "Distant parts and the sovereign state" in docs/design/Discussion points detail - responses.md.
+# The law decides whether a country is said, not the continent. The sovereign state is said after an integral
+# part, such as the Canary Islands, and not after a dependent territory, such as Jersey.
+#
+# Made on 17 November 2026 from Natural Earth's countries (ne_10m_admin_0_countries, its TYPE and SOVEREIGNT)
+# and Wikidata (what each place is an instance of, P31, and its country, P17), both read that day. Each entry
+# says what each source says, in source. A grey case is marked grey: yes, with a note saying why it was decided
+# as it was, for the product owner to confirm or change.
+#
+# Each entry:
+# * place: its name, as a reminder; the build uses the identifiers.
+# * wikidata: its Wikidata item, which finds it in the data: a Countries area with this link, or the region a
+#   distant part was named after. id: the area's own identifier, for an area with no Wikidata link.
+# * sovereign: the sovereign state, as it is said. sovereign_wikidata: its Wikidata item, to find its area in the
+#   Countries layer; left out where the sovereign is not a country area, as for the British Crown.
+# * status: one of integral part, autonomous part, Crown Dependency, overseas territory, freely associated state,
+#   disputed.
+# * say_sovereign: yes or no, whether the sovereign state is said after it.
+# * separate: yes, for a territory OpenStreetMap maps inside its country, as a region of it: the build makes it
+#   an area of the Countries layer of its own, as Puerto Rico. Left out for no.
+# * claimed_by: another country that claims it, said in Details.
+# * grey: yes for a grey case, with note. source: what Natural Earth and Wikidata say.
+#
+# A test checks every entry when the build starts (mapdata/stages/territories.py): each field present, the status
+# one of the known ones, and, in a build of the whole world, each identifier found in the data. A mistake stops
+# the build at once, naming the entry.
+
+territories:
+  # Spain -------------------------------------------------------------------------------------------------------
+  - place: Canary Islands
+    wikidata: Q5813
+    sovereign: Spain
+    sovereign_wikidata: Q29
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: autonomous community of Spain."
+  - place: Ceuta
+    wikidata: Q5823
+    sovereign: Spain
+    sovereign_wikidata: Q29
+    status: integral part
+    say_sovereign: yes
+    claimed_by: Morocco
+    source: "Wikidata: autonomous city of Spain. A distant part from the next builds (P3-T19h)."
+  - place: Melilla
+    wikidata: Q5831
+    sovereign: Spain
+    sovereign_wikidata: Q29
+    status: integral part
+    say_sovereign: yes
+    claimed_by: Morocco
+    source: "Wikidata: autonomous city of Spain; disputed territory. A distant part from the next builds (P3-T19h)."
+
+  # Portugal ----------------------------------------------------------------------------------------------------
+  - place: Madeira
+    wikidata: Q26253
+    sovereign: Portugal
+    sovereign_wikidata: Q45
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: autonomous region of Portugal; integral overseas territory."
+
+  # France ------------------------------------------------------------------------------------------------------
+  - place: French Guiana
+    wikidata: Q3769
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: overseas department and region of France."
+  - place: Guadeloupe
+    wikidata: Q17012
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: overseas department and region of France."
+  - place: Martinique
+    wikidata: Q17054
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: overseas department and region of France."
+  - place: Mayotte
+    wikidata: Q17063
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: integral part
+    say_sovereign: yes
+    claimed_by: Comoros
+    source: "Wikidata: overseas department and region of France."
+  - place: Réunion
+    wikidata: Q17070
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: overseas department and region of France."
+  - place: Saint Barthélemy
+    wikidata: Q25362
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: overseas territory
+    say_sovereign: no
+    grey: yes
+    note: "An overseas collectivity: part of the French Republic, but with its own government and laws, and outside the EU. Decided as French Polynesia is, in the definition: France is not said."
+    source: "Natural Earth: Dependency of France. Wikidata: overseas collectivity of France."
+  - place: Saint Martin
+    wikidata: Q126125
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: overseas territory
+    say_sovereign: no
+    grey: yes
+    note: "An overseas collectivity, as Saint Barthélemy, though inside the EU. Decided the same way: France is not said."
+    source: "Natural Earth: Dependency of France. Wikidata: overseas collectivity of France."
+  - place: Saint Pierre and Miquelon
+    wikidata: Q34617
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: overseas territory
+    say_sovereign: no
+    grey: yes
+    note: "An overseas collectivity, outside the EU. Decided as French Polynesia: France is not said."
+    source: "Natural Earth: Dependency of France. Wikidata: overseas collectivity of France."
+  - place: Wallis and Futuna
+    wikidata: Q35555
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of France. Wikidata: overseas collectivity of France."
+  - place: French Polynesia
+    wikidata: Q30971
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: overseas territory
+    say_sovereign: no
+    grey: yes
+    note: "The definition's own grey case: part of the French Republic, but it governs itself and is outside the EU. France is not said, as the definition lists it with the dependent territories."
+    source: "Natural Earth: Dependency of France. Wikidata: overseas collectivity of France."
+  - place: New Caledonia
+    wikidata: Q33788
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of France. Wikidata: dependent territory; overseas collectivity of France."
+  - place: Clipperton Island
+    wikidata: Q161258
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: overseas territory
+    say_sovereign: no
+    grey: yes
+    note: "An uninhabited atoll owned by the French state and run directly by the minister for the overseas, not part of any region. Decided as a dependent territory: France is not said."
+    source: "Natural Earth: Dependency of France. Wikidata: dependent territory."
+  - place: French Southern and Antarctic Lands
+    wikidata: Q129003
+    sovereign: France
+    sovereign_wikidata: Q142
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of France. Wikidata: dependent territory."
+
+  # The Netherlands ---------------------------------------------------------------------------------------------
+  - place: Aruba
+    wikidata: Q21203
+    sovereign: the Kingdom of the Netherlands
+    status: autonomous part
+    say_sovereign: no
+    source: "Natural Earth: Country, sovereign the Netherlands. Wikidata: country of the Kingdom of the Netherlands."
+  - place: Curaçao
+    wikidata: Q25279
+    sovereign: the Kingdom of the Netherlands
+    status: autonomous part
+    say_sovereign: no
+    source: "Natural Earth: Country, sovereign the Netherlands. Wikidata: country of the Kingdom of the Netherlands."
+  - place: Sint Maarten
+    wikidata: Q26273
+    sovereign: the Kingdom of the Netherlands
+    status: autonomous part
+    say_sovereign: no
+    source: "Natural Earth: Country, sovereign the Netherlands. Wikidata: country of the Kingdom of the Netherlands."
+  - place: Bonaire
+    wikidata: Q25396
+    sovereign: Netherlands
+    sovereign_wikidata: Q55
+    status: integral part
+    say_sovereign: yes
+    grey: yes
+    note: "The definition's own grey case: a special municipality of the Netherlands itself, while Curaçao nearby is a country of the Kingdom. Decided as an integral part: the Netherlands is said."
+    source: "Wikidata: Caribbean Public Entity; integral overseas territory; country the Netherlands."
+  - place: Saba
+    wikidata: Q25528
+    sovereign: Netherlands
+    sovereign_wikidata: Q55
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: Caribbean Public Entity; integral overseas territory. As Bonaire."
+  - place: Sint Eustatius
+    wikidata: Q26180
+    sovereign: Netherlands
+    sovereign_wikidata: Q55
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: Caribbean Public Entity; integral overseas territory. As Bonaire."
+
+  # The United States -------------------------------------------------------------------------------------------
+  - place: Hawaii
+    wikidata: Q782
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: U.S. state."
+  - place: Puerto Rico
+    wikidata: Q1183
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    separate: yes
+    source: "Natural Earth: Dependency of the United States. Wikidata: unincorporated territory of the United States. OpenStreetMap maps it as a region of the United States."
+  - place: United States Virgin Islands
+    wikidata: Q11703
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    separate: yes
+    source: "Natural Earth: Dependency of the United States. Wikidata: unincorporated territory of the United States. OpenStreetMap maps it as a region of the United States."
+  - place: Guam
+    wikidata: Q16635
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United States. Wikidata: unincorporated territory of the United States."
+  - place: Northern Mariana Islands
+    wikidata: Q16644
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United States. Wikidata: unincorporated territory of the United States."
+  - place: American Samoa
+    wikidata: Q16641
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United States. Wikidata: unincorporated territory of the United States."
+  - place: Wake Island
+    wikidata: Q43296
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    claimed_by: Marshall Islands
+    source: "Natural Earth: part of the United States Minor Outlying Islands, a Dependency. Wikidata: unincorporated territory of the United States."
+  - place: Howland Island
+    wikidata: Q131305
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: part of the United States Minor Outlying Islands, a Dependency. Wikidata: insular area of the United States."
+  - place: Jarvis Island
+    wikidata: Q62218
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: part of the United States Minor Outlying Islands, a Dependency. Wikidata: insular area of the United States."
+  - place: Johnston Atoll
+    wikidata: Q131008
+    sovereign: United States
+    sovereign_wikidata: Q30
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: part of the United States Minor Outlying Islands, a Dependency. Wikidata: unincorporated territory of the United States."
+
+  # The United Kingdom and the British Crown --------------------------------------------------------------------
+  - place: Jersey
+    wikidata: Q785
+    sovereign: the British Crown
+    status: Crown Dependency
+    say_sovereign: no
+    source: "Natural Earth: Country, sovereign the United Kingdom. Wikidata: Crown Dependencies."
+  - place: Guernsey
+    wikidata: Q25230
+    sovereign: the British Crown
+    status: Crown Dependency
+    say_sovereign: no
+    source: "Natural Earth: Country, sovereign the United Kingdom. Wikidata: Crown Dependencies."
+  - place: Isle of Man
+    wikidata: Q9676
+    sovereign: the British Crown
+    status: Crown Dependency
+    say_sovereign: no
+    source: "Natural Earth: Country, sovereign the United Kingdom. Wikidata: Crown Dependencies."
+  - place: Gibraltar
+    wikidata: Q1410
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    claimed_by: Spain
+    source: "Natural Earth: Disputed, sovereign the United Kingdom. Wikidata: British Overseas Territories; disputed territory."
+  - place: Falkland Islands
+    wikidata: Q9648
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    claimed_by: Argentina
+    source: "Natural Earth: Disputed, sovereign the United Kingdom. Wikidata: British Overseas Territories."
+  - place: South Georgia and the South Sandwich Islands
+    wikidata: Q35086
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    claimed_by: Argentina
+    source: "Natural Earth: Dependency of the United Kingdom. Wikidata: British Overseas Territories; disputed territory."
+  - place: British Indian Ocean Territory
+    wikidata: Q43448
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    claimed_by: Mauritius
+    grey: yes
+    note: "The United Kingdom and Mauritius signed a treaty in May 2025 for the United Kingdom to hand the Chagos Islands to Mauritius, keeping Diego Garcia on a lease. Whether it is in force should be checked before the world build; until then it is listed as British, claimed by Mauritius."
+    source: "Natural Earth: Disputed, sovereign the United Kingdom. Wikidata: British Overseas Territories."
+  - place: Anguilla
+    wikidata: Q25228
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United Kingdom. Wikidata: British Overseas Territories."
+  - place: Bermuda
+    wikidata: Q23635
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United Kingdom. Wikidata: British Overseas Territories."
+  - place: British Virgin Islands
+    wikidata: Q25305
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United Kingdom. Wikidata: British Overseas Territories."
+  - place: Cayman Islands
+    wikidata: Q5785
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United Kingdom. Wikidata: British Overseas Territories."
+  - place: Montserrat
+    wikidata: Q13353
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United Kingdom. Wikidata: British Overseas Territories."
+  - place: Pitcairn Islands
+    wikidata: Q35672
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United Kingdom. Wikidata: British Overseas Territories."
+  - place: Turks and Caicos Islands
+    wikidata: Q18221
+    sovereign: United Kingdom
+    sovereign_wikidata: Q145
+    status: overseas territory
+    say_sovereign: no
+    source: "Natural Earth: Dependency of the United Kingdom. Wikidata: British Overseas Territories."
+
+  # Denmark -----------------------------------------------------------------------------------------------------
+  - place: Greenland
+    wikidata: Q223
+    sovereign: the Kingdom of Denmark
+    status: autonomous part
+    say_sovereign: no
+    source: "Natural Earth: Country, sovereign Denmark. Wikidata: autonomous country within the Kingdom of Denmark."
+  - place: Faroe Islands
+    wikidata: Q4628
+    sovereign: the Kingdom of Denmark
+    status: autonomous part
+    say_sovereign: no
+    source: "Natural Earth: Dependency of Denmark. Wikidata: autonomous country within the Kingdom of Denmark."
+
+  # New Zealand -------------------------------------------------------------------------------------------------
+  - place: Cook Islands
+    wikidata: Q26988
+    sovereign: New Zealand
+    sovereign_wikidata: Q664
+    status: freely associated state
+    say_sovereign: no
+    source: "Natural Earth: Dependency of New Zealand. Wikidata: associated state."
+  - place: Niue
+    wikidata: Q34020
+    sovereign: New Zealand
+    sovereign_wikidata: Q664
+    status: freely associated state
+    say_sovereign: no
+    source: "Natural Earth: Dependency of New Zealand. Wikidata: associated state."
+
+  # Australia ---------------------------------------------------------------------------------------------------
+  - place: Christmas Island
+    wikidata: Q31063
+    sovereign: Australia
+    sovereign_wikidata: Q408
+    status: overseas territory
+    say_sovereign: no
+    grey: yes
+    note: "An external territory of Australia: Australian land, run by the Commonwealth, with Western Australia's laws, but in none of its states. Decided as a territory, as Natural Earth has it: Australia is not said. Saying it would also be reasonable."
+    source: "Natural Earth: part of Indian Ocean Territories, a Dependency of Australia. Wikidata: external territory of Australia."
+  - place: Cocos (Keeling) Islands
+    wikidata: Q36004
+    sovereign: Australia
+    sovereign_wikidata: Q408
+    status: overseas territory
+    say_sovereign: no
+    grey: yes
+    note: "As Christmas Island, an external territory of Australia. Decided the same way."
+    source: "Natural Earth: part of Indian Ocean Territories, a Dependency of Australia. Wikidata: external territory of Australia."
+
+  # Norway ------------------------------------------------------------------------------------------------------
+  - place: Bouvet Island
+    wikidata: Q23408
+    sovereign: Norway
+    sovereign_wikidata: Q20
+    status: overseas territory
+    say_sovereign: no
+    source: "Wikidata: dependency of Norway. Svalbard, an integral part, is not here: it is in Europe, so it is part of Norway's own area."
+
+  # Chile, Colombia, Venezuela and Japan: distant parts that are their countries' own land ----------------------
+  - place: Easter Island
+    wikidata: Q721369
+    sovereign: Chile
+    sovereign_wikidata: Q298
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: province of Chile."
+  - place: San Andrés, Providencia and Santa Catalina
+    wikidata: Q26855
+    sovereign: Colombia
+    sovereign_wikidata: Q739
+    status: integral part
+    say_sovereign: yes
+    claimed_by: Nicaragua
+    source: "Wikidata: department of Colombia."
+  - place: Isla Aves
+    wikidata: Q790669
+    sovereign: Venezuela
+    sovereign_wikidata: Q717
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: island, country Venezuela."
+  - place: Minami-Tori-shima
+    wikidata: Q1047492
+    sovereign: Japan
+    sovereign_wikidata: Q17
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: island, country Japan; part of Tokyo."
+  - place: Okinotori island
+    wikidata: Q908529
+    sovereign: Japan
+    sovereign_wikidata: Q17
+    status: integral part
+    say_sovereign: yes
+    source: "Wikidata: island, country Japan; part of Tokyo."

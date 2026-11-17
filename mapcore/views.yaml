@@ -1,0 +1,83 @@
+# Map views and the drawing order (P3-T23, DP198; VIS-1, LOC-2, SCP-6, SCP-7).
+#
+# The definition is "How TobyMap draws the map" in docs/design/Discussion points detail - responses.md.
+# This file is the data manager's. TobyMap reads it each time it starts, so a change here needs no new
+# build of the packs: a view only changes how TobyMap draws and orders what a pack holds.
+#
+# drawing_order: the order the map is painted in, the same in every view. Later is painted over earlier.
+# "outlines" is where the outlines of every area are drawn, as lines over everything painted so far.
+# An area layer not listed is painted after the listed ones, before the outlines; a line layer not listed
+# is drawn after the roads; places are always drawn last, as markers.
+#
+# political_layers: the government areas, from the largest to the most detailed. In a view that fills them
+# with "colours", the most detailed shown at the zoom has the colours, so neighbours differ, and the
+# country borders are drawn thicker.
+#
+# Each view gives:
+# * name: as it is said and shown.
+# * said: the layers in the order "where am I" says their areas. Within a layer, the smallest first.
+#   A layer not listed is said after the listed ones, in the order of the pack's ranks.
+# * layers: for each layer, how it is painted, and anything else it changes from the pack's own layer:
+#   - fill: colours (the land colours, so neighbours differ), plain (one plain land colour), kind (a colour for
+#     the layer's kind, from the theme's physical colours), water (the sea's colour), or none (not filled).
+#   - outline: true or false, whether its outline is drawn. Every layer's outline is drawn unless it says false.
+#   - names: true or false, whether its areas' names are drawn on the map. At first, a layer's names are
+#     drawn when it is filled.
+#   - on, min_zoom_m, max_zoom_m: as in the layers list, if the view changes them.
+# A layer the view does not name keeps the pack's own fill, and is outlined.
+
+drawing_order:
+  - oceans          # 1. Oceans and seas. Countries are cut to the coast, so they never overlap the sea.
+  - seas
+  - countries       # 2. Countries.
+  - regions         # 3. Regions.
+  - counties        # 4. Counties.
+  - physical-regions  # 5. Physical regions, including groups of islands, larger under smaller.
+  - islands         # 6. Islands.
+  - mountain-ranges   # 7. Mountain ranges, larger under smaller.
+  - lakes           # 8. Lakes and rivers: a country reaches across a lake to its border, so the lake comes after it.
+  - rivers
+  - outlines        # 9. Outlines, over everything painted so far, so a border is a line across a lake.
+  - roads           # 10. Roads and railway lines, then places.
+  - railways
+  # 11. The current feature, on top of everything, is not a layer: it is always drawn last.
+
+political_layers: [countries, regions, counties]
+
+views:
+  - id: political
+    name: Political
+    said: [lakes, seas, oceans, counties, regions, countries, exclaves, islands, mountain-ranges, physical-regions,
+           continents]
+    layers:
+      oceans: {fill: water, outline: false}
+      seas: {fill: water, outline: false}
+      countries: {fill: colours}
+      regions: {fill: colours}
+      counties: {fill: colours}
+      lakes: {fill: water}
+      physical-regions: {fill: none, names: false}
+      islands: {fill: none, names: true}
+      mountain-ranges: {fill: none, names: false}
+      # The continents are said, not drawn: their borders across the land are not a map's.
+      continents: {fill: none, outline: false}
+      # Enclaves and exclaves are said after the country, not drawn: their country's outline shows them (P3-T24g).
+      exclaves: {fill: none, outline: false, names: false}
+
+  - id: physical
+    name: Physical
+    said: [lakes, seas, oceans, islands, mountain-ranges, physical-regions, counties, regions, countries, exclaves,
+           continents]
+    layers:
+      oceans: {fill: water, outline: false}
+      seas: {fill: water, outline: false}
+      # The land is one plain colour under the physical features; the borders are drawn as outlines.
+      countries: {fill: plain, names: true}
+      regions: {fill: none}
+      counties: {fill: none}
+      physical-regions: {fill: kind}
+      islands: {fill: kind}
+      mountain-ranges: {fill: kind}
+      lakes: {fill: water}
+      continents: {fill: none, outline: false}
+      exclaves: {fill: none, outline: false, names: false}

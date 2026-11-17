@@ -5,7 +5,8 @@ The application only looks these up (AD-8); they are worked out here, once, for 
 * Containment (P3-T3a, NAV-4): the areas that hold a feature fully, from every layer, so the parents
   of parents are there too; and, for a line or a place, the areas it is partly inside, with the
   share. Two areas that are the same land, each inside the other to within same_share, are "same
-  as", not parent and child (DP71).
+  as", not parent and child (DP71); so are two with the same name, each inside the other to within
+  same_name_share, such as an island and a county (P3-T23, DP198).
 * Neighbours and overlaps (P3-T3b, INF-2, INF-5): areas of one layer that share a border, with its
   length on the ellipsoid; areas of one layer that nearly touch, within near_km, with the distance;
   and areas of any layers that overlap, neither holding the other, with the share of each covered.
@@ -29,7 +30,7 @@ in each. The top boxes are jobs for the worker processes.
 The results are kept in relationships.json in the stage's folder, by the index of each feature in
 features.json, which this stage keeps unchanged; the writing stage puts them in the pack by id.
 
-Settings: same_share (0.99), full_share (0.995), partly_share (0.005), cross_km (0.05), near_km (5), near_share
+Settings: same_share (0.99), same_name_share (0.9), full_share (0.995), partly_share (0.005), cross_km (0.05), near_km (5), near_share
 (0.25) and near_most (10), for nearly touching, border_m (100),
 water_share (0.5), leaf_points (20000), min_leaf_deg (0.25), top_deg (45), along_lines and along_areas (the
 layers looked at for a line along a border: rivers, against countries, regions and counties), and leave_out, the
@@ -49,7 +50,10 @@ from mapdata.pipeline import features
 from mapdata.stages.geodesy import areas_km2
 
 R_KM = 6371.0088
-SETTINGS = {"same_share": 0.99, "full_share": 0.995, "partly_share": 0.005, "cross_km": 0.05, "near_km": 5.0, "near_share": 0.25, "near_most": 10, "border_m": 100.0,
+SETTINGS = {"coast_land": ["countries", "regions", "counties", "islands"], "shore_lakes": ["lakes"],
+            "crossing_areas": ["countries", "regions", "counties"],
+            "shore_land": ["countries", "regions", "counties"], "water": [],
+            "same_name_share": 0.9, "same_share": 0.99, "full_share": 0.995, "partly_share": 0.005, "cross_km": 0.05, "near_km": 5.0, "near_share": 0.25, "near_most": 10, "border_m": 100.0,
             "water_share": 0.5, "leaf_points": 20000, "min_leaf_deg": 0.25, "top_deg": 45.0,
             "along_lines": ("rivers",), "along_areas": ("countries", "regions", "counties")}
 AREA, LINE, POINT = "area", "line", "point"
@@ -239,18 +243,22 @@ class Sums:
         self.inside = defaultdict(float)    # (line or place, area): km or points inside
         self.first = {}                     # (line, area): the least distance from the line's start inside
         self.along = defaultdict(float)     # (line, area): km of the line within border_m of the area's border
+        self.shore = defaultdict(float)     # (lake, land area): km of the lake's shore inside the land (P3-T24e)
+        self.crossed_at = defaultdict(list)  # (line, area): [lon, lat] where the line crosses its border (P3-T24f)
         # Stretches of an area's own outline lying on a cutting line, which no box sees both sides of:
         # (orientation "v" or "h", the line's longitude or latitude, from, to, feature, side 0 west or south, 1 east
         # or north). Matched across features afterwards (edge_borders).
         self.edges: list[tuple] = []
 
     def add(self, other: "Sums") -> None:
-        for name in ("own", "shared", "border", "inside", "along"):
+        for name in ("own", "shared", "border", "inside", "along", "shore"):
             mine = getattr(self, name)
             for k, v in getattr(other, name).items():
                 mine[k] += v
         for k, v in other.first.items():
             self.first[k] = min(v, self.first.get(k, math.inf))
+        for k, v in other.crossed_at.items():
+            self.crossed_at[k].extend(v)
         self.edges.extend(other.edges)
 
     def plain(self) -> dict:
@@ -258,19 +266,31 @@ class Sums:
             return [[int(a), int(b), float(v)] for (a, b), v in d.items()]
         return {"own": [[int(k), float(v)] for k, v in self.own.items()], "shared": pairs(self.shared),
                 "border": pairs(self.border), "inside": pairs(self.inside), "first": pairs(self.first),
-                "along": pairs(self.along), "edges": [list(e) for e in self.edges]}
+                "along": pairs(self.along), "shore": pairs(self.shore), "edges": [list(e) for e in self.edges],
+                "crossed_at": [[int(a), int(b), v] for (a, b), v in self.crossed_at.items()]}
 
     @classmethod
     def from_plain(cls, d: dict) -> "Sums":
         s = cls()
         for k, v in d["own"]:
             s.own[k] = v
-        for name in ("shared", "border", "inside", "first", "along"):
+        for name in ("shared", "border", "inside", "first", "along", "shore"):
             target = getattr(s, name)
-            for a, b, v in d[name]:
+            for a, b, v in d.get(name, []):
                 target[(a, b)] = v
         s.edges = [tuple(e) for e in d.get("edges", [])]
+        for a, b, v in d.get("crossed_at", []):
+            s.crossed_at[(a, b)] = [list(x) for x in v]
         return s
+
+
+def bordering(layer_a: str, layer_b: str, settings: dict) -> bool:
+    """Whether the shared border of two areas is measured: areas of one layer, which are neighbours (INF-2); and a
+    land area of the coast_land layers with a sea of the water layers, which is coast (P3-T24e, DP200)."""
+    if layer_a == layer_b:
+        return True
+    water, land = settings.get("water", ()), settings.get("coast_land", ())
+    return (layer_a in water and layer_b in land) or (layer_b in water and layer_a in land)
 
 
 def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
@@ -310,9 +330,10 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
                 ia, ib = areas[parts[a]][0], areas[parts[b]][0]
                 if km2 > 0 and ia != ib:
                     sums.shared[tuple(sorted((ia, ib)))] += float(km2)
-            # Borders shared by two areas of one layer, but not along the box's own edges.
-            same = np.array([layer_of[areas[parts[a]][0]] == layer_of[areas[parts[b]][0]] for a, b in zip(left, right)],
-                            dtype=bool)
+            # Borders shared by two areas of one layer, and coast between land and sea (P3-T24e), but not along
+            # the box's own edges.
+            same = np.array([bordering(layer_of[areas[parts[a]][0]], layer_of[areas[parts[b]][0]], settings)
+                             for a, b in zip(left, right)], dtype=bool)
             if same.any():
                 la, rb = left[same], right[same]
                 edge = shapely.boundary(box_shape)
@@ -321,6 +342,29 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
                 for a, b, km in zip(la, rb, lengths_km(shared)):
                     if km > 0:
                         sums.border[tuple(sorted((areas[parts[a]][0], areas[parts[b]][0])))] += float(km)
+    # A lake's shore inside each land area round it (P3-T24e, DP200): a lake lies on the land, so its outline is
+    # inside the countries, regions and counties, not along their borders.
+    lakes = [k for k in parts if layer_of[areas[k][0]] in settings.get("shore_lakes", ())]
+    land = [k for k, it in enumerate(areas) if layer_of[it[0]] in settings.get("shore_land", ())]
+    if lakes and land:
+        edge = shapely.buffer(shapely.boundary(box_shape), 1e-9)
+        shores = robust(shapely.difference, shapely.boundary(np.array([areas[k][2] for k in lakes], dtype=object)),
+                        np.array([edge] * len(lakes), dtype=object))
+        shore_km = lengths_km(shores)
+        land_parts = [k for k in land if areas[k][2] is not COVER]
+        for n, k in enumerate(lakes):
+            for a in land:
+                if areas[a][2] is COVER and shore_km[n] > 0:
+                    sums.shore[(areas[k][0], areas[a][0])] += float(shore_km[n])
+        if land_parts:
+            larr = np.array([areas[k][2] for k in land_parts], dtype=object)
+            tree = shapely.STRtree(larr)
+            s_idx, l_idx = tree.query(shores, predicate="intersects")
+            if len(s_idx):
+                inside = robust(shapely.intersection, shores[s_idx], larr[l_idx])
+                for s_, l_, km in zip(s_idx, l_idx, lengths_km(inside)):
+                    if km > 0:
+                        sums.shore[(areas[lakes[s_]][0], areas[land_parts[l_]][0])] += float(km)
     # Lines: their length here, inside each area, and along each area's border.
     if lines:
         larr = np.array([it[2] for it in lines], dtype=object)
@@ -344,6 +388,23 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
                         key = (lines[l_][0], areas[parts[a_]][0])
                         sums.inside[key] += float(km)
                         sums.first[key] = min(sums.first.get(key, math.inf), float(d))
+                # Where each line crosses the border of a country, region or county, but not the box's own edges
+                # (P3-T24f, DP201): Crossing says how many times, and the nearest.
+                wanted = np.array([layer_of[areas[parts[a_]][0]] in settings.get("crossing_areas", ())
+                                   for a_ in ar_idx], dtype=bool)
+                if wanted.any():
+                    cl, ca = li_idx[wanted], ar_idx[wanted]
+                    rim = shapely.buffer(shapely.boundary(box_shape), 1e-9)
+                    edges = robust(shapely.difference, shapely.boundary(arr[ca]), np.array([rim] * len(ca), dtype=object))
+                    met = robust(shapely.intersection, shapely.force_2d(larr[cl]), edges)
+                    for l_, a_, g in zip(cl, ca, met):
+                        if g is None or shapely.is_empty(g):
+                            continue
+                        pts = [q for q in shapely.get_parts(g)]
+                        coords = [shapely.get_coordinates(q)[0] for q in pts if shapely.get_num_coordinates(q)]
+                        if coords:
+                            sums.crossed_at[(lines[l_][0], areas[parts[a_]][0])].extend(
+                                [round(float(x), 5), round(float(y), 5)] for x, y in coords)
             # Along a border: within border_m of an area's edge, that is not the box's edge. Only for the lines and
             # areas of the layers named, such as a river forming a border, as buffering every outline is slow.
             tol = settings["border_m"] / 1000 / 111.32
@@ -404,9 +465,9 @@ def on_lines(item, lines, sums: Sums) -> None:
                 sums.edges.append((orient, at, a, b, i, side))
 
 
-def edge_borders(edges: list[tuple], layer_of: list[str]) -> dict[tuple, float]:
+def edge_borders(edges: list[tuple], layer_of: list[str], settings: dict | None = None) -> dict[tuple, float]:
     """Shared borders along cutting lines: a stretch of one feature's outline on a line, with the feature on one
-    side, against another feature of the same layer on the other side. {(a, b): km}."""
+    side, against another feature of the same layer, or land against sea, on the other side. {(a, b): km}."""
     out: dict[tuple, float] = defaultdict(float)
     groups: dict[tuple, list] = defaultdict(list)
     for orient, at, lo, hi, i, side in edges:
@@ -417,7 +478,7 @@ def edge_borders(edges: list[tuple], layer_of: list[str]) -> dict[tuple, float]:
         east = [x for x in items if x[3] == 1]
         for lo1, hi1, a, _s in west:
             for lo2, hi2, b, _t in east:
-                if a != b and layer_of[a] == layer_of[b]:
+                if a != b and bordering(layer_of[a], layer_of[b], settings or {}):
                     overlap = min(hi1, hi2) - max(lo1, lo2)
                     if overlap > 0:
                         out[tuple(sorted((a, b)))] += overlap * km_per_deg
@@ -492,7 +553,7 @@ def measure(records, geoms, kinds, settings, executor=None, workers: int = 1, sa
                 f"{time.perf_counter() - started:.0f} seconds.")
     if repaired:
         say(f"Pairs of shapes the geometry library could not compare as they were, so made valid first: {repaired}.")
-    for key, km in edge_borders(total.edges, layer_of).items():
+    for key, km in edge_borders(total.edges, layer_of, settings).items():
         total.border[key] += km
     return total
 
@@ -554,7 +615,11 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
         if own.get(a, 0) <= 0 or own.get(b, 0) <= 0:
             continue
         sa, sb = km2 / own[a], km2 / own[b]
-        if sa >= same_s and sb >= same_s:
+        same_name = settings["same_name_share"]
+        if (sa >= same_s and sb >= same_s) or (sa >= same_name and sb >= same_name and records[a].get("name")
+                                                and records[a].get("name") == records[b].get("name")):
+            # The same land, or an island and an area of one name over nearly the same land, as the Isle of Wight
+            # the island and the county, each cut to the coast a little differently (P3-T23, DP198).
             put(a, "same", b)
             put(b, "same", a)
         elif sa >= full and sb < full:
@@ -567,11 +632,22 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
             put(a, "overlaps", [b, round(min(sa, 1.0), 4), round(min(sb, 1.0), 4)])
             put(b, "overlaps", [a, round(min(sb, 1.0), 4), round(min(sa, 1.0), 4)])
     neighbours = set()
+    sea = set(settings.get("water", ()))
     for (a, b), km in sums.border.items():
-        if km >= 0.01:
+        if km < 0.01:
+            continue
+        la, lb = records[a]["layer"], records[b]["layer"]
+        if la == lb:
             neighbours.add((min(a, b), max(a, b)))
             put(a, "next", [b, round(km, 2)])
             put(b, "next", [a, round(km, 2)])
+        else:   # land and sea: the land's coast, and the sea's shores (P3-T24e, DP200)
+            land, water_area = (b, a) if la in sea else (a, b)
+            put(land, "coast", [water_area, round(km, 2)])
+            put(water_area, "shores", [land, round(km, 2)])
+    for (lake, land), km in sums.shore.items():
+        if km >= 0.01:
+            put(lake, "shores", [land, round(km, 2)])
     for (a, b), km in nearly_touching(records, geoms, kinds, neighbours, settings, own).items():
         put(a, "near", [b, km])
         put(b, "near", [a, km])
@@ -590,6 +666,10 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
     for (i, a), km in sums.along.items():
         if km >= 1.0:   # at least a kilometre within border_m of the area's border
             put(a, "along", i)
+    for (i, a), points in sums.crossed_at.items():   # each line's crossings of the area's border (P3-T24f)
+        unique = sorted({(lat, lon) for lon, lat in points})
+        if unique:
+            put(a, "crossed_at", [i, [[lat, lon] for lat, lon in unique]])
     # The water hierarchy: the water area of a lower rank that holds the most of each water area.
     for (a, b), km2 in sums.shared.items():
         for x, y in ((a, b), (b, a)):
@@ -608,9 +688,11 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
         for key in ("overlaps", "partly"):
             if key in rel:
                 rel[key] = sorted(rel[key], key=lambda v: (-v[1], records[v[0]]["id"]))
-        for key in ("next", "near"):
+        if "crossed_at" in rel:
+            rel["crossed_at"] = sorted(rel["crossed_at"], key=lambda v: records[v[0]]["id"])
+        for key in ("next", "near", "coast", "shores"):
             if key in rel:
-                rel[key] = sorted(rel[key], key=lambda v: (-v[1] if key == "next" else v[1], records[v[0]]["id"]))
+                rel[key] = sorted(rel[key], key=lambda v: (v[1] if key == "near" else -v[1], records[v[0]]["id"]))
         if "crosses" in rel:
             rel["crosses"] = [a for a, _d in sorted(rel["crosses"], key=lambda v: (v[1], ranks[records[v[0]]["layer"]],
                                                                                      records[v[0]]["id"]))]
@@ -634,6 +716,7 @@ def run(ctx) -> None:
     records, geoms = features.load(ctx.previous)
     settings = {**SETTINGS, **{k: v for k, v in ctx.settings.items() if k in SETTINGS}}
     layers = ctx.pack.layers
+    settings["water"] = sorted(k for k, v in layers.items() if v.kind == "water" and v.geometry == AREA)
     kinds = [layers[r["layer"]].geometry if r["layer"] in layers else AREA for r in records]
     left_out = set(ctx.settings.get("leave_out", LEAVE_OUT))
     geoms_used = [None if r["layer"] in left_out else g for r, g in zip(records, geoms)]
@@ -646,6 +729,8 @@ def run(ctx) -> None:
         sums = measure(records, geoms_used, kinds, settings, None if ctx.workers == 1 else executor, ctx.workers,
                        ctx.progress.line)
     rel = relationships(records, geoms_used, kinds, sums, ranks, water, settings)
+    for i, km in outlines(geoms_used, kinds).items():   # each area's whole border, land and coast (P3-T24f)
+        rel.setdefault(i, {})["outline_km"] = km
     counts = defaultdict(int)
     for r in rel.values():
         for k, v in r.items():
@@ -657,10 +742,31 @@ def run(ctx) -> None:
     ctx.claim(ctx.folder / FILE).write_text(text, encoding="utf-8", newline="\n")
 
 
+def outlines(geoms, kinds, chunk: int = 2000) -> dict[int, float]:
+    """Each area's whole outline, its border with land and coast together, in km over the Earth, rounded to
+    0.01 km (P3-T24f, DP201). The cut along the 180 degree line is not a border, so it is left out."""
+    out: dict[int, float] = {}
+    areas = [i for i, (g, k) in enumerate(zip(geoms, kinds)) if k == AREA and g is not None and not g.is_empty]
+    seam = shapely.union(shapely.LineString([(180, -90), (180, 90)]), shapely.LineString([(-180, -90), (-180, 90)]))
+    near_seam = shapely.buffer(seam, 1e-7)
+    for at in range(0, len(areas), chunk):
+        these = areas[at:at + chunk]
+        edges = shapely.boundary(np.array([geoms[i] for i in these], dtype=object))
+        bounds = shapely.bounds(edges)
+        on_seam = (bounds[:, 0] <= -180 + 1e-7) | (bounds[:, 2] >= 180 - 1e-7)
+        if on_seam.any():
+            edges[on_seam] = robust(shapely.difference, edges[on_seam], np.array([near_seam] * int(on_seam.sum()), dtype=object))
+        for i, km in zip(these, lengths_km(edges)):
+            out[i] = round(float(km), 2)
+    return out
+
+
 FILE = "relationships.json"
 WORDS = {"in": "inside", "same": "the same land", "overlaps": "overlapping", "partly": "partly inside",
          "next": "neighbours", "near": "nearly touching", "crosses": "areas crossed", "crossed_by": "crossed by",
-         "along": "along a border", "water_in": "in a larger water area", "counts": "areas with counts"}
+         "along": "along a border", "water_in": "in a larger water area", "counts": "areas with counts",
+         "coast": "with a coast", "shores": "with shores", "outline_km": "outlines measured",
+         "crossed_at": "with border crossings"}
 
 
 def load(folder) -> dict[int, dict] | None:
@@ -675,7 +781,7 @@ def by_id(rel: dict[int, dict], ids: list[str]) -> dict[str, dict]:
     def fix(key, v):
         if key in ("in", "same", "crossed_by", "along", "crosses"):
             return [ids[j] for j in v]
-        if key in ("overlaps", "partly", "next", "near"):
+        if key in ("overlaps", "partly", "next", "near", "coast", "shores", "crossed_at"):
             return [[ids[x[0]], *x[1:]] for x in v]
         if key == "water_in":
             return ids[v]

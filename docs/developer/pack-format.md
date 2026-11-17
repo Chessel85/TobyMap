@@ -158,6 +158,10 @@ From format 4 (P3-T3e, architecture 6.5): the relationships of group G's feature
 * crossed_by and along: for an area, the lines crossing it, and those along its border.
 * water_in: for a water area, the water area of a lower rank that holds most of it (DAT-4).
 * counts: for an area, how many features of each layer are inside it, fully or partly, by layer id.
+* coast: from 17 November 2026 (P3-T24e, DP200), for a country, region, county or island, the oceans and seas it touches, each as [id, km of coast], the longest first.
+* shores: for an ocean, sea or lake, the countries, regions and counties round it, each as [id, km of shore], the longest first. A sea's shore is the land's coast; a lake's is its outline inside each area, as a lake lies on the land.
+* outline_km: for an area, its whole outline in km, land border and coast together, leaving out the cut along the 180 degree line (P3-T24f, DP201).
+* crossed_at: for a country, region or county, each line that crosses its border, as [line id, [[lat, lon], ...]], the points where it crosses, to 5 decimal places (P3-T24f, DP201).
 
 `Pack.relationships(identifier)` returns the object, or an empty one for a feature with none or a pack written before format 4.
 

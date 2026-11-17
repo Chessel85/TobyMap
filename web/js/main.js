@@ -28,7 +28,7 @@ let toggles = {};   // the ticks of the menu items, from the core
 
 // window.tobymap is for the browser tests and diagnostics only.
 window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.heard, clicks: sounds.clicks, ready: false, error: null,
-  paints: 0, timings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceHalts: voice.counts, voiceState: voice.getState,
+  paints: 0, timings: [], drawings: [], placed: sounds.placed, labels: voice.labels, voiceInfo: voice.info, voiceHalts: voice.counts, voiceState: voice.getState,
   scanStarted: scan.started, scanPlaying: scan.playing,
   // A search in the core, with its time in Pyodide (P3-T8b): for the tests and timing until the dialog comes (P3-T8c).
   search: (text, scope) => client.send({ type: "search", text, scope }),
@@ -104,6 +104,22 @@ function beaconUpdate(b) {
   }
 }
 
+// The drawing is made in steps, asked for only when the worker has nothing else to do, so a key's
+// answer never waits for it (P3-T24a, DP202). A drawing that takes 2 seconds sends the core's words.
+function drawMore() {
+  const { width, height } = mapSize();
+  client.idle({ type: "scene_more", width, height }).then((r) => {
+    if (!r) return;   // a newer request took its place
+    if (r.step_ms !== undefined) window.tobymap.drawings.push({ stepMs: r.step_ms, drawMs: r.draw_ms });   // P3-T24a
+    if (r.response) handle(r);
+    else {
+      if (r.scene) paint(r.scene);
+      if (r.controls) showControls(r.controls);
+    }
+    if (r.more) drawMore();
+  }).catch(showError);
+}
+
 // named: a dialog's answer whose words are already the map's name, read as focus returns (P2-T17c).
 function handle(result, keyAt, held = false, named = false) {
   if (!result) return;  // a movement replaced by a later one (ANN-3)
@@ -156,6 +172,7 @@ function handle(result, keyAt, held = false, named = false) {
     try { localStorage.setItem(STORAGE_KEY, result.save); } catch (e) { /* private browsing: nothing is kept */ }
   }
   if (result.scene) paint(result.scene);
+  if (result.drawing) drawMore();
   if (result.controls) showControls(result.controls);
   if (!focusFirst) refreshRegions(result);
   if (result.map_label !== undefined) { if (named) mapLabel = result.map_label; else setMapLabel(result.map_label); }
@@ -583,7 +600,7 @@ function openLayers(d) {
     const commands = [];
     for (const id of Object.keys(layers)) {
       const values = {};
-      for (const f of ["on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound"]) {
+      for (const f of ["on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound", "outline"]) {
         if (layers[id][f] !== start[id][f]) values[f] = layers[id][f];
       }
       if (Object.keys(values).length) commands.push([d.set, { layer: id, values }]);
@@ -639,6 +656,13 @@ function openLayers(d) {
       layerSound.append(o);
     }
     layerSound.value = JSON.stringify(l.sound);
+    // Whether its areas' outlines are drawn on the map, for an area layer (P3-T23, DP198).
+    const outline = document.createElement("input");
+    outline.type = "checkbox";
+    outline.id = "layer-outline";
+    outline.checked = l.outline !== false;
+    const outlineRow = row(d.words.outline, outline);
+    outlineRow.hidden = l.geometry !== "area";
     const message = document.createElement("p");
     message.id = "layer-settings-message";   // shown here and said by the announcer, once
     const ok = button(d.words.ok, () => {
@@ -646,7 +670,8 @@ function openLayers(d) {
       const { width, height } = mapSize();
       client.send({ type: "run", commands: [[d.check, { low, high }]], width, height }).then((r) => {
         if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
-        Object.assign(l, { min_zoom_m: low, max_zoom_m: high, crossing_earcon: JSON.parse(crossing.value), sound: JSON.parse(layerSound.value) });
+        Object.assign(l, { min_zoom_m: low, max_zoom_m: high, crossing_earcon: JSON.parse(crossing.value), sound: JSON.parse(layerSound.value),
+                           outline: outline.checked });
         showList();
         focusLayer();
       }).catch(showError);
@@ -658,7 +683,7 @@ function openLayers(d) {
     body.append(title, row(d.words.min_zoom, minZoom), document.createElement("br"),
                row(d.words.max_zoom, maxZoom), document.createElement("br"),
                row(d.words.crossing, crossing), document.createElement("br"),
-               row(d.words.layer_sound, layerSound), message, ok, cancel);
+               row(d.words.layer_sound, layerSound), document.createElement("br"), outlineRow, message, ok, cancel);
     minZoom.focus();
   };
 
@@ -1492,9 +1517,13 @@ async function boot() {
   client.latestOnly = new Set(registry.latest_only);
   applyWords();
   // A group opened or closed: the core fills only the open groups (P3-T4a, NFR-1).
-  tree = new Tree(treeEl, (id, group) => run("panel.select", { item: id, group }), null, (open) => {
+  // A group or an item opened or closed: the core fills the open groups, and the open items, such as a
+  // neighbour in Bordering, which lists the ends of the shared border (P3-T4a, P3-T24f).
+  const sendOpen = () => {
+    const open = [...tree.openGroups(), ...[...tree.expanded].filter((id) => !id.startsWith("heading:"))];
     client.send({ type: "panel", open }).then((r) => { if (r) { learn(r.langs); tree.fill(r.panel); } }).catch(showError);
-  });
+  };
+  tree = new Tree(treeEl, (id, group) => run("panel.select", { item: id, group }), null, sendOpen, sendOpen);
   menubar = new MenuBar($("menubar"), registry.menus, (name) => { mapEl.focus(); run(name, name === "help.keys" ? { region: "map" } : {}); },
     moveRegion, () => mapEl.focus());
   $("loading").remove();
@@ -1516,7 +1545,7 @@ async function boot() {
     resizeTimer = setTimeout(() => {
       const size = mapSize();
       if (lastScene && size.width === lastScene.width && size.height === lastScene.height) return;
-      client.send({ type: "scene", ...size }).then((r) => r && paint(r.scene)).catch(showError);
+      client.send({ type: "scene", ...size }).then((r) => { if (r && r.drawing) drawMore(); }).catch(showError);
     }, 100);
   }).observe(mapArea);
 }

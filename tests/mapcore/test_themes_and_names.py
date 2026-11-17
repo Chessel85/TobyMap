@@ -109,11 +109,15 @@ def test_the_frame_uses_the_theme_and_the_display_setting(session):
     session.run("settings.set", field="theme", value="high_contrast_dark")
     frame = session.scene(W, H)
     assert frame["background"] == "#000000" and frame["current_style"]["stroke"] == "#ffff00"
-    assert frame["styles"][0]["stroke"] == "#ffffff" and frame["styles"][0]["width"] == 1.5
+    # The borders are outlines over everything painted (P3-T23): the areas' fills have none of their own.
+    assert frame["outline_styles"][0] == {"stroke": "#ffffff", "width": 1.5}
+    assert frame["outline_styles"][1] == {"stroke": "#ffffff", "width": 3}   # the country borders, thicker
+    assert frame["styles"][0]["width"] == 0
     session.run("settings.set", field="map_borders", value=False)
     session.run("settings.set", field="map_fill", value="none")
     frame = session.scene(W, H)
     assert frame["styles"][0] == {"fill": themes.TRANSPARENT, "stroke": themes.TRANSPARENT, "width": 0}
+    assert all(s["width"] == 0 for s in frame["outline_styles"])
     assert frame["current"] and frame["current_style"]["stroke"] == "#ffff00"
     assert session.scene_background() == "#000000"
 

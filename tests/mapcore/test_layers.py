@@ -42,7 +42,7 @@ class _Pack:
 def test_the_catalogue_comes_from_the_packs_layer_definitions(session):
     layers = session.layers.layers()
     assert [layer.id for layer in layers] == ["countries", "oceans", "seas", "regions", "counties", "rivers", "towns",
-                                                   "lakes", "stations", "national_parks"]
+                                                   "exclaves", "lakes", "stations", "national_parks"]
     countries = session.layers.get("countries")
     assert countries.name == "Countries" and countries.group == "Boundaries" and countries.geometry == "area"
     assert countries.on and countries.in_zoom(5000) and countries.in_zoom(10_000_000)
@@ -116,7 +116,6 @@ def test_with_regions_off_crossing_to_france_says_nothing_about_the_region(sessi
 
 
 def test_with_regions_off_the_map_draws_no_region(session):
-    session.run("settings.set", field="map_region_borders", value=True)   # off at first (P3-T17)
     ids = regions(session)
     assert ids, "the test pack has regions here"
     session.world.zoom_index = session.world.zoom_list.index(250000)
@@ -187,7 +186,7 @@ def test_the_layers_list_for_the_shells(session):
     data = session.layer_list()
     assert data["title"] == "Layers"
     assert [(g["name"], [layer["id"] for layer in g["layers"]]) for g in data["groups"]] == [
-        ("Boundaries", ["countries", "regions", "counties", "national_parks"]), ("Water", ["oceans", "seas", "rivers", "lakes"]),
+        ("Boundaries", ["countries", "regions", "counties", "exclaves", "national_parks"]), ("Water", ["oceans", "seas", "rivers", "lakes"]),
         ("Places", ["towns"]), ("Transport", ["stations"])]
     oceans = data["groups"][1]["layers"][0]
     assert oceans["name"] == "Oceans and seas" and oceans["on"] is False and oceans["changed"] == ["on"]
@@ -221,7 +220,6 @@ def test_nearby_leaves_out_a_layer_whose_zoom_range_is_passed(session):
 
 
 def test_the_map_draws_only_layers_in_their_zoom_range(session):
-    session.run("settings.set", field="map_region_borders", value=True)   # off at first (P3-T17)
     ids = regions(session)
     session.world.zoom_index = session.world.zoom_list.index(250000)
     assert ids & set(session.scene(800, 600)["shape_area"])

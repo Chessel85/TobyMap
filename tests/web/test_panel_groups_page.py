@@ -52,3 +52,18 @@ def test_an_item_under_a_heading_is_level_3(page, site_url):
                 a.parentElement.closest('[role=treeitem]').getAttribute('aria-level')];
     }""")
     assert levels == ["3", "Uri", "true", "2"]
+
+
+def test_a_neighbour_opens_with_right_to_the_ends_of_the_shared_border(page, site_url):
+    """P3-T24f, DP201: Germany in Bordering can be opened before it has items; the core then lists the ends."""
+    app = open_app(page, site_url, state=SWITZERLAND)
+    app.keyboard.press("Shift+Digit5")
+    app.wait_for_function(f"{BORDERING}.querySelectorAll('[role=treeitem]').length === 5")
+    germany = f"[...{BORDERING}.querySelectorAll('[role=treeitem]')].find(i => i.textContent.startsWith('Germany'))"
+    assert app.evaluate(f"{germany}.getAttribute('aria-expanded')") == "false"
+    app.evaluate(f"{germany}.focus()")
+    app.keyboard.press("ArrowRight")
+    app.wait_for_function(f"{germany}.querySelectorAll('[role=treeitem]').length > 0")
+    ends = app.evaluate(f"[...{germany}.querySelectorAll('[role=treeitem]')].map(i => i.textContent)")
+    assert any(e.startswith("End of the border with Germany, where Austria meets it") for e in ends)
+    assert app.evaluate(f"{germany}.querySelector('[role=treeitem]').getAttribute('aria-level')") == "3"

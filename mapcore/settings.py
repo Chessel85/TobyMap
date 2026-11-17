@@ -111,8 +111,13 @@ def checked(field_id: str, value):
 
 
 class Settings:
-    def __init__(self, values: dict | None = None, keys: dict | None = None, layers: dict | None = None):
+    def __init__(self, values: dict | None = None, keys: dict | None = None, layers: dict | None = None,
+                 view: str | None = None, views: dict | None = None):
         self.values = defaults()
+        # The map view in use, a built-in one's id or the name of one of the user's, and the user's own views,
+        # by name: {"name": {"base": "political", "layers": {layer id: {field: value}}}} (P3-T23, DP198).
+        self.view: str | None = view if isinstance(view, str) and view else None
+        self.views: dict[str, dict] = {str(k): dict(v) for k, v in (views or {}).items() if isinstance(v, dict)}
         self.keys: dict[str, str] = dict(keys or {})  # command name -> key, the user's own
         # The user's changes to layers, by layer id: {"regions": {"on": False}} (SCP-6, SCP-7).
         self.layers: dict[str, dict] = {k: dict(v) for k, v in (layers or {}).items() if isinstance(v, dict)}
@@ -149,9 +154,10 @@ class Settings:
 
     def to_dict(self) -> dict:
         return {"values": dict(self.values), "keys": dict(self.keys),
-                "layers": {k: dict(v) for k, v in self.layers.items()}}
+                "layers": {k: dict(v) for k, v in self.layers.items()},
+                "view": self.view, "views": {k: dict(v) for k, v in self.views.items()}}
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "Settings":
         d = d or {}
-        return cls(d.get("values"), d.get("keys"), d.get("layers"))
+        return cls(d.get("values"), d.get("keys"), d.get("layers"), d.get("view"), d.get("views"))

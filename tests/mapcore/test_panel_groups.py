@@ -212,7 +212,9 @@ def test_enter_works_on_an_item_under_a_heading(hants):
 
 
 def test_overlapping_an_area_says_both_shares(hants):
-    items = group(hants.panel(open={"overlapping"}), "overlapping")["items"]
+    headings = group(hants.panel(open={"overlapping"}), "overlapping")["items"]
+    assert [h["name"] for h in headings] == ["National parks"]   # under a heading for each kind (P3-T24e)
+    items = headings[0]["children"]
     assert [i["name"] for i in items] == ["New Forest National Park"]
     assert "14 percent of Hampshire and 92 percent of New Forest National Park overlap" in items[0]["label"]
 
@@ -305,8 +307,7 @@ def test_a_bordering_item_is_highlighted_and_one_out_of_view_does_not_fail(test_
         s.store.close()
 
 
-@pytest.mark.xfail(strict=True, reason="P3-T4f finding: the National parks layer has fill 'none', so an item of it, "
-                                       "such as the New Forest in Overlapping, has no shape on the map to highlight")
 def test_an_overlapping_item_of_an_unfilled_layer_is_highlighted(hants):
-    item = group(hants.panel(open={"overlapping"}), "overlapping")["items"][0]
+    # The P3-T4f finding, fixed by P3-T23: a layer that is not filled is still outlined, so its shapes are drawn.
+    item = group(hants.panel(open={"overlapping"}), "overlapping")["items"][0]["children"][0]
     assert _highlighted(hants, "overlapping", item["id"])[0]

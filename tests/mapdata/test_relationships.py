@@ -56,7 +56,8 @@ def test_the_new_forest_overlaps_hampshire_and_wiltshire_with_a_share_for_each(p
 
 def test_a_line_lists_the_areas_it_passes_through_in_order_from_its_start(pack):
     """INF-6. The Rhine sample runs from Schaffhausen down to Basel, the way OSM draws a river, as it flows."""
-    assert pack.relationships(RHINE)["crosses"] == [SWITZERLAND, GERMANY, FRANCE]
+    # Büsingen, Germany's exclave on the Rhine, is crossed too (P3-T24g): the countries are in order.
+    assert [i for i in pack.relationships(RHINE)["crosses"] if not i.startswith("exclave:")] == [SWITZERLAND, GERMANY, FRANCE]
     assert pack.relationships(ITCHEN)["crosses"] == [UK, ENGLAND, HAMPSHIRE, SOUTHAMPTON]
 
 
@@ -110,6 +111,25 @@ def test_the_same_land_is_same_as_not_parent_and_child():
     sums = rel.measure(records, [a, a], kinds, dict(rel.SETTINGS))
     out = rel.relationships(records, [a, a], kinds, sums, {"x": 1, "y": 2}, set(), dict(rel.SETTINGS))
     assert out[0]["same"] == [1] and out[1]["same"] == [0] and "in" not in out[0]
+
+
+def test_an_island_and_an_area_of_one_name_on_nearly_the_same_land_are_the_same_but_not_with_another_name():
+    """P3-T23, DP198: the Isle of Wight the island and the county, cut to the coast a little differently, are the
+    same land, so said once; the island of Ireland is not the country, which is about five sixths of it."""
+    island, county = shapely.box(0, 0, 1, 1), shapely.box(0, 0, 0.95, 1)
+    for name_b, same in (("Wight", True), ("Other", False)):
+        records = [{"id": "a", "layer": "islands", "name": "Wight"}, {"id": "b", "layer": "counties", "name": name_b}]
+        kinds = [rel.AREA, rel.AREA]
+        sums = rel.measure(records, [island, county], kinds, dict(rel.SETTINGS))
+        out = rel.relationships(records, [island, county], kinds, sums, {"islands": 5, "counties": 6}, set(),
+                                dict(rel.SETTINGS))
+        assert (out[0].get("same") == [1]) is same, name_b
+    ireland, country = shapely.box(0, 0, 1, 1), shapely.box(0, 0, 0.83, 1)
+    records = [{"id": "a", "layer": "islands", "name": "Ireland"}, {"id": "b", "layer": "countries", "name": "Ireland"}]
+    sums = rel.measure(records, [ireland, country], [rel.AREA, rel.AREA], dict(rel.SETTINGS))
+    out = rel.relationships(records, [ireland, country], [rel.AREA, rel.AREA], sums, {"islands": 5, "countries": 2},
+                            set(), dict(rel.SETTINGS))
+    assert "same" not in out[0] and out[1]["in"] == [0]
 
 
 def test_a_shared_border_is_measured_and_cut_box_edges_are_not():
@@ -179,3 +199,30 @@ def test_a_pair_the_geometry_library_refuses_is_made_valid_and_done_again():
     assert got[0].equals(square)
     assert shapely.area(got[1]) == pytest.approx(0.5)
     assert rel.REPAIRED[0] == 1
+
+
+BAY_OF_BISCAY, LONGBRIDGE_LAKE = "osm:r7156290", "osm:r10303325"
+
+
+def test_a_country_has_its_coast_on_each_sea_and_the_sea_its_shores(pack):
+    """P3-T24e, DP200: land and sea share an edge, as the countries are cut to the coast, so the coast is exact."""
+    coast = dict(pack.relationships(FRANCE)["coast"])
+    assert BAY_OF_BISCAY in coast and coast[BAY_OF_BISCAY] > 100
+    assert dict(pack.relationships(BAY_OF_BISCAY)["shores"])[FRANCE] == coast[BAY_OF_BISCAY]
+    assert "coast" not in pack.relationships(SWITZERLAND)   # landlocked
+
+
+def test_a_lake_has_its_shore_in_each_area_round_it(pack):
+    """P3-T24e, DP200: a lake lies on the land, so its shore is its outline inside each area."""
+    shores = dict(pack.relationships(LONGBRIDGE_LAKE)["shores"])
+    assert set(shores) >= {HAMPSHIRE, ENGLAND, UK}
+    assert shores[HAMPSHIRE] == pytest.approx(pack.relationships(LONGBRIDGE_LAKE)["outline_km"], rel=0.01)
+
+
+def test_a_landlocked_countrys_whole_outline_is_its_borders(pack):
+    """P3-T24f, DP201: the whole border, land and coast, is stored for the share of each neighbour."""
+    rel = pack.relationships(SWITZERLAND)
+    assert rel["outline_km"] == pytest.approx(sum(km for _i, km in rel["next"]), rel=0.03)
+    france = pack.relationships(FRANCE)
+    land, coast = sum(km for _i, km in france["next"]), sum(km for _i, km in france["coast"])
+    assert land + coast <= france["outline_km"] * 1.01

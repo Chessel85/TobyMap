@@ -100,6 +100,7 @@ def _shown(colour: str) -> bool:
 def contrast_pairs(t: dict) -> list[tuple[str, str, str]]:
     """Every outline and text colour with each colour it is drawn on: (what, colour, under)."""
     fills = [c for c in t["land"] if _shown(c)] + [t["ocean"]]
+    fills += [c for c in [t.get("plain_land"), *(t.get("physical") or {}).values()] if c and _shown(c)]   # P3-T23
     pairs = []
     if _shown(t["border"]):
         pairs += [("border", t["border"], f) for f in fills]
@@ -130,6 +131,9 @@ def _apply(t: dict, fill: str, borders: bool, colours: dict[str, str]) -> dict:
         t["land"] = [colours.get("fill", t["land"][0])] * len(t["land"])
     elif fill == "none":
         t["land"] = [TRANSPARENT] * len(t["land"])
+    if fill in ("one", "none"):   # the physical view's colours follow the same setting (P3-T23)
+        t["plain_land"] = t["land"][0]
+        t["physical"] = {k: t["land"][0] for k in (t.get("physical") or {})}
     if "border" in colours:
         t["border"] = colours["border"]
     if "current_outline" in colours:
@@ -137,6 +141,7 @@ def _apply(t: dict, fill: str, borders: bool, colours: dict[str, str]) -> dict:
     if not borders:
         t["border"] = TRANSPARENT
         t["border_width"] = 0
+        t["country_border_width"] = 0
     return t
 
 

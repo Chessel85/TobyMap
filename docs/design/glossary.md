@@ -194,6 +194,10 @@ Older documents written before this glossary, such as architecture section 6 and
 * Map display setting: the choice of fill, borders and their colours, on top of the theme (DP108).
 * Map view: a named set of settings for every layer (shown, zoom range, filled, outline drawn), with the order of the layers in which "where am I" says areas, smallest first within a layer: the political view, the default, or the physical view, or a view you saved yourself in the view manager. It never changes the pack or the drawing order, so a change to a view needs no new build. Changing one of its settings makes it Custom. The country is said in every map view (DP198, PO, 17 November 2026; it replaces "map preset").
 * Drawing order: the order in which layers are painted on the map. Later layers are painted over earlier ones. The data manager sets it in the views file, read when TobyMap starts, and the user cannot change it (DP198, PO, 17 November 2026).
+* Views file: the file that holds the drawing order and the built-in map views, mapcore/views.yaml, kept by the data manager with the application and read when TobyMap starts (P3-T23).
+* Drawing step: a short part of a drawing, a few hundredths of a second. Between steps a key is answered first, so a drawing never holds up what is said (P3-T24a, DP202).
+* Drawing limit: the most features one drawing holds, 15,000. A view that would draw more leaves out the smallest, and the status line says some small areas are not drawn (P3-T24a, DP202).
+* Shores: in Bordering, for a lake or sea, the countries, regions and counties round it, with the length of shore each has (P3-T24e, DP200). Its opposite, for land, is Coast.
 * Territorial waters: the sea within 12 nautical miles of a country's coast, which belongs to that country. OpenStreetMap's country areas include it; the build cuts it off at the coast (DAT-3) and, from Phase 4, keeps it as a layer of its own (DAT-15).
 * Isolate: showing only the area you are in, and its outline, on the map (VIS-2).
 * Names on the map: the areas' names drawn on the map for sighted users, placed by the core.

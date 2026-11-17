@@ -6,7 +6,7 @@ import time
 import pytest
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QImage, QKeyEvent, QPainter
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QTreeWidgetItem
 
 from desktop.announcer import RecordingAnnouncer
 from desktop.dialogs import (HistoryDialog, InputDialog, KeyCaptureDialog, LayerSettingsDialog, LayersDialog, ListDialog,
@@ -340,17 +340,25 @@ def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(window, qtbot, mon
     fire = _HoldClock._fire
     monkeypatch.setattr(_HoldClock, "_fire", lambda clock: (woke.append(time.perf_counter()), fire(clock))[1])
     session = window.session
-    real_scene = session.scene
+    real_start = session.start_drawing
     started = []
 
-    def slow_scene(width, height):
-        started.append(time.perf_counter())
-        until = time.perf_counter() + 0.2
-        while time.perf_counter() < until:   # Python busy for 200 ms, as a real drawing is
-            sum(range(200))
-        return real_scene(width, height)
+    def slow_drawing(width, height):
+        from mapcore.render.drawing import Drawing
 
-    session.scene = slow_scene
+        started.append(time.perf_counter())
+        real = real_start(width, height)
+
+        def steps():
+            until = time.perf_counter() + 0.2
+            while time.perf_counter() < until:   # Python busy for 200 ms, as a real drawing is
+                sum(range(200))
+            yield
+            return real.finish()
+
+        return Drawing(steps(), width, height)
+
+    session.start_drawing = slow_drawing
     qtbot.waitUntil(window.map.drawing_done)
     ticks_before = len(window.sounds.times)
     pressed = time.perf_counter()
@@ -673,6 +681,7 @@ def test_lines_and_markers_are_painted(window):
                   "marker_area": ["b"], "marker_styles": [{"fill": "#00ff00", "stroke": "#00ff00", "radius": 5}]})
     scene["cross"] = scene["heading"] = None
     scene["names"] = []   # a name could sit over the line
+    scene["current"] = []   # the current feature's tint is painted over everything (P3-T23)
     image = QImage(400, 300, QImage.Format.Format_ARGB32_Premultiplied)
     painter = QPainter(image)
     paint_scene(painter, scene)
@@ -805,7 +814,8 @@ def test_ctrl_shift_l_opens_the_layers_list_with_a_check_box_for_each_layer_in_i
     groups = [dialog.tree.topLevelItem(i) for i in range(dialog.tree.topLevelItemCount())]
     assert [g.text(0) for g in groups][:2] == ["Boundaries", "Water"]
     boundaries = [groups[0].child(i).text(0) for i in range(groups[0].childCount())]
-    assert boundaries == ["Countries", "Regions and constituent countries", "Counties", "National parks"]   # P3-T17; the test pack's park, P3-T3
+    assert boundaries == ["Countries", "Regions and constituent countries", "Counties", "Enclaves and exclaves",
+                          "National parks"]   # P3-T17; the test pack's park, P3-T3
     assert layer_item(dialog, "countries").checkState(0) == Qt.CheckState.Checked
     assert dialog.ok_button.text() == "OK" and dialog.cancel_button.text() == "Cancel"
     dialog.cancel_button.click()
@@ -870,7 +880,8 @@ def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_al
     box.max_zoom.setCurrentIndex(box.max_zoom.findData(None))
     box.crossing.setCurrentIndex(box.crossing.findData("line_crossing"))
     box.ok_button.click()
-    assert box.values() == {"min_zoom_m": 250000, "max_zoom_m": None, "crossing_earcon": "line_crossing", "sound": box.sound.currentData()}
+    assert box.values() == {"min_zoom_m": 250000, "max_zoom_m": None, "crossing_earcon": "line_crossing", "sound": box.sound.currentData(),
+                            "outline": True}
     dialog.layers["counties"].update(box.values())
     assert dialog.changes() == [("counties", {"min_zoom_m": 250000, "max_zoom_m": None,
                                                "crossing_earcon": "line_crossing"})]
@@ -1000,6 +1011,25 @@ def test_enter_on_cancel_in_a_layers_settings_goes_back_unchanged(window, qtbot)
     box.show()
     enter(qtbot, box.min_zoom)               # Enter in a field presses OK
     assert not box.isVisible() and box.result() == 1
+
+
+def test_a_layers_outline_is_chosen_in_its_settings(window, qtbot):
+    """P3-T23, DP198: an area layer has a check box for drawing its outlines; a line layer has none."""
+    window.dispatch("layers.open")
+    dialog = click_dialog(window, LayersDialog)
+    box = LayerSettingsDialog(dialog, dialog.layers["counties"], dialog.dialog, dialog._check)
+    qtbot.addWidget(box)
+    box.show()
+    assert box.outline.isVisible() and box.outline.isChecked()
+    assert box.outline.text() == "Draw the outlines of its areas"
+    box.outline.setChecked(False)
+    assert box.values()["outline"] is False
+    dialog.layers["counties"].update(box.values())
+    assert ("counties", {"outline": False}) in dialog.changes()
+    line = LayerSettingsDialog(dialog, dialog.layers["rivers"], dialog.dialog, dialog._check)
+    qtbot.addWidget(line)
+    line.show()
+    assert not line.outline.isVisible()
 
 
 def test_enter_on_each_button_in_settings_presses_that_button(window, qtbot):
@@ -1261,3 +1291,64 @@ def test_reset_all_settings_saves_a_new_installations_settings(window, qtbot, tm
     assert region(window) == "map"
     # Said once, as the map's name when the focus comes back, as after Go to (P2-T17c).
     assert window.map.accessibleName().startswith("All settings are reset, as on a new installation. ")
+
+
+def test_a_drawing_that_takes_over_two_seconds_says_still_drawing_once(window, qtbot, monkeypatch):
+    """P3-T24a, DP202: a slow drawing never seems a crash. The core's words, said politely, once."""
+    from mapcore.render import drawing as drawing_mod
+
+    monkeypatch.setattr(drawing_mod, "STILL_DRAWING_S", 0.1)
+    session = window.session
+    real_start = session.start_drawing
+
+    def slow_drawing(width, height):
+        real = real_start(width, height)
+
+        def steps():
+            for _ in range(20):   # 20 steps of 15 ms
+                time.sleep(0.015)
+                yield
+            return real.finish()
+
+        return drawing_mod.Drawing(steps(), width, height)
+
+    qtbot.waitUntil(window.map.drawing_done)
+    session.start_drawing = slow_drawing
+    before = len(window.announcer.spoken)
+    window.map.redraw()
+    qtbot.waitUntil(window.map.drawing_done, timeout=5000)
+    qtbot.wait(50)
+    said = window.announcer.spoken[before:]
+    assert said == [("Still drawing the map", "polite")]
+
+
+def test_the_status_line_says_when_the_drawings_limit_left_some_out(window, qtbot, monkeypatch):
+    """P3-T24a, DP202: the line under the map is brought up to date once the drawing is shown."""
+    import mapcore.session as session_mod
+
+    qtbot.waitUntil(window.map.drawing_done)
+    assert "not drawn" not in window.status_line.text()
+    monkeypatch.setattr(session_mod, "DRAW_LIMIT", 1)
+    window.map.redraw()
+    qtbot.waitUntil(lambda: "not drawn" in window.status_line.text(), timeout=5000)
+
+
+def test_opening_a_neighbour_in_bordering_lists_the_ends_of_the_shared_border(window, qtbot):
+    """P3-T24f, DP201: an item opened with nothing under it yet is sent to the core as open, and filled."""
+    from desktop.window import ITEM_ID
+
+    window.dispatch("goto.set", text="46.8, 8.2")   # Switzerland
+    window.session.set_current_feature("osm:r51701")
+    window._fill_tree()
+    groups = {str(window.tree.topLevelItem(i).data(0, ITEM_ID)): window.tree.topLevelItem(i)
+              for i in range(window.tree.topLevelItemCount())}
+    bordering = groups["group:bordering"]
+    bordering.setExpanded(True)
+    qtbot.waitUntil(lambda: bordering.childCount() > 1)
+    germany = next(bordering.child(k) for k in range(bordering.childCount())
+                   if bordering.child(k).text(0).startswith("Germany"))
+    assert germany.childIndicatorPolicy() == QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator
+    germany.setExpanded(True)
+    qtbot.waitUntil(lambda: germany.childCount() > 0)
+    ends = [germany.child(k).text(0) for k in range(germany.childCount())]
+    assert any(e.startswith("End of the border with Germany, where Austria meets it") for e in ends)

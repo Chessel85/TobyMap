@@ -113,6 +113,25 @@ details:
   the_words: [Kingdom, States, Republic, Islands, Isle, Isles, Emirates, Federation, Union, Netherlands,
               Philippines, Bahamas, Maldives, Seychelles, Comoros]
   part_of: "Part of: {value}"
+  # The legal status of a territory and its sovereign state, from the territories list (P3-T24d, DP199).
+  status:
+    integral part: "Status: integral part of {sovereign}."
+    autonomous part: "Status: self-governing part of {sovereign}, not part of its main country."
+    Crown Dependency: "Status: Crown Dependency of {sovereign}, not part of the United Kingdom."
+    overseas territory: "Status: territory of {sovereign}, not part of it."
+    freely associated state: "Status: freely associated state of {sovereign}, which governs itself."
+    disputed: "Status: disputed, held by {sovereign}."
+  claimed_by: "Claimed by {claimant}."
+  # Enclaves and exclaves (P3-T24g, DP207).
+  exclaves: "Exclaves: {value}"
+  enclaves: "Contains enclaves: {value}"
+  enclave_in: "Enclave in {value}"
+  exclave_of: "Exclave of {sovereign}, beside {where}"
+  # The whole border, land and coast (P3-T24f, DP201).
+  border: "Whole border: {whole}, of which land {land} and coast {coast}"
+  border_land: "Whole border: {whole}, all on land"
+  border_coast: "Whole border: {whole}, all coast"
+  border_whole: "Whole border: {whole}"
   disputed: "This land is disputed."
   # Who claims it, each with equal credit, in the order of their names (DP119), and the source's view (ANN-6, DAT-8).
   claimants: "Claimed by: {value}"
@@ -149,6 +168,10 @@ beacon:
   near_pole: "Beacon off near {target}."
   back: "Beacon back on."
 # Themes, the map display setting and isolate (P2-T12; VIS-2, DP108).
+map:
+  # A drawing that has taken more than 2 seconds, said once (P3-T24a, DP202).
+  still_drawing: "Still drawing the map"
+
 display:
   theme: "{theme} theme."
   colour_refused: "{what}: that colour is too close to the colours around it for the 7 to 1 contrast of a high contrast theme, so the theme's own colour is used."
@@ -358,11 +381,16 @@ coordinates:
 # Where the location is, and what changed (ANN-1, LOC-2).
 place:
   list_separator: ", "
+  and: " and "
   none: "No area here"
   layers_off: "Every layer here is switched off"
   # Every layer here is on, but none is in its zoom range (DP160).
   out_of_zoom: "No data at this zoom level"
   sea: "Sea"
+  # Enclaves and exclaves, said after the country (P3-T24g, DP207): "Spain, exclave in France".
+  exclave_in: "exclave in {where}"
+  exclave_coast: "exclave on the coast of {where}"
+  exclave_beside: "exclave beside {where}"
   # Disputed land is said with "disputed", once, after the largest disputed area of the place (P3-T2c, ANN-6):
   # "Autonomous Republic of Crimea, Crimea, disputed".
   disputed: "{name}, disputed"
@@ -406,6 +434,10 @@ movement:
 # The line says what C and H say. Neither is in the Tab order or a live region.
 status:
   line: "{coordinates}. {heading}"
+  # The current layer has no area here (P3-T24b, DP202).
+  layer_none: "{line}. {layer}: none here."
+  # The drawing's limit left out the smallest features (P3-T24a, DP202).
+  trimmed: "{line}. Some small areas are not drawn at this zoom."
 
 controls:
   group: "Move and zoom"
@@ -463,6 +495,44 @@ layers:
   choose_layer: "Choose a layer first. The settings are for one layer."
   item_off: "{layer}, off"
   item_on: "{layer}, on"
+  # Whether the layer's areas have their outlines drawn on the map (P3-T23, DP198).
+  outline: "Draw the outlines of its areas"
+
+# The current layer (P3-T24b, DP202): Shift+Enter on an item of the Information panel.
+current_layer:
+  chosen: "Current layer: {layer}. {name} is the current feature."
+  none_here: "Current layer: {layer}. {layer}: none here, so the current feature is the smallest area, {name}."
+  back: "No current layer. The current feature is the smallest area here, {name}."
+  no_item: "Choose an item in the Information panel first."
+
+# Map views (P3-T23, DP198): the political and physical views, and your own, chosen in the view manager.
+views:
+  title: "Map views"
+  help: "Choose a view to use it, or save, rename or delete your own. A view decides which layers are drawn, how, and the order places are said in. Cancel closes this list."
+  item: "{name}"
+  item_in_use: "{name}, in use"
+  custom: "Custom"
+  custom_line: "Custom: your changes to the {name} view, in use"
+  custom_said: "Your changes to the layers are in use. Save them as a view to keep them by name."
+  save: "Save the layers as a view"
+  rename: "Rename one of your views"
+  delete: "Delete one of your views"
+  chosen: "{name} view."
+  save_title: "Save the layers as a view"
+  name_label: "Name of the view"
+  name_help: "A name for your view, such as Rivers and roads. It is kept with your settings."
+  saved: "Saved as the {name} view, now in use."
+  rename_title: "Rename {name}"
+  renamed: "{old} is now called {name}."
+  rename_choose: "Choose a view to rename"
+  delete_choose: "Choose a view to delete"
+  delete_title: "Delete a view"
+  delete_question: "Delete your view {name}? This cannot be undone."
+  delete_ok: "Delete"
+  deleted: "The {name} view is deleted."
+  deleted_in_use: "The {name} view is deleted. The {view} view is in use."
+  name_empty: "Type a name for the view."
+  name_taken: "There is already a view called {name}. Type another name."
 
 # Reset all settings, in the Map menu (P2-T18h): as on a new installation on a new computer.
 reset:
@@ -487,6 +557,8 @@ measure:
   centre: "{name}, centre {distance} {direction}"
   here: "{name}, here"
   none: "Cannot measure to {name}."
+  # An item about one point, such as an end of a shared border (P3-T24f).
+  point: "{distance} {direction}"
 
 nearby:
   item: "{name}, {distance} {direction}"
@@ -526,6 +598,19 @@ bookmark:
 bordering:
   # Every item says its distance and direction, as Nearby does (P3-T19c, checklist 6.2).
   item: "{name}, {distance} {direction}, shared border {length}"
+  # With its share of the whole border, from a pack that has the whole border's length (P3-T24f, DP201).
+  item_share: "{name}, {distance} {direction}, shared border {length}, {share} percent"
+  # The land round a lake or sea, under a heading for each layer, and the seas round land (P3-T24e, DP200).
+  shores_heading: "Shores, {layer} {count}"
+  shore: "{name}, {distance} {direction}, {length} of shore"
+  coast_heading: "Coast {count}"
+  coast: "{name}, {distance} {direction}, {length} of coast"
+  # The ends of a shared border, listed when its item is opened (P3-T24f, DP201).
+  end_coast: "End of the border with {name}, at the coast, {sea}, {distance} {direction}"
+  end_meets: "End of the border with {name}, where {other} meets it, {distance} {direction}"
+  end: "End of the border with {name}, {distance} {direction}"
+  ring: "A stretch with no ends, {length} round, nearest point {distance} {direction}"
+  no_ends: "No shared border found in the map's shapes."
   near: "{name}, {distance} {direction}, nearly touches, {across} across"
   none: "Nothing borders {name}."
 contains:
@@ -538,6 +623,13 @@ overlapping:
   none: "Nothing overlaps {name}."
 crossing:
   item: "{name}, {distance} {direction}"
+  # A line crossing the border, said with how many times and the nearest crossing; opened, each crossing point
+  # (P3-T24f, DP201).
+  crosses_border: "{name}, crosses {times}, nearest {distance} {direction}"
+  times_1: "once"
+  times_2: "twice"
+  times_n: "{count} times"
+  point: "Crossing {number} of {name}, {distance} {direction}"
   crosses: "{name}, {distance} {direction}, crosses it"
   along: "{name}, {distance} {direction}, along its border"
   none: "Nothing crosses {name}."

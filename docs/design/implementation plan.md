@@ -1,6 +1,13 @@
 # Implementation Plan
 
-Version 0.7, 14 November 2026.
+Version 0.8, 17 November 2026.
+
+## Changes in version 0.8
+
+This change comes from your comments on DP198, 17 November 2026.
+
+* P4-T12 (new): the territorial waters layer, DAT-15.
+* P4-T13 (new): groups of islands from a fuller source than Natural Earth, such as the Channel Islands.
 
 ## Changes in version 0.7
 
@@ -317,7 +324,7 @@ LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, AN
 Street-level exploration of Great Britain, with packs combining seamlessly, a complete pack manager, and personal content.
 
 ### Requirements delivered
-DAT-2, DAT-3 (detailed coastlines), PLT-4, PCK-1 (regional packs), PCK-2, PCK-4, DMT-3, DMT-4, DMT-5, DMT-7 (complete), NFR-3, NFR-4, USR-1 to USR-5.
+DAT-2, DAT-3 (detailed coastlines), DAT-15, PLT-4, PCK-1 (regional packs), PCK-2, PCK-4, DMT-3, DMT-4, DMT-5, DMT-7 (complete), NFR-3, NFR-4, USR-1 to USR-5.
 
 ### Tasks
 * P4-T1 Full OpenStreetMap pipeline for a region, built on the spike S2 method: all administrative levels cut to the land polygons, slivers given to neighbours, named islands (and unnamed islands if DP87 says so), shared-edge simplification across levels, roads and paths, land use, national parks (moved from Phase 3), parks and public spaces, school grounds, points of interest with friendly categories, river assembly, and matching to base identifiers.
@@ -331,6 +338,8 @@ DAT-2, DAT-3 (detailed coastlines), PLT-4, PCK-1 (regional packs), PCK-2, PCK-4,
 * P4-T9 Measuring a chain of pins (USR-4) and GeoJSON export and import (USR-5).
 * P4-T10 Languages of names on the desktop (ACC-9, DP196): a test harness that sends speech to NVDA through its Controller Client with each name's language marked (SSML), to find out with the PO whether NVDA switches voices for it. If it does, what TobyMap says can go that way when NVDA is running and the Names setting is "Always the local name".
 * P4-T11 Quality reports and the publish command, P3-T14's work items (DMT-3, DMT-5, PCK-4, DP197): every build writes a quality report and CSV files, with the corrections of P4-T4 listed in it; and `mapdata publish` puts a pack, its checksum and the catalogue on a GitHub release with an identical copy on Hugging Face, after asking the PO.
+* P4-T12 Territorial waters (DAT-15): the build keeps the sea part of each OpenStreetMap country area, which it now cuts off at the coast, as a layer of its own, painted a lighter blue than the open sea.
+* P4-T13 Groups of islands from a fuller source than Natural Earth's physical regions, which have no Channel Islands, perhaps OpenStreetMap's archipelagos (DP198).
 
 ### Automatic exit checks
 * The street-level acceptance scripts pass for the UK test area (DAT-2).

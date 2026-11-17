@@ -187,6 +187,9 @@ Older documents written before this glossary, such as architecture section 6 and
 * Theme: the set of colours the map is drawn in: standard, high contrast dark, high contrast light or colour-blind safe (VIS-2).
 * Contrast ratio: how much lighter one colour is than another, from 1 to 1 (the same) to 21 to 1 (black on white), measured as the web accessibility guidelines do. The high contrast themes keep every outline and name at 7 to 1 or more.
 * Map display setting: the choice of fill, borders and their colours, on top of the theme (DP108).
+* Map view: a named set of settings for every layer (shown, zoom range, filled, outline drawn), with the order of the layers in which "where am I" says areas, smallest first within a layer: the political view, the default, or the physical view, or a view you saved yourself in the view manager. It never changes the pack or the drawing order, so a change to a view needs no new build. Changing one of its settings makes it Custom. The country is said in every map view (DP198, PO, 17 November 2026; it replaces "map preset").
+* Drawing order: the order in which layers are painted on the map. Later layers are painted over earlier ones. The data manager sets it in the views file, read when TobyMap starts, and the user cannot change it (DP198, PO, 17 November 2026).
+* Territorial waters: the sea within 12 nautical miles of a country's coast, which belongs to that country. OpenStreetMap's country areas include it; the build cuts it off at the coast (DAT-3) and, from Phase 4, keeps it as a layer of its own (DAT-15).
 * Isolate: showing only the area you are in, and its outline, on the map (VIS-2).
 * Names on the map: the areas' names drawn on the map for sighted users, placed by the core.
 * Text cursor: the small rectangle a Windows program says its typing point is at, also called the system caret. Magnifiers can follow it. The desktop map holds an invisible one at its centre (ACC-8).

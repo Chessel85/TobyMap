@@ -121,6 +121,10 @@ Your other notes are about how TobyMap should behave, where there is a choice. T
 
 Data changes chosen in these go into the builds, task P3-T21.
 
+### Map views and the drawing order, task P3-T23
+
+From your decisions on DP198, 17 November 2026. The definition is "How TobyMap draws the map" in docs/design/Discussion points detail - responses.md: the political and physical map views and the view manager, the drawing order in the views file read at start-up (which fixes the hidden lakes), an outline setting for each layer, areas said in the view's order, the most detailed layer shown in colours with thicker country borders, the current feature's tint, island names on the map, and an island with the same name and land as an area said once. Only the last needs the builds, task P3-T21.
+
 ## 4. The builds, task P3-T21
 
 * P3-T21a Western Europe trial build, with DP194's stored contents, the layer sounds, Ceuta and Melilla, and the data changes you choose. Checks and timings on it. It also tries the code fixes on fresh data.

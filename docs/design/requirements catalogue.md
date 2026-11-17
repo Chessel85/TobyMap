@@ -1,6 +1,12 @@
 # Requirements Catalogue
 
-Version 0.17, 13 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.18, 17 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.18
+
+This change comes from your comments on DP198 in "Discussion points detail - responses.md", 17 November 2026.
+
+* DAT-15 (new): territorial waters as a layer of their own, in Phase 4.
 
 ## Changes in version 0.17
 
@@ -1237,6 +1243,15 @@ The high level requirements document stays the product owner's own statement of 
   * The latitude and longitude interval can be set, for example every 1°, 5°, 10° or 15°.
   * Stepping across 0° longitude with the layer on lists "Prime meridian, crossed" and, if switched on, plays its earcon.
   * The international date line is offered as well as the 180° meridian, because the date line is not straight.
+
+### DAT-15 Territorial waters
+* Outcome: Each country's territorial waters, the sea within 12 nautical miles of its coast, are a layer of their own. They are painted a lighter blue than the open sea, and can be said and switched off like any layer.
+* Source: PO comments on DP198, 17 November 2026
+* Priority: Should. Status: Proposed.
+* Acceptance criteria:
+  * Standing 5 kilometres off the Brittany coast, the containment list includes France's territorial waters, and the user still hears that they are at sea, not in France (DAT-3).
+  * The layer is made from the part of OpenStreetMap's country areas that the build cuts off at the coast, so no new source is needed.
+  * Wider zones, such as exclusive economic zones, come only from a source whose licence passes the licence check (SCP-4).
 
 ---
 

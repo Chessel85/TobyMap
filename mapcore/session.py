@@ -1111,7 +1111,13 @@ class MapSession:
                 key, extra = self._what_is_at_end(current, other, lat, lon)
                 out.append(self._point_item("bordering", other, f"end:{other.id}:{k}:{e}", key, lat, lon, heading,
                                             **extra))
-        return out or [panel_table.item(f"heading:no-ends:{other.id}", say("bordering.no_ends"), "", 0.0, 0.0)]
+        if not out:
+            return [panel_table.item(f"heading:no-ends:{other.id}", say("bordering.no_ends"), "", 0.0, 0.0)]
+        # Clockwise from north, or from ahead when the words are said from the way you face (P3-T28i): the same
+        # bearing the words are made from. An item's bearing_deg is from ahead (0 in north-fixed), so a compass
+        # order adds the facing back. Equal bearings keep the nearest first.
+        base = 0.0 if heading is not None else (describer.facing(self.world) or 0.0)
+        return sorted(out, key=lambda i: ((i["bearing_deg"] + base) % 360.0, i["distance_m"]))
 
     def _what_is_at_end(self, a, b, lat: float, lon: float) -> tuple[str, dict]:
         """What is at an end of the border of a and b: the sea, or a third area of their layer, found just round

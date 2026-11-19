@@ -126,6 +126,33 @@ def test_a_neighbour_opens_to_the_ends_of_the_shared_border_and_what_is_there(te
     s.store.close()
 
 
+def _end_bearings(s, children):
+    from mapcore.geo import geodesy
+
+    out = []
+    for c in children:
+        spot = s._spots[("bordering", c["id"])]
+        out.append(geodesy.inverse(s.world.lat, s.world.lon, spot[1], spot[2])[1] % 360.0)
+    return out
+
+
+def test_the_ends_are_in_order_clockwise_from_north_or_from_ahead(test_pack):
+    """P3-T28i: by the bearing the words are made from."""
+    s = _session(test_pack, SWITZERLAND)
+    s.set_current_feature("osm:r51701")
+    germany = next(i for i in _group(s, "bordering")["items"] if i["name"] == "Germany")
+    kids = _opened(s, "bordering", germany["id"])["children"]
+    assert len(kids) >= 3
+    b = _end_bearings(s, kids)
+    assert b == sorted(b)   # compass: north first, round to north-west
+    s.world.orientation, s.world.heading = "free", 200.0
+    s.run("settings.set", field="relative_directions", value=True)
+    kids = _opened(s, "bordering", germany["id"])["children"]
+    rel = [(x - 200.0) % 360.0 for x in _end_bearings(s, kids)]
+    assert rel == sorted(rel)   # clockwise from ahead
+    s.store.close()
+
+
 def test_enter_on_an_end_goes_to_that_point(test_pack):
     s = _session(test_pack, SWITZERLAND)
     s.set_current_feature("osm:r51701")

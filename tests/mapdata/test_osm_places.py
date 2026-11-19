@@ -30,3 +30,26 @@ def test_the_world_pack_reads_the_sea_places_into_a_layer_of_places():
     assert stage["layer"] == "sea-places" and stage["same_as"] == "seas"
     assert pack.layers["sea-places"].geometry == "point"
     assert {q["type"] for q in stage["queries"]} == {"sea", "bay", "strait"}
+
+
+def test_a_bay_is_kept_only_in_or_near_the_water():
+    """P3-T28c: a bay at the coast or on a lake is kept; a pool in a river, far from both, is left out."""
+    sea = shapely.box(-2.0, 49.0, 0.0, 50.7)        # the Channel, up to 50.7 north
+    lake = shapely.box(10.0, 60.0, 10.2, 60.1)      # a lake in Norway
+    points = [shapely.Point(-1.3, 50.6),            # in the sea
+              shapely.Point(-1.3, 50.705),          # about 560 metres off the sea, on the shore
+              shapely.Point(-1.4858, 51.1273),      # Hatch Pool, on the River Test
+              shapely.Point(10.214, 60.05),         # about 780 metres east of the lake, at 60 north
+              shapely.Point(10.23, 60.05)]          # about 1,670 metres east of the lake
+    assert osm_places.near_water(points, [sea, lake], 1000).tolist() == [True, True, False, True, False]
+    assert osm_places.near_water([], [sea], 1000).tolist() == []
+    assert osm_places.near_water(points[:1], [], 1000).tolist() == [False]
+
+
+def test_the_sea_places_come_after_the_lakes_and_keep_bays_near_water():
+    for name in ("world", "trial-western-europe"):
+        pack = load_pack(name)
+        kinds = [(s["stage"], s.get("layer")) for s in pack.stages]
+        assert kinds.index(("osm-layer", "lakes")) < kinds.index(("osm-places", "sea-places"))
+        stage = next(s for s in pack.stages if s.get("layer") == "sea-places")
+        assert stage["near_water"] == {"types": ["bay"], "layers": ["oceans", "seas", "lakes"], "within_m": 1000}

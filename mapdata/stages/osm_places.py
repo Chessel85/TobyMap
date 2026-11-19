@@ -31,6 +31,12 @@ Settings:
   its layer and id; the writing stage makes them ids, after any id is changed
   to keep every id different.
 * same_as: optional, a layer whose names the places must not repeat.
+* near_water: optional, with types (such as [bay]), layers (such as [oceans,
+  seas, lakes]) and within_m. A place of those types is kept only in an area
+  of those layers or no more than within_m from one, so a bay is kept at the
+  coast or on a lake the pack holds, and a pool in a river, such as Hatch Pool
+  on the River Test, is left out (P3-T28c). The layers must come from stages
+  before this one.
 * box: optional, [west, south, east, north].
 """
 from __future__ import annotations
@@ -119,6 +125,43 @@ def areas_within(points: list, areas: list[tuple[str, str, object]], order: list
     rank = {k: n for n, k in enumerate(order)}
     return [[{"layer": areas[a][0], "id": areas[a][1]}
              for a in sorted(set(f), key=lambda a: (rank.get(areas[a][0], 99), areas[a][1]))] for f in found]
+
+
+def near_water(points: list, waters: list, within_m: float) -> np.ndarray:
+    """For each point, whether it is in one of the water areas, or no more than within_m from one. Each area is
+    prepared once and tested against the points in its bounds, widened by within_m; east and west, the reach in
+    degrees grows with the point's latitude, so it is never shorter than within_m (P3-T28c)."""
+    hit = np.zeros(len(points), dtype=bool)
+    if not points or not waters:
+        return hit
+    pts = np.array(points, dtype=object)
+    xy = shapely.get_coordinates(pts)
+    ptree = shapely.STRtree(pts)
+    reach_y = within_m / 111_320.0
+    reach_x = reach_y / np.maximum(0.1, np.cos(np.radians(xy[:, 1])))
+    widest = float(reach_x.max())
+    for g in waters:
+        w, s, e, n = g.bounds
+        near = ptree.query(shapely.box(w - widest, s - reach_y, e + widest, n + reach_y))
+        near = near[~hit[near]]
+        if not len(near):
+            continue
+        shapely.prepare(g)
+        inside = shapely.intersects_xy(g, xy[near, 0], xy[near, 1])
+        hit[near[inside]] = True
+        rest = near[~inside]
+        if len(rest):
+            # The distance in degrees, with the east-west reach for each point's latitude: a point is near when
+            # its distance is within the wider reach, then checked on a box scaled to its latitude.
+            close = shapely.dwithin(g, pts[rest], reach_x[rest])
+            for p in rest[close].tolist():
+                x, y = xy[p]
+                cos = max(0.1, float(np.cos(np.radians(y))))
+                qx, qy = shapely.get_coordinates(shapely.shortest_line(g, pts[p]))[0]
+                dx, dy = (qx - x) * cos, qy - y
+                if (dx * dx + dy * dy) ** 0.5 <= reach_y:
+                    hit[p] = True
+    return hit
 
 
 def osm_id(f) -> str:
@@ -230,6 +273,24 @@ def run(ctx) -> None:
     if same:
         names = {v for r in records if r.get("layer") == same for v in (r.get("name"), r.get("local_name")) if v}
         p_records, p_geoms, left = leave_out_repeats(p_records, p_geoms, names)
+    far: list[str] = []
+    nw = s.get("near_water")
+    if nw:
+        types, layers = set(nw.get("types") or []), list(nw.get("layers") or [])
+        if not types or not layers or not nw.get("within_m"):
+            raise BuildStopped("The osm-places stage's near_water setting needs types, layers and within_m.")
+        missing_layers = [lay for lay in layers if not any(r.get("layer") == lay for r in records)]
+        if missing_layers:
+            raise BuildStopped(f"The osm-places stage's near_water setting names the layers "
+                               f"{', '.join(missing_layers)}, which no stage before it has made. Put this stage "
+                               "after the stages that make them.")
+        waters = [g for r, g in zip(records, geoms) if r.get("layer") in layers]
+        test = [n for n, r in enumerate(p_records) if r["type"] in types]
+        hit = near_water([p_geoms[n] for n in test], waters, float(nw["within_m"]))
+        drop = {n for n, h in zip(test, hit.tolist()) if not h}
+        far = [p_records[n]["name"] for n in sorted(drop)]
+        p_records = [r for n, r in enumerate(p_records) if n not in drop]
+        p_geoms = [g for n, g in enumerate(p_geoms) if n not in drop]
     if s.get("within"):
         order = list(s["within"])
         areas = [(r["layer"], r["id"], g) for r, g in zip(records, geoms) if r.get("layer") in order]
@@ -248,3 +309,9 @@ def run(ctx) -> None:
                           "The log lists them.")
         for name in left:
             ctx.progress.log(f"Left out, as the layer {same} has it: {name}.")
+    if nw:
+        ctx.progress.line(f"Places of type {', '.join(sorted(types))} left out as they are more than "
+                          f"{float(nw['within_m']):,.0f} metres from {', '.join(layers)}: {len(far):,}. The log "
+                          "lists them.")
+        for name in far:
+            ctx.progress.log(f"Left out, as it is not near {', '.join(layers)}: {name}.")

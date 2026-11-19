@@ -34,19 +34,6 @@ stages:
     condominiums:
       - {id: "condominium:de-lu", name: Moselle condominium, countries: [osm:r51477, osm:r2171347]}
   - stage: join
-  - stage: osm-places
-    source: planet
-    # Named seas, bays and straits that Natural Earth's marine areas do not name, as places (P3-T1b, DP168).
-    layer: sea-places
-    same_as: seas
-    queries:
-      - {query: "n[place=sea][name]", type: sea}
-      - {query: "a[place=sea][name]", type: sea}
-      - {query: "n[natural=bay][name]", type: bay}
-      - {query: "a[natural=bay][name]", type: bay}
-      - {query: "n[natural=strait][name]", type: strait}
-      - {query: "a[natural=strait][name]", type: strait}
-    box: [-11.0, 35.0, 17.0, 61.0]
   - stage: graticule
     year: 2026
     source: naturalearth-geographic-lines
@@ -71,6 +58,21 @@ stages:
     check: hydrolakes-points
     check_km2: 100
     check_within_km: 2
+    box: [-11.0, 35.0, 17.0, 61.0]
+  - stage: osm-places
+    source: planet
+    # Named seas, bays and straits that Natural Earth's marine areas do not name, as places (P3-T1b, DP168).
+    # After the lakes, so a bay is kept only at the coast or on a lake the pack holds (P3-T28c).
+    layer: sea-places
+    same_as: seas
+    near_water: {types: [bay], layers: [oceans, seas, lakes], within_m: 1000}
+    queries:
+      - {query: "n[place=sea][name]", type: sea}
+      - {query: "a[place=sea][name]", type: sea}
+      - {query: "n[natural=bay][name]", type: bay}
+      - {query: "a[natural=bay][name]", type: bay}
+      - {query: "n[natural=strait][name]", type: strait}
+      - {query: "a[natural=strait][name]", type: strait}
     box: [-11.0, 35.0, 17.0, 61.0]
   # Whole rivers of 50 km or more with a Wikidata link, from OpenStreetMap, checked against Natural Earth (P3-T1g, DP169).
   - stage: osm-rivers

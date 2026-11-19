@@ -107,16 +107,44 @@ def _place_country(identifier: str, rec: dict, rows: dict, relationships_of, add
         return
     rel = relationships_of(identifier)
     same = set(rel.get("same", ()))
-    for holder in rel.get("in", ()):
-        if holder in rows and holder not in same and rows[holder]["layer"] == "countries":
-            add(holder, identifier)
-            return
+    # Under every country that holds it: one for a constituent country, both owners for a condominium (P3-T28f).
+    held = [h for h in rel.get("in", ()) if h in rows and h not in same and rows[h]["layer"] == "countries"]
+    for holder in held:
+        add(holder, identifier)
+    if held:
+        return
     continents = [i for i in rel.get("in", ()) if i in rows and rows[i]["layer"] == "continents"]
     if not continents:
         across = [(o[1], o[0]) for o in rel.get("overlaps", ()) if o[0] in rows and rows[o[0]]["layer"] == "continents"]
         continents = [c for share, c in across if share >= 0.1] or [c for _s, c in sorted(across, reverse=True)[:1]]
     for continent in continents:
         add(continent, identifier)
+
+
+def share_condominiums(records: list[dict], relationships: dict[str, dict]) -> int:
+    """A condominium, such as the Moselle condominium, is land its owners hold together, not a country of its own
+    (P3-T28f, the PO's answer to R1). Its land is in neither owner's area, so the build finds it inside only its
+    continent; here it is put inside each owner as well, in the stored relationships: the world tree lists it under
+    Germany and under Luxembourg, not among Europe's countries; Up from it offers both; Down from each, and
+    Contains, list it. Each owner's counts take it in. Changes `relationships` in place; returns how many."""
+    by_id = {r["id"]: r for r in records}
+    n = 0
+    for r in records:
+        if r.get("type") != "condominium":
+            continue
+        owners = [o for o in r.get("owners") or () if o in by_id and o != r["id"]]
+        rel = relationships.setdefault(r["id"], {})
+        inside = rel.get("in", [])
+        new = [o for o in owners if o not in inside]
+        if not new:
+            continue
+        rel["in"] = new + inside   # smallest first, as the build sorts them: an owner is smaller than a continent
+        for o in new:
+            counts = relationships.setdefault(o, {}).setdefault("counts", {})
+            counts[r["layer"]] = counts.get(r["layer"], 0) + 1
+            relationships[o]["counts"] = dict(sorted(counts.items()))
+        n += 1
+    return n
 
 
 def tree_names(rows: dict[str, dict], tree: dict[str, set]) -> dict[str, dict]:

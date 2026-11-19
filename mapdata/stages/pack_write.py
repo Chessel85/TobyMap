@@ -492,6 +492,11 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
             before_records()
         made = feature_records(records, geoms, None if workers == 1 else executor, workers)
         step(f"Made {len(made):,} feature records")
+    from mapcore.store import contents
+
+    if relationships:   # a condominium inside each of its owners, by the core's rule, before anything reads them (P3-T28f)
+        if contents.share_condominiums(made, relationships):
+            step("Put each condominium inside its owners")
     index = None
     if search is not None:   # P3-T8a: from the feature records, with their final ids, points and areas
         from mapdata.stages import search_index
@@ -507,8 +512,6 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
     if relationships:   # P3-T3e: by id, beside the feature records
         writer.add_relationships(relationships)
         # P3-T20c, DP194: the world tree and what each area of its layers holds, by the core's own rules.
-        from mapcore.store import contents
-
         rel_of = lambda fid: relationships.get(fid) or {}   # noqa: E731
         rows = {r["id"]: r for r in made if r["layer"] in contents.TREE_LAYERS}
         tree = contents.build_tree(rows, rel_of)

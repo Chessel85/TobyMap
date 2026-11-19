@@ -103,7 +103,7 @@ Your questions there:
 * P3-T28b The Coast subgroup lists the most detailed water only, and its heading gives the whole coast's length, such as "Coast, 180 kilometres". The Sea of the Hebrides on Hampshire's coast goes.
 * P3-T28c Bays and straits keeps a bay only at the coast or on a lake. Needs a build.
 * P3-T28d A road whose parts are far apart is split into separate roads. Needs a build.
-* P3-T28f The Moselle condominium in the world tree: waits for your answer to R1.
+* P3-T28f The Moselle condominium in the world tree, as you chose in R1, option B: listed under Germany and under Luxembourg, not among Europe's countries. Needs a build.
 * P3-T28m The current feature, when stepping, is the first area "where am I" says, so the United Kingdom, not the British Isles.
 * P3-T28n A land area's share inside another is measured on its land only, so Exmoor is wholly inside England. Needs a build.
 * P3-T28o Enter on the map, in hierarchy mode, makes the feature you are on the one Left and Right go round.

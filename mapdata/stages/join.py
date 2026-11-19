@@ -420,7 +420,9 @@ def run(ctx) -> None:
             if fid in condos:
                 c = condos[fid]
                 names = [by_id[i]["name"] for i in c["countries"] if i in by_id]
-                rec.update(name=c["name"], type="condominium", sovereign=" and ".join(names))
+                # Its owners' ids too, so the world tree and hierarchy mode put it under each (P3-T28f, R1).
+                rec.update(name=c["name"], type="condominium", sovereign=" and ".join(names),
+                           owners=[i for i in c["countries"] if i in by_id])
             elif src.get("kind") == "territory":
                 rec.update(name=src["name"], type="territory")
                 if src.get("note"):

@@ -37,8 +37,8 @@ def group(s, gid):
 def test_each_group_heading_says_how_many_items_it_holds(session):
     groups = {g["id"]: g for g in session.panel()}
     within, nearby, crossed = groups["within"], groups["nearby"], groups["crossed"]
-    assert within["label"] == "Within, 3 items"
-    assert nearby["label"] == "Nearby, 8 items" and len(nearby["items"]) == 8
+    assert within["label"] == "Within, 3 items, smallest first"
+    assert nearby["label"] == "Nearby, 8 items, by distance" and len(nearby["items"]) == 8
     assert crossed["label"] == "Passed over, no items"
 
 
@@ -46,7 +46,7 @@ def test_one_item_is_one_item(test_pack):
     s = MapSession(packs=[test_pack], saved_state=dict(KENT))
     s.settings.set("nearby_count", 1)
     s.start()
-    assert group(s, "nearby")["label"] == "Nearby, 1 item"
+    assert group(s, "nearby")["label"] == "Nearby, 1 item, by distance"
     s.store.close()
 
 

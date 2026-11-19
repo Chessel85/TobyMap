@@ -231,7 +231,7 @@ def test_the_tree_has_levels_and_real_focus_on_its_items(app):
     assert app.evaluate("document.activeElement.firstChild.nodeType") == 3
     assert app.locator("#tree [aria-labelledby]").count() == 0
     app.keyboard.press("ArrowLeft")
-    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Within, 3 items"
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Within, 3 items, smallest first"
     assert app.evaluate("document.activeElement.getAttribute('aria-level')") == "1"
 
 
@@ -721,7 +721,7 @@ def test_crossed_and_passed_is_filled_between_key_presses_and_shift_3_goes_there
     app.keyboard.press("Shift+Digit6")
     app.wait_for_function("document.getElementById('tree').contains(document.activeElement)")
     # On the group's heading, so its count is heard first (P3-T19c); the river is the item under it.
-    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Passed over, 1 item"
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Passed over, 1 item, along the path"
     assert "River Itchen, crossed" in app.evaluate("document.activeElement.textContent")
 
 
@@ -978,7 +978,7 @@ def focus_tree_item(app, text_start):
 
 
 def test_enter_on_a_within_item_goes_to_its_centre_and_stays_in_the_panel(app):
-    assert app.evaluate("document.querySelector('#tree [role=treeitem]').getAttribute('aria-label')") == "Within, 3 items"
+    assert app.evaluate("document.querySelector('#tree [role=treeitem]').getAttribute('aria-label')") == "Within, 3 items, smallest first"
     focus_tree_item(app, "England, centre ")
     app.keyboard.press("Enter")
     wait_said(app, 1)

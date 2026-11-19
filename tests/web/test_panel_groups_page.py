@@ -18,7 +18,7 @@ def test_a_closed_group_opens_with_right_and_is_filled(page, site_url):
     assert app.evaluate(f"{BORDERING}.getAttribute('aria-expanded')") == "false"
     app.evaluate(f"{BORDERING}.focus()")
     app.keyboard.press("ArrowRight")
-    app.wait_for_function(f"{BORDERING}.getAttribute('aria-label') === 'Bordering Switzerland, 5 items'")
+    app.wait_for_function(f"{BORDERING}.getAttribute('aria-label') === 'Bordering Switzerland, 5 items, clockwise from north'")
     assert app.evaluate(f"{BORDERING}.querySelectorAll('[role=treeitem]').length") == 5
 
 
@@ -30,7 +30,7 @@ def test_shift_3_goes_to_bordering_filled(page, site_url):
                           " && document.activeElement.getAttribute('aria-level') === '1'"
                           " && document.activeElement.getAttribute('aria-expanded') === 'true'"
                           " && document.activeElement.querySelectorAll('[role=\"treeitem\"]').length === 5")
-    assert app.evaluate("document.activeElement.getAttribute('aria-label')").startswith("Bordering Switzerland, 5 items")
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')").startswith("Bordering Switzerland, 5 items, clockwise from north")
 
 
 def test_an_item_under_a_heading_is_level_3(page, site_url):

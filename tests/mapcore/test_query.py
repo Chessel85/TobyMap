@@ -37,7 +37,7 @@ def test_rivers_crossing_germany_include_the_rhine_and_go_into_the_search_group(
     assert r.error is None and r.panel_stale
     assert r.announcements[-1]["text"] == "Rivers crossing Germany: 1, in the Search group."
     group = search_group(s)
-    assert group["label"] == "Rivers crossing Germany, 1 item"
+    assert group["label"] == "Rivers crossing Germany, 1 item, by name"
     assert names(s) == ["Rhine"]
     # Enter on an answer goes there, as on a search result.
     assert s.run("search.go", id=RHINE).error is None and s.current_feature.id == RHINE
@@ -55,7 +55,7 @@ def test_towns_within_a_distance_of_the_current_feature(s):
     assert ask(s, "towns", "near", HAMPSHIRE_ID, "10").error == "No cities and towns within 10 kilometres of Hampshire."
     r = ask(s, "towns", "near", HAMPSHIRE_ID, "20")
     assert r.error is None
-    assert search_group(s)["label"] == "Cities and towns within 20 kilometres of Hampshire, 1 item"
+    assert search_group(s)["label"] == "Cities and towns within 20 kilometres of Hampshire, 1 item, by name"
     [item] = search_group(s)["items"]
     assert item["label"].startswith("Newport, 10 kilometres from Hampshire, ")
     # Inside counts as no distance: the Isle of Wight's Newport, not the one in Wales.
@@ -85,14 +85,14 @@ def test_stations_within_a_distance_of_a_county(s):
 
 def test_countries_bordering_switzerland(s):
     ask(s, "countries", "bordering", SWITZERLAND)
-    assert search_group(s)["label"] == "Countries bordering Switzerland, 5 items"
+    assert search_group(s)["label"] == "Countries bordering Switzerland, 5 items, by name"
     assert sorted(names(s)) == ["Austria", "France", "Germany", "Italy", "Liechtenstein"]
 
 
 def test_inside_uses_the_stored_relationships(s):
     ask(s, "stations", "inside", HAMPSHIRE_ID)
     assert names(s) == ["Brockenhurst"]   # Southampton Central is in Southampton, not the county of Hampshire
-    assert search_group(s)["label"] == "Railway stations inside Hampshire, 1 item"
+    assert search_group(s)["label"] == "Railway stations inside Hampshire, 1 item, by name"
 
 
 def test_the_areas_a_line_crosses_are_in_order_from_its_start(s):

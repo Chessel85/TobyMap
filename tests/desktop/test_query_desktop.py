@@ -65,7 +65,7 @@ def test_ok_runs_the_query_and_closes(window, qtbot):
     QApplication.processEvents()
     assert not box.isVisible()
     group = next(g for g in window.session.panel(open={"search"}) if g["id"] == "search")
-    assert group["label"] == "Rivers crossing Germany, 1 item"
+    assert group["label"] == "Rivers crossing Germany, 1 item, by name"
 
 
 def test_nothing_found_keeps_the_form_open_and_says_it(window, qtbot):

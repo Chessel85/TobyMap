@@ -68,6 +68,16 @@ panel:
   count_none: "{group}, no items"
   count_one: "{group}, 1 item"
   count: "{group}, {count} items"
+  # A group with items says its order after its count: "Nearby, 8 items, by distance" (P3-T29g, INF-10).
+  # Bearing is clockwise from ahead, or from north where no facing is set. Natural is per group.
+  ordered: "{label}, {order}"
+  order_name: "by name"
+  order_distance: "by distance"
+  order_bearing: "clockwise from ahead"
+  order_bearing_north: "clockwise from north"
+  order_natural_within: "smallest first"
+  order_natural_crossed: "along the path"
+  order_natural: "in its natural order"
   empty_later: "Nothing yet. This group is filled from Phase 2."
   # Enter on an item, or on the map while look around plays one: its name, then the place there, as it
   # becomes the current feature (P3-T19a). Where the place starts with the item, only the place is said.

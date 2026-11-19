@@ -33,7 +33,7 @@ def test_opening_a_group_fills_it(window):
     bordering = top(window, "bordering")
     bordering.setExpanded(True)
     QApplication.processEvents()
-    assert bordering.text(0) == "Bordering Switzerland, 5 items" and bordering.childCount() == 5
+    assert bordering.text(0) == "Bordering Switzerland, 5 items, clockwise from north" and bordering.childCount() == 5
 
 
 def test_shift_3_goes_to_bordering_and_fills_it(window, qtbot):
@@ -42,7 +42,7 @@ def test_shift_3_goes_to_bordering_and_fills_it(window, qtbot):
     QApplication.processEvents()
     item = window.tree.currentItem()
     assert item is top(window, "bordering") and item.isExpanded() and item.childCount() == 5
-    assert item.text(0).endswith("5 items")
+    assert item.text(0).endswith("5 items, clockwise from north")
 
 
 def test_an_item_under_a_heading_is_level_3(window, monkeypatch):

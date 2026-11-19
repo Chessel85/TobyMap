@@ -577,7 +577,7 @@ Where the code does something different today, a line starting "Today" says so. 
 
 Today there are eight groups, in another order: Within, Nearby, Crossed and passed, Contains, Bordering, Overlapping, Crossing, Search. Crossing is gone: what it held is now in Overlapping. Crossed and passed is renamed Passed over.
 
-Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S. How you hear which order a group is in is question R4.
+Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S. A group's heading says its order after its count, such as "Nearby, 8 items, by distance", and Ctrl+S puts the focus on the heading, so you hear the new order (your answer to R4, P3-T29g). The orders are: by name, by distance, clockwise from ahead (or from north when no facing is set), and for Within "smallest first" and for Passed over "along the path".
 
 ### 1. Within
 

@@ -290,8 +290,10 @@ def test_passed_over_is_along_the_path_then_ctrl_s_sorts_it_and_ctrl_shift_s_goe
     step_east_and_search(session)
     along = labels(session)
     assert len(along) > 1, along
+    assert crossed_group(session)["label"].endswith(", along the path")
     session.panel_at_group = "crossed"
     session.run("panel.sort")
+    assert crossed_group(session)["label"].endswith(", by name")
     by_name = [i["name"] for i in crossed_group(session)["items"]]
     assert by_name == sorted(by_name, key=str.casefold), by_name
     assert labels(session) != along

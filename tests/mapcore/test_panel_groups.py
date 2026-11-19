@@ -63,7 +63,7 @@ def test_a_group_not_opened_is_not_filled_and_names_the_current_feature(swiss):
 
 def test_an_open_group_is_filled_with_its_count(swiss):
     g = group(swiss.panel(open={"bordering"}), "bordering")
-    assert g["filled"] and g["label"] == "Bordering Switzerland, 5 items"
+    assert g["filled"] and g["label"] == "Bordering Switzerland, 5 items, clockwise from north"
 
 
 def test_the_open_groups_are_kept_until_the_shell_says_again(swiss):
@@ -198,7 +198,7 @@ def hants(test_pack):
 def test_contains_groups_what_is_visible_by_layer_under_headings(hants):
     g = group(hants.panel(open={"contains"}), "contains")
     # The river, Brockenhurst station, and the New Forest National Park, partly inside (DP70, P3-T6a).
-    assert g["label"] == "Contains Hampshire, 3 items"
+    assert g["label"] == "Contains Hampshire, 3 items, by name"
     assert [h["label"] for h in g["items"]] == ["Rivers 1", "Railway stations 1", "National parks 1"]
     heading = g["items"][0]
     assert heading["label"] == "Rivers 1" and panel_table.is_heading(heading["id"]) and heading["level"] == 1
@@ -247,24 +247,58 @@ def test_a_group_with_nothing_says_so(swiss):
     assert g["items"] == [] and g["empty"] == "Nothing overlaps Switzerland."
 
 
+HEADING_OF_BORDERING = {"region": "panel", "group": "bordering", "heading": True}
+
+
 # Sorting (P3-T4d) -------------------------------------------------------------------------------
 
 def test_ctrl_s_cycles_the_orders_of_the_group_the_focus_is_in(swiss):
     swiss.run("panel.bordering")
     swiss.panel(open={"bordering"})
-    assert swiss.run("panel.sort").announcements[0]["text"] == "Sorted by name"   # bearing -> name
+    assert swiss.run("panel.sort").focus == HEADING_OF_BORDERING   # bearing -> name
+    assert group(swiss.panel(), "bordering")["label"].endswith("by name")
     names = [i["name"] for i in group(swiss.panel(), "bordering")["items"]]
     assert names == sorted(names)
-    assert swiss.run("panel.sort").announcements[0]["text"] == "Sorted by distance"
+    swiss.run("panel.sort")
+    assert group(swiss.panel(), "bordering")["label"].endswith("by distance")
     d = [i["distance_m"] for i in group(swiss.panel(), "bordering")["items"]]
     assert d == sorted(d)
-    assert swiss.run("panel.sort_back").announcements[0]["text"] == "Sorted by name"
+    swiss.run("panel.sort_back")
+    assert group(swiss.panel(), "bordering")["label"].endswith("by name")
 
 
 def test_a_group_whose_first_order_is_natural_has_it_in_its_cycle(hants):
     hants.run("panel.within")
-    assert hants.run("panel.sort_back").announcements[0]["text"] == "Sorted by direction"
-    assert hants.run("panel.sort").announcements[0]["text"] == "Sorted in its natural order"
+    hants.run("panel.sort_back")
+    assert group(hants.panel(), "within")["label"].endswith("clockwise from north")
+    hants.run("panel.sort")
+    assert group(hants.panel(), "within")["label"].endswith("smallest first")
+
+
+def test_headings_say_their_order_after_the_count_and_an_empty_one_says_none(swiss, hants):
+    assert group(hants.panel(), "within")["label"] == "Within, 3 items, smallest first"
+    assert group(hants.panel(), "nearby")["label"].endswith(", by distance")
+    empty = group(swiss.panel(open={"overlapping"}), "overlapping")
+    assert empty["label"] == "Overlapping Switzerland, no items"   # no order with no items
+
+
+def test_ctrl_s_puts_the_focus_on_the_heading_and_says_nothing_from_an_item(swiss):
+    swiss.run("panel.bordering")
+    swiss.panel(open={"bordering"})
+    swiss.run("panel.select", item=group(swiss.panel(), "bordering")["items"][0]["id"], group="bordering")
+    r = swiss.run("panel.sort")
+    assert r.focus == HEADING_OF_BORDERING and r.panel_stale and not r.announcements   # the focus move says it
+    r = swiss.run("panel.sort_back")
+    assert r.focus == HEADING_OF_BORDERING and not r.announcements
+
+
+def test_ctrl_s_on_the_heading_itself_says_the_new_heading_once(swiss):
+    swiss.run("panel.bordering")
+    swiss.panel(open={"bordering"})
+    swiss.run("panel.select", group="bordering")   # the focus is on the heading
+    r = swiss.run("panel.sort")
+    assert r.focus == HEADING_OF_BORDERING
+    assert [a["text"] for a in r.announcements] == ["Bordering Switzerland, 5 items, by name"]
 
 
 def test_the_chosen_order_does_not_change_the_cached_items(swiss):

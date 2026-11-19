@@ -898,8 +898,14 @@ class MapSession:
     def _in_chosen_order(self, g: dict) -> dict:
         """The group with its items in the order chosen with Ctrl+S, as a copy, so the cache keeps the first
         order. Items under a heading are sorted within it; the headings stay in the layers' order."""
+        if not g["items"]:
+            return g   # no items, no order: "Nearby, no items"
         how = self.panel_sorts.get(g["id"])
-        if how is None or not g["items"]:
+        # The heading says the order after its count, made here so that it follows Ctrl+S and the cache is
+        # kept (P3-T29g, INF-10). Headings inside the group keep their own words.
+        label = say("panel.ordered", label=g["label"], order=self._order_words(g["id"], self._sort_of(g["id"])))
+        g = dict(g, label=label)
+        if how is None:
             return g
         items = [dict(i, children=self._sorted(g["id"], i["children"], how)) if i.get("children") is not None else i
                  for i in g["items"]]
@@ -910,14 +916,30 @@ class MapSession:
             items = self._sorted(g["id"], plain, how) + [i for i in items if panel_table.is_heading(i["id"])]
         return dict(g, items=items)
 
+    def _order_words(self, gid: str, how: str) -> str:
+        """The words for a group's order: "by distance", "smallest first" (P3-T29g)."""
+        if how == "natural":
+            key = f"panel.order_natural_{gid}"
+            return say(key) if gid in ("within", "crossed") else say("panel.order_natural")
+        if how == "bearing" and describer.facing(self.world) is None:
+            return say("panel.order_bearing_north")
+        return say(f"panel.order_{how}")
+
     def _sort(self, step: int, **_a) -> Response:
         """Ctrl+S and Ctrl+Shift+S in the Information panel: the next or the previous order for the group
-        the focus is in, and say which (P3-T4d, INF-10)."""
+        the focus is in. The focus goes to the group's heading, which now says the order (P3-T29g, INF-10).
+        From an item the focus moving makes the screen reader say the heading, so nothing is spoken. With
+        the focus already on the heading nothing moves, so the heading is said here, once."""
         gid = self.panel_at_group or "within"
         cycle = self._sort_cycle(gid)
         how = cycle[(cycle.index(self._sort_of(gid)) + step) % len(cycle)]
         self.panel_sorts[gid] = how
-        return Response(panel_stale=True).speak(say(f"sort.{how}"), ASSERTIVE)
+        on_heading = not self.panel_on_item
+        response = self._go_to_group(gid)
+        if on_heading:
+            label = next(g["label"] for g in self.panel() if g["id"] == gid)
+            response.speak(label, ASSERTIVE)
+        return response
 
     def _go_to_group(self, group: str) -> Response:
         """Shift and a number: go to that group (INF-10, DP109). The focus is then in it, so a lazy

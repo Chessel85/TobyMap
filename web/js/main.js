@@ -377,7 +377,10 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   // The region goes with the command, so Go to and Type a bearing send the focus back there (P2-T17k).
-  run(name, name === "help.keys" ? { region: region || "map" } : { pressed_in: region || "map" }, keyAt);
+  const params = name === "help.keys" ? { region: region || "map" } : { pressed_in: region || "map" };
+  // In Details the core is told which line the cursor is on, for Enter on the Wikipedia article line.
+  if (name === "details.open_line") params.line = details.value.slice(0, details.selectionStart).split(String.fromCharCode(10)).length - 1;
+  run(name, params, keyAt);
 });
 
 document.addEventListener("keyup", (e) => {

@@ -69,7 +69,7 @@ def test_details_leave_out_the_sources_when_the_setting_is_off(test_pack):
     lines = s.details().splitlines()
     s.store.close()
     assert "Population: 64,897,954" in lines and "Capital: Paris" in lines
-    assert lines[-1].startswith("Source: ")   # the pack's own source and licence stay
+    assert lines[-1] == "Shape and name: OpenStreetMap, ODbL licence"   # the pack's own source and licence stay
 
 
 def test_a_related_article_is_taken_only_with_exactly_the_same_name():

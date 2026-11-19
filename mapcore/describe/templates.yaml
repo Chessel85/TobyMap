@@ -128,7 +128,7 @@ details:
   enclave_in: "Enclave in {value}"
   exclave_of: "Exclave of {sovereign}, beside {where}"
   # The whole border, land and coast (P3-T24f, DP201).
-  border: "Whole border: {whole}, of which land {land} and coast {coast}"
+  border: "Whole border: {whole}, of which land is {land} and coastline is {coast}"
   border_land: "Whole border: {whole}, all on land"
   border_coast: "Whole border: {whole}, all coast"
   border_whole: "Whole border: {whole}"
@@ -156,8 +156,9 @@ details:
   wikipedia_opening: "Opening the Wikipedia article for {name}."
   wikipedia_none: "No Wikipedia article for {name}."
   months: [January, February, March, April, May, June, July, August, September, October, November, December]
-  centre: "The location is {value}"
+  centre: "Location: {value}"
   source: "Source: {value}"
+  source_osm: "Shape and name: OpenStreetMap, {licence} licence"
   source_tobymap: "drawn by TobyMap"
 
 beacon:

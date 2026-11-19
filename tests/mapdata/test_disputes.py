@@ -46,7 +46,7 @@ def test_crimeas_details_name_russia_and_ukraine_as_claimants_and_natural_earths
     s.store.close()
     assert lines[:5] == ["Crimea", "Type: disputed land", "This land is disputed.", "Claimed by: Russia, Ukraine",
                          "Natural Earth: Administered by Russia. Claimed by Ukraine."]
-    assert any(line.startswith("Source: OpenStreetMap") for line in lines)
+    assert any(line.startswith("Shape and name: OpenStreetMap, ODbL licence") for line in lines)
 
 
 def test_the_land_is_in_neither_country_and_every_point_is_still_in_one(records, test_pack):

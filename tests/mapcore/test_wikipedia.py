@@ -49,3 +49,37 @@ def test_the_key_works_in_details_only_and_is_one_a_browser_keeps_nothing_on():
     assert registry.command_for_key("web", "W", "details").name == "details.wikipedia"
     assert registry.command_for_key("desktop", "W", "details").name == "details.wikipedia"
     assert registry.command_for_key("web", "W", "panel") is None
+
+
+def test_enter_on_the_article_line_opens_it_and_on_another_line_does_nothing(session, monkeypatch):
+    area = session.areas[0]
+    monkeypatch.setitem(area.record, "wikipedia", "Kent (England)")
+    lines = session.details().split(chr(10))
+    n = next(i for i, line in enumerate(lines) if line.startswith("Wikipedia article: "))
+    r = session.press("Enter", "details", line=n)
+    assert r.open_url == "https://en.wikipedia.org/wiki/Kent_(England)"
+    other = session.press("Enter", "details", line=0)
+    assert other.open_url is None and not other.announcements
+    assert registry.command_for_key("web", "Enter", "details").name == "details.open_line"
+
+
+def test_details_says_location_and_the_openstreetmap_source(session):
+    text = session.details()
+    assert "Shape and name: OpenStreetMap, ODbL licence" in text
+    assert "The location is" not in text
+
+
+def test_the_location_line_is_worded_location(test_pack):
+    s = MapSession(packs=[test_pack], saved_state=dict(KENT))
+    s.start()
+    s.run("panel.select", item=s.areas[-1].id)
+    assert any(line.startswith("Location: ") for line in s.details().split(chr(10)))
+    s.store.close()
+
+
+def test_elevation_is_said_for_places_only(session, monkeypatch):
+    area = session.areas[0]   # an area
+    fact = {"value": 100.0, "source": "Wikidata", "fetched": "2026-01-01"}
+    monkeypatch.setitem(area.record, "facts", {"elevation_m": fact})
+    assert not any(line.startswith("Elevation") for line in session.details().split(chr(10)))
+    assert any(line.startswith("Elevation") for line in session._fact_lines(area.record))

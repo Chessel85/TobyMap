@@ -342,7 +342,7 @@ def test_selecting_an_item_shows_it_in_details_and_clears_on_a_move(session):
 def test_details_name_type_parents_area_and_source(session):
     lines = session.details().splitlines()
     assert lines[0] == "Kent" and lines[1] == "Type: county of England"   # its tier and the area above (P3-T17)
-    assert lines[2].startswith("Part of:") and any(line.startswith("Source:") for line in lines)
+    assert lines[2].startswith("Part of:") and any(line.startswith("Shape and name: OpenStreetMap, ODbL licence") for line in lines)
 
 
 def test_the_sounds_in_help_can_be_played(session):

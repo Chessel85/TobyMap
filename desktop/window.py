@@ -445,7 +445,8 @@ class MainWindow(QMainWindow):
                 return True
             self._held_key = command.name
             self._held_seen = time.perf_counter()
-        response = self.session.press(name, region)
+        line = self.details.textCursor().blockNumber() if region == "details" else None   # for Enter on a line
+        response = self.session.press(name, region, line=line)
         if response is None:
             return False
         self.handle(response, key_at=started)

@@ -4,6 +4,7 @@ The lengths are worked out by the build (relationships: next, coast, shores and 
 """
 import pytest
 
+from mapcore.describe import words
 from mapcore import panel as panel_table
 from mapcore.session import MapSession
 
@@ -79,7 +80,16 @@ def test_details_gives_the_whole_border_land_and_coast(test_pack):
     s = _session(test_pack, FRANCE)
     lines = s.details().split("\n")
     border = next(line for line in lines if line.startswith("Whole border: "))
-    assert ", of which land " in border and " and coast " in border
+    assert ", of which land is " in border and " and coastline is " in border
+    s.store.close()
+
+
+def test_the_border_line_counts_the_coast_as_the_coast_heading_does(test_pack):
+    s = _session(test_pack, FRANCE)
+    rel = s.store.relationships(s.areas[0].id)
+    whole = s._coast_of(rel, visible_only=False)[2]
+    if whole:
+        assert f"coastline is {words.distance_text(whole * 1000.0, s.settings['units'])}" in s.details()
     s.store.close()
 
 

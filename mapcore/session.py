@@ -290,6 +290,7 @@ class MapSession:
             "focus.details": lambda **a: Response(focus={"region": "details"}, details_stale=True),
             "focus.menu": lambda **a: Response(focus={"region": "menu"}),
             "details.wikipedia": self._wikipedia,
+            "details.open_line": self._open_line,
             "panel.select": self._select,
             # Shift and a number: go to that group (INF-10, DP109).
             **{f"panel.{g}": (lambda g=g, **a: self._go_to_group(g)) for g in registry.panel_groups()},
@@ -434,7 +435,7 @@ class MapSession:
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 
-    def press(self, key: str, region: str = "map") -> Response | None:
+    def press(self, key: str, region: str = "map", line: int | None = None) -> Response | None:
         """A key pressed in a region ("map", "panel", "details" or "menu").
         Returns None when the key is not one of ours, so the shell lets it through.
         In the key describer nothing is carried out: the key is only described."""
@@ -447,6 +448,8 @@ class MapSession:
             return None
         if command.name == "help.keys":
             return self.run("help.keys", region=region)
+        if line is not None and command.name == "details.open_line":   # the line the cursor is on (P3-T28g)
+            return self.run(command.name, pressed_in=region, line=line)
         return self.run(command.name, pressed_in=region)
 
     def _describe_key(self, key: str) -> str:
@@ -1110,6 +1113,28 @@ class MapSession:
             return "bordering.end_coast", {"sea": sea.name}
         return "bordering.end", {}
 
+    def _coast_of(self, rel: dict, visible_only: bool = True) -> tuple[list, list, float]:
+        """The coast of an area, one rule for Bordering's Coast heading and Details' whole border (P3-T28b,
+        P3-T28g): the waters it touches with their lengths, the most detailed only (a water is left out when
+        another listed water is inside it, by the pack's "in" and, for a partial overlap, when most of the other
+        water lies in it and less than half of it in the other), and the whole coast's length, counted once.
+        Returns (all listed, kept, whole km). Details counts every water, whatever layers are on."""
+        listed = []
+        for identifier, km in rel.get("coast", []):
+            area = self.store.feature(identifier)
+            if area is not None and (not visible_only or self._layer_on(area)):
+                listed.append((area, km))
+        ids = {a.id for a, _km in listed}
+        outer = set()
+        for area, _km in listed:
+            rel_w = self.store.relationships(area.id)
+            outer.update(i for i in rel_w.get("in", ()) if i in ids)
+            if any(o[0] in ids and o[2] >= 0.5 > o[1] for o in rel_w.get("overlaps", ())):
+                outer.add(area.id)
+        kept = [(a, km) for a, km in listed if a.id not in outer]
+        whole = max(sum(km for _a, km in kept), max((km for _a, km in listed), default=0.0))   # the outer water holds it all
+        return listed, kept, whole
+
     def _shores_and_coast(self, rel: dict, heading) -> list[dict]:
         """Bordering's two headings for land and water (P3-T24e, DP200): for a lake or sea, "Shores", the land
         round it, a heading for each layer, with its length of shore; for land, "Coast", the oceans and seas it
@@ -1128,26 +1153,10 @@ class MapSession:
             if children:
                 out.append(panel_table.heading("shores:" + layer.id, say("bordering.shores_heading", layer=layer.name,
                                                                          count=len(children)), children))
-        listed = []
-        for identifier, km in rel.get("coast", []):
-            area = self.store.feature(identifier)
-            if area is not None and self._layer_on(area):
-                listed.append((area, km))
-        # Only the most detailed water (P3-T28b): a water is left out when another listed water is inside it
-        # (the sea inside the ocean, so the Atlantic goes and the English Channel stays), by the pack's "in" and,
-        # for a partial overlap, when most of the other water lies in it and less than half of it in the other.
-        ids = {a.id for a, _km in listed}
-        outer = set()
-        for area, _km in listed:
-            rel_w = self.store.relationships(area.id)
-            outer.update(i for i in rel_w.get("in", ()) if i in ids)
-            if any(o[0] in ids and o[2] >= 0.5 > o[1] for o in rel_w.get("overlaps", ())):
-                outer.add(area.id)
-        kept = [(a, km) for a, km in listed if a.id not in outer]
+        listed, kept, whole = self._coast_of(rel)
         coast = [self._feature_item("bordering", a, "bordering.coast", heading,
                                     length=words.distance_text(km * 1000.0, units)) for a, km in kept]
         if coast:
-            whole = max(sum(km for _a, km in kept), max(km for _a, km in listed))   # the outer water holds it all
             out.append(panel_table.heading("coast", say("bordering.coast_heading",
                                                         length=words.distance_text(whole * 1000.0, units)), coast))
         return out
@@ -1787,6 +1796,15 @@ class MapSession:
         r.open_url = "https://en.wikipedia.org/wiki/" + quote(title.replace(" ", "_"), safe="_(),:;@$!*'~")
         return r
 
+    def _open_line(self, line: int | None = None, **a) -> Response:
+        """Enter in Details: on the Wikipedia article line, opens the article as W does (P3-T28g, INF-1); on
+        any other line, nothing. `line` counts from 0."""
+        lines = self.details().split(chr(10))
+        if line is None or not 0 <= line < len(lines) or not lines[line].startswith(
+                say("details.wikipedia", value="")):
+            return Response()
+        return self._wikipedia()
+
     def details(self) -> str:
         """Details of the selected item, or of the smallest area here (DAT-9)."""
         area = self._details_feature()
@@ -1834,22 +1852,22 @@ class MapSession:
             if rel.get("outline_km"):   # the whole border, land and coast (P3-T24f, DP201)
                 units = self.settings["units"]
                 land = sum(km for _i, km in rel.get("next", []))
-                coast = sum(km for _i, km in rel.get("coast", []))
+                coast = self._coast_of(rel, visible_only=False)[2]
                 whole = rel["outline_km"]
                 key = ("details.border" if land and coast else "details.border_land" if land >= 0.99 * whole
                        else "details.border_coast" if coast >= 0.99 * whole else "details.border_whole")
                 lines.append(say(key, whole=words.distance_text(rel["outline_km"] * 1000.0, units),
                                  land=words.distance_text(land * 1000.0, units),
                                  coast=words.distance_text(coast * 1000.0, units)))
-        lines += self._fact_lines(rec)
+        lines += self._fact_lines(rec, places_only_elevation=layer is not None and layer.geometry == "point")
         s = self.world
         if self.selected and (not self.areas or self.areas[0].id != self.selected):
             lines.append(say("details.centre", value=words.coordinates_text(s.lat, s.lon, self.settings["coordinates"],
                                                                           self._coordinate_step())))
-        lines.append(say("details.source", value=self._source_text(area)))
+        lines.append(self._source_line(area))
         return "\n".join(lines)
 
-    def _fact_lines(self, rec: dict) -> list[str]:
+    def _fact_lines(self, rec: dict, places_only_elevation: bool = True) -> list[str]:
         """The facts of a feature, each with its source and date, in the order of templates.yaml, then its
         Wikipedia article (P3-T2b, INF-1). A pack written before P3-T2 has none."""
         facts, out = rec.get("facts") or {}, []
@@ -1857,6 +1875,8 @@ class MapSession:
         for key, name in names.items():
             fact = facts.get(key)
             if not fact or fact.get("value") in (None, "", []):
+                continue
+            if key == "elevation_m" and not places_only_elevation:   # for places only (P3-T28g, Q1)
                 continue
             if key == "capital" and fact["value"] == [rec.get("names", {}).get("en")]:   # a town is its own seat
                 continue
@@ -3374,17 +3394,21 @@ class MapSession:
     _NE_WORDS = {"seas": "marine areas", "physical-regions": "physical regions", "rivers": "rivers",
                  "special-lines": "geographic lines"}
 
-    def _source_text(self, area) -> str:
+    def _source_line(self, area) -> str:
+        """Details' last line: where the shape and name come from (P3-T28g, Q2). OpenStreetMap's are "Shape and
+        name: OpenStreetMap, ODbL licence"; any other source is "Source:" with its name and licence."""
         source = area.record.get("source", "")
         if source == "graticule":   # lines TobyMap draws itself
-            return say("details.source_tobymap")
+            return say("details.source", value=say("details.source_tobymap"))
         words_in = self._NE_WORDS.get(area.layer, "natural earth") if source == "ne" else self._SOURCE_WORDS.get(source)
         for pack in self.store.packs:
             for s in pack.manifest.get("sources", []):
                 name = s["name"].lower()
                 if (words_in and words_in in name) or (not words_in and source and source.lower() in name):
-                    return f"{s['name']}, {s['licence']}"
-        return source
+                    if words_in == "openstreetmap":
+                        return say("details.source_osm", licence=str(s["licence"]).split()[0])
+                    return say("details.source", value=f"{s['name']}, {s['licence']}")
+        return say("details.source", value=source)
 
     def _timing(self, **_a) -> Response:
         r = Response()

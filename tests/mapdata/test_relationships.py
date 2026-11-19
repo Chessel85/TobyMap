@@ -226,3 +226,48 @@ def test_a_landlocked_countrys_whole_outline_is_its_borders(pack):
     france = pack.relationships(FRANCE)
     land, coast = sum(km for _i, km in france["next"]), sum(km for _i, km in france["coast"])
     assert land + coast <= france["outline_km"] * 1.01
+
+
+def _land_and_sea(shapes: dict, settings: dict):
+    """The relationships of made-up areas, by name, with the sea in the oceans layer and the land layers named."""
+    names = list(shapes)
+    records = [{"id": n, "layer": shapes[n][0], "name": n} for n in names]
+    geoms = [shapes[n][1] for n in names]
+    kinds = [rel.AREA] * len(names)
+    settings = {**rel.SETTINGS, **settings, "sea": ["oceans"], "water": ["oceans"],
+                "land": ["countries", "national_parks", "mountain-ranges"]}
+    ranks = {"countries": 2, "oceans": 2, "mountain-ranges": 3, "national_parks": 6, "lakes": 7}
+    sums = rel.measure(records, geoms, kinds, settings, say=lambda s: None)
+    out = rel.relationships(records, geoms, kinds, sums, ranks, {"oceans"}, settings)
+    return {names[i]: {k: ([names[j] for j in v] if k in ("in", "same") else
+                           {names[x[0]]: x[1] for x in v} if k in ("overlaps", "partly") else v)
+                       for k, v in r.items()} for i, r in out.items()}
+
+
+@pytest.mark.parametrize("fine", [False, True], ids=["whole boxes", "small boxes"])
+def test_a_land_areas_share_inside_another_is_measured_on_its_land(fine):
+    """P3-T28n, NAV-4: Exmoor, 1.2 percent of whose outline is in the sea, is wholly inside England, so Up from it
+    goes there. A park truly across a land border stays partly inside each country, and a lake, which is water,
+    is measured on its whole shape as before. Small boxes make some areas cover a box whole."""
+    shapes = {
+        "England": ("countries", shapely.box(0, 0, 10, 10)),
+        "Wales": ("countries", shapely.box(-10, 0, 0, 10)),
+        "Sea": ("oceans", shapely.box(10, -5, 20, 15).union(shapely.box(-10, -5, 20, 0)).union(
+            shapely.box(-10, 10, 20, 15))),
+        "Exmoor": ("national_parks", shapely.box(8, 4, 10.02, 6)),            # about 1 percent in the sea
+        "Border park": ("national_parks", shapely.box(-1, 4, 1, 6)),          # half in each country
+        "Hills": ("mountain-ranges", shapely.box(9, 3, 12, 7)),               # two thirds in the sea
+        "Lagoon": ("lakes", shapely.box(9.98, 1, 10.02, 2)),                  # water: half in the sea
+    }
+    out = _land_and_sea(shapes, {"leaf_points": 0, "min_leaf_deg": 0.5} if fine else {})
+    assert "England" in out["Exmoor"]["in"]
+    assert "England" not in out["Exmoor"].get("overlaps", {})
+    assert out["Exmoor"]["overlaps"]["Sea"] == pytest.approx(0.0099, abs=0.0005)   # against the sea, as before
+    assert out["Border park"]["overlaps"]["England"] == pytest.approx(0.5, abs=0.01)
+    assert out["Border park"]["overlaps"]["Wales"] == pytest.approx(0.5, abs=0.01)
+    assert "in" not in out["Border park"]
+    # Both in the sea: only the land they share counts, half of Exmoor's land and half of the hills' land.
+    assert out["Exmoor"]["overlaps"]["Hills"] == pytest.approx(0.5, abs=0.003)
+    assert out["Hills"]["overlaps"]["Exmoor"] == pytest.approx(0.5, abs=0.003)
+    assert "England" in out["Hills"]["in"]
+    assert "England" not in out["Lagoon"].get("in", []) and out["Lagoon"]["overlaps"]["England"] == pytest.approx(0.5, abs=0.01)

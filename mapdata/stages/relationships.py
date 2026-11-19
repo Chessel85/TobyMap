@@ -6,7 +6,9 @@ The application only looks these up (AD-8); they are worked out here, once, for 
   of parents are there too; and, for a line or a place, the areas it is partly inside, with the
   share. Two areas that are the same land, each inside the other to within same_share, are "same
   as", not parent and child (DP71); so are two with the same name, each inside the other to within
-  same_name_share, such as an island and a county (P3-T23, DP198).
+  same_name_share, such as an island and a county (P3-T23, DP198). A land area's share inside another land area
+  is measured on its land only (P3-T28n): Exmoor, whose outline runs a little into the sea beyond England's coast,
+  is wholly inside England. Water areas, lines and places are measured on their whole shape.
 * Neighbours and overlaps (P3-T3b, INF-2, INF-5): areas of one layer that share a border, with its
   length on the ellipsoid; areas of one layer that nearly touch, within near_km, with the distance;
   and areas of any layers that overlap, neither holding the other, with the share of each covered.
@@ -30,7 +32,7 @@ in each. The top boxes are jobs for the worker processes.
 The results are kept in relationships.json in the stage's folder, by the index of each feature in
 features.json, which this stage keeps unchanged; the writing stage puts them in the pack by id.
 
-Settings: same_share (0.99), same_name_share (0.9), full_share (0.995), partly_share (0.005), cross_km (0.05), near_km (5), near_share
+Settings: land_least (0.01), the least share of a land area on land for it to be measured on land; same_share (0.99), same_name_share (0.9), full_share (0.995), partly_share (0.005), cross_km (0.05), near_km (5), near_share
 (0.25) and near_most (10), for nearly touching, border_m (100),
 water_share (0.5), leaf_points (20000), min_leaf_deg (0.25), top_deg (45), along_lines and along_areas (the
 layers looked at for a line along a border: rivers, against countries, regions and counties), and leave_out, the
@@ -51,6 +53,7 @@ from mapdata.stages.geodesy import areas_km2
 
 R_KM = 6371.0088
 SETTINGS = {"coast_land": ["countries", "regions", "counties", "islands"], "shore_lakes": ["lakes"],
+            "sea": [], "land": [], "land_least": 0.01,
             "crossing_areas": ["countries", "regions", "counties"],
             "shore_land": ["countries", "regions", "counties"], "water": [],
             "same_name_share": 0.9, "same_share": 0.99, "full_share": 0.995, "partly_share": 0.005, "cross_km": 0.05, "near_km": 5.0, "near_share": 0.25, "near_most": 10, "border_m": 100.0,
@@ -245,13 +248,15 @@ class Sums:
         self.along = defaultdict(float)     # (line, area): km of the line within border_m of the area's border
         self.shore = defaultdict(float)     # (lake, land area): km of the lake's shore inside the land (P3-T24e)
         self.crossed_at = defaultdict(list)  # (line, area): [lon, lat] where the line crosses its border (P3-T24f)
+        self.sea = defaultdict(float)       # land area: km2 of it in the sea (P3-T28n)
+        self.sea_shared = defaultdict(float)  # (land area, land area): km2 of the land in both that is in the sea
         # Stretches of an area's own outline lying on a cutting line, which no box sees both sides of:
         # (orientation "v" or "h", the line's longitude or latitude, from, to, feature, side 0 west or south, 1 east
         # or north). Matched across features afterwards (edge_borders).
         self.edges: list[tuple] = []
 
     def add(self, other: "Sums") -> None:
-        for name in ("own", "shared", "border", "inside", "along", "shore"):
+        for name in ("own", "shared", "border", "inside", "along", "shore", "sea", "sea_shared"):
             mine = getattr(self, name)
             for k, v in getattr(other, name).items():
                 mine[k] += v
@@ -265,6 +270,7 @@ class Sums:
         def pairs(d):
             return [[int(a), int(b), float(v)] for (a, b), v in d.items()]
         return {"own": [[int(k), float(v)] for k, v in self.own.items()], "shared": pairs(self.shared),
+                "sea": [[int(k), float(v)] for k, v in self.sea.items()], "sea_shared": pairs(self.sea_shared),
                 "border": pairs(self.border), "inside": pairs(self.inside), "first": pairs(self.first),
                 "along": pairs(self.along), "shore": pairs(self.shore), "edges": [list(e) for e in self.edges],
                 "crossed_at": [[int(a), int(b), v] for (a, b), v in self.crossed_at.items()]}
@@ -274,7 +280,9 @@ class Sums:
         s = cls()
         for k, v in d["own"]:
             s.own[k] = v
-        for name in ("shared", "border", "inside", "first", "along", "shore"):
+        for k, v in d.get("sea", []):
+            s.sea[k] = v
+        for name in ("shared", "border", "inside", "first", "along", "shore", "sea_shared"):
             target = getattr(s, name)
             for a, b, v in d.get(name, []):
                 target[(a, b)] = v
@@ -311,6 +319,8 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
         sums.own[it[0]] += km2
     whole = [k for k, it in enumerate(areas) if it[2] is COVER]
     parts = [k for k, it in enumerate(areas) if it[2] is not COVER]
+    land_layers, sea_layers = settings.get("land", ()), settings.get("sea", ())
+    in_sea: dict[int, list] = defaultdict(list)   # a land area's parts in the sea here: [(shape, km2)]
     # Land two areas share: a covering area shares all of the other's land here.
     for a in whole:
         for b in range(len(areas)):
@@ -326,10 +336,14 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
         if len(left):
             inter = robust(shapely.intersection, arr[left], arr[right])
             got = areas_km2(inter)
-            for a, b, km2 in zip(left, right, got):
+            for n, (a, b, km2) in enumerate(zip(left, right, got)):
                 ia, ib = areas[parts[a]][0], areas[parts[b]][0]
                 if km2 > 0 and ia != ib:
                     sums.shared[tuple(sorted((ia, ib)))] += float(km2)
+                    # A land area's part in the sea (P3-T28n), kept to measure its share inside another on land.
+                    for x, y in ((a, b), (b, a)):
+                        if layer_of[areas[parts[x]][0]] in land_layers and layer_of[areas[parts[y]][0]] in sea_layers:
+                            in_sea[parts[x]].append((inter[n], float(km2)))
             # Borders shared by two areas of one layer, and coast between land and sea (P3-T24e), but not along
             # the box's own edges.
             same = np.array([bordering(layer_of[areas[parts[a]][0]], layer_of[areas[parts[b]][0]], settings)
@@ -342,6 +356,8 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
                 for a, b, km in zip(la, rb, lengths_km(shared)):
                     if km > 0:
                         sums.border[tuple(sorted((areas[parts[a]][0], areas[parts[b]][0])))] += float(km)
+    if land_layers and sea_layers:
+        land_in_sea(areas, own, in_sea, layer_of, land_layers, sea_layers, sums)
     # A lake's shore inside each land area round it (P3-T24e, DP200): a lake lies on the land, so its outline is
     # inside the countries, regions and counties, not along their borders.
     lakes = [k for k in parts if layer_of[areas[k][0]] in settings.get("shore_lakes", ())]
@@ -436,6 +452,64 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
             p_idx, a_idx = tree.query(pts, predicate="intersects")
             for p_, a_ in zip(p_idx, a_idx):
                 sums.inside[(places[which[p_]][0], areas[parts[a_]][0])] += 1.0
+
+
+SEA_KM2_MIN = 1e-4   # a land area with less sea than this in a box (100 square metres) shares none with another
+
+
+def _one(shapes):
+    """Shapes that do not overlap, as one."""
+    if len(shapes) == 1:
+        return shapes[0]
+    try:
+        return shapely.union_all(shapes)
+    except shapely.errors.GEOSException:
+        REPAIRED[0] += 1
+        return shapely.union_all([shapely.make_valid(g) for g in shapes], grid_size=GRID_DEG)
+
+
+def land_in_sea(areas, own, in_sea, layer_of, land_layers, sea_layers, sums: Sums) -> None:
+    """How much of each land area is in the sea here, and how much of each two land areas' shared land is (P3-T28n),
+    so a land area's share inside another is measured on its land: Exmoor, whose outline runs a little into the sea
+    beyond England's coast, is wholly inside England. The sea is the layer that holds all the water (the oceans),
+    whose areas never overlap, so the sea in an area is the sum of its parts in each. Those parts were found when
+    the areas here were compared, so only the few land areas that reach into the sea cost anything more."""
+    seas = [k for k, it in enumerate(areas) if layer_of[it[0]] in sea_layers]
+    land = [k for k, it in enumerate(areas) if layer_of[it[0]] in land_layers]
+    if not seas or not land:
+        return
+    sea_covers = any(areas[k][2] is COVER for k in seas)
+    sea_km2 = own[next(k for k in seas if areas[k][2] is COVER)] if sea_covers else sum(own[k] for k in seas)
+    wet = []   # (index here, its sea here or COVER for the whole sea here, km2)
+    for k in land:
+        if areas[k][2] is COVER:
+            g, km2 = COVER, sea_km2
+        elif sea_covers:
+            g, km2 = areas[k][2], own[k]
+        elif in_sea.get(k):
+            g, km2 = _one([p for p, _km2 in in_sea[k]]), sum(km2 for _p, km2 in in_sea[k])
+        else:
+            continue
+        if km2 > 0:
+            sums.sea[areas[k][0]] += km2
+        if km2 >= SEA_KM2_MIN:
+            wet.append((k, g, km2))
+    if len(wet) < 2:
+        return
+    for x in range(len(wet)):   # each two: the sea both are in
+        for y in range(x + 1, len(wet)):
+            (ka, ga, kma), (kb, gb, kmb) = wet[x], wet[y]
+            ia, ib = areas[ka][0], areas[kb][0]
+            if ia == ib:
+                continue
+            if ga is COVER or gb is COVER:
+                km2 = kmb if ga is COVER else kma
+            elif not shapely.intersects(ga, gb):
+                continue
+            else:
+                km2 = float(areas_km2(robust(shapely.intersection, [ga], [gb]))[0])
+            if km2 > 0:
+                sums.sea_shared[tuple(sorted((ia, ib)))] += km2
 
 
 def on_lines(item, lines, sums: Sums) -> None:
@@ -611,10 +685,21 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
         out[i].setdefault(key, []).append(value)
 
     own = sums.own
+    land_layers = set(settings.get("land", ()))
+
+    def share(i, km2, key):
+        """The share of area i that km2 is: of its land, for a land area with at least land_least of it on land,
+        against another land area (P3-T28n, NAV-4); otherwise of its whole shape."""
+        sea = sums.sea.get(i, 0.0) if key is not None else 0.0
+        if sea <= 0 or own[i] - sea < own[i] * settings["land_least"]:
+            return km2 / own[i]
+        return max(km2 - sums.sea_shared.get(key, 0.0), 0.0) / (own[i] - sea)
+
     for (a, b), km2 in sums.shared.items():
         if own.get(a, 0) <= 0 or own.get(b, 0) <= 0:
             continue
-        sa, sb = km2 / own[a], km2 / own[b]
+        key = (a, b) if records[a]["layer"] in land_layers and records[b]["layer"] in land_layers else None
+        sa, sb = share(a, km2, key), share(b, km2, key)
         same_name = settings["same_name_share"]
         if (sa >= same_s and sb >= same_s) or (sa >= same_name and sb >= same_name and records[a].get("name")
                                                 and records[a].get("name") == records[b].get("name")):
@@ -712,11 +797,27 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
     return dict(out)
 
 
+def sea_and_land(layers) -> tuple[list[str], list[str]]:
+    """The layer that holds all the sea, and the land layers, whose areas' shares inside each other are measured on
+    land (P3-T28n). The sea is the water layer of areas of the lowest rank, the oceans: the join stage gives all
+    the water to an ocean, and the oceans never overlap. The seas, bays and straits are in the oceans, so they add
+    nothing. The land layers are the area layers of kind land but those painted as water, the lakes, which lie on
+    the land but are water: the countries, regions, counties, islands, continents, mountain ranges, physical regions
+    and the like."""
+    water = [v for v in layers.values() if v.kind == "water" and v.geometry == AREA]
+    least = min((v.rank for v in water), default=None)
+    sea = sorted(v.id for v in water if v.rank == least)
+    land = sorted(k for k, v in layers.items() if v.kind != "water" and v.geometry == AREA
+                  and dict(v.shown).get("fill") != "water")
+    return sea, land
+
+
 def run(ctx) -> None:
     records, geoms = features.load(ctx.previous)
     settings = {**SETTINGS, **{k: v for k, v in ctx.settings.items() if k in SETTINGS}}
     layers = ctx.pack.layers
     settings["water"] = sorted(k for k, v in layers.items() if v.kind == "water" and v.geometry == AREA)
+    settings["sea"], settings["land"] = sea_and_land(layers)
     kinds = [layers[r["layer"]].geometry if r["layer"] in layers else AREA for r in records]
     left_out = set(ctx.settings.get("leave_out", LEAVE_OUT))
     geoms_used = [None if r["layer"] in left_out else g for r, g in zip(records, geoms)]

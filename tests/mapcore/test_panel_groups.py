@@ -197,13 +197,14 @@ def hants(test_pack):
 
 def test_contains_groups_what_is_visible_by_layer_under_headings(hants):
     g = group(hants.panel(open={"contains"}), "contains")
-    # The river, Brockenhurst station, and the New Forest National Park, partly inside (DP70, P3-T6a).
-    assert g["label"] == "Contains Hampshire, 3 items, by name"
-    assert [h["label"] for h in g["items"]] == ["Rivers 1", "Railway stations 1", "National parks 1"]
+    # Brockenhurst station, wholly inside. The River Itchen and the New Forest National Park are only partly
+    # inside, so not listed (P3-T29c); Longbridge Lake is too small to see at this zoom.
+    assert g["label"] == "Contains Hampshire, 1 item, by name"
+    assert [h["label"] for h in g["items"]] == ["Railway stations 1"]
     heading = g["items"][0]
-    assert heading["label"] == "Rivers 1" and panel_table.is_heading(heading["id"]) and heading["level"] == 1
+    assert heading["label"] == "Railway stations 1" and panel_table.is_heading(heading["id"]) and heading["level"] == 1
     child = heading["children"][0]
-    assert child["level"] == 2 and child["label"].startswith("River Itchen, ")
+    assert child["level"] == 2 and child["label"].startswith("Brockenhurst, ")
 
 
 def test_contains_follows_the_zoom(test_pack):
@@ -221,7 +222,7 @@ def test_contains_for_england_from_hampshire_has_hampshire(hants):
 
 def test_enter_works_on_an_item_under_a_heading(hants):
     child = group(hants.panel(open={"contains"}), "contains")["items"][0]["children"][0]
-    assert hants.run("panel.hear", item=child["id"], group="contains").label.startswith("River Itchen")
+    assert hants.run("panel.hear", item=child["id"], group="contains").label.startswith("Brockenhurst")
     assert hants.run("panel.go", item=child["id"], group="contains").focus["group"] == "contains"
 
 
@@ -331,10 +332,10 @@ def _highlighted(session, gid, item_id):
 def test_the_map_highlights_an_item_of_each_new_group(test_pack):
     s = MapSession(packs=[test_pack], saved_state=dict(HAMPSHIRE))
     s.start()
-    groups = s.panel(open={"contains", "overlapping", "bordering"})
-    contains = group(groups, "contains")["items"][0]["children"][0]      # a line, the River Itchen
-    s.set_current_feature(s.areas[1].id)                                  # England holds the county
-    county = group(s.panel(open={"contains"}), "contains")["items"][0]["children"][0]   # an area, Hampshire
+    s.set_current_feature(s.areas[1].id)                                  # England holds the river and the county
+    listed = [c for h in group(s.panel(open={"contains"}), "contains")["items"] for c in h["children"]]
+    contains = next(c for c in listed if c["name"] == "River Itchen")     # a line
+    county = next(c for c in listed if c["name"] == "Hampshire")          # an area
     for gid, item in (("contains", contains), ("contains", county)):
         marked, _ = _highlighted(s, gid, item["id"])
         assert marked, f"{item['name']} in {gid} is in view but not highlighted"

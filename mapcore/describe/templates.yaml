@@ -633,7 +633,12 @@ bordering:
 contains:
   heading: "{layer} {count}"
   item: "{name}, {distance} {direction}"
-  # A feature only partly inside the current one (P3-T25b, DP204), in Contains and Down; and in Browse by category.
+  # An area you are in, said in place of its distance (P3-T29c, INF-4).
+  inside: "{name}, you are inside"
+  # A line or a place whose nearest point is where you are (under HERE_M), not "0 metres" (P3-T29c).
+  here: "{name}, here"
+  # A feature only partly inside the current one (P3-T25b, DP204). Not used since P3-T29c, which lists in Contains
+  # and Down only what is wholly inside; kept for Overlapping (P3-T29e). partly_name is Browse by category's.
   item_partly: "{name}, partly in {holder}, {distance} {direction}"
   partly_name: "{name}, partly in {holder}"
   none: "Nothing visible inside {name}."

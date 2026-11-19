@@ -53,6 +53,9 @@ QUERY_SEARCH = "search"   # the Of entry that opens search for the feature (P3-T
 END_PROBE_M = 300.0   # how far round the end of a shared border is looked at, for what is there (P3-T24f)
 DRAW_LIMIT = 15000   # features a drawing holds at most; the smallest are left out (P3-T24a, DP202)
 SCAN_LIMIT = 12    # items look around plays (P3-T11a, SON-4)
+# Contains' and Down's kinds that hold another layer too (P3-T29c, INF-4): bays and straits that are only places
+# are listed with the seas, bays and straits drawn as areas, under "Seas, bays and straits".
+CONTAINS_KIND = {"sea-places": "seas"}
 SCAN_GAP_S = 0.3   # the pause after one item's label before the next item's sound
 REGIONS = ("map", "panel", "details", "menu")
 # Holding an arrow key (DP129, DP140). The shells step on a timer of their own, at
@@ -1054,22 +1057,21 @@ class MapSession:
             return lat, lon
         return box_centre(rec["bbox"])
 
-    def _feature_items(self, gid: str, areas: list, label_key: str, heading: float | None, holder=None) -> list[dict]:
-        """Items for many features at once, as _feature_item, with their distances and bearings worked out
-        together (geodesy.inverse_many), so a list of thousands, such as Contains for Europe, takes a fraction
-        of a second rather than many seconds (P3-T20b). With a holder, a feature only partly inside it says so,
-        "Kazakhstan, partly in Europe" (P3-T25b, DP204)."""
-        if not areas:
-            return []
-        spots = [self._spot_of(a) for a in areas]
-        dist, bear = geodesy.inverse_many(self.world.lat, self.world.lon, [p[0] for p in spots], [p[1] for p in spots])
+    def _near_items(self, gid: str, nears: list, heading: float | None) -> list[dict]:
+        """Items for many features at once, each already measured to its nearest point (Store.nearest_many), as
+        Contains and Down list them (P3-T29c, INF-4): "River Itchen, 4.5 kilometres north-west"; an area you are
+        in, "Hampshire, you are inside"; a line or a place where you are, "River Itchen, here". Enter and Space use
+        that nearest point."""
         out = []
-        for a, d, b in zip(areas, dist.tolist(), bear.tolist()):
-            if holder is not None and contents.partly_in(self.store.relationships(a.id), holder.id):
-                out.append(self._feature_item(gid, a, "contains.item_partly", heading, at=(float(d), float(b)),
-                                              holder=holder.name))
+        for near in nears:
+            area = near.area
+            if self._geometry(area) == "area":
+                key = "contains.inside" if near.inside else "contains.item"
             else:
-                out.append(self._feature_item(gid, a, label_key, heading, at=(float(d), float(b))))
+                key = "contains.here" if near.distance_m < HERE_M else "contains.item"
+            self._spots[(gid, area.id)] = (area, near.lat, near.lon)
+            out.append(self._item_at(gid, area, area.id, key, near.lat, near.lon, heading, near.distance_m,
+                                     near.bearing_deg))
         return out
 
     def _feature_item(self, gid: str, area, label_key: str, heading: float | None, at=None, **fields) -> dict:
@@ -1234,17 +1236,21 @@ class MapSession:
         return out
 
     def _contained(self, current) -> dict[str, list]:
-        """The visible features the current feature holds, fully or partly (partly counts, with no label), by
-        layer id: what Contains lists and hierarchy mode's Down counts."""
+        """What Contains lists and hierarchy mode's Down counts (P3-T29c, INF-4, the PO's answer R2): the visible
+        features wholly inside the current feature whose nearest point, measured on their real shapes, is within
+        the zoom distance of you. Each is Store.nearest_many's Near: the feature, with its nearest point and the
+        distance and bearing to it. By kind, a layer id, in the layer order; bays and straits that are only places
+        are under the seas, bays and straits drawn as areas (CONTAINS_KIND)."""
         lat, lon, zoom = self.world.lat, self.world.lon, self.world.zoom_m
-        by_layer: dict[str, list] = {}
         box = current.record.get("bbox")
         # Layers outside their zoom range count, as the PO chose, so Down from England, fitted at 250 km,
         # still lists its counties; the size rule still leaves out what is too small to see (DP188).
-        # A feature whose bounding box does not meet the current feature's cannot be inside it, so only those
-        # whose boxes meet it are looked at, and the edge of the view is decided by the boxes (P3-T20b).
+        # A feature whose bounding box does not meet the current feature's cannot be inside it, and one whose box
+        # does not reach the view cannot be in it, so the boxes are a first filter only (P3-T20b); the view's edge
+        # is decided by each feature's nearest point, below.
         candidates = (self.visible.features_meeting(lat, lon, zoom, box) if box is not None
                       else self.visible.features(lat, lon, zoom, any_zoom_range=True))
+        held = []
         for identifier in candidates:
             if identifier == current.id:
                 continue
@@ -1253,26 +1259,26 @@ class MapSession:
                 continue
             if not contents.water_may_hold(current.layer, area.layer):   # P3-T29d
                 continue
-            # The relationships are stored from the inside out: a feature's "in" lists what holds it, and
-            # "partly" what it is partly inside, for a line or a place; an area partly inside another is in
-            # "overlaps" (DP70: the New Forest National Park is under Hampshire and under Wiltshire). So the
-            # current feature holds this one when it is listed; an overlapping area only when it is the smaller,
-            # so England is not listed under the park.
-            rel = self.store.relationships(identifier)
-            if current.id in rel.get("in", ()) or any(p[0] == current.id for p in rel.get("partly", ()))                     or (any(p[0] == current.id for p in rel.get("overlaps", ()))
-                        and area.area_km2 < current.area_km2):
-                by_layer.setdefault(area.layer, []).append(area)
-        return {layer.id: by_layer[layer.id] for layer in self.layers.layers() if by_layer.get(layer.id)}
+            # Wholly inside: the stored "in", made by the build from the real shapes, allowing 0.5 percent. A
+            # feature only partly inside ("partly" for a line or a place, "overlaps" for an area) is not listed
+            # here: Overlapping lists it (P3-T29e).
+            if current.id in self.store.relationships(identifier).get("in", ()):
+                held.append(area)
+        nears = self.store.nearest_many(held, lat, lon, zoom)
+        by_kind: dict[str, list] = {}
+        for area in held:
+            near = nears.get(area.id)
+            if near is not None:
+                by_kind.setdefault(CONTAINS_KIND.get(area.layer, area.layer), []).append(near)
+        return {layer.id: by_kind[layer.id] for layer in self.layers.layers() if by_kind.get(layer.id)}
 
     def _group_contains(self, current, heading) -> tuple[list[dict], str]:
-        """Contains (INF-1, ANN-7, DP70): the visible features whose stored relationships put the current
-        feature in them, fully or partly, grouped by layer under a heading such as "Regions 13", in the
-        catalogue's layer order, only for layers with something visible."""
+        """Contains (INF-4, ANN-7): what _contained finds, under a heading for each kind, such as "Regions 13", in
+        the catalogue's layer order, only for kinds with something listed."""
         items = []
-        for layer_id, areas in self._contained(current).items():
+        for layer_id, nears in self._contained(current).items():
             layer = self.layers.get(layer_id)
-            children = self._sorted("contains", self._feature_items("contains", areas, "contains.item", heading,
-                                                                    holder=current))
+            children = self._sorted("contains", self._near_items("contains", nears, heading))
             items.append(panel_table.heading(layer.id, say("contains.heading", layer=layer.name, count=len(children)),
                                              children, name=layer.name))
         return items, say("contains.none", name=current.name)
@@ -3151,16 +3157,16 @@ class MapSession:
         kinds = self._contained(current)
         if not kinds:
             return Response().earcon("blocked").speak(say("contains.none", name=current.name), ASSERTIVE)
-        # Only the counts are said now; a kind's items, with their distances, are made when it is chosen, so
-        # Down from Europe does not make tens of thousands of items to list 41 countries (P3-T20b).
+        # Only the counts are said now; a kind's items are made when it is chosen, so Down from Europe does not
+        # make tens of thousands of items to list 41 countries (P3-T20b). Each is measured already (P3-T29c).
         self._down = {"name": current.name, "id": current.id,
-                      "kinds": {k: (self.layers.get(k).name, areas) for k, areas in kinds.items()}}
+                      "kinds": {k: (self.layers.get(k).name, nears) for k, nears in kinds.items()}}
         # Each line says what it counts: those shown at this zoom, and all inside, from the stored counts, when
         # the size rule leaves some out (P3-T25a, DP204, DP188): "Islands: 11 shown at this zoom, 109,292 in all".
         totals = self.store.relationships(current.id).get("counts", {})
         lines = []
         for k, (name, areas) in self._down["kinds"].items():
-            total = totals.get(k, 0)
+            total = sum(totals.get(x, 0) for x in (k, *(x for x, kind in CONTAINS_KIND.items() if kind == k)))
             lines.append(say("hierarchy.down_line", layer=name, count=f"{len(areas):,}", total=f"{total:,}") if total > len(areas)
                          else say("contains.heading", layer=name, count=len(areas)))
         return self._choose(say("hierarchy.down_title", name=current.name), say("hierarchy.down_help"), lines,
@@ -3259,11 +3265,9 @@ class MapSession:
             return Response().earcon("blocked")
         kind, value = self._choices[index]
         if kind == "kind":
-            label, areas = self._down["kinds"][value]
+            label, nears = self._down["kinds"][value]
             heading = describer.words_facing(self.world, self.settings)
-            holder = self.store.feature(self._down.get("id", ""))
-            children = self._sorted("contains", self._feature_items("contains", areas, "contains.item", heading,
-                                                                    holder=holder),
+            children = self._sorted("contains", self._near_items("contains", nears, heading),
                                     self.panel_sorts.get("contains"))
             return self._choose(say("hierarchy.kind_title", kind=label, name=self._down["name"]),
                                 say("hierarchy.kind_help"), [c["label"] for c in children],

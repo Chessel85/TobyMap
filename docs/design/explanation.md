@@ -605,13 +605,13 @@ Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S
 
 ### 4. Contains
 
-* What is in it: the visible features wholly inside the current feature, that are in the view. A feature only partly inside is in Overlapping, not here. Today partly inside features are listed too, said as "partly in Hampshire". P3-T29c moves them.
+* What is in it: the visible features wholly inside the current feature, that are in the view. A feature only partly inside is in Overlapping, not here. Done in P3-T29c; partly inside features come back under Overlapping in P3-T29e. So Down from Europe no longer lists Azerbaijan, Georgia, Kazakhstan or Turkey, which are only partly in Europe; the world tree (W) still lists them under Europe, and Browse by category still lists everything fully or partly inside, saying "partly in Europe".
 * What is inside what is worked out by the build, from the real shapes, and stored in the pack. Nothing about being inside is decided by a bounding box.
-* In the view: a feature is listed when its nearest point is within the zoom distance of you. Today this is decided by bounding boxes, which lets in a railway line hundreds of kilometres away and leaves out a bay just outside the circle. Whether Contains should be limited by the view at all is question R2.
+* In the view: a feature is listed when its nearest point is within the zoom distance of you. Your answer to R2: yes, as a sighted user sees it. Done in P3-T29c: the bounding box is only a first filter. Far features are measured on the map's own drawing, to within 2 percent of their distance; near ones exactly.
 * Water holds only water features and islands. A sea or ocean contains bays, straits and islands; a lake contains its islands. Rivers, roads, railways and towns at the coast are never inside the water, even where the sea's outline, which is rough, overlaps them. Done in P3-T29d: so Down from the English Channel no longer lists rivers, roads, railways, or the towns of Porthleven and Looe. A lake also holds the bays on it, which P3-T28c keeps in the pack.
 * Layers outside their zoom range still count, so Contains England at a wide zoom still lists its counties. The size rule still applies.
-* Subgroups: one for each layer with something in it, such as "Rivers 3", in the layer order. Bays and straits are one subgroup, "Seas, bays and straits", holding both those drawn as areas and those that are only places. Today they are two subgroups.
-* Distance and direction: to each feature's nearest point. An area you are in says "you are inside" in place of a distance. Today the distance is to the feature's own point, so the M3 is "29 kilometres north-east" from Winchester though it passes 2 kilometres east.
+* Subgroups: one for each layer with something in it, such as "Rivers 3", in the layer order. Bays and straits are one subgroup, "Seas, bays and straits", holding both those drawn as areas and those that are only places. Done in P3-T29c.
+* Distance and direction: to each feature's nearest point. An area you are in says "you are inside" in place of a distance. A line you are on says "here". Done in P3-T29c, so the M3 from Winchester is about 2 kilometres east.
 * Hierarchy mode's Down, and Browse by category, list the same features.
 
 ### 5. Overlapping

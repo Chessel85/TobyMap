@@ -41,6 +41,8 @@ from mapcore.store.cache import TileCache, TileData
 from mapcore.store.projection import Flat
 
 NEAR_EXACT_M = 50_000.0
+DRAWN_SHARE = 0.02   # nearest_many reads the coarsest drawing level whose tolerance is at most this share of the distance
+VIEW_SHARE = 0.1     # ... or of this share of the view's radius, whichever is more
 FIRST_SEARCH_M = 2_000.0   # the first search box for an area's nearest point
 SEARCH_GROWTH = 3.0
 PART_SKIP_MARGIN = 1.1   # a part whose box is a tenth further than the best point found is not measured
@@ -1209,6 +1211,143 @@ class Store:
             return None
         lower = float(self._box_distance_m(boxes[where[:1]], lat, lon)[0])
         return self._nearest(p, area, flat, lat, lon, lower, geodesy.A_M * math.pi, border)
+
+    def nearest_many(self, areas, lat: float, lon: float, radius_m: float) -> dict[str, Near]:
+        """The nearest point of each of many features to the point, measured on the ellipsoid, for those within
+        radius_m of it, by identifier: what Contains lists and how far each is (P3-T29c, INF-4). The answers are
+        Store.measure's, found four ways, cheapest first:
+
+        * a place of one point: its point, all measured together (geodesy.inverse_many);
+        * an area you are in: distance 0, by the exact test "where am I" uses (Store.at);
+        * a line, or an area you are not in, from a drawing level's tiles within radius_m, each tile read once for
+          all the features measured from it: the nearest point of each part is found together in an azimuthal
+          equidistant view round the point (whose distances from its centre are true on the sphere), the nearest
+          part of each feature kept, and measured on the ellipsoid. The level is the coarsest that holds the
+          feature whose tolerance is at most DRAWN_SHARE of the least distance its box allows, or of VIEW_SHARE of
+          radius_m, whichever is more; beyond NEAR_EXACT_M, else the finest, as _search does. So for Contains
+          Europe at 2,500 kilometres, a road 1,000 kilometres away is measured on the map's own 1,000 kilometre
+          drawing, within 8 kilometres, and one nearby on the 150 kilometre drawing, within 1.5 kilometres;
+        * any other, such as a road near you at 500 kilometres zoom, or an area smaller than every level keeps:
+          from the exact pack tiles, one at a time, by _nearest, as Nearby measures it.
+
+        A feature with no part within radius_m is left out, however near its box comes."""
+        lon = geodesy.wrap_lon(lon)
+        out: dict[str, Near] = {}
+        areas = [a for a in areas if a.record.get("bbox") is not None]
+        if not areas:
+            return out
+        boxes = np.array([a.record["bbox"] for a in areas], dtype=np.float64).reshape(-1, 4)
+        lower = self._box_distance_m(boxes, lat, lon)
+        single_point = (boxes[:, 0] == boxes[:, 2]) & (boxes[:, 1] == boxes[:, 3])
+        geometry: dict[str, str] = {}
+        levels: dict[int, list] = {}
+        here = None
+        points, exact, drawn = [], [], {}
+        for k, a in enumerate(areas):
+            if lower[k] > radius_m:
+                continue
+            if single_point[k]:
+                points.append(k)
+                continue
+            if a.layer not in geometry:
+                geometry[a.layer] = self._geometry_of(a.layer)
+            is_area = geometry[a.layer] == "area"
+            if is_area and lower[k] == 0.0:
+                if here is None:
+                    here = {f.id for f in self.at(lat, lon)}
+                if a.id in here:
+                    out[a.id] = Near(a, 0.0, 0.0, lat, lon, True)
+                    continue
+            if a.pack not in levels:   # coarsest first
+                levels[a.pack] = sorted(self._indexes[a.pack].pack.drawing_levels.values(),
+                                        key=lambda d: -d.get("tolerance_m", 0.0))
+            allowed = DRAWN_SHARE * max(float(lower[k]), VIEW_SHARE * radius_m)
+            fits = [d for d in levels[a.pack] if ("layers" not in d or a.layer in d["layers"])
+                    and (not is_area or a.area_km2 >= d.get("min_km2", 0))]
+            draw = next((d for d in fits if d.get("tolerance_m", 0.0) <= allowed), None)
+            if draw is None and lower[k] > NEAR_EXACT_M and fits:
+                draw = fits[-1]
+            if draw is not None:
+                drawn.setdefault((a.pack, draw["id"]), (draw, {}))[1][a.number] = a
+            else:
+                exact.append(k)
+        if points:
+            rows = np.array(points, dtype=np.intp)
+            dist, bear = geodesy.inverse_many(lat, lon, boxes[rows, 1], boxes[rows, 0])
+            for k, d, b in zip(points, dist.tolist(), bear.tolist()):
+                if d <= radius_m:
+                    out[areas[k].id] = Near(areas[k], d, 0.0 if d == 0.0 else b, float(boxes[k, 1]),
+                                            float(boxes[k, 0]), d == 0.0)
+        row = {a.id: k for k, a in enumerate(areas)}
+        for (p, _ident), (draw, wanted) in drawn.items():
+            for identifier, near in self._nearest_drawn(p, draw, wanted, lat, lon, radius_m).items():
+                if near.distance_m == 0.0 and geometry[near.area.layer] == "area":
+                    exact.append(row[identifier])   # a drawn outline round you, of an area you are not in
+                else:
+                    out[identifier] = near
+        flat = Flat(lat, lon)
+        for k in exact:
+            found = self._nearest(areas[k].pack, areas[k], flat, lat, lon, float(lower[k]), radius_m)
+            if found is not None:
+                out[found.area.id] = found
+        return out
+
+    def _nearest_drawn(self, p: int, draw: dict, wanted: dict, lat: float, lon: float,
+                       radius_m: float) -> dict[str, Near]:
+        """nearest_many's third way: the features by number, from one drawing level's tiles."""
+        import shapely
+
+        index = self._indexes[p]
+        level = draw["tile_level"]
+        boxes = np.array([a.record["bbox"] for a in wanted.values()], dtype=np.float64).reshape(-1, 4)
+        shapes, owners = [], []
+        seen = set()
+        for west, south, east, north in self._search_box(lat, lon, radius_m, (-180.0, -90.0, 180.0, 90.0)):
+            x0, y0 = tiles.tile_of(west, south, level)
+            x1, y1 = tiles.tile_of(east, north, level)
+            for x, y in index.tiles_in("draw", draw["id"], x0, x1, y0, y1):
+                if (x, y) in seen:
+                    continue
+                seen.add((x, y))
+                if not _boxes_reach(boxes, [tiles.tile_box(level, x, y)]).any():
+                    continue   # none of the features is there: the tile is not read
+                data = self._tile(p, "draw", draw["id"], x, y)
+                # Whichever is fewer is gone through: a tile may hold thousands of roads.
+                if len(wanted) < len(data.by_feature):
+                    here = [n for n in wanted if n in data.by_feature]
+                else:
+                    here = [n for n in data.by_feature if n in wanted]
+                if not here:
+                    continue
+                entries = [i for n in here for i in data.by_feature[n]]
+                geoms = data.shapes_of(entries, tiles.tile_box(level, x, y))
+                for n in here:
+                    for i in data.by_feature[n]:
+                        shapes.append(geoms[i])
+                        owners.append(n)
+        if not shapes:
+            return {}
+        view = Flat(lat, lon, azimuthal=True)
+        projected = view.transform(np.array(shapes, dtype=object))
+        origin = shapely.Point(0.0, 0.0)
+        gap = np.nan_to_num(shapely.distance(origin, projected), nan=np.inf)
+        owners = np.array(owners, dtype=np.intp)
+        order = np.lexsort((gap, owners))
+        _numbers, first = np.unique(owners[order], return_index=True)
+        best = order[first]
+        best = best[np.isfinite(gap[best])]
+        if not len(best):
+            return {}
+        ends = shapely.get_coordinates(shapely.shortest_line(origin, projected[best]))[1::2]
+        n_lat, n_lon = (np.asarray(v, dtype=np.float64) for v in view.inverse(ends[:, 0], ends[:, 1]))
+        dist, bear = geodesy.inverse_many(lat, lon, n_lat, n_lon)
+        out = {}
+        for b, d, bearing, a_lat, a_lon in zip(owners[best].tolist(), dist.tolist(), bear.tolist(), n_lat.tolist(),
+                                               n_lon.tolist()):
+            if d <= radius_m:
+                area = wanted[b]
+                out[area.id] = Near(area, d, bearing, a_lat, a_lon, False)
+        return out
 
     def _nearest(self, p: int, area: Area, flat: Flat, lat: float, lon: float,
                  lower: float, radius_m: float, border: bool = False) -> Near | None:

@@ -20,9 +20,11 @@ HIGH_LAT = 80.0
 class Flat:
     """Metres east and north of a centre, for arrays of latitude and longitude."""
 
-    def __init__(self, lat: float, lon: float):
+    def __init__(self, lat: float, lon: float, azimuthal: bool = False):
+        """azimuthal gives the azimuthal equidistant view at any latitude, as within HIGH_LAT of a pole: its
+        distances from the centre are true on the mean sphere, for measuring far from the centre (P3-T29c)."""
         self.lat0, self.lon0 = lat, lon
-        self.polar = abs(lat) >= HIGH_LAT
+        self.polar = azimuthal or abs(lat) >= HIGH_LAT
         self._local = None if self.polar else geodesy.LocalProjection(lat, lon)
         self._p0 = math.radians(lat)
 

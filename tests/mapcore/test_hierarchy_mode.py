@@ -116,8 +116,9 @@ def down_kinds(s):
 def test_down_lists_the_kinds_inside_with_counts_then_their_features(test_pack):
     s = session(test_pack, HAMPSHIRE, zoom_m=100000)
     kinds = down_kinds(s)
-    assert "Railway stations 1" in kinds and "Rivers 1" in kinds
-    assert "National parks 1" in kinds   # partly inside counts, with no label (DP70)
+    assert "Railway stations 1" in kinds
+    # Only partly inside, so not listed (P3-T29c): the River Itchen and the New Forest National Park.
+    assert not any(k.startswith(("Rivers", "National parks")) for k in kinds)
     r = s.run("hierarchy.choose", index=kinds.index("Railway stations 1"))
     assert r.dialog["title"] == "Railway stations in Hampshire" and r.dialog["lines"][0].startswith("Brockenhurst, ")
     r = s.run("hierarchy.choose", index=0)
@@ -247,14 +248,18 @@ def test_a_line_says_how_many_are_shown_and_how_many_are_inside_in_all(continent
     zoom, 109,292 in all" for Europe on the world pack."""
     s = session(continents_pack, {"lat": 46.95, "lon": 7.45, "zoom_m": 100000, "step_m": 10000})
     s._hierarchy_go(s.store.feature("continent:europe"), "Europe")   # at the zoom that fits it
+    from mapcore.session import CONTAINS_KIND
+
     counts = s.store.relationships(s.current_feature.id)["counts"]
     kinds = s._contained(s.current_feature)
     lines = down_kinds(s)
     both = 0
     for (layer_id, areas), line in zip(kinds.items(), lines):
         name = s.layers.get(layer_id).name
-        if counts.get(layer_id, 0) > len(areas):
-            assert line == f"{name}: {len(areas):,} shown at this zoom, {counts[layer_id]:,} in all"
+        # Bays and straits that are only places count with the seas, bays and straits (P3-T29c).
+        total = sum(counts.get(x, 0) for x in (layer_id, *(x for x, k in CONTAINS_KIND.items() if k == layer_id)))
+        if total > len(areas):
+            assert line == f"{name}: {len(areas):,} shown at this zoom, {total:,} in all"
             both += 1
         else:
             assert line == f"{name} {len(areas)}"
@@ -262,15 +267,12 @@ def test_a_line_says_how_many_are_shown_and_how_many_are_inside_in_all(continent
     s.store.close()
 
 
-def test_a_feature_only_partly_inside_says_so(test_pack):
-    """The New Forest National Park is partly in Hampshire (DP70), so it says "partly in Hampshire" in Down and in
-    Contains; a station inside whole does not."""
+def test_a_feature_only_partly_inside_is_not_listed(test_pack):
+    """P3-T29c (changes P3-T25b): the New Forest National Park is only partly in Hampshire, so Down does not list
+    it, as Contains does not (it goes to Overlapping, P3-T29e); a station wholly inside is listed, with no "partly"."""
     s = session(test_pack, HAMPSHIRE, zoom_m=100000)
     kinds = down_kinds(s)
-    r = s.run("hierarchy.choose", index=kinds.index("National parks 1"))
-    assert r.dialog["lines"][0].startswith("New Forest National Park, partly in Hampshire, ")
-    s.run("hierarchy.choose", index=-1)
-    kinds = down_kinds(s)
+    assert not any(k.startswith("National parks") for k in kinds)
     r = s.run("hierarchy.choose", index=kinds.index("Railway stations 1"))
     assert "partly" not in r.dialog["lines"][0]
     s.store.close()

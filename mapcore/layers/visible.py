@@ -308,10 +308,10 @@ class VisibleRule:
     def features_meeting(self, lat: float, lon: float, zoom_m: float, box) -> list[str]:
         """The ids of the features whose bounding boxes reach into the view and meet `box` (west, south, east,
         north; west greater than east across the 180 degree line), passing the size rule at any zoom range: the
-        candidates for what a feature with that box contains (P3-T20b). The edge of the view is decided by the
-        boxes alone, never the shapes, as features() does: that loaded thousands of pack tiles for Down from
-        Europe. The caller checks each candidate against the stored relationships, so the boxes only choose
-        which are checked."""
+        candidates for what a feature with that box contains (P3-T20b). The boxes are only a first filter: no
+        shapes are looked at here, as features() does, which loaded thousands of pack tiles for Down from Europe.
+        The caller checks each candidate against the stored relationships, then measures the nearest point of
+        those inside on their real shapes (Store.nearest_many, P3-T29c), which decides the edge of the view."""
         lon = geodesy.wrap_lon(lon)
         rho = zoom_m / geodesy.R_MEAN_M
         west, south, east, north = box

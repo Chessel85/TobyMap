@@ -1824,13 +1824,27 @@ class MapSession:
         zoom = self.world.zoom_m
         shown = self.visible.shown_layers(zoom)
         heading = describer.words_facing(self.world, self.settings)
+        # A line or a place that is the current feature is Within's first item (P3-T29h, INF-10, LOC-4), so
+        # the key holds the current feature: the item appears and goes at once.
+        current = self.current_feature
+        current = current if current is not None and self._geometry(current) != "area" else None
         key = (self.world.lat, self.world.lon, self.settings["units"], self.settings["bearing"],
                self.settings["nearby_count"], zoom, shown, heading, self._interval(), self._crossed_gen,
-               id(self.crossed))
+               id(self.crossed), current.id if current is not None else None)
         if self._panel_cache and self._panel_cache["key"] == key:
             return self._panel_cache
         units = self.settings["units"]
         within = []
+        within_spots = {}
+        if current is not None:
+            near_lat, near_lon = self._nearest_point_of(current)
+            distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, near_lat, near_lon)
+            within.append(panel_table.item(current.id, say(
+                "within.current_here" if distance < HERE_M else "within.current_item", name=current.name,
+                distance=words.distance_text(distance, units),
+                direction=words.direction_text(bearing, self.settings["bearing"], heading)),
+                current.name, distance, bearing - (describer.facing(self.world) or 0.0)))
+            within_spots[("within", current.id)] = (current, near_lat, near_lon)
         for a in self.areas:   # the distance and direction to its centre, as Nearby has (P2-T17k, DP155)
             distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, *box_centre(a.record["bbox"]))
             within.append(panel_table.item(a.id, say(
@@ -1857,6 +1871,7 @@ class MapSession:
         # Within: you are inside, so its place is the centre of the area, taken as the centre of
         # its bounding box (the PO's answer, 8 November 2026).
         self._spots = {("within", a.id): (a, *box_centre(a.record["bbox"])) for a in self.areas}
+        self._spots.update(within_spots)
         self._spots.update({("nearby", n.area.id): (n.area, n.lat, n.lon) for n in near[:count]})
         self._spots.update({("crossed", c.area.id): (c.area, c.lat, c.lon) for c in self.crossed})
         ahead = describer.facing(self.world) or 0.0
@@ -1872,6 +1887,16 @@ class MapSession:
         # "lazy" keeps the lazy groups once filled, by group: (what they were made from, the group).
         self._panel_cache = {"key": key, "groups": groups, "heading": heading, "lazy": {}}
         return self._panel_cache
+
+    def _nearest_point_of(self, feature) -> tuple[float, float]:
+        """The point of a line or a place that Within's first item measures to and Enter goes to: its nearest
+        point to where you are, measured on its real shape by Store.measure, as Nearby measures it, not to its
+        bounding box. For a place that is its point, the same one a search or Enter on Nearby arrives at
+        (P3-T29h)."""
+        near = self.store.measure(feature, self.world.lat, self.world.lon)
+        if near is not None:
+            return near.lat, near.lon
+        return self._spot_of(feature)
 
     def _geometry(self, area) -> str:
         layer = self.layers.get(area.layer)

@@ -582,6 +582,7 @@ Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S
 ### 1. Within
 
 * What is in it: every area your position is in, as "where am I" says them, in the same order.
+* When the current feature is a line or a place, it comes first, such as "River Itchen, here" or "Winchester, 300 metres north", measured to its nearest point; then the areas (your answer to R3, P3-T29h).
 * Distance and direction: to the area's centre, said as "centre 31 kilometres north-east". The centre is the centre of its bounding box.
 * Not limited by the view.
 * For a later phase: the centre of the area's largest part, so the United Kingdom's centre is on Great Britain, and the United States' is on the mainland, not pulled towards Alaska and Hawaii.

@@ -14,7 +14,7 @@ The orchestrator's record of work on docs/plan/phase-3-tidy-up-plan2.md. Only th
 
 Last updated 19 November 2026.
 
-* Working on: P3-T29h.
+* Working on: P3-T29c.
 * git stash holds "P3-T28d unfinished". Keep it until P3-T28d is run again.
 
 ## Done
@@ -22,27 +22,23 @@ Last updated 19 November 2026.
 * P3-T28a, b, c, f, g, h, i, j, k, l, m, o, q.
 * P3-T29a.
 * P3-T29b: Nearby and look around leave out a place you are at, and Nearby keeps its count. The template nearby.here is no longer used by Nearby; left in place.
-* P3-T29g: headings say their order ("Nearby, 8 items, by distance"). Ctrl+S moves focus to the heading and says nothing; when focus is already on the heading, the core speaks the new heading once. For the PO to check with NVDA on the desktop: no double speech. The sort.* templates are unused, left in place.
-* P3-T29f: places said "Passed nearby to Winchester, closest ..." (name after the words, as the PO chose). Ctrl+S already reached the group; a test now guards it. Test names and comments in test_hear_direction.py, test_window.py, tests/web still say "Crossed and passed": harmless.
 * P3-T29d: contents.water_may_hold. Oceans and seas hold oceans, seas, sea-places and islands; lakes hold islands and sea-places (bays on lakes, which P3-T28c keeps: the orchestrator's addition to the definition, tell the PO). Applied in Contains, Down and Browse by category. The test pack has no sea holding a river, so its tests patch Longbridge Lake's relationships.
+* P3-T29f: places said "Passed nearby to Winchester, closest ..." (name after the words, as the PO chose). Ctrl+S already reached the group; a test now guards it. Test names and comments in test_hear_direction.py, test_window.py, tests/web still say "Crossed and passed": harmless.
+* P3-T29g: headings say their order ("Nearby, 8 items, by distance"). Ctrl+S moves focus to the heading and says nothing; when focus is already on the heading, the core speaks the new heading once. For the PO to check with NVDA on the desktop: no double speech. The sort.* templates are unused, left in place.
+* P3-T29h (added by the orchestrator from R3): a current line or place is Within's first item, measured with Store.measure (as Nearby), "River Itchen, here". Up from a line already went to the smallest area holding it; now tested.
 
 ## To do, in order
 
-2. P3-T29d, Sonnet: Water holds only water features and islands.
-3. P3-T29f, Sonnet: Passed over, "passed nearby to Winchester" (R6), sortable.
-4. P3-T29g, Sonnet: the group heading says its sort order; Ctrl+S and Ctrl+Shift+S put focus on the heading (R4).
-5. P3-T29h, Sonnet: Within, from R3: on a point or a line, that feature is the top item, such as "River Itchen, Hampshire, England, United Kingdom". Added by the orchestrator, as the plan said Within waited for R3, which is answered.
-6. P3-T29c, Opus: Contains, wholly inside, limited by the view by nearest point (R2). Timed on the world pack.
-7. P3-T29e, Opus: Overlapping.
-8. (No local test run here: continuous integration runs the browser tests on push.)
-9. P3-T28r, Opus: the Sea of the Hebrides slivers, a seas-stage fault. Rehearsed on Western Europe data.
-10. P3-T28n, Opus: share inside measured on land only. Rehearsed on Western Europe data.
-11. P3-T28d, Opus: far-apart roads split, from a sample of named roads only.
-12. P3-T28p, Opus: "Near Winchester", distances proposed for the PO.
-13. P3-T31a, Opus; P3-T31b, Sonnet; P3-T31c, Sonnet: key maps. The full Python suite after P3-T31a, as key maps reach every command.
-14. P3-T30a, Opus: the coast as a border, a report on Hampshire for the PO.
-15. P3-T27, Opus: requirements for bookmarks and measuring.
-16. Speed of the visible rule, Opus: run test_the_rule_takes_under_25_ms_a_frame_on_the_world_pack alone on a quiet laptop, several times, and propose to the PO a limit from what is measured. Then the end-of-plan run of the full Python suite and the browser tests.
+1. P3-T29c, Opus: Contains, wholly inside, limited by the view by nearest point (R2). Timed on the world pack.
+2. P3-T29e, Opus: Overlapping.
+3. P3-T28r, Opus: the Sea of the Hebrides slivers, a seas-stage fault. Rehearsed on Western Europe data.
+4. P3-T28n, Opus: share inside measured on land only. Rehearsed on Western Europe data.
+5. P3-T28d, Opus: far-apart roads split, from a sample of named roads only.
+6. P3-T28p, Opus: "Near Winchester", distances proposed for the PO.
+7. P3-T31a, Opus; P3-T31b, Sonnet; P3-T31c, Sonnet: key maps. The full Python suite after P3-T31a, as key maps reach every command.
+8. P3-T30a, Opus: the coast as a border, a report on Hampshire for the PO.
+9. P3-T27, Opus: requirements for bookmarks and measuring.
+10. Speed of the visible rule, Opus: run test_the_rule_takes_under_25_ms_a_frame_on_the_world_pack alone on a quiet laptop, several times, and propose to the PO a limit from what is measured. Then the end-of-plan run of the full Python suite and the browser tests.
 
 ## Waiting for the PO
 
@@ -54,5 +50,5 @@ Last updated 19 November 2026.
 
 ## Decisions
 
-* 19 November 2026, the PO: the visible rule's speed test limit relaxed from 10 ms to 25 ms, as it often failed on a busy laptop (20.9 ms with the browser tests running). Measured again as item 16.
+* 19 November 2026, the PO: the visible rule's speed test limit relaxed from 10 ms to 25 ms, as it often failed on a busy laptop (20.9 ms with the browser tests running). Measured again as the last item of the to-do list.
 * 19 November 2026: R1 option B; R2 Contains limited by the view; R3 Within gets the point or line on top; R4 sort order in the heading, focus to the heading on Ctrl+S; R5 networks later; R6 "passed nearby to", "Passed over".

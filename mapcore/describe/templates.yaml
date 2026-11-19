@@ -583,6 +583,9 @@ nearby:
 within:
   item: "{name}, centre {distance} {direction}"
   here: "{name}, centre here"
+  # The current feature, when it is a line or a place: first in the group, to its nearest point (P3-T29h).
+  current_item: "{name}, {distance} {direction}"
+  current_here: "{name}, here"
 
 # Passed over (ANN-2): what the last move went over or near. The distance and
 # direction are from where you are now; closest is how near the path came.

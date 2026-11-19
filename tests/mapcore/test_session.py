@@ -331,6 +331,14 @@ def test_the_panel_has_within_and_nearby_with_levels(test_pack):
     assert {i["id"] for i in within["items"]}.isdisjoint({i["id"] for i in nearby["items"]})
 
 
+def test_within_says_a_current_line_or_place_first_as_here_or_by_distance_and_direction():
+    """The approved wording of Within's first item (P3-T29h, the PO's answer R3)."""
+    from mapcore.describe import say
+    assert say("within.current_here", name="Winchester") == "Winchester, here"
+    assert say("within.current_item", name="River Itchen", distance="300 metres", direction="north") \
+        == "River Itchen, 300 metres north"
+
+
 def test_selecting_an_item_shows_it_in_details_and_clears_on_a_move(session):
     session.world.step_index = 0
     session.run("panel.select", item=session.areas[-1].id)

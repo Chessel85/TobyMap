@@ -8,7 +8,8 @@ their Shift and number keys (DP156); this table gives how each behaves:
   are the orders Ctrl+S cycles through (P3-T4d). UX section 6.1: Within natural, Nearby by
   distance, Bordering by bearing, the rest by name. Passed over (id "crossed") starts in its natural order,
   along the move, and Ctrl+S then sorts it like the others (P3-T29f). The Crossing group went in P3-T29a (INF-10): its content,
-  a line's areas in order from its start and an area's lines, goes into Overlapping in P3-T29e.
+  a line's areas in order from its start and an area's lines, is in Overlapping since P3-T29e. Overlapping about a
+  line starts in that order, "from its start", and Ctrl+S then sorts it like the others (MapSession._first_order).
 * zoom_limited: whether it shows only visible features (ANN-7, DP80, DP160). Contains, Nearby,
   and Passed over are; Within follows the zoom ranges through "where am I"; the others
   show everything from the layers that are switched on.

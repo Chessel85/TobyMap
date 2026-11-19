@@ -618,10 +618,10 @@ Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S
 
 * For an area, three kinds of item, each in its own subgroup:
   * Areas of other layers that cover part of it, each with how much each covers of the other, by layer, such as "Mountain ranges 2". The land round a lake or sea is in Bordering's Shores, not here.
-  * Lines partly inside it, such as rivers, roads and railways, each with how many times it crosses the border and the nearest crossing. Opened, it lists each crossing point. Today these are in Crossing, and the lines are also in Contains.
-  * Lines that run along its border, such as the Rhine for Switzerland. Today these are in Crossing.
-* For a line: the areas it passes through, in the order it meets them from its start, each with its share of the line. An area that holds all of the line is not listed: you reach it with Up in hierarchy mode. Today this is in Crossing.
-* For a place: nothing. A place is either inside an area or not. Today a place can list areas it is "partly" inside, which cannot happen; P3-T29e removes it.
+  * Lines partly inside it, such as rivers, roads and railways, each with how many times it crosses the border and the nearest crossing. Opened, it lists each crossing point. Done in P3-T29e, under "Lines crossing its border". The world pack stores no crossing points yet, so there each line says "crosses it" with its nearest point, until the next build.
+  * Lines that run along its border, such as the Rhine for Switzerland. Done in P3-T29e, under "Lines along its border".
+* For a line: the areas it passes through, in the order it meets them from its start, each with its share of the line. An area that holds all of the line is not listed: you reach it with Up in hierarchy mode. Done in P3-T29e: the heading says "from its start", and Ctrl+S can sort it.
+* For a place: nothing. A place is either inside an area or not. Done in P3-T29e.
 * Not limited by the view, but only from layers that are on.
 * For a later phase: where lines cross or meet each other, such as the M3 crossing the River Itchen, or the Wye flowing into the Severn. The build does not store this today. It is part of question R5, on networks.
 

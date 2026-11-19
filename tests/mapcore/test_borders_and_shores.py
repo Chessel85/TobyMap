@@ -2,8 +2,6 @@
 
 The lengths are worked out by the build (relationships: next, coast, shores and outline_km).
 """
-import pytest
-
 from mapcore.describe import words
 from mapcore import panel as panel_table
 from mapcore.session import MapSession
@@ -164,23 +162,29 @@ def test_enter_on_an_end_goes_to_that_point(test_pack):
     s.store.close()
 
 
-@pytest.mark.skip(reason="The Crossing group went in P3-T29a; its content comes back in Overlapping in P3-T29e")
+def _under_lines(session, label_start, *opened):
+    """The items under an Overlapping heading for lines (P3-T29e), such as "Lines crossing its border 1"."""
+    items = next(g for g in session.panel(open=["overlapping", *opened]) if g["id"] == "overlapping")["items"]
+    return next(i for i in items if panel_table.is_heading(i["id"]) and i["label"].startswith(label_start))["children"]
+
+
 def test_a_line_crossing_the_border_says_how_many_times_and_opens_to_each_crossing(test_pack):
-    """P3-T24f, DP201: the River Itchen crosses Southampton's border twice, stored by the build."""
+    """P3-T24f, DP201: the River Itchen crosses Southampton's border twice, stored by the build; in Overlapping
+    since P3-T29e."""
     s = _session(test_pack, SOUTHAMPTON)
     s.set_current_feature("osm:r127864")
-    itchen = next(i for i in _group(s, "crossing")["items"] if i["name"] == "River Itchen")
+    itchen = next(i for i in _under_lines(s, "Lines crossing its border ") if i["name"] == "River Itchen")
     assert itchen["label"].startswith("River Itchen, crosses twice, nearest ")
-    points = _opened(s, "crossing", itchen["id"])["children"]
+    points = next(i for i in _under_lines(s, "Lines crossing its border ", itchen["id"])
+                  if i["id"] == itchen["id"])["children"]
     assert [p["label"].split(",")[0] for p in points] == ["Crossing 1 of River Itchen", "Crossing 2 of River Itchen"]
-    assert all(p["level"] == 2 for p in points)
+    assert all(p["level"] == 3 for p in points)   # under the line, under its heading
     s.store.close()
 
 
-@pytest.mark.skip(reason="The Crossing group went in P3-T29a; its content comes back in Overlapping in P3-T29e")
 def test_a_line_along_the_border_is_said_as_along_not_crossing_it_hundreds_of_times(test_pack):
     s = _session(test_pack, SWITZERLAND)
     s.set_current_feature("osm:r51701")
-    rhine = [i["label"] for i in _group(s, "crossing")["items"] if i["name"] == "Rhine"]
+    rhine = [i["label"] for i in _under_lines(s, "Lines along its border ") if i["name"] == "Rhine"]
     assert rhine and not any("crosses " in label and " times" in label for label in rhine)
     s.store.close()

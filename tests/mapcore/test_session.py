@@ -346,6 +346,32 @@ def test_contains_says_an_area_you_are_in_and_a_line_or_place_where_you_are():
     assert say("contains.here", name="River Itchen") == "River Itchen, here"
 
 
+def test_overlapping_says_areas_lines_crossing_and_along_and_a_lines_areas():
+    """The approved wording of Overlapping (P3-T29e, INF-5, INF-6), with the Crossing group's words moved in."""
+    from mapcore.describe import say
+    where = say("overlapping.where", distance="4 kilometres", direction="north")
+    assert where == "4 kilometres north"
+    assert say("overlapping.where_inside") == "you are inside" and say("overlapping.where_here") == "here"
+    assert say("overlapping.item", name="New Forest National Park", where=where, mine=14, theirs=92,
+               current="Hampshire") == ("New Forest National Park, 4 kilometres north, 14 percent of Hampshire and "
+                                        "92 percent of New Forest National Park overlap")
+    assert say("overlapping.crossing_heading", count=3) == "Lines crossing its border 3"
+    assert say("overlapping.crosses_border", name="A8", times=say("overlapping.times_2"), distance="6 kilometres",
+               direction="south-west") == "A8, crosses twice, nearest 6 kilometres south-west"
+    assert say("overlapping.times_1") == "once" and say("overlapping.times_n", count=5) == "5 times"
+    assert say("overlapping.point", number=1, name="A8", distance="6 kilometres", direction="south-west") \
+        == "Crossing 1 of A8, 6 kilometres south-west"
+    assert say("overlapping.crosses", name="A8", where=where) == "A8, 4 kilometres north, crosses it"
+    assert say("overlapping.along_heading", count=1) == "Lines along its border 1"
+    assert say("overlapping.along", name="Rhine", where=where) == "Rhine, 4 kilometres north, along its border"
+    assert say("overlapping.partly", name="Hampshire", where="you are inside", share=70, current="River Itchen") \
+        == "Hampshire, you are inside, 70 percent of River Itchen is inside it"
+    assert say("overlapping.partly_little", name="France", where=where, current="Rhine") \
+        == "France, 4 kilometres north, less than 1 percent of Rhine is inside it"
+    assert say("overlapping.order_from_start") == "from its start"
+    assert say("overlapping.none", name="Brockenhurst") == "Nothing overlaps Brockenhurst."
+
+
 def test_selecting_an_item_shows_it_in_details_and_clears_on_a_move(session):
     session.world.step_index = 0
     session.run("panel.select", item=session.areas[-1].id)

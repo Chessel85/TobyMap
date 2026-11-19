@@ -53,6 +53,7 @@ QUERY_SEARCH = "search"   # the Of entry that opens search for the feature (P3-T
 END_PROBE_M = 300.0   # how far round the end of a shared border is looked at, for what is there (P3-T24f)
 DRAW_LIMIT = 15000   # features a drawing holds at most; the smallest are left out (P3-T24a, DP202)
 SCAN_LIMIT = 12    # items look around plays (P3-T11a, SON-4)
+HALF_WORLD_M = geodesy.A_M * math.pi   # no point on the Earth is further than this: Overlapping measures to it (P3-T29e)
 # Contains' and Down's kinds that hold another layer too (P3-T29c, INF-4): bays and straits that are only places
 # are listed with the seas, bays and straits drawn as areas, under "Seas, bays and straits".
 CONTAINS_KIND = {"sea-places": "seas"}
@@ -893,10 +894,20 @@ class MapSession:
     def _sort_cycle(self, gid: str) -> tuple[str, ...]:
         """The orders Ctrl+S goes through for a group: name, distance, bearing, with "natural" first for a
         group whose first order is natural (P3-T4d, UX 6.1)."""
-        return (("natural",) if panel_table.GROUPS[gid].default_sort == "natural" else ()) + panel_table.SORTS
+        return (("natural",) if self._first_order(gid) == "natural" else ()) + panel_table.SORTS
+
+    def _first_order(self, gid: str) -> str:
+        """A group's first order: its own, but for Overlapping about a line, the order the line meets the areas
+        from its start (P3-T29e, INF-6)."""
+        if gid == "overlapping":
+            current = self.current_feature
+            if current is not None and self._geometry(current) == "line":
+                return "natural"
+        return panel_table.GROUPS[gid].default_sort
 
     def _sort_of(self, gid: str) -> str:
-        return self.panel_sorts.get(gid, panel_table.GROUPS[gid].default_sort)
+        how = self.panel_sorts.get(gid)
+        return how if how is not None and how in self._sort_cycle(gid) else self._first_order(gid)
 
     def _in_chosen_order(self, g: dict) -> dict:
         """The group with its items in the order chosen with Ctrl+S, as a copy, so the cache keeps the first
@@ -923,6 +934,8 @@ class MapSession:
         """The words for a group's order: "by distance", "smallest first" (P3-T29g)."""
         if how == "natural":
             key = f"panel.order_natural_{gid}"
+            if gid == "overlapping":
+                return say("overlapping.order_from_start")
             return say(key) if gid in ("within", "crossed") else say("panel.order_natural")
         if how == "bearing" and describer.facing(self.world) is None:
             return say("panel.order_bearing_north")
@@ -1260,8 +1273,8 @@ class MapSession:
             if not contents.water_may_hold(current.layer, area.layer):   # P3-T29d
                 continue
             # Wholly inside: the stored "in", made by the build from the real shapes, allowing 0.5 percent. A
-            # feature only partly inside ("partly" for a line or a place, "overlaps" for an area) is not listed
-            # here: Overlapping lists it (P3-T29e).
+            # feature only partly inside ("partly" for a line, "overlaps" for an area) is not listed here:
+            # Overlapping lists it (P3-T29e).
             if current.id in self.store.relationships(identifier).get("in", ()):
                 held.append(area)
         nears = self.store.nearest_many(held, lat, lon, zoom)
@@ -1284,82 +1297,157 @@ class MapSession:
         return items, say("contains.none", name=current.name)
 
     def _group_overlapping(self, current, heading) -> tuple[list[dict], str]:
-        """Overlapping (INF-5): for an area, the areas that overlap it, each with the share of each covered
-        ([id, share of this, share of the other]); for a line or a place, the areas it is partly inside
-        ([id, share]). Not limited by the zoom, but only from layers that are on. By name at first."""
+        """Overlapping (INF-5, INF-6, P3-T29e), from the stored relationships only, which the build made from the
+        real shapes: a bounding box never puts anything here. Not limited by the view, but only from layers that are
+        on. Every distance is to the item's nearest point on its real shape, or, for a line crossing the border, to
+        its nearest crossing.
+
+        * For an area: the areas that cover part of it ("overlaps"), under a heading for each layer, each with how
+          much each covers of the other, leaving out the land round a lake or sea and the waters on a coast, which
+          are in Bordering; then "Lines crossing its border", the lines partly inside it ("crossed_by" and
+          "crossed_at", less any line whose "in" holds the area, as all of it is inside), each with how many times
+          it crosses and its nearest crossing, opening to each crossing; then "Lines along its border" ("along"),
+          such as the Rhine for Switzerland.
+        * For a line: the areas it passes through ("crosses", in order from its start), each with its share of the
+          line ("partly"), less an area that holds all of it ("in"), which Up reaches.
+        * For a place: nothing, as a place is either inside an area or not."""
+        empty = say("overlapping.none", name=current.name)
+        kind = self._geometry(current)
+        if kind == "line":
+            return self._areas_of_line(current, heading), empty
+        if kind != "area":
+            return [], empty
         rel = self.store.relationships(current.id)
-        items = []
-        if self._geometry(current) == "area":
-            # The land round a lake or sea is in Bordering's Shores (P3-T24e, DP200), so not here; the rest is
-            # under a heading for each kind, as Contains has.
-            shores = {i for i, _km in rel.get("shores", [])}
-            by_layer: dict[str, list] = {}
-            for identifier, mine, theirs in rel.get("overlaps", []):
+        # The land round a lake or sea is in Bordering's Shores, and the waters of a coast in its Coast (P3-T24e).
+        bordering = {i for i, _km in (*rel.get("shores", ()), *rel.get("coast", ()))}
+        areas = []
+        for identifier, mine, theirs in rel.get("overlaps", ()):
+            if identifier not in bordering and self._on(identifier):
                 area = self.store.feature(identifier)
-                if area is None or not self._layer_on(area) or identifier in shores:
-                    continue
-                by_layer.setdefault(area.layer, []).append(
-                    self._feature_item("overlapping", area, "overlapping.item", heading, mine=self._percent(mine),
-                                       theirs=self._percent(theirs), current=current.name))
-            for layer in self.layers.layers():
-                children = by_layer.get(layer.id)
-                if children:
-                    children = self._sorted("overlapping", children)
-                    items.append(panel_table.heading("overlapping:" + layer.id, say(
-                        "contains.heading", layer=layer.name, count=len(children)), children, name=layer.name))
-            return items, say("overlapping.none", name=current.name)
+                if area is not None:
+                    areas.append((area, mine, theirs))
+        along_ids = [i for i in dict.fromkeys(rel.get("along", ())) if self._on(i)]
+        crossed_at = {i: pts for i, pts in rel.get("crossed_at", ())}   # stored by the build (P3-T24f)
+        crossing = []
+        for identifier in dict.fromkeys((*rel.get("crossed_by", ()), *crossed_at)):
+            if identifier in along_ids or not self._on(identifier):
+                continue   # a line along the border weaves across it, so it is said as along, not crossing
+            line = self.store.feature(identifier)
+            if line is None or self._geometry(line) != "line":
+                continue
+            if current.id in self.store.relationships(identifier).get("in", ()):
+                continue   # all of it is inside, allowing 0.5 percent: Contains lists it
+            crossing.append((line, [tuple(p) for p in crossed_at.get(identifier, ())]))
+        along = [a for a in (self.store.feature(i) for i in along_ids) if a is not None]
+        nears = self._measured([a for a, _m, _t in areas] + along + [ln for ln, pts in crossing if not pts])
+        items = []
+        by_layer: dict[str, list] = {}
+        for area, mine, theirs in areas:
+            by_layer.setdefault(area.layer, []).append(self._measured_item(
+                area, nears.get(area.id), "overlapping.item", heading, mine=self._percent(mine),
+                theirs=self._percent(theirs), current=current.name))
+        for layer in self.layers.layers():
+            children = by_layer.get(layer.id)
+            if children:
+                items.append(panel_table.heading("overlapping:" + layer.id, say(
+                    "contains.heading", layer=layer.name, count=len(children)),
+                    self._sorted("overlapping", children), name=layer.name))
+        lines = [self._crossing_item(line, points, heading) if points else
+                 self._measured_item(line, nears.get(line.id), "overlapping.crosses", heading)
+                 for line, points in crossing]
+        if lines:
+            label = say("overlapping.crossing_heading", count=len(lines))
+            items.append(panel_table.heading("overlapping:crossing", label, self._sorted("overlapping", lines)))
+            for line in lines:   # each crossing point, one level below its line
+                for point in line.get("children", ()):
+                    point["level"] = 3
+        alongside = [self._measured_item(line, nears.get(line.id), "overlapping.along", heading) for line in along]
+        if alongside:
+            label = say("overlapping.along_heading", count=len(alongside))
+            items.append(panel_table.heading("overlapping:along", label, self._sorted("overlapping", alongside)))
+        return items, empty
+
+    def _areas_of_line(self, line, heading) -> list[dict]:
+        """Overlapping for a line (INF-6, P3-T29e): the areas it passes through, in the order it meets them from
+        its start (the stored "crosses"), then any other area it is partly inside, each with its share of the line.
+        An area that holds all of it is left out: Up in hierarchy mode reaches it."""
+        rel = self.store.relationships(line.id)
+        holds_all = set(rel.get("in", ()))
+        share = {i: s for i, s in rel.get("partly", ())}
+        ids = [i for i in dict.fromkeys((*rel.get("crosses", ()), *share))
+               if i not in holds_all and i != line.id and self._on(i)]
+        areas = [a for a in (self.store.feature(i) for i in ids) if a is not None]
+        nears = self._measured(areas)
+        out = []
+        for area in areas:
+            if area.id in share:
+                out.append(self._measured_item(area, nears.get(area.id), "overlapping.partly", heading,
+                                               share=self._percent(share[area.id]), current=line.name))
+            else:   # it passes through, but less than 0.5 percent of the line is inside
+                out.append(self._measured_item(area, nears.get(area.id), "overlapping.partly_little", heading,
+                                               current=line.name))
+        return out
+
+    def _on(self, identifier: str) -> bool:
+        """Whether a feature's layer is on, from the feature table, so no record of a layer that is off is read."""
+        layer = self.layers.get(self.store.layer_of(identifier) or "")
+        return layer is None or layer.on
+
+    def _measured(self, features: list) -> dict:
+        """Each feature's nearest point to you on its real shape, by identifier (Store.nearest_many), at any
+        distance, as Overlapping is not limited by the view (P3-T29e): first within the view, then in circles
+        four times as wide each time, to half the world, so each is measured on a drawing as fine as its distance
+        asks for, as Contains measures."""
+        lat, lon = self.world.lat, self.world.lon
+        radius, out = max(self.world.zoom_m, 1000.0), {}
+        left = list(features)
+        while left:
+            out.update(self.store.nearest_many(left, lat, lon, radius))
+            left = [f for f in left if f.id not in out]
+            if radius >= HALF_WORLD_M:
+                break
+            radius = min(radius * 4.0, HALF_WORLD_M)
+        return out
+
+    def _measured_item(self, area, near, label_key: str, heading, **fields) -> dict:
+        """An item of Overlapping about a whole feature, said at its nearest point: "you are inside" for an area
+        you are in, "here" for a line you are on, else its distance and direction. Enter and Space use that point.
+        A feature whose shape is not found is said at its own point."""
+        if near is None:
+            lat, lon = self._spot_of(area)
+            distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, lat, lon)
+            inside = False
         else:
-            for identifier, share in rel.get("partly", []):
-                area = self.store.feature(identifier)
-                if area is not None and self._layer_on(area):
-                    items.append(self._feature_item("overlapping", area, "overlapping.partly", heading,
-                                                    share=self._percent(share), current=current.name))
-        return self._sorted("overlapping", items), say("overlapping.none", name=current.name)
+            lat, lon, distance, bearing, inside = near.lat, near.lon, near.distance_m, near.bearing_deg, near.inside
+        is_area = self._geometry(area) == "area"
+        if is_area and inside:
+            where = say("overlapping.where_inside")
+        elif not is_area and distance < HERE_M:
+            where = say("overlapping.where_here")
+        else:
+            where = say("overlapping.where", distance=words.distance_text(distance, self._units()),
+                        direction=words.direction_text(bearing, self.settings["bearing"], heading))
+        self._spots[("overlapping", area.id)] = (area, lat, lon)
+        return self._item_at("overlapping", area, area.id, label_key, lat, lon, heading, distance, bearing,
+                             where=where, **fields)
 
-    # Not a group any more (P3-T29a, INF-10): kept for P3-T29e, which moves it into Overlapping.
-    def _group_crossing(self, current, heading) -> tuple[list[dict], str]:
-        """Crossing (INF-6): for a line, the areas it passes through, kept in order from its start; for an
-        area, the lines that cross it and then those along its border, each part sorted by name."""
-        rel = self.store.relationships(current.id)
-        items = []
-        if self._geometry(current) == "line":
-            for identifier in rel.get("crosses", []):
-                area = self.store.feature(identifier)
-                if area is not None and self._layer_on(area):
-                    items.append(self._feature_item("crossing", area, "crossing.item", heading))
-            return items, say("crossing.none", name=current.name)
-        crossed_at = {i: pts for i, pts in rel.get("crossed_at", [])}   # stored by the build (P3-T24f)
-        for key, label in (("crossed_by", "crossing.crosses"), ("along", "crossing.along")):
-            part = []
-            for identifier in rel.get(key, []):
-                line = self.store.feature(identifier)
-                if line is None or not self._layer_on(line):
-                    continue
-                # A line along the border, such as the Rhine for Switzerland, weaves across it: it is said as along.
-                along = identifier in rel.get("along", ())
-                points = [tuple(p) for p in crossed_at.get(identifier, [])] if key == "crossed_by" and not along else []
-                if points:   # where it crosses the border: how many times, the nearest, and each when opened
-                    part.append(self._crossing_item(current, line, points, heading))
-                else:
-                    part.append(self._feature_item("crossing", line, label, heading))
-            items += self._sorted("crossing", part, "name")
-        return items, say("crossing.none", name=current.name)
-
-    def _crossing_item(self, current, line, points: list, heading) -> dict:
+    def _crossing_item(self, line, points: list, heading) -> dict:
         """A line crossing the current feature's border (P3-T24f, DP201): "A8, crosses twice, nearest 6
-        kilometres south-west", opening to each crossing point, nearest first."""
+        kilometres south-west", opening to each crossing point, nearest first. Enter goes to the nearest crossing,
+        and on a crossing point to that point."""
         w = self.world
-        dist, bear = geodesy.inverse_many(w.lat, w.lon, [p[0] for p in points], [p[1] for p in points])
+        dist, _bear = geodesy.inverse_many(w.lat, w.lon, [p[0] for p in points], [p[1] for p in points])
         order = sorted(range(len(points)), key=lambda k: float(dist[k]))
         n = len(points)
-        times = say("crossing.times_1") if n == 1 else say("crossing.times_2") if n == 2 else \
-            say("crossing.times_n", count=n)
+        times = say("overlapping.times_1") if n == 1 else say("overlapping.times_2") if n == 2 else \
+            say("overlapping.times_n", count=n)
         lat, lon = points[order[0]]
-        item = self._point_item("crossing", line, line.id, "crossing.crosses_border", lat, lon, heading, times=times)
+        item = self._point_item("overlapping", line, line.id, "overlapping.crosses_border", lat, lon, heading,
+                                times=times)
         item["name"] = str(line.name)
         if line.id in self.panel_open:
-            item["children"] = [self._point_item("crossing", line, f"crossing:{line.id}:{k}", "crossing.point",
-                                                 points[j][0], points[j][1], heading, number=k + 1) | {"level": 2}
+            item["children"] = [self._point_item("overlapping", line, f"crossing:{line.id}:{k}", "overlapping.point",
+                                                 points[j][0], points[j][1], heading, number=k + 1)
                                 for k, j in enumerate(order)]
         item["expandable"] = True
         return item

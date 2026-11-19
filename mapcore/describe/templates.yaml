@@ -637,27 +637,34 @@ contains:
   inside: "{name}, you are inside"
   # A line or a place whose nearest point is where you are (under HERE_M), not "0 metres" (P3-T29c).
   here: "{name}, here"
-  # A feature only partly inside the current one (P3-T25b, DP204). Not used since P3-T29c, which lists in Contains
-  # and Down only what is wholly inside; kept for Overlapping (P3-T29e). partly_name is Browse by category's.
-  item_partly: "{name}, partly in {holder}, {distance} {direction}"
+  # A feature only partly inside another, as Browse by category lists it (P3-T25b, DP204).
   partly_name: "{name}, partly in {holder}"
   none: "Nothing visible inside {name}."
 overlapping:
-  item: "{name}, {distance} {direction}, {mine} percent of {current} and {theirs} percent of {name} overlap"
-  partly: "{name}, {distance} {direction}, {share} percent of {current} is inside it"
-  none: "Nothing overlaps {name}."
-crossing:
-  item: "{name}, {distance} {direction}"
-  # A line crossing the border, said with how many times and the nearest crossing; opened, each crossing point
-  # (P3-T24f, DP201).
+  # Overlapping (INF-5, INF-6, P3-T29e). {where} is where the item's nearest point is: "you are inside" for an area
+  # you are in, "here" for a line you are on, else its distance and direction, "4.5 kilometres north-west".
+  where: "{distance} {direction}"
+  where_inside: "you are inside"
+  where_here: "here"
+  # For an area: the areas of other layers that cover part of it, under a heading for each layer (contains.heading).
+  item: "{name}, {where}, {mine} percent of {current} and {theirs} percent of {name} overlap"
+  # Then the lines partly inside it, said with how many times each crosses the border and the nearest crossing;
+  # opened, each crossing point (P3-T24f, DP201). crosses is for a line with no crossing stored.
+  crossing_heading: "Lines crossing its border {count}"
   crosses_border: "{name}, crosses {times}, nearest {distance} {direction}"
   times_1: "once"
   times_2: "twice"
   times_n: "{count} times"
   point: "Crossing {number} of {name}, {distance} {direction}"
-  crosses: "{name}, {distance} {direction}, crosses it"
-  along: "{name}, {distance} {direction}, along its border"
-  none: "Nothing crosses {name}."
+  crosses: "{name}, {where}, crosses it"
+  # Then the lines that run along its border, such as the Rhine for Switzerland.
+  along_heading: "Lines along its border {count}"
+  along: "{name}, {where}, along its border"
+  # For a line: the areas it passes through, in order from its start, each with its share of the line.
+  partly: "{name}, {where}, {share} percent of {current} is inside it"
+  partly_little: "{name}, {where}, less than 1 percent of {current} is inside it"
+  order_from_start: "from its start"
+  none: "Nothing overlaps {name}."
 search:
   none: "No search yet."
   # A search result (P3-T8b, SRB-1): the description that tells it apart, such as "Paris, Île-de-France,

@@ -2,7 +2,7 @@
 (P3-T4a; INF-10, LOC-4, INF-2, NFR-1, DP80, DP156, DP160).
 
 Bordering is filled here as the pattern for the other groups about the current feature: Contains
-(P3-T4b), Overlapping and Crossing (P3-T4c) follow it.
+(P3-T4b) and Overlapping (P3-T4c, and since P3-T29e the Crossing group's lines) follow it.
 """
 import pytest
 
@@ -183,7 +183,7 @@ def test_selecting_a_heading_clears_the_selection(swiss):
     assert swiss.selected is None
 
 
-# Contains, Overlapping and Crossing (P3-T4b, P3-T4c; INF-1, INF-5, INF-6, DP70) -------------------
+# Contains and Overlapping (P3-T4b, P3-T4c, P3-T29e; INF-1, INF-5, INF-6, DP70) --------------------
 # The test pack has no Wales, so Contains is tried on England from Hampshire, which it holds, and on
 # Hampshire, which holds the River Itchen.
 
@@ -228,24 +228,32 @@ def test_enter_works_on_an_item_under_a_heading(hants):
 
 def test_overlapping_an_area_says_both_shares(hants):
     headings = group(hants.panel(open={"overlapping"}), "overlapping")["items"]
-    assert [h["name"] for h in headings] == ["National parks"]   # under a heading for each kind (P3-T24e)
+    # Under a heading for each kind (P3-T24e), then the lines crossing its border (P3-T29e).
+    assert [h["name"] for h in headings] == ["National parks", "Lines crossing its border 1"]
     items = headings[0]["children"]
     assert [i["name"] for i in items] == ["New Forest National Park"]
     assert "14 percent of Hampshire and 92 percent of New Forest National Park overlap" in items[0]["label"]
 
 
-@pytest.mark.skip(reason="The Crossing group went in P3-T29a; its content comes back in Overlapping in P3-T29e")
-def test_crossing_an_area_lists_lines_across_then_along_by_name(test_pack):
-    s = MapSession(packs=[test_pack], saved_state=dict(SWITZERLAND))
+def test_overlapping_an_area_lists_lines_across_then_along_under_their_headings(test_pack):
+    """P3-T29e: the Crossing group's lines are in Overlapping, after the areas: Hampshire's River Itchen crosses
+    its border, and Switzerland's Rhine runs along it."""
+    s = MapSession(packs=[test_pack], saved_state=dict(HAMPSHIRE))
     s.start()
-    labels = [i["label"] for i in group(s.panel(open={"crossing"}), "crossing")["items"]]
-    assert labels[0].endswith("crosses it") and labels[-1].endswith("along its border")
+    items = group(s.panel(open={"overlapping"}), "overlapping")["items"]
+    assert items[-1]["label"] == "Lines crossing its border 1"
+    assert items[-1]["children"][0]["label"].startswith("River Itchen, crosses once, nearest ")
+    s.set_current_feature("osm:r51701")
+    items = group(s.panel(open={"overlapping"}), "overlapping")["items"]
+    assert items[-1]["label"] == "Lines along its border 1"
+    assert items[-1]["children"][0]["label"].endswith("along its border")
     s.store.close()
 
 
 def test_a_group_with_nothing_says_so(swiss):
+    swiss.set_current_feature("osm:r1155955")   # Liechtenstein: the Rhine along Switzerland's border is not stored
     g = group(swiss.panel(open={"overlapping"}), "overlapping")
-    assert g["items"] == [] and g["empty"] == "Nothing overlaps Switzerland."
+    assert g["items"] == [] and g["empty"] == "Nothing overlaps Liechtenstein."
 
 
 HEADING_OF_BORDERING = {"region": "panel", "group": "bordering", "heading": True}
@@ -279,8 +287,9 @@ def test_a_group_whose_first_order_is_natural_has_it_in_its_cycle(hants):
 def test_headings_say_their_order_after_the_count_and_an_empty_one_says_none(swiss, hants):
     assert group(hants.panel(), "within")["label"] == "Within, 3 items, smallest first"
     assert group(hants.panel(), "nearby")["label"].endswith(", by distance")
+    swiss.set_current_feature("osm:r1155955")   # Liechtenstein
     empty = group(swiss.panel(open={"overlapping"}), "overlapping")
-    assert empty["label"] == "Overlapping Switzerland, no items"   # no order with no items
+    assert empty["label"] == "Overlapping Liechtenstein, no items"   # no order with no items
 
 
 def test_ctrl_s_puts_the_focus_on_the_heading_and_says_nothing_from_an_item(swiss):

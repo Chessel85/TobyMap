@@ -180,7 +180,7 @@ def test_it_works_on_crossed_and_passed(session):
     session.run("move.east")
     session.crossed_now()
     crossed = next(g for g in session.panel() if g["id"] == "crossed")["items"]
-    item = next(i for i in crossed if i["label"].startswith("Southampton Central"))
+    item = next(i for i in crossed if i["name"] == "Southampton Central")
     session.run("panel.select", item=item["id"], group="crossed")
     r = session.press("Space", "panel")
     assert r.voice["text"].startswith("Southampton Central, ")

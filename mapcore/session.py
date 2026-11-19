@@ -1304,8 +1304,8 @@ class MapSession:
 
         * For an area: the areas that cover part of it ("overlaps"), under a heading for each layer, each with how
           much each covers of the other, leaving out the land round a lake or sea and the waters on a coast, which
-          are in Bordering; then "Lines crossing its border", the lines partly inside it ("crossed_by" and
-          "crossed_at", less any line whose "in" holds the area, as all of it is inside), each with how many times
+          are in Bordering; then "Lines crossing its border", the lines partly inside it ("partly_by"; in a
+          pack written before it, "crossed_by" and "crossed_at", less any line whose "in" holds the area), each with how many times
           it crosses and its nearest crossing, opening to each crossing; then "Lines along its border" ("along"),
           such as the Rhine for Switzerland.
         * For a line: the areas it passes through ("crosses", in order from its start), each with its share of the
@@ -1329,13 +1329,17 @@ class MapSession:
         along_ids = [i for i in dict.fromkeys(rel.get("along", ())) if self._on(i)]
         crossed_at = {i: pts for i, pts in rel.get("crossed_at", ())}   # stored by the build (P3-T24f)
         crossing = []
-        for identifier in dict.fromkeys((*rel.get("crossed_by", ()), *crossed_at)):
+        # The lines partly inside it, kept by the build (item 4b), so no line's own relationships are read; a pack
+        # written before has none, so each crossing line's "in" is read, as before.
+        partly_by = rel.get("partly_by")
+        for identifier in dict.fromkeys(partly_by if partly_by is not None
+                                        else (*rel.get("crossed_by", ()), *crossed_at)):
             if identifier in along_ids or not self._on(identifier):
                 continue   # a line along the border weaves across it, so it is said as along, not crossing
             line = self.store.feature(identifier)
             if line is None or self._geometry(line) != "line":
                 continue
-            if current.id in self.store.relationships(identifier).get("in", ()):
+            if partly_by is None and current.id in self.store.relationships(identifier).get("in", ()):
                 continue   # all of it is inside, allowing 0.5 percent: Contains lists it
             crossing.append((line, [tuple(p) for p in crossed_at.get(identifier, ())]))
         along = [a for a in (self.store.feature(i) for i in along_ids) if a is not None]

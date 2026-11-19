@@ -62,7 +62,7 @@ def test_an_area_lists_the_areas_of_other_layers_over_it_by_layer_with_both_shar
     assert [c["name"] for c in counties["children"]] == ["Hampshire", "Wiltshire"]
     hants = counties["children"][0]
     # You are in Hampshire here, so its nearest point is where you are.
-    assert hants["label"] == ("Hampshire, you are inside, 92 percent of New Forest National Park and 14 percent of "
+    assert hants["label"] == ("Hampshire, you are inside, 93 percent of New Forest National Park and 14 percent of "
                               "Hampshire overlap")
     wilts = counties["children"][1]
     assert " kilometres " in wilts["label"] or " metres " in wilts["label"]
@@ -121,18 +121,61 @@ def test_a_line_along_the_border_is_in_its_own_subgroup_not_crossing_it_hundreds
     s.store.close()
 
 
-def test_a_line_wholly_inside_is_not_listed_as_crossing(test_pack, monkeypatch):
-    """A line whose stored "in" holds the area is in Contains, not here, though the build stored a crossing."""
+def test_the_lines_partly_inside_are_read_from_the_area_alone(test_pack, monkeypatch):
+    """Item 4b: the build keeps the lines partly inside each area ("partly_by"), so no line's own relationships
+    are read, which made a first open for England take about two seconds on the world pack. A line wholly
+    inside, which the build leaves out of the list, is in Contains, not here."""
+    s = _session(test_pack, IN_HAMPSHIRE, HAMPSHIRE)
+    real = s.store.relationships
+    assert ITCHEN in real(HAMPSHIRE)["partly_by"]
+    read = []
+
+    def relationships(identifier):
+        read.append(identifier)
+        return real(identifier)
+
+    monkeypatch.setattr(s.store, "relationships", relationships)
+    assert "River Itchen" in _names(_group(s))
+    assert ITCHEN not in read
+
+    def without_itchen(identifier):
+        rel = dict(real(identifier))
+        if identifier == HAMPSHIRE:
+            rel["partly_by"] = [i for i in rel["partly_by"] if i != ITCHEN]
+        return rel
+
+    monkeypatch.setattr(s.store, "relationships", without_itchen)
+    s.run("move.north")   # a new place, so the group is made again
+    s.release()
+    s.set_current_feature(HAMPSHIRE)
+    assert "River Itchen" not in _names(_group(s))
+    s.store.close()
+
+
+def test_a_line_wholly_inside_is_not_listed_as_crossing_from_a_pack_without_the_list(test_pack, monkeypatch):
+    """A pack written before item 4b has no "partly_by": each crossing line's own relationships are read, and a
+    line whose stored "in" holds the area is in Contains, not here, though the build stored a crossing."""
     s = _session(test_pack, IN_HAMPSHIRE, HAMPSHIRE)
     real = s.store.relationships
 
-    def relationships(identifier):
+    def old_pack(identifier):
         rel = dict(real(identifier))
+        rel.pop("partly_by", None)
+        return rel
+
+    monkeypatch.setattr(s.store, "relationships", old_pack)
+    assert "River Itchen" in _names(_group(s))
+
+    def relationships(identifier):
+        rel = old_pack(identifier)
         if identifier == ITCHEN:
             rel["in"] = [HAMPSHIRE, *rel.get("in", ())]
         return rel
 
     monkeypatch.setattr(s.store, "relationships", relationships)
+    s.run("move.north")   # a new place, so the group is made again
+    s.release()
+    s.set_current_feature(HAMPSHIRE)
     assert "River Itchen" not in _names(_group(s))
     s.store.close()
 
@@ -202,6 +245,7 @@ def test_a_diagonal_line_whose_box_covers_the_area_is_not_listed_unless_the_rela
         if identifier == SOUTHAMPTON:
             rel["crossed_by"] = [i for i in rel.get("crossed_by", ()) if i != ITCHEN]
             rel["crossed_at"] = [c for c in rel.get("crossed_at", ()) if c[0] != ITCHEN]
+            rel["partly_by"] = [i for i in rel.get("partly_by", ()) if i != ITCHEN]
         if identifier == ITCHEN:
             rel["crosses"] = [i for i in rel.get("crosses", ()) if i != SOUTHAMPTON]
             rel["partly"] = [p for p in rel.get("partly", ()) if p[0] != SOUTHAMPTON]

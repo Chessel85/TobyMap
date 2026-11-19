@@ -162,6 +162,7 @@ From format 4 (P3-T3e, architecture 6.5): the relationships of group G's feature
 * shores: for an ocean, sea or lake, the countries, regions and counties round it, each as [id, km of shore], the longest first. A sea's shore is the land's coast; a lake's is its outline inside each area, as a lake lies on the land.
 * outline_km: for an area, its whole outline in km, land border and coast together, leaving out the cut along the 180 degree line (P3-T24f, DP201).
 * crossed_at: for a country, region or county, each line that crosses its border, as [line id, [[lat, lon], ...]], the points where it crosses, to 5 decimal places (P3-T24f, DP201).
+* partly_by: for an area with crossed_by or crossed_at, the lines partly inside it: those crossing it, less those wholly inside it. An empty list where every crossing line is wholly inside. A pack without it is read the old way (item 4b of the plan 2 ledger, INF-5).
 
 `Pack.relationships(identifier)` returns the object, or an empty one for a feature with none or a pack written before format 4.
 

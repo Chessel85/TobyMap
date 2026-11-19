@@ -160,6 +160,51 @@ def with_distance(line, chain_km: float = CHAIN_KM):
     return shapely.MultiLineString(out)
 
 
+def retraced(geoms, chunk: int = 200_000) -> np.ndarray:
+    """Which lines may go back over themselves: a part that turns straight back at a point, such as a small
+    roundabout, a closed way, simplified to two points and back (A, B, A), or that has one stretch twice. Cutting
+    such a line with an area keeps the stretch once, while its own length counts it twice, so a roundabout wholly
+    in a county was half inside it (item 4b). Only a first test: once_over says whether a stretch is truly twice."""
+    geoms = np.asarray(geoms, dtype=object)
+    out = np.zeros(len(geoms), dtype=bool)
+    for at in range(0, len(geoms), chunk):
+        parts, which = shapely.get_parts(geoms[at:at + chunk], return_index=True)
+        coords, idx = shapely.get_coordinates(parts, return_index=True)
+        if len(coords) < 3:
+            continue
+        line = which[idx]
+        same = idx[1:] == idx[:-1]
+        v = coords[1:] - coords[:-1]
+        # A turn straight back: two stretches in a row, one part, pointing opposite ways along one line.
+        v1, v2 = v[:-1], v[1:]
+        both = same[:-1] & same[1:]
+        cross = v1[:, 0] * v2[:, 1] - v1[:, 1] * v2[:, 0]
+        dot = (v1 * v2).sum(axis=1)
+        size = np.hypot(v1[:, 0], v1[:, 1]) * np.hypot(v2[:, 0], v2[:, 1])
+        back = both & (dot < 0) & (np.abs(cross) <= 1e-9 * size)
+        out[at + line[:-2][back]] = True
+        # The same stretch twice, anywhere in the line.
+        seg = np.column_stack([coords[:-1], coords[1:]])[same]
+        seg_line = line[:-1][same]
+        flip = (seg[:, 0] > seg[:, 2]) | ((seg[:, 0] == seg[:, 2]) & (seg[:, 1] > seg[:, 3]))
+        seg[flip] = seg[flip][:, [2, 3, 0, 1]]
+        keep = (seg[:, 0] != seg[:, 2]) | (seg[:, 1] != seg[:, 3])
+        rows = np.column_stack([seg_line[keep].astype(float), seg[keep]])
+        if len(rows):
+            _u, first, counts = np.unique(rows, axis=0, return_index=True, return_counts=True)
+            out[at + rows[first[counts > 1], 0].astype(np.intp)] = True
+    return out
+
+
+def once_over(line):
+    """A line with each stretch it goes over twice kept once, its parts joined where they meet end to end; the
+    line itself if it has no stretch twice."""
+    merged = shapely.line_merge(shapely.union_all(shapely.get_parts(line)))
+    if shapely.length(merged) < shapely.length(line) * (1 - 1e-9):
+        return merged
+    return line
+
+
 def first_distance(geoms) -> np.ndarray:
     """The least third coordinate of each shape, or infinity for an empty one."""
     out = np.full(len(geoms), np.inf)
@@ -596,11 +641,16 @@ def top_boxes(deg: float) -> list[tuple]:
 def measure(records, geoms, kinds, settings, executor=None, workers: int = 1, say=print) -> Sums:
     """The sums for every feature, the top boxes run in the workers when there are workers."""
     layer_of = [r["layer"] for r in records]
+    # A line that goes back over itself, such as a roundabout simplified to there and back, is measured with each
+    # stretch once, so its length and its length inside an area agree (item 4b).
+    line_at = [i for i, (g, k) in enumerate(zip(geoms, kinds)) if k == LINE and g is not None and not g.is_empty]
+    twice = retraced([geoms[i] for i in line_at]) if line_at else np.zeros(0, dtype=bool)
+    fixed = {i: once_over(geoms[i]) for i, t in zip(line_at, twice) if t}
     items = []
     for i, (g, k) in enumerate(zip(geoms, kinds)):
         if g is None or g.is_empty:
             continue
-        items.append((i, k, with_distance(g) if k == LINE else g))
+        items.append((i, k, with_distance(fixed.get(i, g)) if k == LINE else g))
     top = total = Sums()
     deg = settings["top_deg"]
     lines = [("v", float(x), -90.0, 90.0) for x in np.arange(-180 + deg, 180, deg)] +             [("h", float(y), -180.0, 180.0) for y in np.arange(-90 + deg, 90, deg)]
@@ -783,6 +833,14 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
                                                                                      records[v[0]]["id"]))]
         if "water_in" in rel:
             rel["water_in"] = rel["water_in"][0]
+    # The lines partly inside each area: those crossing it or with a crossing of its border, less those it holds
+    # wholly (item 4b), so Overlapping's "Lines crossing its border" reads them at once, not each line's own
+    # relationships. Empty for an area crossed only by lines wholly inside it, so the application knows it is kept.
+    for a, rel in list(out.items()):
+        if "crossed_by" in rel or "crossed_at" in rel:
+            lines = set(rel.get("crossed_by", ())) | {v[0] for v in rel.get("crossed_at", ())}
+            rel["partly_by"] = sorted((i for i in lines if a not in out.get(i, {}).get("in", ())),
+                                      key=lambda j: (size[j], records[j]["id"]))
     # Counts by layer of what is inside each area, fully or partly, by the same test as listing them with
     # Ctrl+Shift+F (Store.browse), so the count said is the number listed: an area overlapping it, such as Lake
     # Geneva for Switzerland, and a line crossing it, count too (P3-T19j, checklist 12.3).
@@ -867,7 +925,7 @@ WORDS = {"in": "inside", "same": "the same land", "overlaps": "overlapping", "pa
          "next": "neighbours", "near": "nearly touching", "crosses": "areas crossed", "crossed_by": "crossed by",
          "along": "along a border", "water_in": "in a larger water area", "counts": "areas with counts",
          "coast": "with a coast", "shores": "with shores", "outline_km": "outlines measured",
-         "crossed_at": "with border crossings"}
+         "crossed_at": "with border crossings", "partly_by": "with lines partly inside"}
 
 
 def load(folder) -> dict[int, dict] | None:
@@ -880,7 +938,7 @@ def load(folder) -> dict[int, dict] | None:
 def by_id(rel: dict[int, dict], ids: list[str]) -> dict[str, dict]:
     """The relationships with every index made the id the feature is written with."""
     def fix(key, v):
-        if key in ("in", "same", "crossed_by", "along", "crosses"):
+        if key in ("in", "same", "crossed_by", "along", "crosses", "partly_by"):
             return [ids[j] for j in v]
         if key in ("overlaps", "partly", "next", "near", "coast", "shores", "crossed_at"):
             return [[ids[x[0]], *x[1:]] for x in v]

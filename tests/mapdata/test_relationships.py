@@ -271,3 +271,71 @@ def test_a_land_areas_share_inside_another_is_measured_on_its_land(fine):
     assert out["Hills"]["overlaps"]["Exmoor"] == pytest.approx(0.5, abs=0.003)
     assert "England" in out["Hills"]["in"]
     assert "England" not in out["Lagoon"].get("in", []) and out["Lagoon"]["overlaps"]["England"] == pytest.approx(0.5, abs=0.01)
+
+
+# Lines that go back over themselves, and the lines partly inside an area ---------------------------------------
+
+def _lines_and_areas(lines: dict, areas: dict, settings: dict | None = None):
+    """The relationships of made-up lines and areas, by name."""
+    names = list(areas) + list(lines)
+    records = [{"id": n, "layer": "roads" if n in lines else "counties", "name": n} for n in names]
+    geoms = [areas[n] if n in areas else lines[n] for n in names]
+    kinds = [rel.LINE if n in lines else rel.AREA for n in names]
+    settings = {**rel.SETTINGS, **(settings or {})}
+    sums = rel.measure(records, geoms, kinds, settings, say=lambda s: None)
+    out = rel.relationships(records, geoms, kinds, sums, {"counties": 6, "roads": 9}, set(), settings)
+
+    def name(v):
+        return names[v] if isinstance(v, int) else [names[v[0]], *v[1:]]
+    return {names[i]: {k: ([name(x) for x in v] if isinstance(v, list) else v) for k, v in r.items()}
+            for i, r in out.items()}
+
+
+@pytest.mark.parametrize("fine", [False, True], ids=["whole boxes", "small boxes"])
+def test_a_roundabout_simplified_to_there_and_back_is_wholly_inside_not_half(fine):
+    """Item 4b: a small roundabout, a closed way, simplified to two points and back (A, B, A), was stored as
+    exactly 50 percent inside the county it is in, as cutting it with the county's outline kept the stretch
+    once while its own length counted it twice. Now it is wholly inside. With small boxes, the big area covers
+    a box whole, which is measured without cutting, and the small one is cut."""
+    roundabout = shapely.LineString([(0.30, 0.30), (0.31, 0.30), (0.30, 0.30)])
+    back = shapely.LineString([(0.6, 0.6), (0.9, 0.6), (0.7, 0.6), (0.7, 0.7)])   # goes back over part of itself
+    out = _lines_and_areas({"Roundabout": roundabout, "Spur": back},
+                           {"Shire": shapely.box(0.1, 0.1, 0.95, 0.95), "Country": shapely.box(-5, -5, 5, 5)},
+                           {"leaf_points": 0, "min_leaf_deg": 0.25} if fine else None)
+    for line in ("Roundabout", "Spur"):
+        assert set(out[line]["in"]) == {"Shire", "Country"}, line
+        assert "partly" not in out[line], line
+
+
+def test_a_line_crossing_into_the_next_area_keeps_its_share():
+    out = _lines_and_areas({"Road": shapely.LineString([(0.5, 0.5), (1.5, 0.5)])},
+                           {"West": shapely.box(0, 0, 1, 1), "East": shapely.box(1, 0, 2, 1)})
+    assert dict((a, s) for a, s in out["Road"]["partly"]) == {"West": 0.5, "East": 0.5}
+
+
+def test_an_area_stores_the_lines_partly_inside_it_and_not_those_wholly_inside():
+    """Item 4b: so Overlapping's "Lines crossing its border" reads them at once, not every line's relationships."""
+    out = _lines_and_areas({"Through": shapely.LineString([(-0.5, 0.5), (0.5, 0.5)]),
+                            "Inside": shapely.LineString([(0.2, 0.2), (0.4, 0.4)])},
+                           {"Shire": shapely.box(0.1, 0.1, 1, 1)})   # off the 0 degree edge of the boxes
+    shire = out["Shire"]
+    assert set(shire["crossed_by"]) == {"Through", "Inside"}
+    assert shire["partly_by"] == ["Through"]
+    assert [c[0] for c in shire["crossed_at"]] == ["Through"]
+
+
+def test_an_area_crossed_only_by_lines_wholly_inside_stores_an_empty_list():
+    """So the application knows the pack has the list and need not look at each line."""
+    out = _lines_and_areas({"Inside": shapely.LineString([(0.2, 0.2), (0.4, 0.4)])}, {"Shire": shapely.box(0, 0, 1, 1)})
+    assert out["Shire"]["partly_by"] == []
+
+
+def test_the_lines_partly_inside_are_kept_by_id(pack):
+    hants = pack.relationships(HAMPSHIRE)
+    assert ITCHEN in hants["partly_by"] and set(hants["partly_by"]) <= set(hants["crossed_by"])
+    assert RHINE in pack.relationships(SWITZERLAND)["partly_by"]
+
+
+def test_the_lines_partly_inside_are_written_by_id():
+    by = rel.by_id({0: {"crossed_by": [1, 2], "partly_by": [2]}}, ["a", "b", "c"])
+    assert by == {"a": {"crossed_by": ["b", "c"], "partly_by": ["c"]}}

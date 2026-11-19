@@ -29,12 +29,17 @@ def session(test_pack):
 
 def _open(session):
     r = session.run("views.open")
-    assert r.dialog["kind"] == "choose" and r.dialog["cancel"] == "Cancel"   # Escape is never needed (ACC-7)
-    return r.dialog["lines"]
+    assert r.dialog["kind"] == "views" and r.dialog["words"]["cancel"] == "Cancel"   # Escape is never needed (ACC-7)
+    assert [r.dialog["words"][k] for k in ("add", "rename", "delete", "ok")] == ["Add", "Rename", "Delete", "OK"]
+    return [i["label"] for i in r.dialog["views"]["items"]]
 
 
-def _choose(session, line):
-    return session.run("views.choose", index=_open(session).index(line))
+def _listing(session):
+    return session.run("views.open").dialog["views"]
+
+
+def _choose(session, label):
+    return session.run("views.apply", index=_open(session).index(label))
 
 
 # The views file ------------------------------------------------------------------------------------------
@@ -173,16 +178,34 @@ def test_every_theme_keeps_its_contrast_with_the_views_colours():
 
 # The view manager -------------------------------------------------------------------------------------
 
-def test_the_view_manager_lists_the_views_and_what_you_can_do(session):
-    assert _open(session) == ["Political, in use", "Physical", "Save the layers as a view"]
+def test_the_view_manager_lists_the_views_and_opens_on_the_one_in_use(session):
+    assert _open(session) == ["Political, in use", "Physical"]
+    assert _listing(session)["current"] == 0
+    session.settings.view = "physical"
+    assert _listing(session)["current"] == 1
 
 
-def test_choosing_a_view_uses_it_and_says_so(session):
-    r = _choose(session, "Physical")
+def test_ok_uses_the_view_chosen_and_says_so(session):
+    session.run("views.open")
+    r = session.run("views.apply", index=1)
     assert spoken(r) == ["Physical view."] and r.redraw and r.settings_changed
     assert session.settings.view == "physical"
     assert session.layers.get("countries").fill == "plain"
     assert _open(session)[:2] == ["Political", "Physical, in use"]
+
+
+def test_ok_with_nothing_changed_says_nothing(session):
+    session.run("views.open")
+    r = session.run("views.apply", index=0)
+    assert spoken(r) == [] and not r.redraw
+
+
+def test_cancel_runs_nothing_so_the_next_opening_starts_from_what_is_kept(session):
+    session.run("views.open")
+    session.run("views.add", text="Mine")
+    session.run("views.open")   # Cancel ran nothing; opening again starts a new copy
+    assert "Mine" not in session.settings.views and _open(session) == ["Political, in use", "Physical"]
+    assert session.run("views.apply", index=0).announcements == []   # nothing left to keep
 
 
 def test_a_change_to_a_layer_makes_the_view_custom_until_it_is_saved(session):
@@ -190,43 +213,59 @@ def test_a_change_to_a_layer_makes_the_view_custom_until_it_is_saved(session):
     assert session.view_name() == "Custom"
     lines = _open(session)
     assert lines[0] == "Custom: your changes to the Political view, in use" and "Political" in lines
-    r = _choose(session, "Save the layers as a view")
-    assert r.dialog["kind"] == "input" and r.dialog["submit"] == "views.save" and r.dialog["cancel"] == "Cancel"
-    r = session.run("views.save", text="  Rivers   only ")
-    assert spoken(r) == ["Saved as the Rivers only view, now in use."]
+    assert _listing(session)["current"] == 0
+    r = session.run("views.add", text="  Rivers   only ")
+    assert spoken(r) == ["Added the Rivers only view. OK uses it."]
+    assert r.views["items"][r.views["current"]]["label"] == "Rivers only"
+    assert session.settings.layers and "Rivers only" not in session.settings.views   # nothing kept until OK
+    r = session.run("views.apply", index=r.views["current"])
+    assert spoken(r) == ["Rivers only view."]
     assert session.view_name() == "Rivers only" and not session.settings.layers
     assert session.layers.get("regions").outline is False   # kept in the view
-    assert _open(session) == ["Political", "Physical", "Rivers only, in use", "Save the layers as a view",
-                              "Rename one of your views", "Delete one of your views"]
+    assert _open(session) == ["Political", "Physical", "Rivers only, in use"]
+
+
+def test_ok_on_custom_keeps_your_changes_to_the_layers(session):
+    session.run("layers.set", layer="regions", values={"outline": False})
+    session.run("views.open")
+    session.run("views.apply", index=0)
+    assert session.view_name() == "Custom" and session.settings.layers
 
 
 def test_a_view_name_must_be_new_and_not_empty(session):
-    assert session.run("views.save", text="").error == "Type a name for the view."
-    assert session.run("views.save", text="political").error == "There is already a view called political. Type another name."
-    assert session.run("views.save", text="Custom").error.startswith("There is already a view called Custom.")
-    session.run("views.save", text="Mine")
-    assert session.run("views.save", text="MINE").error.startswith("There is already a view called MINE.")
+    session.run("views.open")
+    assert session.run("views.add", text="").error == "Type a name for the view."
+    assert session.run("views.add", text="political").error == "There is already a view called political. Type another name."
+    assert session.run("views.add", text="Custom").error.startswith("There is already a view called Custom.")
+    session.run("views.add", text="Mine")
+    assert session.run("views.add", text="MINE").error.startswith("There is already a view called MINE.")
 
 
 def test_your_own_views_can_be_renamed_and_deleted_but_not_the_built_in_ones(session):
-    session.run("views.save", text="Mine")
-    r = _choose(session, "Rename one of your views")
-    assert r.dialog["lines"] == ["Mine"]
-    r = session.run("views.choose", index=0)
-    assert r.dialog["kind"] == "input" and r.dialog["title"] == "Rename Mine"
-    assert spoken(session.run("views.rename", text="Ours")) == ["Mine is now called Ours."]
-    assert session.settings.view == "Ours"
-    r = _choose(session, "Delete one of your views")
-    assert r.dialog["lines"] == ["Ours"]
-    r = session.run("views.choose", index=0)
-    assert r.dialog["kind"] == "confirm" and r.dialog["text"] == "Delete your view Ours? This cannot be undone."
-    assert r.dialog["cancel"] == "Cancel"
-    assert spoken(session.run("views.delete")) == ["The Ours view is deleted. The Political view is in use."]
-    assert _open(session) == ["Political, in use", "Physical", "Save the layers as a view"]
+    session.run("views.open")
+    session.run("views.add", text="Mine")
+    session.run("views.apply", index=2)
+    own = "Only your own views can be renamed or deleted."
+    session.run("views.open")
+    assert session.run("views.rename", index=0, text="X").error == own   # Political
+    assert session.run("views.delete", index=1).error == own            # Physical
+    assert spoken(session.run("views.rename", index=2, text="Ours")) == ["Mine is now called Ours."]
+    assert session.settings.view == "Mine"   # kept only by OK
+    r = session.run("views.delete", index=2)
+    assert spoken(r) == ["The Ours view is deleted. Cancel brings it back."]
+    assert [i["label"] for i in r.views["items"]] == ["Political, in use", "Physical"] and r.views["current"] == 1
+    assert "Mine" in session.settings.views   # Cancel here leaves it
+    session.run("views.open")
+    session.run("views.rename", index=2, text="Ours")
+    session.run("views.delete", index=2)
+    r = session.run("views.apply", index=0)
+    assert spoken(r) == ["Political view."] and not session.settings.views and session.view()["id"] == "political"
 
 
 def test_your_views_and_the_one_in_use_are_kept_with_your_settings(test_pack, session):
-    session.run("views.save", text="Mine")
+    session.run("views.open")
+    r = session.run("views.add", text="Mine")
+    session.run("views.apply", index=r.views["current"])
     saved = session.save()
     again = MapSession(packs=[test_pack], settings=saved["settings"], saved_state=saved["state"])
     assert again.settings.view == "Mine" and "Mine" in again.settings.views
@@ -235,7 +274,8 @@ def test_your_views_and_the_one_in_use_are_kept_with_your_settings(test_pack, se
 
 
 def test_reset_all_settings_goes_back_to_the_political_view(session):
-    _choose(session, "Physical")
+    session.run("views.open")
+    session.run("views.apply", index=1)
     session.run("settings.reset_confirm")
     assert session.view()["id"] == "political" and not session.settings.views
 
@@ -252,3 +292,12 @@ def test_an_island_and_an_area_of_one_name_on_the_same_land_are_said_once(sessio
     other = area("o", "Wight", "islands")
     same["o"] = {"same": ["c"]}
     assert [a.id for a in session._said([county, other])] == ["c", "o"]   # another name: both said
+
+
+def test_the_web_version_gets_the_list_back_after_each_change(session):
+    # The web version runs every command through run_many, which must carry the list (P3-T28h).
+    session.run("views.open")
+    r = session.run_many([("views.add", {"text": "Mine"})])
+    assert [i["label"] for i in r.to_dict()["views"]["items"]] == ["Political, in use", "Physical", "Mine"]
+    r = session.run_many([("views.delete", {"index": 2})])
+    assert [i["label"] for i in r.to_dict()["views"]["items"]] == ["Political, in use", "Physical"]

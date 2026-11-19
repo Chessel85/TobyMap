@@ -165,7 +165,7 @@ commands:
   - {name: query.open, label: Query builder, key: Q, region: global, menu: Map}
   - {name: query.run, label: Run a query, key: "", region: global, menu: "", pointer: true}
   - {name: settings.reset_confirm, label: Reset all settings once asked, key: "", region: global, menu: "", pointer: true}
-  - {name: views.choose, label: Choose from the map views list, key: "", region: global, menu: "", pointer: true}
-  - {name: views.save, label: Save the layers as a view with the typed name, key: "", region: global, menu: "", pointer: true}
-  - {name: views.rename, label: Rename a view to the typed name, key: "", region: global, menu: "", pointer: true}
-  - {name: views.delete, label: Delete a view once asked, key: "", region: global, menu: "", pointer: true}
+  - {name: views.add, label: Add the layers as a view with the typed name, key: "", region: global, menu: "", pointer: true}
+  - {name: views.rename, label: Rename the chosen view to the typed name, key: "", region: global, menu: "", pointer: true}
+  - {name: views.delete, label: Delete the chosen view, key: "", region: global, menu: "", pointer: true}
+  - {name: views.apply, label: Keep the map views changes and use the chosen view, key: "", region: global, menu: "", pointer: true}

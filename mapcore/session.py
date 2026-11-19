@@ -123,6 +123,8 @@ class Response:
     # item starts, the shell calls MapSession.scan_item(index) and handles its response; at the end,
     # scan_item(None). A response with stop_voice stops the scan too, as it stops the voice.
     scan: dict | None = None
+    # The view manager's list (P3-T28h): {"items": [{"id", "label", "own"}], "current"}, after each Add, Rename or Delete.
+    views: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -345,8 +347,8 @@ class MapSession:
             "settings.reset_confirm": self._reset_all,
             "layers.open": self._layers_open,
             "views.open": self._views_open,
-            "views.choose": self._views_choose,
-            "views.save": self._views_save,
+            "views.add": self._views_add,
+            "views.apply": self._views_apply,
             "views.rename": self._views_rename,
             "views.delete": self._views_delete,
             "layers.check": self._layers_check,
@@ -432,6 +434,7 @@ class MapSession:
             merged.open_url = r.open_url or merged.open_url
             merged.found = r.found or merged.found
             merged.branch = r.branch or merged.branch
+            merged.views = r.views or merged.views   # the view manager's list (P3-T28h), as the web version runs
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 
@@ -647,100 +650,119 @@ class MapSession:
         return out
 
     def _views_open(self, **_a) -> Response:
-        """The view manager (P3-T23, DP198): the views to choose from, the one in use said as in use, or
-        Custom once a layer has been changed from it; then saving the layers as a view, and renaming and
-        deleting your own. A list with Cancel (ACC-7). The two built-in views cannot be renamed or deleted."""
+        """The view manager (P3-T23, P3-T28h; ACC-7): a list of the views with Add, Rename and Delete buttons, and
+        OK and Cancel. The list opens on the view in use. The changes are made in a copy (the draft): OK keeps
+        them and uses the view chosen in the list (views.apply); Cancel runs nothing, so nothing has changed.
+        The two built-in views cannot be renamed or deleted."""
         custom = bool(self.settings.layers)
-        in_use = self.view()["id"]
-        lines, choices = [], []
-        if custom:
-            lines.append(say("views.custom_line", name=self.view()["name"]))
-            choices.append(("custom", ""))
-        every = [(v["id"], v["name"]) for v in views_mod.built_in()] + [(n, n) for n in sorted(self.settings.views)]
-        for identifier, name in every:
-            lines.append(say("views.item_in_use" if identifier == in_use and not custom else "views.item", name=name))
-            choices.append(("view", identifier))
-        lines.append(say("views.save"))
-        choices.append(("save", ""))
-        if self.settings.views:
-            lines += [say("views.rename"), say("views.delete")]
-            choices += [("rename", ""), ("delete", "")]
-        return self._choose(say("views.title"), say("views.help"), lines, choices, go="views.choose")
+        self._views_draft: dict | None = {"views": copy.deepcopy(self.settings.views), "in_use": self.view()["id"],
+                             "custom": custom, "chosen": "custom" if custom else self.view()["id"]}
+        words = {k: say(f"views.{k}") for k in ("add", "rename", "delete", "name_label", "name_help", "add_title",
+                                                 "rename_title", "list")}
+        words |= {"ok": say("ui.ok"), "cancel": say("ui.cancel")}
+        return Response(dialog={"kind": "views", "title": say("views.title"), "help": say("views.help"),
+                                "words": words, "add": "views.add", "rename": "views.rename",
+                                "delete": "views.delete", "apply": "views.apply",
+                                "views": self._views_listing()})
 
-    def _views_choose(self, index: int = -1, **_a) -> Response:
-        if not 0 <= index < len(self._choices):
-            return Response().earcon("blocked")
-        kind, value = self._choices[index]
-        if kind == "custom":
-            return Response().speak(say("views.custom_said"), ASSERTIVE)
-        if kind == "view":
-            self.settings.view = value
-            self.settings.layers.clear()   # a view chosen is used as it is
-            return self._view_changed(say("views.chosen", name=self.view()["name"]))
-        if kind == "save":
-            return Response(dialog={"kind": "input", "title": say("views.save_title"), "label": say("views.name_label"),
-                                    "help": say("views.name_help"), "submit": "views.save", "ok": say("ui.ok"),
-                                    "cancel": say("ui.cancel")})
-        if kind in ("rename", "delete"):
-            names = sorted(self.settings.views)
-            return self._choose(say(f"views.{kind}_choose"), say("views.help"), names,
-                                [(kind + "_one", n) for n in names], go="views.choose")
-        self._view_target = value
-        if kind == "rename_one":
-            return Response(dialog={"kind": "input", "title": say("views.rename_title", name=value),
-                                    "label": say("views.name_label"), "help": say("views.name_help"),
-                                    "submit": "views.rename", "ok": say("ui.ok"), "cancel": say("ui.cancel")})
-        return Response(dialog={"kind": "confirm", "title": say("views.delete_title"),
-                                "text": say("views.delete_question", name=value), "ok": say("views.delete_ok"),
-                                "cancel": say("ui.cancel"), "submit": "views.delete"})
+    def _views_listing(self, d: dict | None = None) -> dict:
+        """The draft's views as the dialog lists them, and the one chosen: {"items": [{"id", "label", "own"}],
+        "current"}. Each label says the view in use, or Custom, as it did."""
+        d = d or self._views_draft
+        items = []
+        if d["custom"]:
+            items.append({"id": "custom", "own": False,
+                          "label": say("views.custom_line", name=views_mod.find(d["in_use"], d["views"])["name"])})
+        every = [(v["id"], v["name"], False) for v in views_mod.built_in()] + [(n, n, True) for n in sorted(d["views"])]
+        for identifier, name, own in every:
+            in_use = identifier == d["in_use"] and not d["custom"]
+            items.append({"id": identifier, "own": own, "label": say("views.item_in_use" if in_use else "views.item",
+                                                                      name=name)})
+        current = next((i for i, item in enumerate(items) if item["id"] == d["chosen"]), 0)
+        return {"items": items, "current": current}
+
+    def _draft_own(self, index: int) -> str | None:
+        """The name of your own view at this place in the list, or None (a built-in view, Custom or nothing)."""
+        items = self._views_listing()["items"] if getattr(self, "_views_draft", None) else []
+        if 0 <= index < len(items) and items[index]["own"]:
+            return items[index]["id"]
+        return None
 
     def _view_name_problem(self, name: str, allowed: str | None = None) -> str | None:
         """Why a typed name cannot be a view's, or None: it is empty, or another view's or Custom's."""
         if not name:
             return say("views.name_empty")
-        taken = [v["name"] for v in views_mod.built_in()] + [v["id"] for v in views_mod.built_in()] \
-            + [say("views.custom")] + [n for n in self.settings.views if n != allowed]
+        taken = [v["name"] for v in views_mod.built_in()] + [v["id"] for v in views_mod.built_in()]
+        taken += [say("views.custom")] + [n for n in self._views_draft["views"] if n != allowed]
         if name.casefold() in {t.casefold() for t in taken}:
             return say("views.name_taken", name=name)
         return None
 
-    def _views_save(self, text: str = "", **_a) -> Response:
-        """The layers as they are now, the view's with your changes, saved as a view of your own and used."""
+    def _views_add(self, text: str = "", **_a) -> Response:
+        """Add: the layers as they are now, the view's with your changes, as a view of your own in the draft, which
+        is then the one chosen."""
+        if getattr(self, "_views_draft", None) is None:
+            return Response().earcon("blocked")
         name = " ".join(str(text).split())
         problem = self._view_name_problem(name)
         if problem:
             return Response(error=problem)
         fields = ("on", "min_zoom_m", "max_zoom_m", "outline", "fill", "names")
-        self.settings.views[name] = {"base": self.view()["base"],
-                                     "layers": {layer.id: {f: getattr(layer, f) for f in fields
-                                                           if getattr(layer, f) is not None}
-                                                for layer in self.layers.layers()}}
-        self.settings.view = name
-        self.settings.layers.clear()
-        return self._view_changed(say("views.saved", name=name))
+        d = self._views_draft
+        d["views"][name] = {"base": self.view()["base"],
+                            "layers": {layer.id: {f: getattr(layer, f) for f in fields if getattr(layer, f) is not None}
+                                       for layer in self.layers.layers()}}
+        d["chosen"] = name
+        return Response(views=self._views_listing()).speak(say("views.added", name=name), ASSERTIVE)
 
-    def _views_rename(self, text: str = "", **_a) -> Response:
-        old = getattr(self, "_view_target", None)
-        if old not in self.settings.views:
-            return Response().earcon("blocked")
+    def _views_rename(self, index: int = -1, text: str = "", **_a) -> Response:
+        """Rename: your own view at this place in the list, in the draft."""
+        old = self._draft_own(index)
+        if old is None:
+            return Response(error=say("views.own_only"))
         name = " ".join(str(text).split())
         problem = self._view_name_problem(name, allowed=old)
         if problem:
             return Response(error=problem)
-        self.settings.views = {(name if k == old else k): v for k, v in self.settings.views.items()}
-        if self.settings.view == old:
-            self.settings.view = name
-        return Response(settings_changed=True).speak(say("views.renamed", old=old, name=name), ASSERTIVE)
+        d = self._views_draft
+        d["views"] = {(name if k == old else k): v for k, v in d["views"].items()}
+        for key in ("in_use", "chosen"):
+            if d[key] == old:
+                d[key] = name
+        return Response(views=self._views_listing()).speak(say("views.renamed", old=old, name=name), ASSERTIVE)
 
-    def _views_delete(self, **_a) -> Response:
-        name = getattr(self, "_view_target", None)
-        if name not in self.settings.views:
-            return Response().earcon("blocked")
-        del self.settings.views[name]
-        if self.settings.view == name:
-            self.settings.view = None
-            return self._view_changed(say("views.deleted_in_use", name=name, view=self.view()["name"]))
-        return Response(settings_changed=True).speak(say("views.deleted", name=name), ASSERTIVE)
+    def _views_delete(self, index: int = -1, **_a) -> Response:
+        """Delete: your own view at this place in the list, from the draft. Cancel brings it back. The list then
+        stands on the next view, or the one before the last."""
+        name = self._draft_own(index)
+        if name is None:
+            return Response(error=say("views.own_only"))
+        d = self._views_draft
+        del d["views"][name]
+        if d["in_use"] == name:
+            d["in_use"] = views_mod.default_id()
+        after = self._views_listing()["items"]
+        d["chosen"] = after[min(index, len(after) - 1)]["id"]
+        return Response(views=self._views_listing()).speak(say("views.deleted", name=name), ASSERTIVE)
+
+    def _views_apply(self, index: int = -1, **_a) -> Response:
+        """OK: the draft's views are kept and the view at this place in the list is used. Custom keeps your changes
+        to the layers. Nothing changed says nothing."""
+        d = getattr(self, "_views_draft", None)
+        self._views_draft = None
+        if d is None:
+            return Response()
+        d["chosen"] = d["chosen"] if not 0 <= index else self._views_listing(d)["items"][index]["id"]
+        changed = d["views"] != self.settings.views
+        self.settings.views = d["views"]
+        if d["chosen"] == "custom":
+            self.settings.view = d["in_use"]
+            return Response(settings_changed=True, redraw=True, panel_stale=True, details_stale=True) if changed else Response()
+        if d["chosen"] == self.view()["id"] and not self.settings.layers and not changed:
+            return Response()
+        self.settings.view = d["chosen"]
+        self.settings.layers.clear()   # a view chosen is used as it is
+        return self._view_changed(say("views.chosen", name=self.view()["name"]))
 
     def _view_changed(self, text: str) -> Response:
         """A new view in use: the map is drawn again and the place is said in the view's order."""

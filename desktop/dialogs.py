@@ -707,6 +707,102 @@ class LayerSettingsDialog(QDialog):
         self.accept()
 
 
+class ViewsDialog(QDialog):
+    """The map views (P3-T23, P3-T28h; ACC-7): the list of views, open on the one in use, with Add, Rename and
+    Delete buttons, and OK and Cancel. Enter is OK and Escape is Cancel. The core keeps the changes in a copy:
+    Add, Rename and Delete only change that, and OK (views.apply, run by the window) keeps them and uses the
+    view chosen, which is `row`; Cancel runs nothing. `run` is session.run."""
+
+    def __init__(self, parent, dialog: dict, run, speak=None):
+        super().__init__(parent)
+        self._dialog, self._run, self._speak = dialog, run, speak
+        self.items: list[dict] = []
+        self.input_box: InputDialog | None = None
+        words = dialog["words"]
+        self.setWindowTitle(dialog["title"])
+        layout = QVBoxLayout(self)
+        help_label = QLabel(dialog["help"])
+        help_label.setWordWrap(True)
+        layout.addWidget(help_label)
+        self.list = QListWidget()
+        self.list.setAccessibleName(words["list"])
+        self.list.setAccessibleDescription(dialog["help"])
+        layout.addWidget(self.list)
+        self.add_button, self.rename_button, self.delete_button = button_row(
+            layout, [words["add"], words["rename"], words["delete"]], default=False)
+        self.add_button.clicked.connect(self.add)
+        self.rename_button.clicked.connect(self.rename)
+        self.delete_button.clicked.connect(self.delete)
+        self.ok_button, self.cancel_button = button_row(layout, [words["ok"], words["cancel"]])
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+        self.fill(dialog["views"])
+        self.resize(520, 420)
+        self.list.setFocus()   # on the view in use
+
+    @property
+    def row(self) -> int:
+        return self.list.currentRow()
+
+    def fill(self, listing: dict) -> None:
+        self.items = listing["items"]
+        self.list.clear()
+        self.list.addItems([i["label"] for i in self.items])
+        self.list.setCurrentRow(listing["current"])
+
+    def _input(self, title: str, name: str, submit) -> None:
+        words = self._dialog["words"]
+        box = InputDialog(self, {"title": title, "label": words["name_label"], "help": words["name_help"],
+                                 "ok": words["ok"], "cancel": words["cancel"]}, submit=submit)
+        self.input_box = box
+        box.finished.connect(lambda _r, b=box: self._input_closed(b))
+        box.open()
+        box.field.setText(name)
+        box.field.selectAll()
+
+    def _input_closed(self, box) -> None:
+        self.input_box = None
+        if box.response is not None and box.response.views is not None:
+            self.fill(box.response.views)
+            self._say(box.response)
+        self.list.setFocus()
+
+    def _say(self, response) -> None:
+        if self._speak is not None:
+            for a in response.announcements:
+                self._speak(a["text"])
+
+    def add(self) -> None:
+        self._input(self._dialog["words"]["add_title"], "",
+                    lambda text: self._run(self._dialog["add"], text=text))
+
+    def rename(self) -> None:
+        row = self.row
+        if not 0 <= row < len(self.items):
+            return
+        if not self.items[row]["own"]:   # the core says why, in its words
+            self._refuse(self._run(self._dialog["rename"], index=row, text=""))
+            return
+        name = self.items[row]["id"]
+        self._input(self._dialog["words"]["rename_title"].replace("{name}", name), name,
+                    lambda text: self._run(self._dialog["rename"], index=row, text=text))
+
+    def delete(self) -> None:
+        row = self.row
+        response = self._run(self._dialog["delete"], index=row)
+        if response.error:
+            self._refuse(response)
+            return
+        self.fill(response.views)
+        self._say(response)
+        self.list.setFocus()
+
+    def _refuse(self, response) -> None:
+        if response.error and self._speak is not None:
+            self._speak(response.error)
+        self.list.setFocus()
+
+
 class LayersDialog(QDialog):
     """The layers list (SCP-6, SCP-7): a check box for each layer under its group, Space switches it,
     and a Settings button opens the selected layer's zoom range and crossing sound. OK keeps the changes,

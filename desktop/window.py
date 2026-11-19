@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QHBoxLayout, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, WorldTreeDialog
+from desktop.dialogs import ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, ViewsDialog, WorldTreeDialog
 from desktop.keys import key_name
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
@@ -706,6 +706,10 @@ class MainWindow(QMainWindow):
                                speak=lambda text: self.announcer.speak(text, "assertive"))
             box.accepted.connect(lambda b=box: self._carry_out_answer(
                 self.session.run(dialog["set"], layer=i, values=v) for i, v in b.changes()))
+        elif kind == "views":   # the map views (P3-T28h): changes are kept by OK only
+            box = ViewsDialog(self, dialog, run=self.session.run,
+                              speak=lambda text: self.announcer.speak(text, "assertive"))
+            box.accepted.connect(lambda b=box: self._carry_out_answer([self.session.run(dialog["apply"], index=b.row)]))
         elif kind == "input":
             box = InputDialog(self, dialog, submit=lambda text: self.session.run(dialog["submit"], text=text))
             box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))

@@ -70,9 +70,10 @@ dialog button { margin-top: 8px; font: inherit; padding: 4px 16px; }
 #settings .earcon-list [aria-selected="true"] { background: #0b57d0; color: #fff; }
 #settings-keys, #sounds-list { width: 100%; font: inherit; }
 #settings label { display: inline-block; margin: 2px 0; }
-#settings button, #keydialog button, #inputdialog button, #layersdialog button { margin: 4px 8px 4px 0; font: inherit; padding: 4px 16px; }
+#settings button, #keydialog button, #inputdialog button, #layersdialog button, #viewsdialog button { margin: 4px 8px 4px 0; font: inherit; padding: 4px 16px; }
 #key-message { min-height: 1.4em; color: #8a0000; }
 :focus-visible { outline: 3px solid #ffd200; outline-offset: 1px; }
 
+#viewsdialog input, #viewsdialog select { width: 100%; box-sizing: border-box; font: inherit; }
 #inputdialog input { width: 100%; box-sizing: border-box; font: inherit; }
 #history-list { width: 100%; font: inherit; }

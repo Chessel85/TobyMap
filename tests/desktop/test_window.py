@@ -9,7 +9,7 @@ from PySide6.QtGui import QImage, QKeyEvent, QPainter
 from PySide6.QtWidgets import QApplication, QTreeWidgetItem
 
 from desktop.announcer import RecordingAnnouncer
-from desktop.dialogs import (HistoryDialog, InputDialog, KeyCaptureDialog, LayerSettingsDialog, LayersDialog, ListDialog,
+from desktop.dialogs import (HistoryDialog, InputDialog, KeyCaptureDialog, LayerSettingsDialog, LayersDialog, ListDialog, ViewsDialog,
                              SettingsDialog, SoundsDialog,
                              TextDialog)
 from desktop.map_widget import paint_scene
@@ -854,6 +854,76 @@ def test_cancel_in_the_layers_list_changes_nothing(window, qtbot):
     dialog.cancel_button.click()
     QApplication.processEvents()
     assert window.session.layers.is_on("regions")
+
+
+# The map views dialog (P3-T28h; ACC-7) ------------------------------------------------------
+
+def views_dialog(window):
+    window.dispatch("views.open")
+    return click_dialog(window, ViewsDialog)
+
+
+def test_the_map_views_dialog_opens_on_the_view_in_use_with_buttons_and_ok_the_default(window, qtbot):
+    window.session.settings.view = "physical"
+    dialog = views_dialog(window)
+    assert [dialog.list.item(i).text() for i in range(dialog.list.count())] == ["Political", "Physical, in use"]
+    assert dialog.list.currentRow() == 1
+    assert [b.text() for b in (dialog.add_button, dialog.rename_button, dialog.delete_button)] == ["Add", "Rename", "Delete"]
+    assert dialog.ok_button.text() == "OK" and dialog.cancel_button.text() == "Cancel"
+    assert dialog.ok_button.isDefault() and not dialog.add_button.isDefault()
+    dialog.cancel_button.click()
+
+
+def test_enter_in_the_map_views_list_presses_ok_and_uses_the_chosen_view(window, qtbot):
+    dialog = views_dialog(window)
+    dialog.list.setCurrentRow(1)
+    qtbot.keyClick(dialog.list, Qt.Key.Key_Return)
+    QApplication.processEvents()
+    assert not dialog.isVisible() and dialog.result() == 1
+    assert window.session.settings.view == "physical"
+
+
+def test_escape_and_cancel_in_the_map_views_dialog_leave_everything_as_it_was(window, qtbot):
+    dialog = views_dialog(window)
+    dialog.list.setCurrentRow(1)
+    dialog.delete_button.click()   # a built-in view: refused, aloud
+    assert window.announcer.texts[-1] == "Only your own views can be renamed or deleted."
+    qtbot.keyClick(dialog, Qt.Key.Key_Escape)
+    QApplication.processEvents()
+    assert not dialog.isVisible() and window.session.settings.view in (None, "political")
+    dialog = views_dialog(window)
+    dialog.list.setCurrentRow(1)
+    dialog.cancel_button.click()
+    QApplication.processEvents()
+    assert window.session.settings.view in (None, "political")
+
+
+def test_add_rename_and_delete_in_the_map_views_dialog_change_a_copy_until_ok(window, qtbot):
+    dialog = views_dialog(window)
+    dialog.add_button.click()
+    QApplication.processEvents()
+    box = dialog.input_box
+    box.field.setText("Mine")
+    box.ok_button.click()
+    QApplication.processEvents()
+    assert [i["label"] for i in dialog.items] == ["Political, in use", "Physical", "Mine"] and dialog.row == 2
+    assert not window.session.settings.views   # nothing is kept until OK
+    dialog.rename_button.click()
+    QApplication.processEvents()
+    dialog.input_box.field.setText("Ours")
+    dialog.input_box.ok_button.click()
+    QApplication.processEvents()
+    assert dialog.list.item(2).text() == "Ours"
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    assert "Ours" in window.session.settings.views and window.session.settings.view == "Ours"
+    dialog = views_dialog(window)
+    assert dialog.row == 2
+    dialog.delete_button.click()
+    assert dialog.list.count() == 2 and "Ours" in window.session.settings.views
+    dialog.cancel_button.click()
+    QApplication.processEvents()
+    assert "Ours" in window.session.settings.views
 
 
 def test_settings_on_a_group_heading_says_to_choose_a_layer(window, qtbot):

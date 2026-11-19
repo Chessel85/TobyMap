@@ -17,7 +17,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), viewsDialog = $("viewsdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 
@@ -330,7 +330,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || viewsDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -399,7 +399,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [messageBox, settingsDialog, inputDialog, layersDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, viewsDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -444,6 +444,7 @@ function openDialog(d) {
   if (d.kind === "settings") return openSettings(d);
   if (d.kind === "input") return openInput(d);
   if (d.kind === "layers") return openLayers(d);
+  if (d.kind === "views") return openViews(d);
   if (d.kind === "search") return openSearch(d);
   if (d.kind === "tree") return openTree(d);
   if (d.kind === "query") return openQuery(d);
@@ -707,6 +708,117 @@ function openLayers(d) {
   box.showModal();
   focusLayer();
 }
+
+// The map views (P3-T23, P3-T28h; ACC-7): a list open on the view in use, Add, Rename and Delete buttons, OK
+// and Cancel. The core keeps the changes in a copy; OK sends views.apply with the chosen line, which keeps
+// them, and Cancel, or Escape, sends nothing. Add and Rename swap the box's body for a name field and back.
+// Every word comes from the core.
+function openViews(d) {
+  const box = viewsDialog;
+  const words = d.words;
+  let items = d.views.items;
+  let current = d.views.current;
+  let list = null;
+  const run = (name, args) => {
+    const { width, height } = mapSize();
+    return client.send({ type: "run", commands: [[name, args]], width, height });
+  };
+
+  const showList = () => {
+    const body = focusModeBody(box);
+    box.setAttribute("aria-label", d.title);
+    const title = document.createElement("h2");
+    title.textContent = d.title;
+    const help = document.createElement("p");
+    help.id = "views-help";
+    help.textContent = d.help;
+    list = document.createElement("select");
+    list.id = "views-list";
+    list.size = Math.max(2, Math.min(items.length, 10));
+    list.setAttribute("aria-label", words.list);
+    list.setAttribute("aria-describedby", "views-help");
+    for (const item of items) {
+      const o = document.createElement("option");
+      o.textContent = item.label;
+      list.appendChild(markWhole(o, item.label));
+    }
+    list.selectedIndex = current;
+    list.addEventListener("change", () => { current = list.selectedIndex; });
+    const message = document.createElement("p");
+    message.id = "views-message";
+    const tell = (text) => { message.textContent = text; speak(text, "assertive"); };
+    const after = (r) => {   // the list as the core now has it; the focus back on it
+      if (r.response.error) return tell(r.response.error);
+      if (r.response.views) { items = r.response.views.items; current = r.response.views.current; }
+      for (const a of r.response.announcements) if (a.channel !== "braille") message.textContent = a.text;
+      showList();
+      for (const a of r.response.announcements) if (a.channel !== "braille") speak(a.text, "assertive");
+    };
+    const add = button(words.add, () => showName(words.add_title, "", (text) => run(d.add, { text })), "views-add");
+    const rename = button(words.rename, () => {
+      const item = items[current];
+      if (!item || !item.own) return run(d.rename, { index: current, text: "" }).then(after).catch(showError);
+      showName(words.rename_title.replace("{name}", item.id), item.id, (text) => run(d.rename, { index: current, text }));
+    }, "views-rename");
+    const del = button(words.delete, () => run(d.delete, { index: current }).then(after).catch(showError), "views-delete");
+    const ok = button(words.ok, apply, "views-ok");
+    const cancel = button(words.cancel, () => box.close(), "views-cancel");
+    body.append(title, help, list, message, add, rename, del, ok, cancel);
+    list.focus();   // on the view in use, or the one just chosen
+  };
+
+  const apply = () => {
+    run(d.apply, { index: current }).then((r) => closeWithAnswer(box, [r])).catch(showError);
+  };
+
+  const showName = (heading, start, send) => {
+    const body = focusModeBody(box);
+    box.setAttribute("aria-label", heading);
+    const title = document.createElement("h2");
+    title.textContent = heading;
+    const label = document.createElement("label");
+    label.textContent = words.name_label;
+    const field = document.createElement("input");
+    field.type = "text";
+    field.id = "views-name";
+    field.autocomplete = "off";
+    field.spellcheck = false;
+    field.value = start;
+    label.htmlFor = field.id;
+    const help = document.createElement("p");
+    help.id = "views-name-help";
+    help.textContent = words.name_help;
+    field.setAttribute("aria-describedby", "views-name-help");
+    const message = document.createElement("p");
+    message.id = "views-name-message";
+    const go = () => send(field.value).then((r) => {
+      if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
+      items = r.response.views.items;
+      current = r.response.views.current;
+      showList();
+      for (const a of r.response.announcements) if (a.channel !== "braille") speak(a.text, "assertive");
+    }).catch(showError);
+    const ok = button(words.ok, go, "views-name-ok");
+    const cancel = button(words.cancel, () => { showList(); }, "views-name-cancel");
+    body.append(title, label, field, help, message, ok, cancel);
+    field.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+    field.focus();
+    field.select();
+  };
+
+  // Escape in the name form goes back to the list; in the list it cancels the box, as the browser does.
+  box.oncancel = (e) => { if ($("views-name")) { e.preventDefault(); showList(); } };
+  showList();
+  box.showModal();
+  list.focus();
+}
+
+// Enter in the views list presses OK; on a button it presses that button; in the name field it is that form's OK.
+viewsDialog.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.target.tagName === "BUTTON" || e.target.id === "views-name") return;
+  e.preventDefault();
+  $("views-ok").click();
+});
 
 // Space ticks a box, and Enter anywhere but on a button presses OK: the list's, or the layer
 // settings' (PO feedback on web checklist 2.6, as on the desktop).
@@ -1057,6 +1169,7 @@ dialog.addEventListener("close", afterClose);
 settingsDialog.addEventListener("close", afterClose);
 inputDialog.addEventListener("close", afterClose);
 layersDialog.addEventListener("close", afterClose);
+viewsDialog.addEventListener("close", afterClose);
 searchDialog.addEventListener("close", afterClose);
 treeDialog.addEventListener("close", afterClose);
 queryDialog.addEventListener("close", afterClose);

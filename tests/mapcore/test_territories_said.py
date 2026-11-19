@@ -55,9 +55,24 @@ def test_the_sovereign_state_is_said_once_when_it_is_there_already(session):
 def test_an_exclave_is_said_after_its_country(session):
     session.known["fr"] = area("fr", "France", "countries")
     llivia = [area("g", "Girona", "counties"), area("es", "Spain", "countries"),
-              area("x", "Llivia", "exclaves", exclave={"beside": ["fr"], "coast": False, "enclave": True}),
+              area("x", "Exclave of Spain", "exclaves",
+                   exclave={"sovereign": "Spain", "beside": ["fr"], "coast": False, "enclave": True}),
               area("eu", "Europe", "continents")]
     assert names(session, llivia) == ["Girona", "Spain", "exclave in France", "Europe"]
+
+
+def test_an_exclave_with_a_name_of_its_own_is_said_by_it(session):
+    """The test pack has no exclave, so the record is made here (P3-T28j, LOC-6)."""
+    session.known["fr"] = area("fr", "France", "countries")
+    session.known["ma"] = area("ma", "Morocco", "countries")
+    llivia = [area("g", "Girona", "counties"), area("es", "Spain", "countries"),
+              area("x", "Llívia", "exclaves",
+                   exclave={"sovereign": "Spain", "beside": ["fr"], "coast": False, "enclave": True}),
+              area("eu", "Europe", "continents")]
+    assert names(session, llivia) == ["Girona", "Spain", "Llívia, exclave of Spain in France", "Europe"]
+    assert session._exclave_words({"sovereign": "Spain", "beside": ["ma"], "coast": True}, "Perejil")         == "Perejil, exclave of Spain on the coast of Morocco"
+    assert session._exclave_words({"sovereign": "Spain", "beside": ["fr"]}, "Llívia") \
+        =="Llívia, exclave of Spain beside France"
 
 
 def test_an_exclave_that_is_an_area_of_its_own_is_said_after_its_sovereign(session):

@@ -394,6 +394,10 @@ place:
   exclave_in: "exclave in {where}"
   exclave_coast: "exclave on the coast of {where}"
   exclave_beside: "exclave beside {where}"
+  # An exclave with a name of its own: "Llívia, exclave of Spain in France" (P3-T28j, LOC-6).
+  exclave_named_in: "{name}, exclave of {sovereign} in {where}"
+  exclave_named_coast: "{name}, exclave of {sovereign} on the coast of {where}"
+  exclave_named_beside: "{name}, exclave of {sovereign} beside {where}"
   # Disputed land is said with "disputed", once, after the largest disputed area of the place (P3-T2c, ANN-6):
   # "Autonomous Republic of Crimea, Crimea, disputed".
   disputed: "{name}, disputed"

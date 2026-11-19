@@ -783,7 +783,7 @@ class MapSession:
             rec = getattr(a, "record", None) or {}
             if a.layer == "exclaves":   # said as what it is, after the country: "exclave in France" (P3-T24g)
                 if rec.get("exclave"):
-                    out.append(_Said(a.id, self._exclave_words(rec["exclave"]), a.layer, rec))
+                    out.append(_Said(a.id, self._exclave_words(rec["exclave"], a.name), a.layer, rec))
                 continue
             out.append(a)
             if rec.get("say_sovereign") and rec.get("sovereign"):
@@ -794,15 +794,19 @@ class MapSession:
                 out.append(_Said("exclave:" + a.id, self._exclave_words(rec["exclave"]), a.layer))
         return out
 
-    def _exclave_words(self, info: dict) -> str:
+    def _exclave_words(self, info: dict, name=None) -> str:
         """What an exclave is, from its record: "exclave in France", "exclave on the coast of Morocco", or
-        "exclave beside Lithuania and Poland" (P3-T24g, DP207)."""
+        "exclave beside Lithuania and Poland" (P3-T24g, DP207). With a name of its own, one the build found for
+        it (the build's stand-in, "Exclave of Spain", is no name), it is said first: "Llívia, exclave of Spain in
+        France" (P3-T28j, LOC-6)."""
         names = [a.name for a in (self.store.feature(i) for i in info.get("beside", ())) if a is not None]
         where = say("place.and").join([", ".join(str(n) for n in names[:-1]), str(names[-1])]) if len(names) > 1 \
             else (str(names[0]) if names else "")
-        key = "place.exclave_coast" if info.get("coast") else "place.exclave_in" if info.get("enclave") \
-            else "place.exclave_beside"
-        return say(key, where=where)
+        kind = "coast" if info.get("coast") else "in" if info.get("enclave") else "beside"
+        sovereign = str(info.get("sovereign") or "")
+        if name and sovereign and str(name).lower() != f"exclave of {sovereign}".lower():
+            return say(f"place.exclave_named_{kind}", name=name, sovereign=sovereign, where=where)
+        return say(f"place.exclave_{kind}", where=where)
 
     def _said_order(self, areas: list) -> list:
         """The areas in the order the map view says them (P3-T23, DP198): by the view's list of layers, a lake

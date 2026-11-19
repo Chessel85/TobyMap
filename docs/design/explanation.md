@@ -588,7 +588,7 @@ Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S
 
 ### 2. Nearby
 
-* What is in it: the nearest visible features in the view, of any kind. Left out: the areas you are in, a line you are on, and a place you are at. Today a place you are at, such as Winchester when you are on its point, is listed as here. P3-T29b leaves it out.
+* What is in it: the nearest visible features in the view, of any kind. Left out: the areas you are in, a line you are on, and a place you are at. Done in P3-T29b.
 * How many: the setting "Number of nearby items", in Settings, Movement. It starts at 8.
 * Distance and direction: to each feature's nearest point. So a long river or a large sea is as near as its nearest bank or shore.
 * Look around (L) plays Nearby's items, up to 12, clockwise from ahead.
@@ -607,7 +607,7 @@ Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S
 * What is in it: the visible features wholly inside the current feature, that are in the view. A feature only partly inside is in Overlapping, not here. Today partly inside features are listed too, said as "partly in Hampshire". P3-T29c moves them.
 * What is inside what is worked out by the build, from the real shapes, and stored in the pack. Nothing about being inside is decided by a bounding box.
 * In the view: a feature is listed when its nearest point is within the zoom distance of you. Today this is decided by bounding boxes, which lets in a railway line hundreds of kilometres away and leaves out a bay just outside the circle. Whether Contains should be limited by the view at all is question R2.
-* Water holds only water features and islands. A sea or ocean contains bays, straits and islands; a lake contains its islands. Rivers, roads, railways and towns at the coast are never inside the water, even where the sea's outline, which is rough, overlaps them. Today Down from the English Channel lists rivers, roads, railways and two towns, Porthleven and Looe, because the outline of the sea overlaps the coast. P3-T29d fixes this.
+* Water holds only water features and islands. A sea or ocean contains bays, straits and islands; a lake contains its islands. Rivers, roads, railways and towns at the coast are never inside the water, even where the sea's outline, which is rough, overlaps them. Done in P3-T29d: so Down from the English Channel no longer lists rivers, roads, railways, or the towns of Porthleven and Looe. A lake also holds the bays on it, which P3-T28c keeps in the pack.
 * Layers outside their zoom range still count, so Contains England at a wide zoom still lists its counties. The size rule still applies.
 * Subgroups: one for each layer with something in it, such as "Rivers 3", in the layer order. Bays and straits are one subgroup, "Seas, bays and straits", holding both those drawn as areas and those that are only places. Today they are two subgroups.
 * Distance and direction: to each feature's nearest point. An area you are in says "you are inside" in place of a distance. Today the distance is to the feature's own point, so the M3 is "29 kilometres north-east" from Winchester though it passes 2 kilometres east.
@@ -629,9 +629,9 @@ Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S
 * What is in it: what your last move went over or near without stopping on it.
   * Lines it crossed, such as rivers and borders: "crossed River Test".
   * Areas it entered and left: "passed over".
-  * Places it came within the passed nearby distance of: "passed nearby to Winchester". Today this is said as "passed".
+  * Places it came within the passed nearby distance of: "Passed nearby to Winchester" (P3-T29f).
 * The passed nearby distance: a share of the step, 10 percent at first, or a fixed distance, in Settings, Movement.
-* Order: it can be sorted, like any other group. Its first order is along the path of the move, then by distance and by name. Today it is always along the path.
+* Order: it can be sorted, like any other group. Its first order is along the path of the move; Ctrl+S then gives name, distance and bearing, as for other groups.
 * It is worked out after the move, in the background, so it can arrive a moment after the place is said.
 
 ### 7. Search

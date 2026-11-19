@@ -14,7 +14,7 @@ The orchestrator's record of work on docs/plan/phase-3-tidy-up-plan2.md. Only th
 
 Last updated 19 November 2026.
 
-* Working on: P3-T29f.
+* Working on: P3-T29g.
 * git stash holds "P3-T28d unfinished". Keep it until P3-T28d is run again.
 
 ## Done
@@ -22,6 +22,7 @@ Last updated 19 November 2026.
 * P3-T28a, b, c, f, g, h, i, j, k, l, m, o, q.
 * P3-T29a.
 * P3-T29b: Nearby and look around leave out a place you are at, and Nearby keeps its count. The template nearby.here is no longer used by Nearby; left in place.
+* P3-T29f: places said "Passed nearby to Winchester, closest ..." (name after the words, as the PO chose). Ctrl+S already reached the group; a test now guards it. Test names and comments in test_hear_direction.py, test_window.py, tests/web still say "Crossed and passed": harmless.
 * P3-T29d: contents.water_may_hold. Oceans and seas hold oceans, seas, sea-places and islands; lakes hold islands and sea-places (bays on lakes, which P3-T28c keeps: the orchestrator's addition to the definition, tell the PO). Applied in Contains, Down and Browse by category. The test pack has no sea holding a river, so its tests patch Longbridge Lake's relationships.
 
 ## To do, in order

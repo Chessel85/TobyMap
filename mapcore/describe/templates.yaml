@@ -574,16 +574,16 @@ within:
   item: "{name}, centre {distance} {direction}"
   here: "{name}, centre here"
 
-# Crossed and passed (ANN-2): what the last move went over or near. The distance and
+# Passed over (ANN-2): what the last move went over or near. The distance and
 # direction are from where you are now; closest is how near the path came.
 crossed:
   crossed: "{name}, crossed, {distance} {direction}"
   passed_over: "{name}, passed over, {distance} {direction}"
-  passed: "{name}, passed, closest {closest}, {distance} {direction}"
+  passed: "Passed nearby to {name}, closest {closest}, {distance} {direction}"
   # The move ended on it, under a metre away (P2-T18e).
   crossed_here: "{name}, crossed, here"
   passed_over_here: "{name}, passed over, here"
-  passed_here: "{name}, passed, here"
+  passed_here: "Passed nearby to {name}, here"
   none: "Nothing crossed or passed on the last move."
 
 # Ctrl+S in the Information panel says the order it chose (P3-T4d); Ctrl+Enter on an item (P3-T4e, DP170).

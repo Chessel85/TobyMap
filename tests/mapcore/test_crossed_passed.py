@@ -75,12 +75,12 @@ def test_a_path_300_metres_from_the_station_lists_it_and_800_metres_does_not(ses
     start_lon = lon - 2500 / m_per_deg_lon(lat)
     place(session, lat + 300 / M_PER_DEG_LAT, start_lon, 5000)
     step_east_and_search(session)
-    station = [l for l in labels(session) if l.startswith("Southampton Central")]
-    assert station and station[0].startswith("Southampton Central, passed, closest 300 metres"), labels(session)
+    station = [l for l in labels(session) if "Southampton Central" in l]
+    assert station and station[0].startswith("Passed nearby to Southampton Central, closest 300 metres"), labels(session)
 
     place(session, lat + 800 / M_PER_DEG_LAT, start_lon, 5000)
     step_east_and_search(session)
-    assert not [l for l in labels(session) if l.startswith("Southampton Central")], labels(session)
+    assert not [l for l in labels(session) if "Southampton Central" in l], labels(session)
 
 
 def test_the_passed_nearby_distance_can_be_a_fixed_distance(session):
@@ -89,7 +89,7 @@ def test_the_passed_nearby_distance_can_be_a_fixed_distance(session):
     session.run("settings.set", field="passed_fixed_m", value=1000)
     place(session, lat + 800 / M_PER_DEG_LAT, lon - 2500 / m_per_deg_lon(lat), 5000)
     step_east_and_search(session)
-    assert [l for l in labels(session) if l.startswith("Southampton Central, passed")], labels(session)
+    assert [l for l in labels(session) if l.startswith("Passed nearby to Southampton Central")], labels(session)
 
 
 def test_a_5_km_step_over_the_small_lake_lists_it_passed_over(session):
@@ -274,4 +274,30 @@ def test_a_step_that_ends_on_a_point_lists_it_here(session):
     place(session, lat, lon - 1000 / m_per_deg_lon(lat), 1000)
     step_east_and_search(session)
     session.world.lat, session.world.lon = lat, lon   # exactly on it, as the step's own rounding may not be
-    assert "Southampton Central, passed, here" in labels(session), labels(session)
+    assert "Passed nearby to Southampton Central, here" in labels(session), labels(session)
+
+
+def test_a_place_passed_nearby_says_passed_nearby_to_its_name(session):
+    lat, lon = STATION
+    place(session, lat + 300 / M_PER_DEG_LAT, lon - 2500 / m_per_deg_lon(lat), 5000)
+    step_east_and_search(session)
+    assert any(l.startswith("Passed nearby to Southampton Central, closest 300 metres, ") for l in labels(session)), labels(session)
+
+
+def test_passed_over_is_along_the_path_then_ctrl_s_sorts_it_and_ctrl_shift_s_goes_back(session):
+    lat, lon = STATION
+    place(session, lat - 500 / M_PER_DEG_LAT, lon - 2500 / m_per_deg_lon(lat), 5000)
+    step_east_and_search(session)
+    along = labels(session)
+    assert len(along) > 1, along
+    session.panel_at_group = "crossed"
+    session.run("panel.sort")
+    by_name = [i["name"] for i in crossed_group(session)["items"]]
+    assert by_name == sorted(by_name, key=str.casefold), by_name
+    assert labels(session) != along
+    session.run("panel.sort")
+    by_distance = [i["distance_m"] for i in crossed_group(session)["items"]]
+    assert by_distance == sorted(by_distance), by_distance
+    session.run("panel.sort_back")
+    session.run("panel.sort_back")
+    assert labels(session) == along

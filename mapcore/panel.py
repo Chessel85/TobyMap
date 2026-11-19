@@ -6,8 +6,8 @@ their Shift and number keys (DP156); this table gives how each behaves:
 * default_sort: the order its items start in. "natural" is the order the group makes them in,
   such as Within's smallest to largest; "name", "distance" and "bearing" (clockwise from ahead)
   are the orders Ctrl+S cycles through (P3-T4d). UX section 6.1: Within natural, Nearby by
-  distance, Bordering by bearing, the rest by name. Passed over (id "crossed") keeps its natural order,
-  along the move, as it was in Phase 2. The Crossing group went in P3-T29a (INF-10): its content,
+  distance, Bordering by bearing, the rest by name. Passed over (id "crossed") starts in its natural order,
+  along the move, and Ctrl+S then sorts it like the others (P3-T29f). The Crossing group went in P3-T29a (INF-10): its content,
   a line's areas in order from its start and an area's lines, goes into Overlapping in P3-T29e.
 * zoom_limited: whether it shows only visible features (ANN-7, DP80, DP160). Contains, Nearby,
   and Passed over are; Within follows the zoom ranges through "where am I"; the others

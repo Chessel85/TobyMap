@@ -243,6 +243,8 @@ class MapSession:
         self._answer_to = "map"                  # where Go to's or the bearing's box was opened (P2-T17k)
         self.held_moves = 0
         self.held_turns = 0               # turns made while Left or Right is held in a facing orientation
+        self._in_burst = False            # inside run_many: zooms are compared with the place before the burst
+        self._place_said_before_zoom: str | None = None
         self.holding: str | None = None   # the movement command whose key is down (DP140)
         self._repeat_due = 0.0             # when the held key next steps (DP129)
         self._drawn_at = -math.inf         # when the map was last drawn for a held key
@@ -405,7 +407,16 @@ class MapSession:
         merged = Response()
         others: list[str] = []
         last = len(commands) - 1
+        self._in_burst, self._place_said_before_zoom = True, None
+        try:
+            return self._run_many(commands, merged, others, last)
+        finally:
+            self._in_burst, self._place_said_before_zoom = False, None
+
+    def _run_many(self, commands, merged: Response, others: list[str], last: int) -> Response:
         for i, (name, args) in enumerate(commands):
+            if not name.startswith("zoom."):
+                self._place_said_before_zoom = None   # another command ends the run of zooms
             args = dict(args)
             if i < last and registry.by_name(name).held:
                 args["held"] = True
@@ -2652,15 +2663,31 @@ class MapSession:
             return say("movement.step_only", step=words.distance_text(self.world.step_m, units))
         return self._zoom_step()
 
+    def _place_words_here(self) -> str:
+        """What Space would say now, worked out afresh, without touching the areas kept."""
+        areas, why_none = self._said_at(self.world.lat, self.world.lon)
+        return describer.place_text(self._said(areas), why_none)
+
     def _zoom(self, direction: int) -> Response:
         before = (self.world.zoom_m, self.world.step_m)
+        said_before = self._place_said_before_zoom
+        if said_before is None:   # what Space would say before this zoom, or before the burst's first
+            said_before = self._place_words_here()
         if not self.world.change_zoom(direction):
             key = "movement.zoom_end_out" if direction > 0 else "movement.zoom_end_in"
             return Response().speak(say(key, zoom_step=say(
                 "movement.zoom_only", zoom=words.distance_text(self.world.zoom_m, self._units()))), ASSERTIVE)
         self._settings_link_sync()
+        if self._in_burst:   # a burst of zooms is compared with the place before the first (ANN-3)
+            self._place_said_before_zoom = said_before
         self.areas = self._here()   # a layer may have come into or gone out of its zoom range (DP160)
-        return self._sizes_said(Response(redraw=True, panel_stale=True, details_stale=True), before)
+        r = Response(redraw=True, panel_stale=True, details_stale=True)
+        place = self._place_text()
+        if place == said_before:   # what Space would say is unchanged: only the zoom is said, as before
+            return self._sizes_said(r, before)
+        if not self.settings["say_zoom_step"]:
+            return r.speak(place, ASSERTIVE)
+        return r.speak(say("movement.zoom_place", zoom_step=self._changed_sizes(*before), place=place), ASSERTIVE)
 
     def _step_size(self, direction: int) -> Response:
         before = (self.world.zoom_m, self.world.step_m)

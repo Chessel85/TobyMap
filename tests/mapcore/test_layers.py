@@ -335,3 +335,31 @@ def test_several_changes_to_a_layer_are_judged_together(session):
     r = session.run("layers.set", layer="counties", values={"min_zoom_m": 900000, "max_zoom_m": 500000})
     assert spoken(r) == ["That value cannot be used for this setting."]
     assert session.layers.get("counties").min_zoom_m == 250000   # all or none
+
+
+# A zoom change says the place too, when what Space would say has changed (P3-T28k, ANN-1, ANN-7)
+
+def test_a_zoom_that_changes_what_space_would_say_says_the_place_after_the_zoom(session):
+    session.run("layers.set", layer="regions", field="max_zoom_m", value=50000)
+    _zoom(session, 100000)
+    session.press("Space")
+    assert spoken(session.press("Page Down")) == ["Zoom 50 kilometres. Kent, England, United Kingdom"]
+    assert spoken(session.press("Page Up")) == ["Zoom 100 kilometres. Kent, United Kingdom"]
+
+
+def test_a_zoom_that_changes_nothing_in_the_place_says_only_the_zoom(session):
+    session.run("layers.set", layer="regions", field="max_zoom_m", value=50000)
+    _zoom(session, 25000)
+    assert spoken(session.press("Page Down")) == ["Zoom 10 kilometres."]
+
+
+def test_a_burst_of_zooms_says_the_place_once_against_what_was_said_before_it(session):
+    session.run("layers.set", layer="regions", field="max_zoom_m", value=50000)
+    _zoom(session, 50000)
+    session.press("Space")
+    # Out past the limit and back: the place is as it was, so only the zoom is said.
+    r = session.run_many([("zoom.out", {}), ("zoom.out", {}), ("zoom.in", {}), ("zoom.in", {})])
+    assert spoken(r) == ["Zoom 50 kilometres."]
+    # Out past the limit and stop: the place has changed since before the burst.
+    r = session.run_many([("zoom.out", {}), ("zoom.out", {})])
+    assert spoken(r) == ["Zoom 250 kilometres. United Kingdom"]

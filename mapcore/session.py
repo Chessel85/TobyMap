@@ -1817,12 +1817,19 @@ class MapSession:
         inside = {a.id for a in self.areas}   # Contains is never limited by the zoom (ANN-7)
         count = self.settings["nearby_count"]
         # Nearby searches within the zoom (NAV-13), and lists only visible features.
-        near = self.store.nearby(self.world.lat, self.world.lon, zoom, limit=count + len(inside) + 1, exclude=inside,
-                                 layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom)
-                                 and self._interval_ok(a.record))
-        # A line you are on, such as the graticule's 100 degrees west at 100 degrees west, is not
-        # nearby, as an area you are in is not: it was listed as "0 metres north" (P2-T18e).
-        near = [n for n in near if n.distance_m >= HERE_M or self._geometry(n.area) != "line"]
+        limit = count + len(inside) + 1
+        while True:
+            near = self.store.nearby(self.world.lat, self.world.lon, zoom, limit=limit, exclude=inside,
+                                     layers=shown, accept=lambda a: self.visible.big_enough(self.layers.get(a.layer), a.record, zoom)
+                                     and self._interval_ok(a.record))
+            # A line you are on, such as the graticule's 100 degrees west at 100 degrees west, is not
+            # nearby, as an area you are in is not: it was listed as "0 metres north" (P2-T18e). Nor is a
+            # place you are at, such as Winchester on its point (P3-T29b, INF-7).
+            found = len(near)
+            near = [n for n in near if n.distance_m >= HERE_M or self._geometry(n.area) == "area"]
+            if len(near) >= count or found < limit:   # enough, or there are no more to ask for
+                break
+            limit += count   # some were left out: ask for more so that Nearby still has its count
         # Within: you are inside, so its place is the centre of the area, taken as the centre of
         # its bounding box (the PO's answer, 8 November 2026).
         self._spots = {("within", a.id): (a, *box_centre(a.record["bbox"])) for a in self.areas}

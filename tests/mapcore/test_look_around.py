@@ -184,6 +184,16 @@ def test_a_switched_off_layer_sound_leaves_the_voice(close):
     assert station["sound"] is None and station["voice"] is not None
 
 
+def test_a_place_you_are_at_is_not_played(test_pack):
+    """P3-T29b, INF-7: standing on Southampton Central's point, look around does not play it."""
+    s = make(test_pack, lat=STATION[0], lon=STATION[1], zoom_m=5000)
+    assert not [i for i in nearby(s) if i["name"] == "Southampton Central"]
+    r = look(s)
+    assert r.scan is not None
+    assert not [i for i in r.scan["items"] if i["voice"]["text"].startswith("Southampton Central")]
+    s.store.close()
+
+
 def test_joined_commands_a_later_key_stops_an_earlier_scan(session):
     assert session.run_many([("look.around", {})]).scan is not None
     assert session.run_many([("look.around", {}), ("move.north", {})]).scan is None

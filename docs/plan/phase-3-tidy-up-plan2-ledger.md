@@ -14,17 +14,17 @@ The orchestrator's record of work on docs/plan/phase-3-tidy-up-plan2.md. Only th
 
 Last updated 19 November 2026.
 
-* Working on: P3-T29b. The 5 commits from before this ledger were pushed without a local full run, as the PO asked; continuous integration checks them.
+* Working on: P3-T29d.
 * git stash holds "P3-T28d unfinished". Keep it until P3-T28d is run again.
 
 ## Done
 
 * P3-T28a, b, c, f, g, h, i, j, k, l, m, o, q.
-* P3-T29a (browser tests being run now).
+* P3-T29a.
+* P3-T29b: Nearby and look around leave out a place you are at, and Nearby keeps its count. The template nearby.here is no longer used by Nearby; left in place.
 
 ## To do, in order
 
-1. P3-T29b, Sonnet: Nearby leaves out a place you are at.
 2. P3-T29d, Sonnet: Water holds only water features and islands.
 3. P3-T29f, Sonnet: Passed over, "passed nearby to Winchester" (R6), sortable.
 4. P3-T29g, Sonnet: the group heading says its sort order; Ctrl+S and Ctrl+Shift+S put focus on the heading (R4).

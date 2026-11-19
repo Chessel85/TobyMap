@@ -242,11 +242,18 @@ def nearby_labels(s):
     return [i["label"] for i in next(g for g in s.panel() if g["id"] == "nearby")["items"]]
 
 
-def test_standing_on_a_point_it_is_here_with_no_distance_or_direction(session):
-    """P2-T18e: "0 metres north" made no sense; under a metre away an item is "here"."""
+def test_a_place_you_are_at_is_not_nearby(session):
+    """P3-T29b, INF-7 (changes P2-T18e, where it was listed "here"): standing on a point, it is left out of
+    Nearby, and Nearby still has its count; a place merely near is still listed."""
+    session.run("settings.set", field="nearby_count", value=4)   # four others are within 5 kilometres
     place(session, *STATION, 1000)
     session.areas = session._here()
-    assert "Southampton Central, here" in [l.split(" (")[0] for l in nearby_labels(session)], nearby_labels(session)
+    labels_here = nearby_labels(session)
+    assert not [l for l in labels_here if l.startswith("Southampton Central")], labels_here
+    assert len(labels_here) == 4, labels_here
+    place(session, STATION[0] + 200 / M_PER_DEG_LAT, STATION[1], 1000)   # 200 metres off it, it is nearby
+    session.areas = session._here()
+    assert [l for l in nearby_labels(session) if l.startswith("Southampton Central, ")], nearby_labels(session)
 
 
 def test_a_line_you_are_on_is_not_nearby(session):

@@ -4,7 +4,7 @@ Written on 19 November 2026, from your second pass of the desktop checklist and 
 
 ## The plan
 
-The plan has six parts:
+The plan has six parts, and key maps, task P3-T31, added on 19 November 2026 (section 3a):
 
 1. Faults and changes from your second pass, task P3-T28.
 2. The Information panel as defined, task P3-T29.
@@ -89,6 +89,29 @@ Your answer to Q3: the coast like a neighbour, with its length and its ends, whe
 
 * P3-T30a, Opus: Run on a small sample first: Hampshire and its neighbours, from the Western Europe trial's data on disk. A report for you, with each stretch of coast, its length and its ends.
 * P3-T30b, Opus: If you approve, a build stage for every area, timed on the Western Europe trial before the world build.
+
+## 3a. Key maps, task P3-T31
+
+Agreed with you on 19 November 2026. The words are in the glossary: command list, key map, your keys, key file, keyboard layout.
+
+### The definition
+
+* Five key maps, each a file read when TobyMap starts: Windows desktop, Mac desktop, Windows browser, Mac browser, and Alternative.
+* Keys are written once for both systems where they can be: one modifier means Ctrl on Windows and Cmd on a Mac, as Visual Studio Code does. A Mac key map lists only the keys that differ, such as those that clash with VoiceOver (Control+Option) or with macOS itself.
+* Alternative avoids Ctrl+Alt with a letter, which is AltGr on many European keyboards, and keys that move between layouts, such as punctuation.
+* The command list keeps the commands, where each works and its menu; the key maps hold the keys.
+* In Settings: choose a key map, change any key, Save as a key file, Open a key file. Reset gives back the chosen key map's own keys.
+* Your keys are kept as changes on top of the chosen key map, never as a full copy, so a key added in a new version still reaches you. A key file says which key map it is based on.
+* When TobyMap first starts, it picks the key map for your system and version. This is where detecting the keyboard layout fits later: the desktop can ask Windows or macOS, and Chrome and Edge can tell the page, but Firefox and Safari cannot. Detection itself is not in this task; the place for it is.
+* How a key is recognised stays as today: a letter by the letter it types, Shift with a number by the key's position.
+* docs/design/keymap.csv, made from the key map files by tools/make_key_list.py, replaces docs/plan/phase-3-keys.csv. Columns: Command, Where it works, Windows desktop, Mac desktop, Windows browser, Mac browser, Variations, Notes on the variations. The variations come from a small list of common keyboard layouts kept in the repository (UK, US, US International, German, French, Spanish, Italian, Nordic, Polish, Czech and its neighbours, Mac layouts). A test fails if the file is out of date. Before the old file goes, every comment in its "Your key" column is checked and any still open is listed for you.
+* The Mac keys are chosen by me, as sensibly as I can, from Apple's and VoiceOver's own keys. You asked not to review them.
+
+### The tasks
+
+* P3-T31a, Opus: the key map files, how they are read, and your keys as changes on top; the Mac and Alternative key maps chosen.
+* P3-T31b, Sonnet: Settings in both versions: choose a key map, Save as, Open, Reset.
+* P3-T31c, Sonnet: keymap.csv, made by the tool, with the layout list and the test.
 
 ## 4. Carried over from the first plan
 

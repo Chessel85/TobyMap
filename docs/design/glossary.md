@@ -215,6 +215,11 @@ Older documents written before this glossary, such as architecture section 6 and
 * Hierarchy mode: moving between features instead of by distance: up to the area that contains the current feature, down into what it contains, and across to its neighbours (NAV-4). M switches it on, and M again goes back to stepping (the PO's key list, in place of 1 and 2).
 * Item actions: what the keys do on any item in the Information panel: Enter goes there, Space hears its direction, and Ctrl+Enter bookmarks it from Phase 4. There is no menu of actions (DP170).
 * Look around: hearing the Nearby group as sound, one item after another clockwise from ahead, each from its own direction (SON-4). L starts it; each item is its layer's sound, then its name and distance in the spatial voice, then a short pause. At most 12 items. Any key stops it, and Enter on the map goes to the item playing (P3-T11a). One look around is a scan.
+* Command list: the file `mapcore/commands/registry.yaml`, read each time TobyMap starts: every command, where it works and its menu. It was called the command registry; it has nothing to do with the Windows registry.
+* Key map: a file of the keys for every command, read each time TobyMap starts. There are five: Windows desktop, Mac desktop, Windows browser, Mac browser, and Alternative, for keyboards where Ctrl+Alt with a letter types a character (AltGr). Chosen in Settings; TobyMap picks the one for your system when it first starts (P3-T31).
+* Your keys: the keys you have changed, kept as changes on top of the key map you chose, so keys added in a new version still reach you. Reset gives the key map's own keys back. Save as writes them to a key file.
+* Key file: your keys saved as a file, with the name of the key map they are based on, so it can be shared and opened in Settings on another computer, in either version (P3-T31).
+* Keyboard layout: what each key types, set in Windows or macOS, such as UK, US, German or French. Not the same as a key map.
 * Focus point: in the web version, the small invisible element at the map centre that has the keyboard focus when the map does, so a magnifier that follows the focus looks there (ACC-8).
 
 ## Planning

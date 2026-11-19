@@ -1,0 +1,107 @@
+
+General comments:
+When writing checklists, your instructions can simplify going to a location. Instead of "restart at location ...", just say  "go to .." and I can use the control+g feature.
+And rather than checking lots of settings, I'd say "Ensure default settings are in place by going to the Map menu and running reset all settings".
+
+My own testing:
+When I see elevation in the details panel, I think it relates to maximum elevation.  If this is correct, update the labelling.
+When on the map and I am at a location, if I use NVDA object nav  it reads out the full path of the location.  This must mean this text is on the screen.  Where on the screen is it?  Nothing in our discussions has indicated this text will be on screen.
+I am on Islay, and I hit L. Scotland is 6km away to the east.  What is this referring to? It isn't helpful.  The "Scottish mainland" being 30km away to the east would be helpful but not this.
+Still on Islay: I'm struggling to discover that Dura is a nearby island.  Are the tools in place to let the user discover this?
+If I zoom in and out and this changes what would be announced with spacebar on the map, then it should get announced as I do the zoom change. e.g. Increasing zoom when over Hampshire and it had previously said England, UK, but with the increased zoom spacebar would say Hampshire, England, UK, say this as part of the zoom change.
+
+Testing.
+1.1 pass
+1.2 pass
+1.3 pass
+1.4 pass
+
+2.1 pass
+2.2 pass
+2.3 pass. I happened to look in "Bays and Straits".  Any idea what Bath Hole is, or Hatch Pool?  I'm unclear what they have to do with bays and straits.
+Under the counties section England appeared.  England is not a county.
+Motorways and trunk roads does not contain the M3 which is just a kilometre or so to the east.
+Unclear what defines what goes into the "Contains" groups.  Bays and Straits only had 6 entries up to 19km away, whereas railways had things hundreds of kilometres away.
+Cities and towns had a sensible collection nearby to winchester.
+Do places like Winchester only have a spot location, and not cover an area? I think this is okay for now.
+Actually, it looks like we need to go through this information panel with a fine tooth comb.  A specific information panel review.
+Write a document listing each group and subgroup and how it gets populated.
+2.4 pass. but the UI is awful.  Firstly, focus should land on the current active view.  Then instead of providing functionality through entries in the drop down list, have add, rename and delete buttons.  The views dialogue needs an ok button, as well as cancel. Ok is the default button for the dialogue, and escape does cancel. space bar on either ok or cancel activates that button.
+2.5 pass
+
+3.1 pass, but I can't move to somewhere which is announced as Llívia.  My understanding is that  Llivia is an area.
+3.2 pass
+3.3 pass
+3.4 pass
+3.5 pass
+3.6 pass
+3.7 pass
+3.8 would prefer “Llívia, exclave of Spain in France”
+
+4.1 Pass. Is elevation the maximum elevation?
+pressing enter on wikipedia article line should launch a browser on the page
+Source is concise, but not clear.  What is actually being sourced?  Coordinate data?
+On the line quoting borders for a country, the land and coastline totals do not add up to the total border length quoted.  And use the word "is" e.g. and coastline is 11,234...
+4.2 pass
+4.3 pass. but want a global keystroke to open the current focus. control alt W?
+
+
+5.1 i felt no delay at all.
+5.2 pass
+5.3 pass
+
+6.1 pass
+6.2 pass, but the points need to be sorted in direction order.
+6.3 pass
+6.4 pass 
+6.5 pass
+
+7.1 pass
+7.2 pass. generally good but the England and coast entries are odd.  how does hampshire have a border with England only 1.6km long?  I wouldn't have thought Hampshire borders England at all.
+And the coast  does not state a length of the border.  And the 3 entries in it are nonsense.  I would expect several places such as where west sussex and coast meet, where coast and portsmouth meet, where portsmouth and coast meet, where coast and southampton meet, where southampton and coast meet, and where coast and Bournemouth, Christchurch and Poole meet.
+7.3 pass
+7.4 pass
+
+8.1 pass. but pressing space in the map does not say Winchester. It starts at Hampshire.
+8.2 pass. Simplify "The location is" in details to just "Location:". And make the coordinates given respect the units in settings.
+8.3 pass
+8.4 pass
+
+9.1 pass
+9.2 pass
+9.3 pass
+ 9.4 pass but need to review usefulness of some of the sections when the focus is a river.  I did notice that the m3 motorway is not listed as crossing the river itchen which it certainly does.
+9.5 pass 
+
+set 10: pass.
+If I press escape from the M dialogue, then I seem to be in stepping mode. yet pressing M tells me I am back in stepping mode.
+what is happening visually on the screen in hierarchy mode? Is it a modal dialogue?
+
+11.1 pass 
+11.2 pass
+11.3 pass 
+11.4 fail. condominium is not listed under Europe as a country.
+11.5 pass
+11.6 pass
+11.8 pass
+
+12.1 pass
+12.2 pass
+12.3 this test is not making sense and the workflow sounds rubbish.  it isn't intuitive to expect the user to press cancel.
+12.4 not done
+
+13.1 pass
+13.2 pass
+13.3 pass, although details says area is 7 square kilometres but border 260 km. sounds geometrically unlikely.
+
+14.1 pass. what determines the number of entries in nearby and look around?  
+14.2 Yes, but the volume doesn't seem to give much indication of distance. even when I increased zoom to 2.5km there was not much variation in volume, but then there was probably only 400metres variation in the results.
+14.3 pass 
+
+15.1 pass. but I'm not really sure I get the hang of this hierarchy mode.
+15.2 pass
+15.3 pass
+
+set 16: pass
+
+

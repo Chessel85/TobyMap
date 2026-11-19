@@ -545,3 +545,112 @@ With the handful of packs a person is likely to install, this extra work should 
 ### Getting packs
 
 The pack manager, in Phase 4, lists the published packs from one small file, the catalogue, with each pack's size and date. It downloads a pack, checks its checksum, and offers updates. The desktop downloads from GitHub Releases. The web version keeps its packs in the browser's private storage, downloaded from a copy on Hugging Face, and can read from a pack while it is still downloading (PCK-2, PCK-4). Later, a user who is online may explore an area before installing its pack, by reading only the records needed over the internet (PCK-3, Phase 7).
+
+## How the Information panel's groups are filled
+
+Written on 18 November 2026, and rewritten on 19 November 2026 from your comments. This section is the definition of the Information panel: what each group holds, how its distances are measured, and how hierarchy mode uses it.
+
+Where the code does something different today, a line starting "Today" says so. Those changes are task P3-T29 in docs/plan/phase-3-tidy-up-plan2.md. Where a point waits for your answer, it names the question, such as R2, in docs/checklists/phase-3-tidy-up-desktop-response.md.
+
+### Words used here
+
+* Your position: where you are on the map.
+* Current feature: what the groups Bordering, Contains and Overlapping are about. When stepping, the first area "where am I" says; after Enter on an item, a search result, or a move in hierarchy mode, that feature; with a current layer, the area of that layer where you are. Today the first area is chosen by layer rank, not as "where am I" says it, so at the United Kingdom at 2,500 kilometres zoom it is the British Isles. P3-T28m fixes this.
+* The view: the circle round your position whose radius is the zoom distance. At zoom 25 kilometres, everything within 25 kilometres of you.
+* Visible: a feature whose layer is on, and which passes the size rule: an area must be at least its layer's minimum width, as a share of the zoom distance. Lines and places always pass the size rule.
+* Nearest point: the point of a feature nearest your position. For a place, its position.
+* Its own point: a point the build chooses for each feature, on its land for an area. Enter on an area, search and hierarchy mode take you there.
+* Wholly inside: all of a feature is inside another, allowing 0.5 percent for the roughness of outlines. For a mountain range or another land area, only its land is measured, so the edge of Exmoor that lies in the sea does not stop Exmoor being wholly inside England. Today the sea part is measured, so Exmoor is inside nothing. P3-T28n fixes this in the build.
+* Partly inside: more than 0.5 percent of a feature is inside another, but not all of it.
+* Nearly touches: two areas of the same layer that share no border, with a gap between them no wider than a quarter of the smaller area's width, and never more than 5 kilometres. Each area keeps at most the 10 nearest. So Hampshire nearly touches the Isle of Wight, 1.3 kilometres across the Solent, but two islets 3 kilometres apart do not.
+* Stand-in area: land of a region that the build found in none of its counties, and filled with an area named after the region, such as "England" in the Counties layer. P3-T28a removes the slivers and names the rest as what they are, so a stand-in area is never said by the region's bare name.
+
+### The groups and their keys
+
+1. Within, Shift+1.
+2. Nearby, Shift+2.
+3. Bordering, Shift+3.
+4. Contains, Shift+4.
+5. Overlapping, Shift+5.
+6. Passed over, Shift+6.
+7. Search, Shift+7.
+
+Today there are eight groups, in another order: Within, Nearby, Crossed and passed, Contains, Bordering, Overlapping, Crossing, Search. Crossing is gone: what it held is now in Overlapping. Crossed and passed is renamed Passed over.
+
+Every group can be sorted with Ctrl+S, and the other way round with Ctrl+Shift+S. How you hear which order a group is in is question R4.
+
+### 1. Within
+
+* What is in it: every area your position is in, as "where am I" says them, in the same order.
+* Distance and direction: to the area's centre, said as "centre 31 kilometres north-east". The centre is the centre of its bounding box.
+* Not limited by the view.
+* For a later phase: the centre of the area's largest part, so the United Kingdom's centre is on Great Britain, and the United States' is on the mainland, not pulled towards Alaska and Hawaii.
+
+### 2. Nearby
+
+* What is in it: the nearest visible features in the view, of any kind. Left out: the areas you are in, a line you are on, and a place you are at. Today a place you are at, such as Winchester when you are on its point, is listed as here. P3-T29b leaves it out.
+* How many: the setting "Number of nearby items", in Settings, Movement. It starts at 8.
+* Distance and direction: to each feature's nearest point. So a long river or a large sea is as near as its nearest bank or shore.
+* Look around (L) plays Nearby's items, up to 12, clockwise from ahead.
+
+### 3. Bordering
+
+* Neighbours: the areas of the current feature's own layer that share a border with it. A county's neighbours are counties, a country's are countries. Each says the length of the shared border and its share of the whole border. Opened, it lists the ends of the shared border, sorted clockwise from north, or from ahead when you face a direction (P3-T28i), each saying what is there: the coast and its sea, or the third area where three borders meet.
+* Then the areas of its layer that nearly touch it, each with the distance across.
+* Shores, for a lake or sea: the land round it, a subgroup for each layer, each with its length of shore.
+* Coast, for land: a subgroup whose heading gives the whole coast's length, such as "Coast, 180 kilometres", listing the most detailed water it touches, such as the English Channel, each with its length of coast. Today it lists every level of water, so the North Atlantic Ocean and the English Channel are both there for the same coast, and the heading gives only a count. P3-T28b fixes this.
+* Not limited by the view, but only from layers that are on.
+* Being tried: each stretch of coast as a neighbour, with its length and its ends, where it meets the next area along the coast, such as West Sussex or Southampton for Hampshire (your answer to Q3). P3-T30 tries it on a small sample first.
+
+### 4. Contains
+
+* What is in it: the visible features wholly inside the current feature, that are in the view. A feature only partly inside is in Overlapping, not here. Today partly inside features are listed too, said as "partly in Hampshire". P3-T29c moves them.
+* What is inside what is worked out by the build, from the real shapes, and stored in the pack. Nothing about being inside is decided by a bounding box.
+* In the view: a feature is listed when its nearest point is within the zoom distance of you. Today this is decided by bounding boxes, which lets in a railway line hundreds of kilometres away and leaves out a bay just outside the circle. Whether Contains should be limited by the view at all is question R2.
+* Water holds only water features and islands. A sea or ocean contains bays, straits and islands; a lake contains its islands. Rivers, roads, railways and towns at the coast are never inside the water, even where the sea's outline, which is rough, overlaps them. Today Down from the English Channel lists rivers, roads, railways and two towns, Porthleven and Looe, because the outline of the sea overlaps the coast. P3-T29d fixes this.
+* Layers outside their zoom range still count, so Contains England at a wide zoom still lists its counties. The size rule still applies.
+* Subgroups: one for each layer with something in it, such as "Rivers 3", in the layer order. Bays and straits are one subgroup, "Seas, bays and straits", holding both those drawn as areas and those that are only places. Today they are two subgroups.
+* Distance and direction: to each feature's nearest point. An area you are in says "you are inside" in place of a distance. Today the distance is to the feature's own point, so the M3 is "29 kilometres north-east" from Winchester though it passes 2 kilometres east.
+* Hierarchy mode's Down, and Browse by category, list the same features.
+
+### 5. Overlapping
+
+* For an area, three kinds of item, each in its own subgroup:
+  * Areas of other layers that cover part of it, each with how much each covers of the other, by layer, such as "Mountain ranges 2". The land round a lake or sea is in Bordering's Shores, not here.
+  * Lines partly inside it, such as rivers, roads and railways, each with how many times it crosses the border and the nearest crossing. Opened, it lists each crossing point. Today these are in Crossing, and the lines are also in Contains.
+  * Lines that run along its border, such as the Rhine for Switzerland. Today these are in Crossing.
+* For a line: the areas it passes through, in the order it meets them from its start, each with its share of the line. An area that holds all of the line is not listed: you reach it with Up in hierarchy mode. Today this is in Crossing.
+* For a place: nothing. A place is either inside an area or not. Today a place can list areas it is "partly" inside, which cannot happen; P3-T29e removes it.
+* Not limited by the view, but only from layers that are on.
+* For a later phase: where lines cross or meet each other, such as the M3 crossing the River Itchen, or the Wye flowing into the Severn. The build does not store this today. It is part of question R5, on networks.
+
+### 6. Passed over
+
+* What is in it: what your last move went over or near without stopping on it.
+  * Lines it crossed, such as rivers and borders: "crossed River Test".
+  * Areas it entered and left: "passed over".
+  * Places it came within the passed nearby distance of: "passed nearby to Winchester". Today this is said as "passed".
+* The passed nearby distance: a share of the step, 10 percent at first, or a fixed distance, in Settings, Movement.
+* Order: it can be sorted, like any other group. Its first order is along the path of the move, then by distance and by name. Today it is always along the path.
+* It is worked out after the move, in the background, so it can arrive a moment after the place is said.
+
+### 7. Search
+
+* What is in it: the results of the last search (Ctrl+F), Browse by category (Ctrl+Shift+F) or the query builder (Q). It stays until the next one replaces it.
+* Up to 2,000 items for Browse by category and the query builder, and 20 for a search.
+* The query builder's "Of" list gets a choice "Search for a feature", which opens search and comes back with the feature you choose (your answer to Q4).
+
+### Hierarchy mode and the panel
+
+Hierarchy mode moves you between features, using the panel's groups:
+
+* Up goes to the smallest area that holds all of the current feature, from layers that are on. When two or more such areas hold none of each other, such as a county and a mountain range, a list asks which.
+* Down lists what Contains lists, by kind, each kind with its count, and then the features of the kind you choose. The kinds come in the layer order, the order of the Layers dialog: continents, countries, oceans and seas, seas, bays and straits, mountain ranges, deserts and other regions, peaks, regions, islands, counties, rivers, roads, railways, towns, enclaves and exclaves, lakes.
+* Left and Right go round the current feature's neighbours, as Bordering lists them, clockwise from ahead: first those that share a border, then those that nearly touch. Right after Right goes on round the feature you started from, so you can hear all its neighbours in turn.
+* Enter on the map, in hierarchy mode, makes the feature you are on the one Left and Right go round. So from Bournemouth, Right moves you to Hampshire, and Enter then lets Left and Right go round Hampshire's neighbours. Today Enter says "Nothing to go to". P3-T28o adds this.
+* Enter in a list goes there, and Alt+Comma goes back.
+
+Worked examples of what you will notice, checked on the Western Europe trial pack:
+
+* Obwalden is a canton, in the Regions layer, not a county. Its municipalities are in the Counties layer: at 1,000 kilometres zoom, only Kerns is big enough to show, of 7. The Alps hold Obwalden, so the Alps are found with Up, not Down.
+* Bournemouth's neighbours are Hampshire, Dorset, and a stand-in area "England" with 100 metres of border. P3-T28a removes it.

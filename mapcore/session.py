@@ -929,7 +929,8 @@ class MapSession:
     @property
     def current_feature(self):
         """The feature the groups about one feature are about (LOC-4): the one hierarchy mode moved you to,
-        while you are still at its place, otherwise the smallest area here. None where there is no area."""
+        while you are still at its place, otherwise the first area "where am I" says here (P3-T28m). None where
+        there is no area."""
         if self._current is not None:
             identifier, lat, lon = self._current
             if (lat, lon) == (self.world.lat, self.world.lon):
@@ -941,7 +942,7 @@ class MapSession:
             area = self._area_of_layer_here()
             if area is not None:
                 return area
-        return self._smallest_here()
+        return self._first_said_here()
 
     def _area_of_layer_here(self):
         """The area of the current layer where you are, whatever the zoom: a current layer is your own choice,
@@ -956,7 +957,7 @@ class MapSession:
     def _current_layer_set(self, item: str | None = None, group: str | None = None, **_a) -> Response:
         """Shift+Enter on an item of the Information panel (P3-T24b, DP202): its layer becomes the current
         layer, and it the current feature, so the groups, the outline and Details follow that layer as you
-        step. On the smallest area here, the usual rule comes back. What "where am I" says does not change."""
+        step. On the first area said here, the usual rule comes back. What "where am I" says does not change."""
         self.panel()
         if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
@@ -965,7 +966,7 @@ class MapSession:
         area = spot[0] if spot else (self.store.feature(item) if item and not panel_table.is_heading(item) else None)
         if area is None:
             return Response().earcon("blocked").speak(say("current_layer.no_item"), ASSERTIVE)
-        smallest = self._smallest_here()
+        smallest = self._first_said_here()
         r = Response(panel_stale=True, details_stale=True, redraw=True)
         self._layer_here = None
         if smallest is not None and area.id == smallest.id and self.current_layer in (None, area.layer):
@@ -983,15 +984,17 @@ class MapSession:
         return r.speak(say("current_layer.chosen", layer=layer.name if layer else area.layer, name=area.name),
                        ASSERTIVE)
 
-    def _smallest_here(self):
-        """The smallest area here, the most specific (LOC-2), whatever order the view says them in (P3-T23)."""
-        from mapcore.store.store import most_specific_first
-
-        return most_specific_first(self.areas, self.store.tiers)[0] if self.areas else None
+    def _first_said_here(self):
+        """The first area "where am I" says here (LOC-4, P3-T28m): the same list and order as it is said, so
+        in Britain at a country's zoom the United Kingdom, not the British Isles, though the Deserts and other
+        regions layer ranks above Countries. An area left out of what is said, as the same land said once, is
+        passed over. None where there is no area."""
+        said = {a.id for a in self._said(self.areas)}
+        return next((a for a in self.areas if a.id in said), None)
 
     def set_current_feature(self, identifier: str) -> None:
         """Make a feature the current one at the place you are now (LOC-4), as hierarchy mode does when
-        it moves you to it (P3-T6). A move away from this place makes the smallest area current again."""
+        it moves you to it (P3-T6). A move away from this place makes the first area said current again."""
         self._current = (identifier, self.world.lat, self.world.lon)
 
     def _closed_group(self, gid: str, current) -> dict:
@@ -3315,7 +3318,7 @@ class MapSession:
             return self._isolate_off()
         if not self.areas:
             return Response().speak(say("display.isolate_none"), ASSERTIVE)
-        smallest = self._smallest_here()
+        smallest = self._first_said_here()
         self.isolated = smallest.id
         return Response(redraw=True).speak(say("display.isolated", name=smallest.name), ASSERTIVE)
 

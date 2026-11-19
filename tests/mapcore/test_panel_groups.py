@@ -143,6 +143,19 @@ def test_the_current_feature_is_the_smallest_area_here(test_pack):
     s.store.close()
 
 
+def test_the_current_feature_is_the_first_area_where_am_i_says_not_the_first_by_layer_rank(test_pack):
+    """P3-T28m, LOC-4: at 500 kilometres zoom in the New Forest, "where am I" says England first; the New Forest
+    National Park's layer ranks above Regions, but it is said last, so it is not the current feature. As the
+    British Isles at the United Kingdom in the world pack (the PO's note in explanation.md)."""
+    s = MapSession(packs=[test_pack], saved_state={"lat": 50.87, "lon": -1.6, "zoom_m": 500000, "step_m": 25000})
+    s.start()
+    said = s.run("where.am_i").announcements[0]["text"]
+    assert said.startswith("England") and "New Forest National Park" in said
+    assert s.current_feature.name == "England"
+    assert group(s.panel(), "contains")["label"] == "Contains England"
+    s.store.close()
+
+
 def test_hierarchy_mode_can_make_another_feature_current_until_you_move(test_pack):
     """P3-T6 sets the current feature as it moves you to it; any move after makes the smallest area current."""
     s = MapSession(packs=[test_pack], saved_state=dict(HAMPSHIRE))

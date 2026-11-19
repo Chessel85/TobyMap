@@ -71,10 +71,11 @@ def test_the_political_view_says_government_areas_then_natural_ones_and_the_phys
         "Africa"]
 
 
-def test_the_current_feature_is_still_the_smallest_area_whatever_the_order_said(session):
+def test_the_current_feature_is_the_first_area_said_in_the_view(session):
+    """P3-T28m (LOC-4): the current feature follows the order "where am I" says, in each view."""
     session.settings.view = "physical"
     session.areas = session._here()
-    assert session.current_feature.name == "Kent"
+    assert session.current_feature.name == "Kent" == session.areas[0].name
 
 
 # The drawing --------------------------------------------------------------------------------------------

@@ -41,7 +41,7 @@ NEW_2 = [
     ("Go to a place in the location history", "the location history", "Enter", "P2-T15, P2-T17t. In the location history."),
     ("Layers list", "anywhere", "Shift+L", "P2-T3"),
     ("Orientation beacon on or off", "the map", "B", "P2-T9"),
-    ("Hear its direction", "the Information panel", "Ctrl+Enter", "DP143, P2-T7. On Nearby and Crossed and passed items."),
+    ("Hear its direction", "the Information panel", "Ctrl+Enter", "DP143, P2-T7. On Nearby and Passed over items."),
     ("Isolate the current feature, and again to show everything", "the map", "Ctrl+I", "P2-T12. New, proposed by me; no key was set in the design."),
     ("Next verbosity preset", "anywhere", "Ctrl+Shift+V", "P2-T11. New, proposed by me; no key was set in the design."),
     ("Next theme", "anywhere", "Ctrl+Shift+T", "P2-T12. New, proposed by me; no key was set in the design."),
@@ -52,8 +52,7 @@ PANEL_2 = [
     ("Panel group: Contains", "I"),
     ("Panel group: Bordering", "N"),
     ("Panel group: Overlapping", "O"),
-    ("Panel group: Crossing", "X"),
-    ("Panel group: Crossed and passed", "Shift+X"),
+    ("Panel group: Passed over", "Shift+X"),
 ]
 
 # New Phase 3 commands (docs/plan/phase-3-plan.md): (command, where, key proposed, note).
@@ -62,11 +61,11 @@ NEW_3 = [
     ("Stepping mode", "the map", "1", "P3-T6. Goes back to stepping from hierarchy mode, without moving."),
     ("Hierarchy mode", "the map", "2", "P3-T6. In hierarchy mode, Up goes to the parent, Down lists what is inside, "
      "and Left and Right go to the neighbours, clockwise. No new keys for those."),
-    ("Go to Contains", "anywhere", "Shift+4", "P3-T4. New groups go after the three you know, so Shift+1 to Shift+3 stay as they are (DP156)."),
-    ("Go to Bordering", "anywhere", "Shift+5", "P3-T4."),
-    ("Go to Overlapping", "anywhere", "Shift+6", "P3-T4."),
-    ("Go to Crossing", "anywhere", "Shift+7", "P3-T4."),
-    ("Go to Search", "anywhere", "Shift+8", "P3-T4. The search results, the world tree's lists and the query builder's answers."),
+    ("Go to Bordering", "anywhere", "Shift+3", "P3-T29a. The groups and their keys, in the order you chose (INF-10): Within, Nearby, Bordering, Contains, Overlapping, Passed over, Search."),
+    ("Go to Contains", "anywhere", "Shift+4", "P3-T29a."),
+    ("Go to Overlapping", "anywhere", "Shift+5", "P3-T29a."),
+    ("Go to Passed over", "anywhere", "Shift+6", "P3-T29a. Was Crossed and passed, on Shift+3. The Crossing group went."),
+    ("Go to Search", "anywhere", "Shift+7", "P3-T29a. The search results, the world tree's lists and the query builder's answers."),
     ("Next sort order: name, distance, bearing", "the Information panel", "Ctrl+S", "P3-T4. Agreed in DP79."),
     ("Previous sort order", "the Information panel", "Ctrl+Shift+S",
      "P3-T4. New: Shift goes the other way round a list (P2-T17l)."),

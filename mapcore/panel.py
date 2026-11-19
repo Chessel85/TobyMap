@@ -6,12 +6,11 @@ their Shift and number keys (DP156); this table gives how each behaves:
 * default_sort: the order its items start in. "natural" is the order the group makes them in,
   such as Within's smallest to largest; "name", "distance" and "bearing" (clockwise from ahead)
   are the orders Ctrl+S cycles through (P3-T4d). UX section 6.1: Within natural, Nearby by
-  distance, Bordering by bearing, the rest by name. Crossed and passed keeps its natural order,
-  along the move, as it was in Phase 2. Crossing's natural order is, for a line, the areas it
-  passes through in order from its start (INF-6), and for an area, its lines by name, which its
-  filler sorts itself.
+  distance, Bordering by bearing, the rest by name. Passed over (id "crossed") keeps its natural order,
+  along the move, as it was in Phase 2. The Crossing group went in P3-T29a (INF-10): its content,
+  a line's areas in order from its start and an area's lines, goes into Overlapping in P3-T29e.
 * zoom_limited: whether it shows only visible features (ANN-7, DP80, DP160). Contains, Nearby,
-  and Crossed and passed are; Within follows the zoom ranges through "where am I"; the others
+  and Passed over are; Within follows the zoom ranges through "where am I"; the others
   show everything from the layers that are switched on.
 * about_current: whether it is about the current feature (LOC-4), so its heading names it:
   "Bordering France, 8 items".
@@ -47,11 +46,10 @@ class Group:
 GROUPS: dict[str, Group] = {g.id: g for g in [
     Group("within", "natural", zoom_limited=False, about_current=False, lazy=False),
     Group("nearby", "distance", zoom_limited=True, about_current=False, lazy=False),
-    Group("crossed", "natural", zoom_limited=True, about_current=False, lazy=False),
-    Group("contains", "name", zoom_limited=True, about_current=True, lazy=True),
     Group("bordering", "bearing", zoom_limited=False, about_current=True, lazy=True),
+    Group("contains", "name", zoom_limited=True, about_current=True, lazy=True),
     Group("overlapping", "name", zoom_limited=False, about_current=True, lazy=True),
-    Group("crossing", "natural", zoom_limited=False, about_current=True, lazy=True),
+    Group("crossed", "natural", zoom_limited=True, about_current=False, lazy=False),   # "Passed over"
     Group("search", "name", zoom_limited=False, about_current=False, lazy=True),
 ]}
 

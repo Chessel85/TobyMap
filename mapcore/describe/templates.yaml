@@ -56,11 +56,10 @@ ui:
 panel:
   within: Within
   nearby: Nearby
-  crossed: Crossed and passed
+  crossed: Passed over
   contains: Contains
   bordering: Bordering
   overlapping: Overlapping
-  crossing: Crossing
   search: Search
   # A group about the current feature names it in its heading (LOC-4, P3-T4a): "Bordering France",
   # then with its count, "Bordering France, 8 items". Before it is opened it has no count yet.

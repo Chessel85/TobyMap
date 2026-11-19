@@ -1,4 +1,4 @@
-"""The Information panel's eight groups, the current feature, and groups filled only when opened
+"""The Information panel's seven groups, the current feature, and groups filled only when opened
 (P3-T4a; INF-10, LOC-4, INF-2, NFR-1, DP80, DP156, DP160).
 
 Bordering is filled here as the pattern for the other groups about the current feature: Contains
@@ -12,7 +12,7 @@ from mapcore.session import MapSession, box_centre
 
 SWITZERLAND = {"lat": 46.8, "lon": 8.2, "zoom_m": 100000, "step_m": 1000}
 HAMPSHIRE = {"lat": 51.06, "lon": -1.31, "zoom_m": 100000, "step_m": 1000}
-LAZY = ["contains", "bordering", "overlapping", "crossing", "search"]
+LAZY = ["bordering", "contains", "overlapping", "search"]
 
 
 @pytest.fixture
@@ -29,10 +29,11 @@ def group(groups, gid):
 
 # The group table ------------------------------------------------------------------------------
 
-def test_the_eight_groups_in_the_key_lists_order():
-    """DP156: the new groups go after the three you know, so Shift+1 to Shift+3 stay."""
-    assert registry.panel_groups() == ["within", "nearby", "crossed", "contains", "bordering", "overlapping",
-                                       "crossing", "search"]
+def test_the_seven_groups_in_the_pos_order():
+    """INF-10, P3-T29a: Within, Nearby, Bordering, Contains, Overlapping, Passed over, Search, on Shift+1 to
+    Shift+7. The Crossing group is gone."""
+    assert registry.panel_groups() == ["within", "nearby", "bordering", "contains", "overlapping", "crossed",
+                                       "search"]
     assert set(panel_table.GROUPS) == set(registry.panel_groups())
 
 
@@ -43,9 +44,9 @@ def test_each_groups_default_sort_and_zoom_limit():
     assert g["within"].default_sort == "natural" and g["nearby"].default_sort == "distance"
     assert g["bordering"].default_sort == "bearing"
     assert all(g[x].default_sort == "name" for x in ("contains", "overlapping", "search"))
-    assert g["crossing"].default_sort == "natural"   # a line's areas in order from its start (INF-6)
+    assert g["crossed"].default_sort == "natural"   # Passed over: along the move
     assert {x for x, v in g.items() if v.zoom_limited} == {"contains", "nearby", "crossed"}
-    assert {x for x, v in g.items() if v.about_current} == {"contains", "bordering", "overlapping", "crossing"}
+    assert {x for x, v in g.items() if v.about_current} == {"contains", "bordering", "overlapping"}
 
 
 # Filled only when opened (NFR-1) ----------------------------------------------------------------
@@ -72,7 +73,7 @@ def test_the_open_groups_are_kept_until_the_shell_says_again(swiss):
 
 
 def test_going_to_a_group_fills_it_though_the_shell_has_not_opened_it(swiss):
-    r = swiss.press("Shift+5", "map")
+    r = swiss.press("Shift+3", "map")
     assert r.focus == {"region": "panel", "group": "bordering", "heading": True}   # on its heading (P3-T19c)
     assert group(swiss.panel(), "bordering")["filled"]
 
@@ -232,6 +233,7 @@ def test_overlapping_an_area_says_both_shares(hants):
     assert "14 percent of Hampshire and 92 percent of New Forest National Park overlap" in items[0]["label"]
 
 
+@pytest.mark.skip(reason="The Crossing group went in P3-T29a; its content comes back in Overlapping in P3-T29e")
 def test_crossing_an_area_lists_lines_across_then_along_by_name(test_pack):
     s = MapSession(packs=[test_pack], saved_state=dict(SWITZERLAND))
     s.start()
@@ -295,12 +297,11 @@ def _highlighted(session, gid, item_id):
 def test_the_map_highlights_an_item_of_each_new_group(test_pack):
     s = MapSession(packs=[test_pack], saved_state=dict(HAMPSHIRE))
     s.start()
-    groups = s.panel(open={"contains", "overlapping", "crossing", "bordering"})
+    groups = s.panel(open={"contains", "overlapping", "bordering"})
     contains = group(groups, "contains")["items"][0]["children"][0]      # a line, the River Itchen
     s.set_current_feature(s.areas[1].id)                                  # England holds the county
     county = group(s.panel(open={"contains"}), "contains")["items"][0]["children"][0]   # an area, Hampshire
-    crossing = group(groups, "crossing")["items"][0]                      # a line again
-    for gid, item in (("contains", contains), ("contains", county), ("crossing", crossing)):
+    for gid, item in (("contains", contains), ("contains", county)):
         marked, _ = _highlighted(s, gid, item["id"])
         assert marked, f"{item['name']} in {gid} is in view but not highlighted"
     s.store.close()

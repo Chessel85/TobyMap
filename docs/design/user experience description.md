@@ -459,17 +459,18 @@ The Information panel answers "what is around me, and how does it relate to me?"
 The panel is a tree. Its top level holds these groups:
 
 * Within: every area containing the location, from smallest to largest (LOC-3). Each item says the distance and direction to the area's centre, the centre of its bounding box (DP155): "England, centre 140 kilometres west".
-* Contains: the types of visible feature inside the current feature, each with a count, then the features of each type (INF-4).
-* Bordering: the neighbours of the current feature, each with the shared border length, or the distance and bearing for areas that only nearly touch (INF-2).
-* Overlapping: areas that overlap the current feature, with how much of it each covers (INF-5).
-* Crossing: line features crossing the current area. For a line, the areas it passes through in order (INF-6).
 * Nearby: the visible features of each active layer, with distance and bearing (INF-7).
-* Crossed and passed: what the last move crossed or passed close to (section 3.2).
+* Bordering: the neighbours of the current feature, each with the shared border length, or the distance and bearing for areas that only nearly touch (INF-2).
+* Contains: the types of visible feature inside the current feature, each with a count, then the features of each type (INF-4).
+* Overlapping: areas that overlap the current feature, with how much of it each covers (INF-5). The lines that cross an area, and for a line the areas it passes through in order, are to come here (INF-6, P3-T29e); there is no Crossing group.
+* Passed over: what the last move crossed or passed close to (section 3.2). It was called Crossed and passed.
 * Search: the last search results.
+
+The groups are in this order, on Shift+1 to Shift+7 (the PO, R6, 19 November 2026).
 
 Every list can be sorted three ways: by name, by distance, or by bearing clockwise from ahead. Ctrl+S, in the panel, cycles the sort and announces it: "Sorted by distance". Within also has its natural order, smallest to largest, which is its default. Nearby starts sorted by distance, Bordering by bearing, and the rest by name. Typing the start of a name jumps to it, as in any Windows tree.
 
-Each group heading says how many items it holds: "Nearby, 5 items", "Within, 1 item", or "Crossed and passed, no items".
+Each group heading says how many items it holds: "Nearby, 5 items", "Within, 1 item", or "Passed over, no items".
 
 Contains, Nearby, and Crossed and passed show only visible features (section 4.4). Within follows the layers' zoom ranges, as the place does (DP160). The other groups are not limited by zoom (DP80).
 
@@ -481,11 +482,7 @@ F3 goes to the Information panel from any region, back to the item you were last
 
 A key in the map region opens some groups directly and speaks their first item. Whether these stay is DP109:
 
-* I: Contains.
-* N: Bordering.
-* O: Overlapping.
-* X: Crossing.
-* Shift+X: Crossed and passed.
+* Shift+1 to Shift+7: Within, Nearby, Bordering, Contains, Overlapping, Passed over, Search (P3-T29a).
 
 From there, arrow keys move through the tree. Tab returns to the map.
 

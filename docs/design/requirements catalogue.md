@@ -827,14 +827,13 @@ The high level requirements document stays the product owner's own statement of 
 * Source: UXReview, DP64, DP70
 * Priority: Must. Status: Agreed. The PO expects to change this area after testing, so it should be easy to change.
 * The groups are:
-  * Within (LOC-3)
-  * Contains (INF-4)
-  * Bordering (INF-2)
-  * Overlapping (INF-5)
-  * Crossing (INF-6)
-  * Nearby (INF-7)
-  * Crossed and passed (ANN-2)
-  * Search (SRB-1, INF-9)
+  * Within (LOC-3), on Shift+1
+  * Nearby (INF-7), on Shift+2
+  * Bordering (INF-2), on Shift+3
+  * Contains (INF-4), on Shift+4
+  * Overlapping (INF-5, INF-6), on Shift+5
+  * Passed over (ANN-2), on Shift+6; it was called Crossed and passed
+  * Search (SRB-1, INF-9), on Shift+7
 * There is no menu of actions on an item (DP170). The keys on every item are:
   * Enter: jump there
   * Space: play its direction as sound

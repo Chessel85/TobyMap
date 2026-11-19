@@ -66,11 +66,11 @@ Go to a place in the location history,anywhere,earlier,,,,"Sent by the mouse, to
 Reset all settings once asked,anywhere,earlier,,,,"Sent by the mouse, touch or a list; it has no key."
 Stepping mode,the map,3,,1,m toggles between step and hierarchy ,"P3-T6. Goes back to stepping from hierarchy mode, without moving."
 Hierarchy mode,the map,3,,2,m toggles between step and hierarchy ,"P3-T6. In hierarchy mode, Up goes to the parent, Down lists what is inside, and Left and Right go to the neighbours, clockwise. No new keys for those."
-Go to Contains,anywhere,3,,Shift+4,Shift+4,"P3-T4. New groups go after the three you know, so Shift+1 to Shift+3 stay as they are (DP156)."
-Go to Bordering,anywhere,3,,Shift+5,Shift+5,P3-T4.
-Go to Overlapping,anywhere,3,,Shift+6,Shift+6,P3-T4.
-Go to Crossing,anywhere,3,,Shift+7,Shift+7,P3-T4.
-Go to Search,anywhere,3,,Shift+8,Shift+8,"P3-T4. The search results, the world tree's lists and the query builder's answers."
+Go to Bordering,anywhere,3,,Shift+3,Shift+3,P3-T29a. The groups and their keys in the order you chose (INF-10): Within; Nearby; Bordering; Contains; Overlapping; Passed over; Search.
+Go to Contains,anywhere,3,,Shift+4,Shift+4,P3-T29a.
+Go to Overlapping,anywhere,3,,Shift+5,Shift+5,P3-T29a.
+Go to Passed over,anywhere,3,,Shift+6,Shift+6,P3-T29a. Was Crossed and passed on Shift+3. The Crossing group went.
+Go to Search,anywhere,3,,Shift+7,Shift+7,"P3-T29a. The search results, the world tree's lists and the query builder's answers."
 "Next sort order: name, distance, bearing",the Information panel,3,,Ctrl+S,Ctrl+S,P3-T4. Agreed in DP79.
 Previous sort order,the Information panel,3,,Ctrl+Shift+S,Ctrl+Shift+S,P3-T4. New: Shift goes the other way round a list (P2-T17l).
 Bookmark the item,the Information panel,3,,Ctrl+Enter,Ctrl+Enter,"Phase 4, from DP170. Until then it says that bookmarks come in Phase 4."

@@ -963,7 +963,7 @@ def test_a_layers_settings_change_its_zoom_range_and_a_wrong_range_is_refused_al
 
 def test_crossed_and_passed_is_filled_in_the_background_and_shift_3_goes_there(qtbot, test_pack, tmp_path):
     """P2-T5, ANN-2: after the step is spoken, the search runs on a thread of its own; the group is
-    filled and the earcon plays, with nothing more spoken. Shift+3 goes to the group, the third (DP109)."""
+    filled and the earcon plays, with nothing more spoken. Shift+6 goes to the group, the sixth (DP109)."""
     import json as _json
     from pathlib import Path as _Path
 
@@ -983,10 +983,10 @@ def test_crossed_and_passed_is_filled_in_the_background_and_shift_3_goes_there(q
                     timeout=5000)
     qtbot.waitUntil(lambda: "crossed_added" in w.sounds.played, timeout=2000)
     assert len(w.announcer.texts) == spoken    # still Southampton: only the tick; the river is never spoken
-    qtbot.keyClick(w.map, Qt.Key.Key_3, Qt.KeyboardModifier.ShiftModifier)
+    qtbot.keyClick(w.map, Qt.Key.Key_6, Qt.KeyboardModifier.ShiftModifier)
     assert region(w) == "panel"
     # On the group's heading, so its count is heard first (P3-T19c).
-    assert w.tree.currentItem() is group and group.text(0) == "Crossed and passed, 1 item"
+    assert w.tree.currentItem() is group and group.text(0) == "Passed over, 1 item"
 
 
 # Enter on a button presses that button (P2-T17b; desktop checklist 3.5, 5.3, 8.2, 8.6; ACC-7) -------------

@@ -1,4 +1,4 @@
-"""The desktop Information panel with the eight groups (P3-T4a): a group not yet filled can be opened,
+"""The desktop Information panel with the seven groups (P3-T4a): a group not yet filled can be opened,
 and is filled when it is; Shift and a number fills its group; an item under a heading inside a group
 is level 3 to screen readers (INF-10, DP135, NFR-1)."""
 import pytest
@@ -21,8 +21,8 @@ def top(window, gid):
                 if window.tree.topLevelItem(i).data(0, ITEM_ID) == f"group:{gid}")
 
 
-def test_the_panel_has_eight_groups_and_a_closed_one_can_be_opened(window):
-    assert window.tree.topLevelItemCount() == 8
+def test_the_panel_has_seven_groups_and_a_closed_one_can_be_opened(window):
+    assert window.tree.topLevelItemCount() == 7
     bordering = top(window, "bordering")
     assert bordering.text(0) == "Bordering Switzerland" and bordering.childCount() == 0
     state = window.tree.accessible().item_interface(bordering).state()
@@ -36,9 +36,9 @@ def test_opening_a_group_fills_it(window):
     assert bordering.text(0) == "Bordering Switzerland, 5 items" and bordering.childCount() == 5
 
 
-def test_shift_5_goes_to_bordering_and_fills_it(window, qtbot):
+def test_shift_3_goes_to_bordering_and_fills_it(window, qtbot):
     """On the group's heading, opened, so its count is heard first (P3-T19c, the PO's notes on checklist 6.3)."""
-    window.handle(window.session.press("Shift+5", "map"))
+    window.handle(window.session.press("Shift+3", "map"))
     QApplication.processEvents()
     item = window.tree.currentItem()
     assert item is top(window, "bordering") and item.isExpanded() and item.childCount() == 5

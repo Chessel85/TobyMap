@@ -164,6 +164,7 @@ def test_enter_on_an_end_goes_to_that_point(test_pack):
     s.store.close()
 
 
+@pytest.mark.skip(reason="The Crossing group went in P3-T29a; its content comes back in Overlapping in P3-T29e")
 def test_a_line_crossing_the_border_says_how_many_times_and_opens_to_each_crossing(test_pack):
     """P3-T24f, DP201: the River Itchen crosses Southampton's border twice, stored by the build."""
     s = _session(test_pack, SOUTHAMPTON)
@@ -176,6 +177,7 @@ def test_a_line_crossing_the_border_says_how_many_times_and_opens_to_each_crossi
     s.store.close()
 
 
+@pytest.mark.skip(reason="The Crossing group went in P3-T29a; its content comes back in Overlapping in P3-T29e")
 def test_a_line_along_the_border_is_said_as_along_not_crossing_it_hundreds_of_times(test_pack):
     s = _session(test_pack, SWITZERLAND)
     s.set_current_feature("osm:r51701")

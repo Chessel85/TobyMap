@@ -35,10 +35,11 @@ def group(s, gid):
 # The count on each group heading (desktop 10.4) ---------------------------------------------
 
 def test_each_group_heading_says_how_many_items_it_holds(session):
-    within, nearby, crossed = session.panel()[:3]
+    groups = {g["id"]: g for g in session.panel()}
+    within, nearby, crossed = groups["within"], groups["nearby"], groups["crossed"]
     assert within["label"] == "Within, 3 items"
     assert nearby["label"] == "Nearby, 8 items" and len(nearby["items"]) == 8
-    assert crossed["label"] == "Crossed and passed, no items"
+    assert crossed["label"] == "Passed over, no items"
 
 
 def test_one_item_is_one_item(test_pack):

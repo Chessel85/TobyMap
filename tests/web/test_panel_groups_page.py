@@ -1,5 +1,5 @@
-"""The web Information panel with the eight groups (P3-T4a; INF-10, NFR-1, DP135), in Chromium and Firefox:
-a group not yet filled can be opened with Right and is filled then; Shift+5 goes to Bordering, filled;
+"""The web Information panel with the seven groups (P3-T4a; INF-10, NFR-1, DP135), in Chromium and Firefox:
+a group not yet filled can be opened with Right and is filled then; Shift+3 goes to Bordering, filled;
 an item under a heading inside a group has aria-level 3."""
 import pytest
 
@@ -13,7 +13,7 @@ BORDERING = "[...document.querySelectorAll('#tree > [role=treeitem]')].find(g =>
 
 def test_a_closed_group_opens_with_right_and_is_filled(page, site_url):
     app = open_app(page, site_url, state=SWITZERLAND)
-    assert app.evaluate("document.querySelectorAll('#tree > [role=treeitem]').length") == 8
+    assert app.evaluate("document.querySelectorAll('#tree > [role=treeitem]').length") == 7
     assert app.evaluate(f"{BORDERING}.getAttribute('aria-label')") == "Bordering Switzerland"
     assert app.evaluate(f"{BORDERING}.getAttribute('aria-expanded')") == "false"
     app.evaluate(f"{BORDERING}.focus()")
@@ -22,9 +22,9 @@ def test_a_closed_group_opens_with_right_and_is_filled(page, site_url):
     assert app.evaluate(f"{BORDERING}.querySelectorAll('[role=treeitem]').length") == 5
 
 
-def test_shift_5_goes_to_bordering_filled(page, site_url):
+def test_shift_3_goes_to_bordering_filled(page, site_url):
     app = open_app(page, site_url, state=SWITZERLAND)
-    app.keyboard.press("Shift+Digit5")
+    app.keyboard.press("Shift+Digit3")
     # On the group's heading, opened and filled, so its count is heard first (P3-T19c).
     app.wait_for_function("document.getElementById('tree').contains(document.activeElement)"
                           " && document.activeElement.getAttribute('aria-level') === '1'"
@@ -57,7 +57,7 @@ def test_an_item_under_a_heading_is_level_3(page, site_url):
 def test_a_neighbour_opens_with_right_to_the_ends_of_the_shared_border(page, site_url):
     """P3-T24f, DP201: Germany in Bordering can be opened before it has items; the core then lists the ends."""
     app = open_app(page, site_url, state=SWITZERLAND)
-    app.keyboard.press("Shift+Digit5")
+    app.keyboard.press("Shift+Digit3")
     app.wait_for_function(f"{BORDERING}.querySelectorAll('[role=treeitem]').length === 5")
     germany = f"[...{BORDERING}.querySelectorAll('[role=treeitem]')].find(i => i.textContent.startsWith('Germany'))"
     assert app.evaluate(f"{germany}.getAttribute('aria-expanded')") == "false"

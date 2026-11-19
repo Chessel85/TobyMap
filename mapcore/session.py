@@ -1286,6 +1286,7 @@ class MapSession:
                                                     share=self._percent(share), current=current.name))
         return self._sorted("overlapping", items), say("overlapping.none", name=current.name)
 
+    # Not a group any more (P3-T29a, INF-10): kept for P3-T29e, which moves it into Overlapping.
     def _group_crossing(self, current, heading) -> tuple[list[dict], str]:
         """Crossing (INF-6): for a line, the areas it passes through, kept in order from its start; for an
         area, the lines that cross it and then those along its border, each part sorted by name."""

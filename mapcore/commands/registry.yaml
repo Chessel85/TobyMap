@@ -170,6 +170,7 @@ commands:
   # The query builder (P3-T10a, P3-T10b, INF-9): Q opens the form; query.run is sent by its OK button.
   - {name: query.open, label: Query builder, key: Q, region: global, menu: Map}
   - {name: query.run, label: Run a query, key: "", region: global, menu: "", pointer: true}
+  - {name: query.back, label: Back to the query builder, key: "", region: global, menu: "", pointer: true}
   - {name: settings.reset_confirm, label: Reset all settings once asked, key: "", region: global, menu: "", pointer: true}
   - {name: views.add, label: Add the layers as a view with the typed name, key: "", region: global, menu: "", pointer: true}
   - {name: views.rename, label: Rename the chosen view to the typed name, key: "", region: global, menu: "", pointer: true}

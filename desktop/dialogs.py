@@ -280,6 +280,8 @@ class QueryDialog(QDialog):
         self.distance = QLineEdit(str(dialog["distance"]))
         self.distance.setAccessibleName(dialog["distance_label"])
         self.distance_label.setBuddy(self.distance)
+        for box, key in ((self.layer_list, "layer"), (self.relation_list, "relation"), (self.of_list, "of")):
+            self._select(box, (dialog.get("chosen") or {}).get(key))   # coming back from search (P3-T28q)
         layout.addWidget(self.distance_label)
         layout.addWidget(self.distance)
         self.message = QLabel("")
@@ -309,6 +311,12 @@ class QueryDialog(QDialog):
         layout.addWidget(label)
         layout.addWidget(box)
         return box
+
+    @staticmethod
+    def _select(box: QListWidget, identifier) -> None:
+        for row in range(box.count()):
+            if identifier and box.item(row).data(Qt.ItemDataRole.UserRole) == identifier:
+                box.setCurrentRow(row)
 
     def _show_distance(self) -> None:
         row = self.relation_list.currentRow()

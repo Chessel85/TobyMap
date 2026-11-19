@@ -138,13 +138,44 @@ def test_a_search_afterwards_takes_back_the_search_group_heading(s):
     assert search_group(s)["label"].startswith("Search, ")
 
 
-def test_with_no_feature_to_ask_about_the_form_does_not_open(test_pack):
+def test_with_no_feature_to_ask_about_the_form_still_opens_with_search_for_a_feature(test_pack):
     s = MapSession(packs=[test_pack], saved_state={"lat": 0.0, "lon": -160.0, "zoom_m": 1000, "step_m": 100})
     s.start()
     try:
         assert s.current_feature is None   # the test pack has no ocean in the Pacific
-        r = s.run("query.open")
-        assert r.dialog is None
-        assert r.announcements[-1]["text"] == "No feature to ask about. Go to one, or search for one first."
+        assert s.run("query.open").dialog["of"] == [{"id": "search", "label": "Search for a feature"}]
     finally:
         s.store.close()
+
+
+def test_of_ends_with_search_for_a_feature(s):
+    assert s.run("query.open").dialog["of"][-1] == {"id": "search", "label": "Search for a feature"}
+
+
+def test_choosing_search_for_a_feature_opens_search_and_comes_back_with_the_feature(s):
+    r = s.run("query.run", layer="rivers", relation="near", of="search", distance="25")
+    d = r.dialog
+    assert r.error is None and d["kind"] == "search" and d["back"] == "query.back"
+    s.run("search.query", text="Switzerland")
+    back = s.run("search.go", id=SWITZERLAND)
+    q = back.dialog
+    assert q["kind"] == "query" and s.current_feature.id == HAMPSHIRE_ID   # nothing moved
+    assert q["chosen"] == {"layer": "rivers", "relation": "near", "of": SWITZERLAND}
+    assert q["distance"] == "25"
+    assert any(o["id"] == SWITZERLAND for o in q["of"]) and q["of"][-1]["id"] == "search"
+    # Later, search.go goes to the feature as before.
+    assert s.run("search.go", id=SWITZERLAND).dialog is None and s.current_feature.id == SWITZERLAND
+
+
+def test_cancelling_that_search_comes_back_unchanged(s):
+    s.run("query.run", layer="rivers", relation="crossing", of="search", distance="")
+    q = s.run("query.back").dialog
+    assert q["kind"] == "query" and q["chosen"] == {"layer": "rivers", "relation": "crossing", "of": HAMPSHIRE_ID}
+    assert s.run("query.back").dialog is None   # nothing waiting now
+
+
+def test_an_ordinary_search_is_not_taken_for_the_queries(s):
+    s.run("query.run", layer="rivers", relation="crossing", of="search", distance="")
+    s.run("search.open")   # opened afresh by Ctrl+F: the query's wait is over
+    s.run("search.query", text="Switzerland")
+    assert s.run("search.go", id=SWITZERLAND).dialog is None and s.current_feature.id == SWITZERLAND

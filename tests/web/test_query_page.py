@@ -45,3 +45,26 @@ def test_nothing_found_keeps_the_form_open_and_cancel_closes(page, site_url):
     page.locator("#query-message").filter(has_text="No lakes crossing Germany.").wait_for(timeout=15000)
     page.locator("#query-cancel").click()
     page.locator("#querydialog").wait_for(state="hidden")
+
+
+def test_search_for_a_feature_comes_back_with_it_chosen(page, site_url):
+    open_form(page, site_url)
+    page.locator("#query-layer").select_option(label="Rivers")
+    page.locator("#query-of").select_option(label="Search for a feature")
+    page.locator("#query-ok").click()
+    page.locator("#search-field").wait_for(state="visible")
+    page.locator("#search-field").type("Switzerland")
+    page.locator("#search-list option").first.wait_for(timeout=15000)
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    page.locator("#query-layer").wait_for(state="visible")
+    assert page.locator("#query-layer option:checked").inner_text() == "Rivers"
+    assert page.locator("#query-of option:checked").inner_text().startswith("Switzerland")
+
+
+def test_cancelling_that_search_comes_back_to_the_form(page, site_url):
+    open_form(page, site_url)
+    page.locator("#query-of").select_option(label="Search for a feature")
+    page.locator("#query-ok").click()
+    page.locator("#search-cancel").click()
+    page.locator("#query-layer").wait_for(state="visible")

@@ -82,3 +82,41 @@ def test_cancel_closes_and_changes_nothing(window, qtbot):
     box.cancel_button.click()
     QApplication.processEvents()
     assert not box.isVisible() and window.session.current_feature.id == GERMANY
+
+
+def open_search(window):
+    from desktop.dialogs import SearchDialog
+    QApplication.processEvents()
+    (box,) = [d for d in window.findChildren(SearchDialog) if d.isVisible()]
+    return box
+
+
+def test_search_for_a_feature_comes_back_with_it_chosen(window, qtbot):
+    box = open_box(window, qtbot)
+    choose(box, box.layer_list, "Rivers")
+    choose(box, box.relation_list, "bordering")
+    choose(box, box.of_list, "Search for a feature")
+    box.ok_button.click()
+    search = open_search(window)
+    assert not box.isVisible()
+    search.field.setText("Switzerland")
+    search.search_now()
+    search.go_to_selected()
+    QApplication.processEvents()
+    (again,) = [d for d in window.findChildren(QueryDialog) if d.isVisible()]
+    assert again.layer_list.currentItem().text() == "Rivers"
+    assert again.relation_list.currentItem().text() == "bordering"
+    assert again.of_list.currentItem().text().startswith("Switzerland")
+    assert window.session.current_feature.id == GERMANY
+
+
+def test_cancelling_that_search_comes_back_to_the_form(window, qtbot):
+    box = open_box(window, qtbot)
+    choose(box, box.layer_list, "Rivers")
+    choose(box, box.of_list, "Search for a feature")
+    box.ok_button.click()
+    open_search(window).cancel_button.click()
+    QApplication.processEvents()
+    (again,) = [d for d in window.findChildren(QueryDialog) if d.isVisible()]
+    assert again.layer_list.currentItem().text() == "Rivers"
+    assert again.of_list.currentItem().text().startswith("Germany")

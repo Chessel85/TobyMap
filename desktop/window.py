@@ -693,6 +693,8 @@ class MainWindow(QMainWindow):
             box = SearchDialog(self, dialog, run=self.session.run,
                                speak=lambda text: self.announcer.speak(text, "assertive"))
             box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
+            if dialog.get("back"):   # opened by the query builder: Cancel goes back to it (P3-T28q)
+                box.rejected.connect(lambda: self._carry_out_answer([self.session.run(dialog["back"])]))
         elif kind == "query":   # Q (P3-T10b): three lists, a distance for "within a distance of", OK and Cancel
             box = QueryDialog(self, dialog, run=self.session.run,
                               speak=lambda text: self.announcer.speak(text, "assertive"))

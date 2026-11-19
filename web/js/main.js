@@ -961,7 +961,12 @@ function openSearch(d) {
   });
   list.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
   const goButton = button(d.go_label, go, "search-go");
-  const cancel = button(d.cancel, () => { clearTimeout(timer); newest++; box.close(); }, "search-cancel");
+  const cancel = button(d.cancel, () => {
+    clearTimeout(timer); newest++; box.close();
+    if (d.back) run(d.back);   // opened by the query builder: back to it (P3-T28q)
+  }, "search-cancel");
+  // Escape does the same as Cancel; the box is shared, so this is set on every opening.
+  box.oncancel = d.back ? () => { clearTimeout(timer); newest++; run(d.back); } : null;
   box.append(title, label, field, help, scopeLabel, scope, listLabel, list, message, goButton, cancel);
   box.showModal();
   field.focus();
@@ -979,7 +984,7 @@ function openQuery(d) {
   const help = document.createElement("p");
   help.id = "query-help";
   help.textContent = d.help;
-  const makeList = (id, labelText, items) => {
+  const makeList = (id, labelText, items, chosen) => {
     const label = document.createElement("label");
     label.textContent = labelText;
     const list = document.createElement("select");
@@ -993,11 +998,12 @@ function openQuery(d) {
       list.appendChild(markWhole(o, item.label));
     });
     if (items.length) list.selectedIndex = 0;
+    if (chosen) { const at = items.findIndex((item) => item.id === chosen); if (at >= 0) list.selectedIndex = at; }
     return { label, list };
   };
-  const layers = makeList("query-layer", d.find_label, d.layers);
-  const relations = makeList("query-relation", d.relation_label, d.relations);
-  const of = makeList("query-of", d.of_label, d.of);
+  const layers = makeList("query-layer", d.find_label, d.layers, (d.chosen || {}).layer);
+  const relations = makeList("query-relation", d.relation_label, d.relations, (d.chosen || {}).relation);
+  const of = makeList("query-of", d.of_label, d.of, (d.chosen || {}).of);
   const distanceLabel = document.createElement("label");
   distanceLabel.textContent = d.distance_label;
   const distance = document.createElement("input");

@@ -49,6 +49,7 @@ PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158
 SEARCH_LIMIT = 20    # search results listed (P3-T8b)
 SEARCH_DELAY_MS = 300   # the pause in typing before the search dialog searches (P3-T8c)
 QUERY_RELATIONS = ("inside", "crossing", "bordering", "near")   # the query builder's relations (P3-T10a, INF-9)
+QUERY_SEARCH = "search"   # the Of entry that opens search for the feature (P3-T28q)
 END_PROBE_M = 300.0   # how far round the end of a shared border is looked at, for what is there (P3-T24f)
 DRAW_LIMIT = 15000   # features a drawing holds at most; the smallest are left out (P3-T24a, DP202)
 SCAN_LIMIT = 12    # items look around plays (P3-T11a, SON-4)
@@ -239,6 +240,7 @@ class MapSession:
         # The last search's results, by identifier (P3-T8b), so Enter says the same description.
         self.search_found: dict = {}
         self.search_title: str | None = None   # the Search group's heading after a query (P3-T10a), else None
+        self._query_form: dict | None = None   # the query builder waiting for a feature from search (P3-T28q)
         self._pressed_in = "map"                # the region of the key being carried out
         self._answer_to = "map"                  # where Go to's or the bearing's box was opened (P2-T17k)
         self.held_moves = 0
@@ -343,6 +345,7 @@ class MapSession:
             "browse.open": self._browse_open,
             "browse.choose": self._browse_choose,
             "query.open": self._query_open,
+            "query.back": self._query_back,
             "query.run": self._query_run,
             "settings.open": self._settings_open,
             "settings.set": self._settings_set,
@@ -1428,7 +1431,12 @@ class MapSession:
     def _search_open(self, **_a) -> Response:
         """Ctrl+F: a field, a choice of where to search, and the results as you type. The shell waits delay_ms
         after typing stops, then runs search.query with the text and the chosen scope; Enter on a result runs
-        search.go with its identifier. Every word is from the templates; Cancel runs nothing (ACC-7)."""
+        search.go with its identifier. Every word is from the templates; Cancel runs nothing (ACC-7).
+        Opened afresh, it ends any wait of the query builder for a feature (P3-T28q)."""
+        self._query_form = None
+        return self._search_dialog()
+
+    def _search_dialog(self, back: str = "") -> Response:
         scopes = [{"id": "all", "label": say("search.scope_all")}]
         current = self.current_feature
         if current is not None:
@@ -1442,7 +1450,8 @@ class MapSession:
             "kind": "search", "title": say("search.title"), "label": say("search.label"),
             "scope_label": say("search.scope_label"), "scopes": scopes, "results_label": say("search.results_label"),
             "help": say("search.help"), "delay_ms": SEARCH_DELAY_MS, "query": "search.query", "go": "search.go",
-            "text": "", "cancel": say("ui.cancel"), "go_label": say("search.go_button")})
+            "text": "", "cancel": say("ui.cancel"), "go_label": say("search.go_button"),
+            **({"back": back} if back else {})})
 
     def _near_m(self) -> float:
         """How far "near where you are" reaches (SRB-2): the view's radius, so what is on the map is near."""
@@ -1473,6 +1482,10 @@ class MapSession:
         """Enter on a result: go there (search_go). An unknown identifier is refused, so the box stays open."""
         if id not in self.search_found:
             return Response(error=say("place.none"))
+        form = self._query_form
+        if form is not None:   # searching for the query builder's feature: back to the form, nothing moves
+            self._query_form = None
+            return self._query_open(form=form, chosen=id)
         return self.search_go(id)
 
     # The world tree (P3-T9a; SRB-3) and browsing by category (P3-T9b; SRB-4) ------------------------------------
@@ -1626,10 +1639,15 @@ class MapSession:
     # stored relationships; "within a distance of" reads only the pack tiles near the feature. The answer goes
     # into the Search group under a heading such as "Rivers crossing Germany". No field names from the data.
 
-    def _query_open(self, **_a) -> Response:
+    def _query_open(self, form: dict | None = None, chosen: str = "", **_a) -> Response:
         """The form's three lists, with OK and Cancel (ACC-7): the layers that are on, the relations, and the
         features to ask about, the current one first, then the Search group's, up to SEARCH_LIMIT. A distance
-        field is for "within a distance of" only, in the user's units. The shell runs query.run on OK."""
+        field is for "within a distance of" only, in the user's units. The shell runs query.run on OK.
+        The last entry of "Of" is "Search for a feature" (P3-T28q): OK with it chosen opens search, and the
+        feature chosen there comes back here, in "Of", with the other fields as they were. `form` (layer,
+        relation, distance) and `chosen` are for that return, and for Cancel of that search (query.back)."""
+        self._query_form = None
+        form = form or {}
         of = []
         current = self.current_feature
         if current is not None:
@@ -1639,8 +1657,11 @@ class MapSession:
                 break
             if current is None or identifier != current.id:
                 of.append({"id": identifier, "label": say("query.of_found", description=found.description)})
-        if not of:
-            return Response().earcon("blocked").speak(say("query.no_feature"), ASSERTIVE)
+        if chosen and all(o["id"] != chosen for o in of):
+            area = self.store.feature(chosen)
+            if area is not None:
+                of.append({"id": chosen, "label": say("query.of_found", description=area.name)})
+        of.append({"id": QUERY_SEARCH, "label": say("query.of_search")})
         layers = [{"id": layer.id, "label": layer.name} for layer in self.layers.layers() if layer.on]
         relations = [{"id": r, "label": say("query.relation_" + r), "distance": r == "near"} for r in QUERY_RELATIONS]
         unit = "mi" if self._units() == "imperial" else "km"
@@ -1649,12 +1670,25 @@ class MapSession:
             "find_label": say("query.find_label"), "layers": layers,
             "relation_label": say("query.relation_label"), "relations": relations,
             "of_label": say("query.of_label"), "of": of,
-            "distance_label": say("query.distance_label_" + unit), "distance": "10",
+            "distance_label": say("query.distance_label_" + unit), "distance": str(form.get("distance") or "10"),
+            "chosen": {"layer": form.get("layer") or "", "relation": form.get("relation") or "",
+                       "of": chosen or (of[0]["id"] if of[0]["id"] != QUERY_SEARCH else "")} if form else {},
             "run": "query.run", "ok": say("ui.ok"), "cancel": say("ui.cancel")})
+
+    def _query_back(self, **_a) -> Response:
+        """Cancel on the search opened for the query builder: the form again, as it was (P3-T28q)."""
+        form, self._query_form = self._query_form, None
+        if form is None:
+            return Response()
+        return self._query_open(form=form)
 
     def _query_run(self, layer: str = "", relation: str = "", of: str = "", distance="", **_a) -> Response:
         """OK on the form: the answer into the Search group, said with its count. A choice missing, a distance
-        that is not a number above 0, or nothing found, is an error, so the form stays open to change it."""
+        that is not a number above 0, or nothing found, is an error, so the form stays open to change it.
+        With "Search for a feature" as the Of, it opens search instead, and the form waits for the choice."""
+        if of == QUERY_SEARCH:
+            self._query_form = {"layer": layer, "relation": relation, "distance": str(distance or "")}
+            return self._search_dialog(back="query.back")
         chosen = self.layers.get(layer)
         if chosen is None or relation not in QUERY_RELATIONS or self.store.feature(of) is None:
             return Response(error=say("query.bad_choice"))

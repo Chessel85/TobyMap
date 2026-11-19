@@ -722,7 +722,7 @@ query:
   done: "{heading}: {count}, in the Search group."
   done_capped: "{heading}: {count}. The first {limit} are in the Search group."
   nothing: "No {heading}."
-  no_feature: "No feature to ask about. Go to one, or search for one first."
+  of_search: "Search for a feature"
   bad_distance: "Type a distance greater than 0, such as 10."
   bad_choice: "Choose what to find, the relation and the feature."
 

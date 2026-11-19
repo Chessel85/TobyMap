@@ -12,6 +12,16 @@ not thousands of short lines:
 * The ways of one key are joined per country, so the A1 in France and the A1
   in Italy are two roads. A way's country is the one its middle is in, or the
   nearest, from the countries of the stage before.
+* The ways of one key and country are split into separate roads where their
+  stretches are far apart, so England's M3 and Belfast's M3 are two roads
+  (P3-T28d). Stretches within GAP_KM of each other are always one road: a
+  junction, a bridge or a short missing way. Further apart, they stay one road
+  only while the gap is at most GAP_SHARE times the shorter stretch's length
+  and at most GAP_MOST_KM, so a motorway with an unbuilt stretch, such as the
+  A 4 in Germany, stays one, and a short road far from another of the same
+  number, such as France's D roads in two departments, is a road of its own.
+  Each road keeps the name and takes the id of its smallest way. The ways with
+  neither number nor name stay one feature per country.
 * A way with neither number nor name takes the key of a way it meets end to
   end, again and again, so a short unnamed link joins its road. The rest are
   one feature per country, named as the layer's unnamed setting says.
@@ -49,13 +59,20 @@ from mapdata.pipeline import features
 from mapdata.pipeline.errors import BuildStopped
 from mapdata.stages.osm_rivers import join_lines, length_km
 
-READ_VERSION = "osm-lines-1"
+READ_VERSION = "osm-lines-2"
 REQUEST = "request.json"
 READ_FOLDER = "read"
 METRES_PER_DEGREE = 111_320.0
 TAG_KEYS = ("name", "name:en", "ref", "wikidata")
 NAME_SHARE = 0.5     # a road's name is added to its number when this share of its ways carry it
 LINK_PASSES = 50     # how many times unnamed ways look for a named way they meet
+KM_PER_DEGREE = METRES_PER_DEGREE / 1000
+# Splitting a road whose stretches are far apart (P3-T28d), chosen from 487 named roads of the Western Europe trial:
+TOUCH_KM = 0.1       # ways this close are one stretch: carriageways side by side, ways end to end
+GAP_KM = 10.0        # stretches this close are always one road: a junction, a bridge, a short missing way
+GAP_SHARE = 3.0      # further apart, one road while the gap is at most this many times the shorter stretch's length
+GAP_MOST_KM = 150.0  # and never across more than this: the A 4's unbuilt 119 km stays, the sea to Belfast does not
+PAIRS_MOST = 2000    # a key with more roads than this after the GAP_KM step is not joined further (each two measured)
 
 
 def first_ref(text: str) -> str:
@@ -142,6 +159,83 @@ def countries_of(points: list, countries: list[tuple[str, object]]) -> list[str]
     return out
 
 
+def _connected(left, right, n: int) -> list[list[int]]:
+    """The sets of 0..n-1 that the pairs (left, right) connect, each in index order, in the order of their first
+    index. All in NumPy: each takes the smallest label of those it meets, then of its label's label, until none
+    changes."""
+    label = np.arange(n, dtype=np.intp)
+    while True:
+        before = label.copy()
+        np.minimum.at(label, left, label[right])
+        label = label[label]
+        if np.array_equal(label, before):
+            break
+    sets: dict[int, list[int]] = defaultdict(list)
+    for i, v in enumerate(label.tolist()):
+        sets[v].append(i)
+    return sorted(sets.values(), key=lambda v: v[0])
+
+
+def road_parts(geoms: list, gap_km: float = GAP_KM, share: float = GAP_SHARE,
+               most_km: float = GAP_MOST_KM) -> list[list[int]]:
+    """The indexes of one road's ways in the separate roads they make (P3-T28d), each in index order, in the order
+    of their first index. Ways within TOUCH_KM are one stretch, and stretches within gap_km one road. Further apart,
+    the nearest stretches are joined first, while the gap is at most share times the shorter one's length (the
+    diagonal of its bounds) and at most most_km. Distances are measured with each longitude shortened by the cosine
+    of its latitude, near enough for these gaps. Only the near ways are paired: pairing every way within gap_km took
+    40 seconds for 487 roads, as a road in a city has many ways within a few km of each other."""
+    n = len(geoms)
+    if n < 2:
+        return [list(range(n))]
+
+    def flatten(xy):
+        xy = xy.copy()
+        xy[:, 0] *= np.cos(np.radians(xy[:, 1]))
+        return xy
+
+    flat = shapely.transform(np.array(geoms, dtype=object), flatten)
+    left, right = shapely.STRtree(flat).query(flat, predicate="dwithin", distance=TOUCH_KM / KM_PER_DEGREE)
+    stretches = _connected(left, right, n)
+    if len(stretches) == 1:
+        return stretches
+    parts = np.array([shapely.multilinestrings(list(flat[s])) for s in stretches], dtype=object)
+    left, right = shapely.STRtree(parts).query(parts, predicate="dwithin", distance=gap_km / KM_PER_DEGREE)
+    roads = [sorted(w for k in s for w in stretches[k]) for s in _connected(left, right, len(parts))]
+    if len(roads) == 1 or not share or len(roads) > PAIRS_MOST:
+        # Above PAIRS_MOST, measuring each two would take too long and too much memory: such a key is reused far
+        # and wide, so the stretches 10 km apart are already separate roads.
+        return sorted(roads, key=lambda v: v[0])
+    parts = np.array([shapely.multilinestrings(list(flat[r])) for r in roads], dtype=object)
+    bounds = shapely.bounds(parts)
+    m = len(roads)
+    a, b = np.triu_indices(m, 1)
+    dist = shapely.distance(parts[a], parts[b]) * KM_PER_DEGREE
+    root = list(range(m))
+
+    def find(x):
+        while root[x] != x:
+            root[x] = root[root[x]]
+            x = root[x]
+        return x
+
+    def size(x):
+        return float(np.hypot(bounds[x, 2] - bounds[x, 0], bounds[x, 3] - bounds[x, 1]) * KM_PER_DEGREE)
+
+    for e in np.argsort(dist, kind="stable").tolist():
+        x, y = find(int(a[e])), find(int(b[e]))
+        if x == y or dist[e] > most_km:
+            continue
+        if dist[e] <= share * min(size(x), size(y)):
+            x, y = min(x, y), max(x, y)
+            root[y] = x
+            bounds[x] = [min(bounds[x, 0], bounds[y, 0]), min(bounds[x, 1], bounds[y, 1]),
+                         max(bounds[x, 2], bounds[y, 2]), max(bounds[x, 3], bounds[y, 3])]
+    out: dict[int, list[int]] = defaultdict(list)
+    for k, r in enumerate(roads):
+        out[find(k)].extend(r)
+    return sorted((sorted(v) for v in out.values()), key=lambda v: v[0])
+
+
 def simplify_line(g, tol: float):
     """A line simplified to tol degrees, at the pack's precision. A closed line, such as a roundabout or a ring
     road, can shrink to a point when simplified plainly: in Western Europe, 641 roads did. It keeps its ring."""
@@ -197,17 +291,27 @@ def line_record(fid: str, layer: dict, key: tuple | None, ways: list[dict], kind
 def group_layer(layer: dict, ways: dict[int, tuple[dict, str, object]], country: dict[int, str],
                 say=print) -> tuple[list[dict], list]:
     """One layer's ways joined into lines: by key and country, after unnamed ways have taken their neighbours'
-    keys. Returns the records and lines, in id order."""
+    keys, then split where their stretches are far apart (road_parts). Returns the records and lines, in id
+    order."""
     keys = {wid: way_key(t, layer.get("key", "ref")) for wid, (t, _k, _g) in ways.items()}
     unnamed = sum(1 for k in keys.values() if k is None)
     took = link_unnamed(keys, {wid: g for wid, (_t, _k, g) in ways.items()})
     say(f"The layer {layer['layer']}: {len(ways):,} ways, {unnamed:,} with neither number nor name, of which "
         f"{took:,} joined a line they meet.")
-    groups: dict[tuple, list[int]] = defaultdict(list)
+    by_key: dict[tuple, list[int]] = defaultdict(list)
     for wid in sorted(ways):
-        groups[(country.get(wid, ""), keys[wid])].append(wid)
+        by_key[(country.get(wid, ""), keys[wid])].append(wid)
+    groups: list[tuple[tuple, list[int]]] = []
+    split, made = 0, 0
+    for (c, key), wids in by_key.items():
+        sets = road_parts([ways[w][2] for w in wids]) if key is not None else [list(range(len(wids)))]
+        if len(sets) > 1:
+            split += 1
+            made += len(sets)
+        groups.extend(((c, key), [wids[i] for i in s]) for s in sets)
+    say(f"Split {split:,} lines of the layer {layer['layer']} whose stretches are far apart into {made:,}.")
     records, geoms = [], []
-    for (_c, key), wids in sorted(groups.items(), key=lambda kv: min(kv[1])):
+    for (_c, key), wids in sorted(groups, key=lambda kv: min(kv[1])):
         g = join_lines([ways[w][2] for w in wids])
         if g is None:
             continue

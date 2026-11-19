@@ -42,6 +42,7 @@ In all: 17 tasks for Opus, 15 for Sonnet.
 * P3-T28f, Opus: The Moselle condominium in the world tree, done as you choose in R1. (11.4.)
 * P3-T28m, Opus: The current feature, when stepping, is the first area "where am I" says, not the first by layer rank: the United Kingdom, not the British Isles. (Your note in the explanation document; LOC-4.)
 * P3-T28n, Opus: A land area's share inside another is measured on its land only, so Exmoor, 1.2 percent of whose outline is in the sea, is wholly inside England, and Up from it goes there. Needs a build. (Set 10; NAV-4.)
+* P3-T28r, Opus: Stray slivers of a sea. Found while checking P3-T28b: the Sea of the Hebrides has two tiny parts in Hampshire, at exactly 2 degrees and 1 degree west, near Poole and Portsmouth, so it is listed on Hampshire's coast (310 metres) and England's (59 kilometres). A fault in how the seas stage cuts its shapes at whole degrees. Needs a build. (7.2; DAT-4.)
 * P3-T28o, Sonnet: Enter on the map, in hierarchy mode, when look around is not playing, makes the feature you are on the one Left and Right go round. (Set 10; NAV-4.)
 
 P3-T28e is dropped: you understand hierarchy mode now.

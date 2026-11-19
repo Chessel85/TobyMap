@@ -37,9 +37,11 @@ def test_a_country_on_the_sea_lists_its_coast_under_a_heading_after_its_neighbou
     s = _session(test_pack, FRANCE)
     items = _group(s, "bordering")["items"]
     coast = items[-1]
-    assert panel_table.is_heading(coast["id"]) and coast["label"].startswith("Coast ")
+    assert panel_table.is_heading(coast["id"]) and coast["label"].startswith("Coast, ")
     names = [c["name"] for c in coast["children"]]
     assert "Bay of Biscay" in names
+    assert "North Atlantic Ocean" not in names   # the wider water is left out (P3-T28b)
+    assert coast["label"].startswith("Coast, ") and coast["label"].endswith(" kilometres")
     biscay = next(c for c in coast["children"] if c["name"] == "Bay of Biscay")
     assert biscay["label"].endswith(" of coast") and biscay["level"] == 2
     assert not any(panel_table.is_heading(i["id"]) for i in items[:-1])

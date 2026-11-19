@@ -1128,14 +1128,28 @@ class MapSession:
             if children:
                 out.append(panel_table.heading("shores:" + layer.id, say("bordering.shores_heading", layer=layer.name,
                                                                          count=len(children)), children))
-        coast = []
+        listed = []
         for identifier, km in rel.get("coast", []):
             area = self.store.feature(identifier)
             if area is not None and self._layer_on(area):
-                coast.append(self._feature_item("bordering", area, "bordering.coast", heading,
-                                                length=words.distance_text(km * 1000.0, units)))
+                listed.append((area, km))
+        # Only the most detailed water (P3-T28b): a water is left out when another listed water is inside it
+        # (the sea inside the ocean, so the Atlantic goes and the English Channel stays), by the pack's "in" and,
+        # for a partial overlap, when most of the other water lies in it and less than half of it in the other.
+        ids = {a.id for a, _km in listed}
+        outer = set()
+        for area, _km in listed:
+            rel_w = self.store.relationships(area.id)
+            outer.update(i for i in rel_w.get("in", ()) if i in ids)
+            if any(o[0] in ids and o[2] >= 0.5 > o[1] for o in rel_w.get("overlaps", ())):
+                outer.add(area.id)
+        kept = [(a, km) for a, km in listed if a.id not in outer]
+        coast = [self._feature_item("bordering", a, "bordering.coast", heading,
+                                    length=words.distance_text(km * 1000.0, units)) for a, km in kept]
         if coast:
-            out.append(panel_table.heading("coast", say("bordering.coast_heading", count=len(coast)), coast))
+            whole = max(sum(km for _a, km in kept), max(km for _a, km in listed))   # the outer water holds it all
+            out.append(panel_table.heading("coast", say("bordering.coast_heading",
+                                                        length=words.distance_text(whole * 1000.0, units)), coast))
         return out
 
     def _contained(self, current) -> dict[str, list]:

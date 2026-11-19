@@ -605,7 +605,8 @@ bordering:
   # The land round a lake or sea, under a heading for each layer, and the seas round land (P3-T24e, DP200).
   shores_heading: "Shores, {layer} {count}"
   shore: "{name}, {distance} {direction}, {length} of shore"
-  coast_heading: "Coast {count}"
+  # The heading gives the whole coast's length, and its items only the most detailed water (P3-T28b).
+  coast_heading: "Coast, {length}"
   coast: "{name}, {distance} {direction}, {length} of coast"
   # The ends of a shared border, listed when its item is opened (P3-T24f, DP201).
   end_coast: "End of the border with {name}, at the coast, {sea}, {distance} {direction}"

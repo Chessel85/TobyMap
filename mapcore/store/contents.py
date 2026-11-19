@@ -164,6 +164,21 @@ def tree_names(rows: dict[str, dict], tree: dict[str, set]) -> dict[str, dict]:
     return out
 
 
+WATER_HOLDERS = ("oceans", "seas", "lakes")   # the layers whose areas are water (P3-T29d)
+WATER_HELD = {"oceans": ("oceans", "seas", "sea-places", "islands"),
+              "seas": ("oceans", "seas", "sea-places", "islands"),
+              "lakes": ("sea-places", "islands")}   # a bay on a lake, kept by P3-T28c
+
+
+def water_may_hold(holder_layer: str, layer: str) -> bool:
+    """Whether an area of `holder_layer` may list features of `layer` as its contents (P3-T29d, INF-4, DAT-4).
+    Water holds only water features and islands: a sea or ocean holds seas, bays and straits (the area layer and
+    the places layer) and islands; a lake holds its islands, and the bays on it, which P3-T28c keeps. Rivers, roads, railways and towns are never inside
+    water, even where the sea's rough outline overlaps the coast. Any other holder is unchanged (True)."""
+    allowed = WATER_HELD.get(holder_layer)
+    return True if allowed is None else layer in allowed
+
+
 def holders(rel: dict) -> set[str]:
     """The ids of the areas a feature is inside fully or partly, is the same land as, crosses or overlaps, by its
     stored relationships: the areas whose contents it is in (SRB-4)."""

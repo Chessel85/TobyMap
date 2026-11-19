@@ -1229,6 +1229,8 @@ class MapSession:
             area = self.store.feature(identifier)
             if area is None:
                 continue
+            if not contents.water_may_hold(current.layer, area.layer):   # P3-T29d
+                continue
             # The relationships are stored from the inside out: a feature's "in" lists what holds it, and
             # "partly" what it is partly inside, for a line or a place; an area partly inside another is in
             # "overlaps" (DP70: the New Forest National Park is under Hampshire and under Wiltshire). So the

@@ -907,6 +907,8 @@ class Store:
         holder = self.feature(identifier)
         if holder is None:
             return []
+        if not contents.water_may_hold(holder.layer, layer):   # water holds only water and islands (P3-T29d)
+            return []
         box = holder.record.get("bbox")
         out: list[Found] = []
         seen: set[str] = set()

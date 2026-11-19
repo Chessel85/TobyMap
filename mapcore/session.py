@@ -2890,6 +2890,13 @@ class MapSession:
     def _look_go(self, **_a) -> Response:
         """Enter on the map while look around plays an item: go there, as Enter on its Nearby item does
         (INF-10). The scan stops, as at any key."""
+        if self._scan_at is None and self.world.movement_mode == "hierarchy":
+            # Not playing: Enter makes the feature you are on the one Left and Right go round (P3-T28o, NAV-4).
+            current = self.current_feature
+            if current is None:
+                return Response().earcon("blocked").speak(say("place.none"), ASSERTIVE)
+            self._across = None
+            return Response().speak(say("hierarchy.round", name=current.name), ASSERTIVE)
         if self._scan_at is None:
             return Response().earcon("blocked").speak(say("look.go_none"), ASSERTIVE)
         area, lat, lon, _label = self._scan[self._scan_at]

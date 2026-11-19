@@ -733,6 +733,7 @@ hierarchy:
   "on": "Hierarchy mode. {name}."
   on_nothing: "Hierarchy mode. No area here."
   stepping: "Stepping mode."
+  round: "Left and Right now go round {name}."
   moved: "{text}. {zoom}"
   top: "Nothing holds {name}."
   # The ambiguous up: the feature is inside two areas, neither inside the other (NAV-4).

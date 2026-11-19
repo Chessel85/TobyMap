@@ -274,3 +274,43 @@ def test_a_feature_only_partly_inside_says_so(test_pack):
     r = s.run("hierarchy.choose", index=kinds.index("Railway stations 1"))
     assert "partly" not in r.dialog["lines"][0]
     s.store.close()
+
+
+# Enter on the map: Left and Right go round the feature you are on (P3-T28o, NAV-4) ---------------------------
+
+def test_enter_makes_the_feature_you_are_on_the_one_left_and_right_go_round(test_pack):
+    s = session(test_pack, {"lat": 46.8, "lon": 8.2, "zoom_m": 100000, "step_m": 1000})
+    s.run("move.east")
+    neighbour = s.current_feature.name
+    assert neighbour != "Switzerland"
+    # Without Enter, the next Right goes on round Switzerland's neighbours.
+    r = s.press("Enter", "map")
+    assert said(r) == f"Left and Right now go round {neighbour}."
+    s.run("move.east")
+    assert s._across["name"] == neighbour
+    s.store.close()
+
+
+def test_enter_without_hierarchy_mode_or_a_current_feature_is_as_before(test_pack):
+    s = MapSession(packs=[test_pack], saved_state=dict(HAMPSHIRE))
+    s.start()
+    assert said(s.press("Enter", "map")).startswith("Nothing to go to.")
+    s.store.close()
+
+
+def test_enter_in_hierarchy_mode_keeps_you_where_you_are(hants):
+    before = (hants.world.lat, hants.world.lon, hants.world.zoom_m)
+    r = hants.press("Enter", "map")
+    assert said(r) == "Left and Right now go round Hampshire."
+    assert (hants.world.lat, hants.world.lon, hants.world.zoom_m) == before
+
+
+def test_enter_while_look_around_plays_still_goes_to_the_item(test_pack):
+    # Near Southampton Central, at 50 km, where look around has items (as in test_look_around.py).
+    s = session(test_pack, {"lat": 50.9074977, "lon": -1.4442289, "zoom_m": 50000, "step_m": 1000})
+    r = s.run("look.around")
+    assert r.scan and r.scan["items"]
+    s.scan_item(0)
+    r = s.press("Enter", "map")
+    assert "Left and Right now go round" not in said(r) and not said(r).startswith("Nothing to go to")
+    s.store.close()

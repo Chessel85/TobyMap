@@ -294,6 +294,7 @@ class MapSession:
             "focus.details": lambda **a: Response(focus={"region": "details"}, details_stale=True),
             "focus.menu": lambda **a: Response(focus={"region": "menu"}),
             "details.wikipedia": self._wikipedia,
+            "wikipedia.open": self._wikipedia_current,
             "details.open_line": self._open_line,
             "panel.select": self._select,
             # Shift and a number: go to that group (INF-10, DP109).
@@ -1829,7 +1830,14 @@ class MapSession:
     def _wikipedia(self, **a) -> Response:
         """Open the article of the feature Details is about in the browser (P3-T5b, INF-1). Says which
         feature (LOC-4); with no article, says so."""
-        area = self._details_feature()
+        return self._open_article(self._details_feature())
+
+    def _wikipedia_current(self, **a) -> Response:
+        """Ctrl+Alt+W, from anywhere: the article of the current feature, the one the panel and hierarchy
+        mode treat as current, whatever item is selected (P3-T28l, INF-1)."""
+        return self._open_article(self.current_feature)
+
+    def _open_article(self, area) -> Response:
         if area is None:
             return Response().speak(say("details.nothing"))
         title = area.record.get("wikipedia")

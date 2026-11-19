@@ -83,3 +83,23 @@ def test_elevation_is_said_for_places_only(session, monkeypatch):
     monkeypatch.setitem(area.record, "facts", {"elevation_m": fact})
     assert not any(line.startswith("Elevation") for line in session.details().split(chr(10)))
     assert any(line.startswith("Elevation") for line in session._fact_lines(area.record))
+
+
+def test_ctrl_alt_w_opens_the_current_feature_from_anywhere_and_the_web_has_its_own_key(session, monkeypatch):
+    area = session.current_feature
+    monkeypatch.setitem(area.record, "wikipedia", "Kent (England)")
+    session.run("panel.select", item=session.areas[-1].id)   # a selected item does not change the current feature
+    r = session.press("Ctrl+Alt+W", "map")
+    assert r.open_url == "https://en.wikipedia.org/wiki/Kent_(England)"
+    assert r.announcements[0]["text"] == f"Opening the Wikipedia article for {area.name}."
+    assert registry.command_for_key("desktop", "Ctrl+Alt+W", "panel").name == "wikipedia.open"
+    assert registry.command_for_key("web", "Alt+Shift+W", "details").name == "wikipedia.open"
+    assert registry.command_for_key("web", "Ctrl+Alt+W", "map") is None
+
+
+def test_ctrl_alt_w_with_no_article_says_so(session, monkeypatch):
+    area = session.current_feature
+    monkeypatch.delitem(area.record, "wikipedia", raising=False)
+    r = session.run("wikipedia.open")
+    assert r.open_url is None
+    assert r.announcements[0]["text"] == f"No Wikipedia article for {area.name}."

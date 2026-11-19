@@ -78,7 +78,7 @@ Measure to the item or the search result,the map and the Information panel,3,,M,
 "Distance to a feature found by search, without moving",the map,3,,Shift+M,shift + M but really need to know how the feature works in more detail first,"P3-T7, INF-8. New, proposed by me."
 Search,anywhere,3,,Ctrl+F,control + F but need to test behaviour in browsers,"P3-T8. In the web version, the page takes Ctrl+F from the browser's own find while TobyMap has focus; the browser tests check this in Chromium and Firefox."
 World tree,the map,3,,W,"W, but need to know more about what this feature is","P3-T9. The design had T, which is now Next theme; W for World. New, proposed by me."
-Open the current feature's Wikipedia article,anywhere,3,,Shift+W,control + shift + W,"P3-T5. New, proposed by me; no key was set in the design."
+Open the current feature's Wikipedia article,anywhere,3,,Ctrl+Alt+W,control + shift + W,"P3-T5, P3-T28l. Now Ctrl+Alt+W on the desktop and Alt+Shift+W in the web version (AltGr is Ctrl+Alt on Windows, and on Czech, Slovak, Hungarian, Slovene and Croatian keyboards AltGr+W types a bar). Ctrl+W and Ctrl+Shift+W close the browser tab or window."
 List every feature of a kind in the current feature,the map,3,,Ctrl+Shift+F,Ctrl+Shift+F,"P3-T9, SRB-4, such as every lake in Finland. New, proposed by me."
 Query builder,the map,3,,Q,Q,P3-T10.
 Look around,the map,3,L,L,L,P3-T11.

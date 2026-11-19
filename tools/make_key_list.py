@@ -78,7 +78,9 @@ NEW_3 = [
     ("Search", "anywhere", "Ctrl+F", "P3-T8. In the web version, the page takes Ctrl+F from the browser's own find while TobyMap has focus; "
      "the browser tests check this in Chromium and Firefox."),
     ("World tree", "the map", "W", "P3-T9. The design had T, which is now Next theme; W for World. New, proposed by me."),
-    ("Open the current feature's Wikipedia article", "anywhere", "Shift+W", "P3-T5. New, proposed by me; no key was set in the design."),
+    ("Open the current feature's Wikipedia article", "anywhere", "Ctrl+Alt+W",
+     "P3-T5, P3-T28l. Now Ctrl+Alt+W on the desktop and Alt+Shift+W in the web version (AltGr is Ctrl+Alt on Windows, and on Czech, "
+     "Slovak, Hungarian, Slovene and Croatian keyboards AltGr+W types a bar). Ctrl+W and Ctrl+Shift+W close the browser tab or window."),
     ("List every feature of a kind in the current feature", "the map", "Ctrl+Shift+F",
      "P3-T9, SRB-4, such as every lake in Finland. New, proposed by me."),
     ("Query builder", "the map", "Q", "P3-T10."),

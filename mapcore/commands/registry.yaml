@@ -102,6 +102,11 @@ commands:
   # Open the Wikipedia article of the feature Details is about, in the browser (P3-T5b, INF-1). Ctrl+W
   # and Ctrl+Shift+W close the browser's tab or window and a page cannot stop them, so it is W, in Details.
   - {name: details.wikipedia, label: Open the Wikipedia article, key: W, region: details, menu: ""}
+  # The same for the current feature, from anywhere (P3-T28l, INF-1). Ctrl+Alt+W on the desktop. On Windows
+  # AltGr is Ctrl+Alt, and on Czech, Slovak, Hungarian, Slovene and Croatian keyboards AltGr+W types "|", so
+  # the browser's key is Alt+Shift+W.
+  - {name: wikipedia.open, label: Open the current feature's Wikipedia article, key: Ctrl+Alt+W, region: global, menu: Map, platforms: [desktop]}
+  - {name: wikipedia.open, label: Open the current feature's Wikipedia article, key: Alt+Shift+W, region: global, menu: Map, platforms: [web]}
   # Enter on the Wikipedia article line does the same (P3-T28g); the shell sends the line the cursor is on.
   - {name: details.open_line, label: Open the article on this line, key: Enter, region: details, menu: ""}
   - {name: panel.group, label: "Go to {group}", key: "Shift+{number}", region: global, menu: Map, each_panel_group: true}

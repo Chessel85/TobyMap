@@ -817,6 +817,7 @@ function openViews(d) {
 viewsDialog.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.target.tagName === "BUTTON" || e.target.id === "views-name") return;
   e.preventDefault();
+  e.stopPropagation();   // the dialog may close at once; the document handler must not see this Enter as the map's
   $("views-ok").click();
 });
 
@@ -825,6 +826,7 @@ viewsDialog.addEventListener("keydown", (e) => {
 layersDialog.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.target.tagName === "BUTTON") return;
   e.preventDefault();
+  e.stopPropagation();   // the dialog may close at once; the document handler must not see this Enter as the map's
   ($("layer-settings-ok") || $("layers-ok")).click();
 });
 
@@ -1185,6 +1187,7 @@ settingsDialog.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (el.tagName === "SELECT" || (el.tagName === "INPUT" && el.type !== "file")
       || el.getAttribute("role") === "option") && el.id !== "settings-keys") {   // an earcon in its list (P2-T17p)
     e.preventDefault();
+    e.stopPropagation();   // the dialog may close at once; the document handler must not see this Enter as the map's
     $("settings-ok").click();
   }
 });

@@ -417,6 +417,11 @@ DAT-10, DAT-11, PCK-3, PLT-4 (on demand), NFR-1 to NFR-4 (verified), DEL-4, and 
 * P7-T2 On-demand data: fetching pack pieces when online, announcing a new smaller area when it arrives (PCK-3, PLT-4).
 * P7-T3 Freshness: refresh intervals for each source, and source dates shown in pack details (DAT-11). A fresh UK extract and planet file are downloaded before release (data sources, "what this means").
 * P7-T4 Performance and memory hardening against NFR-1 to NFR-3 on all targets.
+* P7-T4a Speed review, before P7-T4's hardening (PO, 19 November 2026). Not a rewrite of TobyMap in another language: the work on shapes and geometry already runs as compiled code (GEOS, NumPy), so a rewrite would gain little for its cost and risk.
+  * Profile the slow commands on the world pack, on the desktop and in Chromium and Firefox: stepping and drawing, the Information panel's groups, search, look around, start-up, and memory. A report for the PO, listing where the time goes in each, slowest first.
+  * Where the time is in Python's own loops, not in GEOS or NumPy, first try doing the work in NumPy or GEOS. Where that is not enough, rewrite only that part in Rust, as a small library the core calls, built for the desktop and for Pyodide, so one core still serves both versions (AD-1). Each change is checked against the existing tests and timed before and after, on a country not used to tune it.
+  * The web version's start-up on its own: what Pyodide loads, and whether less can be loaded at start.
+  * Any Rust library needs a licence check (SCP-4), and its build is added to continuous integration and the installer.
 * P7-T5 Checking default keys against the published JAWS and VoiceOver key lists, and preparing test scripts for future JAWS and Mac testers (ACC-4, PLT-1, PLT-2).
 * P7-T6 Release notes stating what was tested with which screen readers and platforms (DEL-4), and the differences between desktop and web (PLT-3).
 * P7-T7 Version 1.0 release: the Windows installer, the web site, and published packs. A Mac disk image is added if a Mac tester has been found (DP92).

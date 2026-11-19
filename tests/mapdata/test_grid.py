@@ -429,3 +429,44 @@ def test_the_join_gives_a_sea_to_water_whose_sea_waits():
     join.settle_seas(ctx, shapes)
     assert waits not in shapes and len(shapes[sea]) == 2
     assert no_ocean in shapes   # water in no ocean is settled by the ocean step, before this
+
+
+def test_water_in_no_ocean_whose_sea_waits_takes_the_sea_beside_it_not_its_groups():
+    # P3-T28r: water in no ocean is given an ocean a group of touching parts at a time, from the group's longest
+    # shared edge. A part whose own sea waits must not take that neighbour's sea too, as the group may be long:
+    # a sliver of Poole Harbour, in water in no ocean along England's coasts, took the Sea of the Hebrides. It
+    # waits, and the join gives it the sea beside that part itself.
+    from mapdata.stages import join
+
+    far = ("water", "O", None, "Far")
+    near = ("water", "O", None, "Near")
+    strip = ("water", None, None, "Far")              # water in no ocean, in the far sea
+    sliver = ("water", None, None, grid.SEA_WAITING)  # water in no ocean, in no marine area
+    parts = {far: [shapely.box(0, 10, 10, 20)], near: [shapely.box(10.1, 0, 12, 9)],
+             strip: [shapely.box(0, 9, 10, 10)], sliver: [shapely.box(10, 0, 10.1, 10)]}
+    shapes = {k: list(parts[k]) for k in (far, near)}
+    lines = []
+    ctx = type("C", (), {"progress": type("P", (), {"line": staticmethod(lines.append),
+                                                     "log": staticmethod(lines.append)})()})()
+    join.water_to_oceans(ctx, parts, [far, near], shapes, [], {}, [], {})
+    # The group (strip and sliver) shares 10 with the far sea and 9 with the near one, so it takes ocean O; the
+    # strip keeps its own sea, and the sliver waits.
+    assert shapes[far][-1].equals(parts[strip][0])
+    assert ("water", "O", None, grid.SEA_WAITING) in shapes
+    join.settle_seas(ctx, shapes)
+    # The sliver shares 9 with the near sea and only 1 with the strip, now in the far sea.
+    assert any(g.equals(parts[sliver][0]) for g in shapes[near])
+    assert not any(g.equals(parts[sliver][0]) for g in shapes[far])
+
+
+def test_water_in_no_ocean_keeps_no_sea_where_its_marine_area_names_none():
+    # A part in a marine area that names no sea keeps none, whatever sea the group's neighbour is in (P3-T28r).
+    from mapdata.stages import join
+
+    far = ("water", "O", None, "Far")
+    open_ = ("water", None, None, None)
+    parts = {far: [shapely.box(0, 10, 10, 20)], open_: [shapely.box(0, 9, 10, 10)]}
+    shapes = {far: list(parts[far])}
+    ctx = type("C", (), {"progress": type("P", (), {"line": staticmethod(lambda s: None)})()})()
+    join.water_to_oceans(ctx, parts, [far], shapes, [], {}, [], {})
+    assert shapes[("water", "O", None, None)] == parts[open_]

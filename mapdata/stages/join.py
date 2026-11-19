@@ -186,6 +186,88 @@ def colours(ids: list[str], pairs: set[tuple[str, str]]) -> dict[str, int]:
     return out
 
 
+def part_tree(parts: dict[tuple, list], labels):
+    """The parts of the areas labels, in one tree: their labels, the tree, and the parts."""
+    keys, geoms_ = [], []
+    for k in labels:
+        for g in parts[k]:
+            keys.append(k)
+            geoms_.append(g)
+    return keys, (shapely.STRtree(geoms_) if geoms_ else None), geoms_
+
+
+def best_neighbour(comp, keys, tree, geoms_):
+    """The area sharing the longest edge with comp (one shape, or a list of touching parts), found among the
+    parts near it."""
+    if tree is None:
+        return None
+    shared: dict[tuple, float] = defaultdict(float)
+    for part in (comp if isinstance(comp, list) else [comp]):
+        edge = part.boundary
+        for i in tree.query(part, predicate="intersects").tolist():
+            shared[keys[i]] += shapely.intersection(edge, geoms_[i].boundary).length
+    shared = {k: v for k, v in shared.items() if v > 0}
+    if not shared:
+        return None
+    return max(sorted(shared, key=str), key=lambda k: shared[k])
+
+
+def with_sea(lab: tuple, own) -> tuple:
+    """The ocean's label lab for a part of water in no ocean whose own sea is own (P3-T1b): the part takes only
+    the ocean and keeps its own sea, or None where it is in a marine area that names no sea. A part whose sea
+    still waits keeps waiting, so settle_seas gives it the sea beside that part itself (P3-T28r): the sea of
+    lab is that of the whole group's neighbour, which may be far away, as when water in Poole Harbour, in a
+    group of water in no ocean along England's south coast, took the Sea of the Hebrides."""
+    if len(lab) == 3 and own is None:
+        return lab
+    return lab[:3] + (own,)
+
+
+def water_to_oceans(ctx, parts: dict[tuple, list], water_labels: list[tuple], shapes: dict[tuple, list],
+                    named: list[dict], new_records: dict, report: list[str], by_id: dict) -> None:
+    """Water in no VLIZ ocean, in groups of touching parts, each group given to the ocean it shares the longest
+    edge with, or named from named (the named waters in the settings), or given to the nearest ocean."""
+    # With named seas (P3-T1b), water in no ocean may still be in a sea: each part keeps its own sea, and takes
+    # only the ocean of its neighbour; a part whose sea still waits is given one by settle_seas, after this.
+    waiting_labels = sorted((k for k in parts if k[0] == "water" and k[1] is None), key=str)
+    waiting = [g for k in waiting_labels for g in parts[k]]
+    sea_of = {id(g): (k[3] if len(k) == 4 else None) for k in waiting_labels for g in parts[k]}
+    w_keys, w_tree, w_geoms = part_tree(parts, water_labels)
+    given = 0
+    given_km2 = 0.0
+    comps = clusters(waiting)
+    ctx.progress.line(f"Water in no VLIZ ocean: {len(waiting)} parts in {len(comps)} groups, each group to be given "
+                      "to the ocean beside it.")
+    for comp in comps:
+        km2 = sum(area_km2(g) for g in comp)
+        p = shapely.point_on_surface(max(comp, key=lambda g: g.area))
+        known = next((w for w in named
+                      if any(shapely.intersects(g, shapely.Point(w["point"])) for g in comp)), None)
+        best = None if known else best_neighbour(comp, w_keys, w_tree, w_geoms)
+        if known:
+            lab = ("water", known["id"], None) + ((None,) if any(len(k) == 4 for k in waiting_labels) else ())
+            new_records[known["id"]] = {"id": known["id"], "name": known["name"], "kind": "sea"}
+            report.append(f"Water in no VLIZ ocean, named from the settings: {known['name']}, {km2:,.0f} km2.")
+        elif best is not None:
+            lab = best
+            given += 1
+            given_km2 += km2
+        else:
+            if w_tree is None:
+                raise BuildStopped(f"Water at {p.y:.3f} north, {p.x:.3f} east is in no ocean, and no ocean was read.")
+            lab = w_keys[int(w_tree.query_nearest(max(comp, key=lambda g: g.area))[0])]
+            report.append(f"Water in no ocean and not beside one, {km2:,.1f} km2 at {p.y:.3f} north, {p.x:.3f} east, "
+                          f"is given to the nearest, {by_id[lab[1]]['name']}. "
+                          "Add it to the named waters in the settings if it has its own name.")
+        for g in comp:
+            own = sea_of.get(id(g))
+            # Water named from the settings is its own sea, so a part in it whose sea waits has none.
+            if known and own == grid.SEA_WAITING:
+                own = None
+            shapes.setdefault(with_sea(lab, own), []).append(g)
+    ctx.progress.line(f"Water in no VLIZ ocean given to the ocean beside it: {given} parts, {given_km2:,.0f} km2.")
+
+
 def run(ctx) -> None:
     s = ctx.settings
     UNJOINED.clear()
@@ -229,29 +311,6 @@ def run(ctx) -> None:
     shapes: dict[tuple, list] = {k: list(parts[k]) for k in land_labels + water_labels}
     report: list[str] = []
 
-    def part_tree(labels):
-        keys, geoms_ = [], []
-        for k in labels:
-            for g in parts[k]:
-                keys.append(k)
-                geoms_.append(g)
-        return keys, (shapely.STRtree(geoms_) if geoms_ else None), geoms_
-
-    def best_neighbour(comp, keys, tree, geoms_):
-        """The area sharing the longest edge with comp (one shape, or a list of touching parts), found among the
-        parts near it."""
-        if tree is None:
-            return None
-        shared: dict[tuple, float] = defaultdict(float)
-        for part in (comp if isinstance(comp, list) else [comp]):
-            edge = part.boundary
-            for i in tree.query(part, predicate="intersects").tolist():
-                shared[keys[i]] += shapely.intersection(edge, geoms_[i].boundary).length
-        shared = {k: v for k, v in shared.items() if v > 0}
-        if not shared:
-            return None
-        return max(sorted(shared, key=str), key=lambda k: shared[k])
-
     # Land in no country.
     unclaimed_list = s.get("unclaimed") or []
     new_records: dict[str, dict] = {}
@@ -265,7 +324,7 @@ def run(ctx) -> None:
             shapes.setdefault(grid.with_island(lab, island_of_part.get(id(g))), []).append(g)
 
     sliver_w, sliver_a = float(s.get("sliver_width_m", 200)), float(s.get("sliver_km2", 0.1))
-    l_keys, l_tree, l_geoms = part_tree(land_labels)
+    l_keys, l_tree, l_geoms = part_tree(parts, land_labels)
     given = 0
     given_km2 = 0.0
     small_islands: list[float] = []
@@ -323,52 +382,8 @@ def run(ctx) -> None:
                       f"{len(small_islands)}, {sum(small_islands):,.2f} km2 in all. The log lists each one.")
 
     # Water in no ocean.
-    named = s.get("named_waters") or []
-    # With named seas (P3-T1b), water in no ocean may still be in a sea: each part keeps its own sea, and takes
-    # only the ocean of its neighbour, or its neighbour's sea too where its own is still waiting.
-    waiting_labels = sorted((k for k in parts if k[0] == "water" and k[1] is None), key=str)
-    waiting = [g for k in waiting_labels for g in parts[k]]
-    sea_of = {id(g): (k[3] if len(k) == 4 else None) for k in waiting_labels for g in parts[k]}
-    w_keys, w_tree, w_geoms = part_tree(water_labels)
-    given = 0
-    given_km2 = 0.0
-    comps = clusters(waiting)
-    ctx.progress.line(f"Water in no VLIZ ocean: {len(waiting)} parts in {len(comps)} groups, each group to be given "
-                      "to the ocean beside it.")
-
-    def with_sea(lab, g):
-        """The ocean's label lab for the part g, with g's own sea where it has one (P3-T1b)."""
-        own = sea_of.get(id(g))
-        if len(lab) == 3 and own is None:
-            return lab
-        if own is None or own == grid.SEA_WAITING:
-            return lab if len(lab) == 4 else lab + (own,)
-        return lab[:3] + (own,)
-
-    for comp in comps:
-        km2 = sum(area_km2(g) for g in comp)
-        p = shapely.point_on_surface(max(comp, key=lambda g: g.area))
-        known = next((w for w in named
-                      if any(shapely.intersects(g, shapely.Point(w["point"])) for g in comp)), None)
-        best = None if known else best_neighbour(comp, w_keys, w_tree, w_geoms)
-        if known:
-            lab = ("water", known["id"], None) + ((None,) if any(len(k) == 4 for k in waiting_labels) else ())
-            new_records[known["id"]] = {"id": known["id"], "name": known["name"], "kind": "sea"}
-            report.append(f"Water in no VLIZ ocean, named from the settings: {known['name']}, {km2:,.0f} km2.")
-        elif best is not None:
-            lab = best
-            given += 1
-            given_km2 += km2
-        else:
-            if w_tree is None:
-                raise BuildStopped(f"Water at {p.y:.3f} north, {p.x:.3f} east is in no ocean, and no ocean was read.")
-            lab = w_keys[int(w_tree.query_nearest(max(comp, key=lambda g: g.area))[0])]
-            report.append(f"Water in no ocean and not beside one, {km2:,.1f} km2 at {p.y:.3f} north, {p.x:.3f} east, "
-                          f"is given to the nearest, {by_id[lab[1]]['name']}. Add it to the named waters in the "
-                          "settings if it has its own name.")
-        for g in comp:
-            shapes.setdefault(with_sea(lab, g), []).append(g)
-    ctx.progress.line(f"Water in no VLIZ ocean given to the ocean beside it: {given} parts, {given_km2:,.0f} km2.")
+    water_to_oceans(ctx, parts, water_labels, shapes, s.get("named_waters") or [], new_records, report,
+                    by_id)
 
     settle_seas(ctx, shapes)
     sliver_counties(ctx, shapes, by_id)

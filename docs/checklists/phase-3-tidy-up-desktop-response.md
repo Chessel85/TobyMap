@@ -157,14 +157,22 @@ As these are answered here, they do not go into the discussion points file.
 * R1 The Moselle condominium. Three options:
   * A. Keep it as today: an area in the Countries layer, said "Moselle condominium, shared by Germany and Luxembourg".
   * B. Not a country: an area of its own kind, shared. Stepping onto it says "Moselle condominium, shared by Germany and Luxembourg, Europe". It is not listed among Europe's countries; it is listed under both Germany and Luxembourg, and as a neighbour of each. This is my suggestion: it is true to the law and does not call it a country.
+> yes do this one 
   * C. Leave it out, and draw the border along the middle of the rivers, as most maps seem to. Simplest, but not true: the water belongs to both.
 * R2 Should Contains be limited by the view? My suggestion: yes, measured to each feature's nearest point, so the list stays about what is round you, and Browse by category lists everything inside whatever the view. If you'd rather Contains always listed everything inside, it becomes the same list as Browse by category.
+> yes, restrict to the view which also mimics what the visual user sees 
 * R3 A line wholly inside an area. You suggested showing it under Within. Within is about your position, the areas you are standing in. My suggestion: keep Within about your position, and reach the areas that hold a line with Up in hierarchy mode, as for any feature. Or would you like Within to be about the current feature?
+> the within list remains more or less unchanged, but if the user is on a point or a line, that will be the top item in the list e.g. River Itchen, Hampshire, England, UK.  Or Winchester, Hampshire, England, UK.
 * R4 Hearing a group's sort order. Ctrl+Shift+S is already the key to sort the other way round. My suggestion: the group's heading says its order, such as "Nearby, 8 items, by distance". A screen reader hears it on the heading, and a sighted user sees it, so nothing is missing for them either. Or a key of its own, such as Ctrl+Alt+S.
+> go with adding it into the group heading. but also, when control S or control shift S is pressed, put focus onto the group heading.
 * R5 Networks: rivers flowing into rivers and lakes, roads and railways joining each other, where a road crosses a river. Left and Right on a river would go to the rivers it joins. This is new build work: every meeting of lines must be found and stored. My suggestion: a later phase, written up as requirements when we plan Phase 4, not now.
+> agreed 
 * R6 Two smaller wordings to confirm:
   * "passed nearby to Winchester" for a place a move went near. Or "passed near Winchester"?
+> the first one 
   * The new group name "Passed over", for what was "Crossed and passed", holding lines crossed, areas passed over and places passed nearby.
+> yes, "Passed over" is fine.
+
 
 ## How I'll write checklists from now on
 

@@ -251,11 +251,84 @@ def test_a_region_used_as_county_over_a_sliver_goes_to_the_county_beside_it():
     join.sliver_counties(ctx, shapes, {})
     assert sliver not in shapes and len(shapes[county]) == 2
     assert big in shapes   # a region used as county over more than 1 km2 is kept
-    assert "1 of their parts are given to the county beside them" in lines[0]
+    assert "1 separate bits of land in no county" in lines[0] and "their 1 parts are given" in lines[0]
     islet = ("land", "A", "R", "R#county")
     shapes = {county: [shapely.box(0, 0, 1, 1)], islet: [shapely.box(1.01, 0, 1.0101, 0.001)]}
     join.sliver_counties(ctx, shapes, {})
     assert islet not in shapes and len(shapes[county]) == 2   # an islet goes to the nearest county
+
+
+def test_each_separate_bit_of_a_region_used_as_county_is_measured_on_its_own():
+    # P3-T28a: England's stand-in bits came to more than 1 km2 together, so slivers such as the one beside
+    # Bournemouth were all kept. Each bit is now measured alone: a sliver goes to the county beside it, a large
+    # bit stays, even in the same region.
+    from mapdata.stages import join
+
+    lines = []
+    ctx = type("C", (), {"progress": type("P", (), {"line": staticmethod(lines.append)})()})()
+    county = ("land", "A", "R", "six")
+    stand_in = ("land", "A", "R", "R#county")
+    sliver = shapely.box(1, 0, 1.0001, 0.001)
+    # A large bit in two grid squares, touching, far from the sliver.
+    big_a, big_b = shapely.box(5, 5, 5.5, 6), shapely.box(5.5, 5, 6, 6)
+    shapes = {county: [shapely.box(0, 0, 1, 1)], stand_in: [sliver, big_a, big_b]}
+    join.sliver_counties(ctx, shapes, {})
+    assert shapes[stand_in] == [big_a, big_b]
+    assert sliver in shapes[county]
+
+
+def test_a_sliver_in_two_grid_squares_goes_whole_to_one_county():
+    from mapdata.stages import join
+
+    ctx = type("C", (), {"progress": type("P", (), {"line": staticmethod(lambda s: None)})()})()
+    west, east = ("land", "A", "R", "west"), ("land", "A", "R", "east")
+    stand_in = ("land", "A", "R", "R#county")
+    # A thin strip along the top of both counties, crossing a grid square edge at x = 1; it borders the west
+    # county for longer.
+    a, b = shapely.box(0, 1, 1, 1.00001), shapely.box(1, 1, 1.2, 1.00001)
+    shapes = {west: [shapely.box(0, 0, 1, 1)], east: [shapely.box(1, 0, 1.2, 1)], stand_in: [a, b]}
+    join.sliver_counties(ctx, shapes, {})
+    assert stand_in not in shapes
+    assert a in shapes[west] and b in shapes[west]
+
+
+def test_land_in_no_county_is_named_as_what_it_is_and_a_region_with_no_counties_keeps_its_name():
+    # P3-T28a: never said by the region's bare name, such as "England" in the Counties layer.
+    from mapdata.stages import join
+
+    records = [
+        {"id": "eng", "layer": "regions", "name": "England", "wikidata": "Q21"},
+        {"id": "hants", "layer": "counties", "name": "Hampshire", "type": "county", "parent": "eng"},
+        {"id": "eng#county", "layer": "counties", "name": "England", "type": "region used as county",
+         "parent": "eng", "wikidata": "Q21"},
+        {"id": "solo", "layer": "regions", "name": "Solo", "wikidata": "Q5"},
+        {"id": "solo#county", "layer": "counties", "name": "Solo", "type": "region used as county",
+         "parent": "solo", "wikidata": "Q5"},
+    ]
+    join.name_land_in_no_county(records)
+    part = records[2]
+    assert part["name"] == "Part of England in no county"
+    assert part["type"] == join.LAND_IN_NO_COUNTY
+    assert "wikidata" not in part   # not England's article
+    assert records[4]["name"] == "Solo" and records[4]["type"] == "region used as county"
+
+
+def test_land_in_no_county_takes_the_countrys_word_for_its_counties():
+    from mapdata.stages import write
+
+    records = [
+        {"id": "uk", "layer": "countries", "name": "United Kingdom", "type": "country"},
+        {"id": "sco", "layer": "regions", "name": "Scotland", "type": "region", "parent": "uk"},
+        {"id": "argyll", "layer": "counties", "name": "Argyll and Bute", "type": "county", "parent": "sco"},
+        {"id": "sco#county", "layer": "counties", "name": "Part of Scotland in no county",
+         "type": "land in no county", "parent": "sco"},
+    ]
+    tiers = {"tiers": ["country", "region", "county"],
+             "layers": {"countries": "country", "regions": "region", "counties": "county"},
+             "countries": {}, "areas": {}, "names": {"uk": {"counties": "council area"}}}
+    write.give_tiers(records, tiers)
+    assert records[3]["name"] == "Part of Scotland in no council area"
+    assert "tier" not in records[3]   # said by its type, as unclaimed land is
 
 
 def test_divisions_at_a_level_no_county_uses_are_left_out_before_the_squares():

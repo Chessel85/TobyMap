@@ -467,6 +467,8 @@ def run(ctx) -> None:
         records.append({k: v for k, v in rec.items() if v is not None})
         geoms.append(g)
         layer_ids[layer].append(fid)
+    # Land in no county named as what it is, never by its region's bare name (P3-T28a).
+    name_land_in_no_county(records)
 
     if UNJOINED:
         ctx.progress.line(f"Areas kept as touching parts, as the parts could not be dissolved into one shape: "
@@ -702,56 +704,114 @@ def keep_ids_unique(records: list[dict]) -> None:
             r["id"] += ISLAND_ALSO_AREA_SUFFIX
 
 
+def _connected(geoms: list) -> list[list[int]]:
+    """The indexes of geoms in groups that touch one another, each group one separate bit of land."""
+    up = list(range(len(geoms)))
+
+    def find(i):
+        while up[i] != i:
+            up[i] = up[up[i]]
+            i = up[i]
+        return i
+
+    a, b = shapely.STRtree(geoms).query(geoms, predicate="intersects")
+    for i, j in zip(a.tolist(), b.tolist()):
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            up[max(ri, rj)] = min(ri, rj)
+    groups: dict[int, list[int]] = defaultdict(list)
+    for i in range(len(geoms)):
+        groups[find(i)].append(i)
+    return list(groups.values())
+
+
 def sliver_counties(ctx, shapes: dict[tuple, list], by_id: dict) -> None:
-    """A region used as its own county over less than COUNTY_SLIVER_KM2 in all is a sliver along a coast or
-    a border, where the county levels do not quite reach (DP101). Each of its parts goes to the county of
-    the same region that it shares the longest edge with; a part with none keeps the region."""
-    totals: dict[str, float] = defaultdict(float)
-    for lab, gs in shapes.items():
-        if lab[0] == "land" and len(lab) >= 4 and lab[3] and lab[3].endswith(grid.COUNTY_SUFFIX):
-            totals[lab[3]] += sum(area_km2(g) for g in gs)
-    small = {c for c, km2 in totals.items() if km2 < COUNTY_SLIVER_KM2}
-    if not small:
+    """Land of a region in none of its counties, where the region is used as its own county (DP101), is
+    measured one separate bit at a time (P3-T28a). A bit under COUNTY_SLIVER_KM2 is a sliver along a coast or
+    a border, where the county levels do not quite reach: it goes whole to the county of the same region that
+    it shares the longest edge with, or to the nearest one if it is an islet. Larger bits stay, and a region
+    with no county keeps all its land. Measuring the region's bits together, as before, kept every sliver of
+    England, as together they came to more than 1 km2."""
+    own = [lab for lab in shapes if lab[0] == "land" and len(lab) >= 4 and lab[3]
+           and lab[3].endswith(grid.COUNTY_SUFFIX)]
+    if not own:
         return
+    # A grid square's part can hold many separate bits, such as Scotland's skerries, so each is split first.
+    for lab in own:
+        shapes[lab] = [p for g in shapes[lab] for p in shapely.get_parts(g).tolist()]
     # The real counties' parts, by country and region, to find each sliver's neighbour among them.
     near: dict[tuple, tuple[list, list]] = defaultdict(lambda: ([], []))
     for lab, gs in shapes.items():
-        if lab[0] == "land" and len(lab) >= 4 and lab[3] and lab[3] not in small:
+        if lab[0] == "land" and len(lab) >= 4 and lab[3] and not lab[3].endswith(grid.COUNTY_SUFFIX):
             keys, geoms_ = near[lab[1:3]]
             keys.extend([lab] * len(gs))
             geoms_.extend(gs)
     trees = {k: (keys, shapely.STRtree(geoms_), geoms_) for k, (keys, geoms_) in near.items()}
-    moved = kept = 0
-    for lab in sorted((k for k in shapes if k[0] == "land" and len(k) >= 4 and k[3] in small), key=str):
-        found = trees.get(lab[1:3])
-        stay = []
-        for g in shapes[lab]:
-            best = None
-            if found is not None:
-                keys, tree, geoms_ = found
-                shared: dict[tuple, float] = defaultdict(float)
-                for i in tree.query(g, predicate="intersects").tolist():
-                    shared[keys[i]] += shapely.intersection(g.boundary, geoms_[i].boundary).length
-                shared = {k: v for k, v in shared.items() if v > 0}
-                if shared:
-                    best = max(sorted(shared, key=str), key=lambda k: shared[k])
-                else:   # an islet off the coast: the nearest county of the same region
-                    best = keys[int(tree.query_nearest(g)[0])]
-            if best is None:
-                stay.append(g)
-                kept += 1
-            else:
+    # Each region used as county's parts, across its labels (one per island), in a region that has counties.
+    by_county: dict[str, list[tuple[tuple, object]]] = defaultdict(list)
+    for lab in sorted(own, key=str):
+        if lab[1:3] in trees:
+            by_county[lab[3]].extend((lab, g) for g in shapes[lab])
+    moved = bits = 0
+    gone: set[int] = set()   # the parts given away, by id, taken out of their labels once at the end
+    for county, parts in sorted(by_county.items()):
+        keys, tree, geoms_ = trees[parts[0][0][1:3]]
+        sizes = [area_km2(g) for _lab, g in parts]
+        groups = [grp for grp in _connected([g for _lab, g in parts])
+                  if sum(sizes[i] for i in grp) < COUNTY_SLIVER_KM2]
+        if not groups:
+            continue
+        slivers = [parts[grp[0]][1] if len(grp) == 1 else shapely.union_all([parts[i][1] for i in grp])
+                   for grp in groups]
+        # The counties beside every sliver of the region, found in one search of the tree.
+        beside: dict[int, list[int]] = defaultdict(list)
+        for k, i in zip(*tree.query(slivers, predicate="intersects").tolist()):
+            beside[k].append(i)
+        for k, (grp, bit) in enumerate(zip(groups, slivers)):
+            shared: dict[tuple, float] = defaultdict(float)
+            for i in beside[k]:
+                shared[keys[i]] += shapely.intersection(bit.boundary, geoms_[i].boundary).length
+            shared = {key: v for key, v in shared.items() if v > 0}
+            if shared:
+                best = max(sorted(shared, key=str), key=lambda key: shared[key])
+            else:   # an islet off the coast: the nearest county of the same region
+                best = keys[int(tree.query_nearest(bit)[0])]
+            for i in grp:
+                lab, g = parts[i]
+                gone.add(id(g))
                 # The part keeps its own island (P3-T1d).
                 shapes.setdefault(grid.with_island(best, grid.island_in(lab)) if len(lab) > 4 else best,
                                   []).append(g)
                 moved += 1
-        if stay:
-            shapes[lab] = stay
-        else:
+            bits += 1
+    for lab in own:
+        if lab in shapes:
+            shapes[lab] = [g for g in shapes[lab] if id(g) not in gone]
+    for lab in own:
+        if lab in shapes and not shapes[lab]:
             del shapes[lab]
-    ctx.progress.line(f"Counties: {len(small)} regions used as their own county over less than "
-                      f"{COUNTY_SLIVER_KM2:g} km2 in all are slivers; {moved} of their parts are given to the "
-                      f"county beside them or nearest, and {kept} in a region with no county keep the region.")
+    ctx.progress.line(f"Counties: {bits} separate bits of land in no county, each under {COUNTY_SLIVER_KM2:g} "
+                      f"km2, are slivers; their {moved} parts are given to the county beside them or nearest. "
+                      f"Larger bits, and regions with no county, keep the region.")
+
+
+LAND_IN_NO_COUNTY = "land in no county"
+
+
+def name_land_in_no_county(records: list[dict]) -> None:
+    """A region used as its own county in a region that has counties too is land in no county, left after the
+    slivers have gone (P3-T28a): it is named as what it is, "Part of England in no county", never by the region's
+    bare name, and has no Wikidata link, as the region's article is not about it. The writing stage puts the
+    country's own word for its counties in the name, such as "council area". A region with no county at all
+    keeps its name: its county is the whole region."""
+    with_counties = {r.get("parent") for r in records if r["layer"] == "counties" and r.get("type") == "county"}
+    names = {r["id"]: r.get("name") for r in records if r["layer"] == "regions"}
+    for r in records:
+        if (r["layer"] == "counties" and r.get("type") == "region used as county"
+                and r.get("parent") in with_counties):
+            r.update(name=f"Part of {names.get(r['parent'], r['name'])} in no county", type=LAND_IN_NO_COUNTY)
+            for k in ("wikidata", "local_name"):
+                r.pop(k, None)
 
 
 def county_report(ctx, rows: dict[tuple, float], by_id: dict, report: list, shapes: dict | None = None,

@@ -563,7 +563,7 @@ Where the code does something different today, a line starting "Today" says so. 
 * Wholly inside: all of a feature is inside another, allowing 0.5 percent for the roughness of outlines. For a mountain range or another land area, only its land is measured, so the edge of Exmoor that lies in the sea does not stop Exmoor being wholly inside England. Today the sea part is measured, so Exmoor is inside nothing. P3-T28n fixes this in the build.
 * Partly inside: more than 0.5 percent of a feature is inside another, but not all of it.
 * Nearly touches: two areas of the same layer that share no border, with a gap between them no wider than a quarter of the smaller area's width, and never more than 5 kilometres. Each area keeps at most the 10 nearest. So Hampshire nearly touches the Isle of Wight, 1.3 kilometres across the Solent, but two islets 3 kilometres apart do not.
-* Stand-in area: land of a region that the build found in none of its counties, and filled with an area named after the region, such as "England" in the Counties layer. P3-T28a removes the slivers and names the rest as what they are, so a stand-in area is never said by the region's bare name.
+* Stand-in area: land of a region that the build found in none of its counties, and filled with an area named after the region, such as "England" in the Counties layer. P3-T28a gives each sliver under 1 square kilometre to the county beside it, and names the rest as what they are, "Part of England in no county", so a stand-in area is never said by the region's bare name. On the Western Europe trial's data, this gives away about 46,000 slivers, and leaves 5 bits of Scotland, of 1.2 to 3 square kilometres, and one of England, of 1.8. It shows after the next build.
 
 ### The groups and their keys
 

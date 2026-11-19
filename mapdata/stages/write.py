@@ -71,7 +71,8 @@ BUILD_ONLY = ("kinds", "wikidata_matched", "sitelinks")
 
 TIERS_RECORD = "tiers.yaml"
 # Land the build names itself in the Countries layer has no tier: it is said by its type (P3-T2c).
-OWN_TYPES = ("disputed land", "unclaimed land", "condominium", "territory")
+# Land in no county (P3-T28a) has none either: it is said by its type, as it is not a county.
+OWN_TYPES = ("disputed land", "unclaimed land", "condominium", "territory", "land in no county")
 
 
 def tiers_path():
@@ -125,6 +126,13 @@ def give_tiers(records: list[dict], tiers: dict) -> dict[str, int]:
             r = by_id.get(r.get("parent"))
         # A country's distant part, such as Hawaii, keeps its country's tiers and their names (DP191).
         return (r.get("sovereign_id") or r["id"]) if r is not None and r["layer"] == "countries" else None
+
+    # Land in no county takes its country's word for its counties (P3-T28a): "Part of Scotland in no council area".
+    for r in records:
+        if r.get("type") == "land in no county" and r.get("name", "").endswith(" in no county"):
+            word = (tiers.get("names", {}).get(country_of(r)) or {}).get("counties")
+            if word and word != "county":
+                r["name"] = r["name"].removesuffix("county") + word
 
     counts: dict[str, int] = {}
     order = {"countries": 0, "regions": 1, "counties": 2}

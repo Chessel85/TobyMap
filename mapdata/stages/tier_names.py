@@ -56,7 +56,7 @@ def work_out(records: list[dict], skip: set[str] = frozenset()) -> dict[str, dic
     by_id = {r["id"]: r for r in records}
     groups: dict[tuple[str, str], list[dict]] = {}
     for r in records:
-        if r["layer"] in LAYERS and r.get("type") != "region used as county":
+        if r["layer"] in LAYERS and r.get("type") not in ("region used as county", "land in no county"):
             c = country_of(r, by_id)
             if c and c not in skip:
                 groups.setdefault((c, r["layer"]), []).append(r)

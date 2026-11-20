@@ -25,9 +25,8 @@ countries:
     levels:
     - 6
     - 7
-    regions_used:
-    - Baja California
-    how: worked out by the build of world on 11 November 2026
+    regions_used: []
+    how: worked out by the build of world on 20 November 2026
   osm:r1155955:
     name: Liechtenstein
     levels:
@@ -70,9 +69,9 @@ countries:
     - Manitoba
     - British Columbia
     - Quebec
-    - Prince Edward Island
     - New Brunswick
-    how: worked out by the build of world on 11 November 2026
+    - Prince Edward Island
+    how: worked out by the build of world on 20 November 2026
   osm:r14296:
     name: Slovakia
     levels:
@@ -134,8 +133,7 @@ countries:
     - District of Columbia
     - Alaska
     - Puerto Rico
-    - South Carolina
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r1520612:
     name: El Salvador
     levels:
@@ -185,9 +183,9 @@ countries:
     - 6
     - 8
     regions_used:
-    - Coquimbo Region
     - Atacama Region
-    how: worked out by the build of world on 11 November 2026
+    - Coquimbo Region
+    how: worked out by the build of world on 20 November 2026
   osm:r171496:
     name: Rwanda
     levels:
@@ -198,9 +196,8 @@ countries:
     name: Serbia
     levels:
     - 6
-    regions_used:
-    - Central Serbia
-    how: worked out by the build of world on 11 November 2026
+    regions_used: []
+    how: worked out by the build of world on 20 November 2026
   osm:r174737:
     name: Turkey
     levels:
@@ -209,9 +206,7 @@ countries:
     regions_used:
     - Izmir
     - Muğla
-    - Antalya
-    - Balıkesir
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r178009:
     name: Kyrgyzstan
     levels:
@@ -419,8 +414,7 @@ countries:
     - 8
     regions_used:
     - Sédhiou Region
-    - Saint-Louis Region
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r192776:
     name: Guinea-Bissau
     levels:
@@ -572,8 +566,7 @@ countries:
     regions_used:
     - Estuaire Province
     - Ogooué-Maritime Province
-    - Nyanga Province
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r192794:
     name: Congo-Brazzaville
     levels:
@@ -763,9 +756,8 @@ countries:
     name: Somalia
     levels:
     - 6
-    regions_used:
-    - Jubaland
-    how: worked out by the build of world on 11 November 2026
+    regions_used: []
+    how: worked out by the build of world on 20 November 2026
   osm:r192800:
     name: Ethiopia
     levels:
@@ -971,10 +963,9 @@ countries:
     - Ranong Province
     - Phang-nga Province
     - Phuket Province
-    - Krabi Province
     - Chon Buri Province
-    - Trang Province
-    how: worked out by the build of world on 11 November 2026
+    - Krabi Province
+    how: worked out by the build of world on 20 November 2026
   osm:r2088990:
     name: Kosovo
     levels:
@@ -1016,11 +1007,11 @@ countries:
     - Kuala Lumpur
     - Labuan
     - Putrajaya
-    - Selangor
     - Sabah
+    - Selangor
     - Johor
     - Malacca
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r21335:
     name: Hungary
     levels:
@@ -1042,8 +1033,7 @@ countries:
     - Mangystau Region
     - Atyrau Region
     - Astana
-    - Almaty
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r214885:
     name: Croatia
     levels:
@@ -1141,9 +1131,7 @@ countries:
     - 8
     regions_used:
     - New Caledonia
-    - Wallis and Futuna
-    - French Polynesia
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r223026:
     name: Turkmenistan
     levels:
@@ -1236,8 +1224,7 @@ countries:
     - 6
     regions_used:
     - Delta Amacuro State
-    - Falcon State
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r285454:
     name: British Virgin Islands
     levels: []
@@ -1331,9 +1318,8 @@ countries:
     name: Costa Rica
     levels:
     - 6
-    regions_used:
-    - Puntarenas Province
-    how: worked out by the build of world on 11 November 2026
+    regions_used: []
+    how: worked out by the build of world on 20 November 2026
   osm:r287668:
     name: Panama
     levels:
@@ -1343,22 +1329,15 @@ countries:
     regions_used:
     - Los Santos
     - Veraguas
-    - Guna Yala
-    - Darién
-    - Bocas del Toro
-    - Panamá Province
     - Panamá Oeste
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r287670:
     name: Honduras
     levels:
     - 6
     regions_used:
     - Bay Islands
-    - Gracias a Dios
-    - Colón
-    - Atlántida
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r287827:
     name: Belize
     levels:
@@ -1412,9 +1391,8 @@ countries:
     - 6
     regions_used:
     - Western Region
-    - Westfjords Region
     - Northwestern Region
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r303427:
     name: Afghanistan
     levels:
@@ -1443,8 +1421,7 @@ countries:
     - Bihar
     - Odisha
     - Tamil Nadu
-    - Karnataka
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r304751:
     name: Indonesia
     levels:
@@ -1504,9 +1481,8 @@ countries:
     levels:
     - 6
     regions_used:
-    - Muscat Governorate
     - Ash Sharqiyah South Governorate
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r305142:
     name: East Timor
     levels:
@@ -1558,9 +1534,8 @@ countries:
     - 6
     - 7
     - 8
-    regions_used:
-    - Cyprus
-    how: worked out by the build of world on 11 November 2026
+    regions_used: []
+    how: worked out by the build of world on 20 November 2026
   osm:r307823:
     name: Dominica
     levels:
@@ -1602,14 +1577,13 @@ countries:
     - Matanzas
     - Ciego de Avila
     - Villa Clara
-    - Camagüey
     - Artemisa
+    - Camagüey
     - Pinar del Rio
     - Sancti Spiritus
-    - Granma
     - Mayabeque
     - Las Tunas
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r307866:
     name: Papua New Guinea
     levels:
@@ -1736,8 +1710,8 @@ countries:
     - Albay
     - Southern Leyte
     - Misamis Occidental
-    - Surigao del Norte
     - Sorsogon
+    - Surigao del Norte
     - Sulu
     - Dinagat Islands
     - La Union
@@ -1745,7 +1719,7 @@ countries:
     - Quezon
     - Nueva Ecija
     - Cotabato
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r447325:
     name: Madagascar
     levels:
@@ -1765,9 +1739,8 @@ countries:
     - 7
     - 8
     regions_used:
-    - Kinmen
     - New Taipei
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r49715:
     name: Poland
     levels:
@@ -1905,10 +1878,10 @@ countries:
     - Agaléga
     - Moka
     - Black River
-    - Rivière du Rempart District
     - Saint Brandon
+    - Rivière du Rempart District
     - Plaines Wilhems
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r535880:
     name: São Tomé and Príncipe
     levels:
@@ -1945,11 +1918,11 @@ countries:
     - South Ari Atoll
     - Mulaku Atoll
     - Fuvahmulah
-    - North Ari Atoll
     - North Nilandhe Atoll
     - Malé
+    - North Ari Atoll
     - Felidhu Atoll
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r536780:
     name: Singapore
     levels:
@@ -2112,9 +2085,8 @@ countries:
     name: Federated States of Micronesia
     levels:
     - 8
-    regions_used:
-    - Chuuk
-    how: worked out by the build of world on 11 November 2026
+    regions_used: []
+    how: worked out by the build of world on 20 November 2026
   osm:r571804:
     name: Nauru
     levels:
@@ -2168,15 +2140,11 @@ countries:
     - Paraíba
     - Rio de Janeiro
     - Santa Catarina
-    - Ceará
-    - Bahia
+    - Paraná
+    - Pernambuco
     - Rio Grande do Norte
     - São Paulo
-    - Pernambuco
-    - Alagoas
-    - Sergipe
-    - Paraná
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r60189:
     name: Russia
     levels:
@@ -2185,18 +2153,16 @@ countries:
     - Primorsky Krai
     - Moscow
     - Saint Petersburg
-    - Sakha Republic
     - Astrakhan Oblast
+    - Sakha Republic
     - Dagestan
     - Kamchatka Krai
     - Sakhalin Oblast
     - Orenburg Oblast
-    - Krasnodar Krai
     - Rostov Oblast
     - Murmansk Oblast
-    - Kaliningrad
-    - Chukotka Autonomous Okrug
-    how: worked out by the build of world on 11 November 2026
+    - Krasnodar Krai
+    how: worked out by the build of world on 20 November 2026
   osm:r60199:
     name: Ukraine
     levels:
@@ -2205,10 +2171,8 @@ countries:
     regions_used:
     - Kyiv
     - Kherson Oblast
-    - Odesa Oblast
     - Autonomous Republic of Crimea
-    - Zaporizhia Oblast
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r62149:
     name: United Kingdom
     levels:
@@ -2273,12 +2237,11 @@ countries:
     - Queensland
     - Jervis Bay Territory
     - New South Wales
-    - Victoria
     - Norfolk Island
     - Western Australia
-    - Tasmania
+    - Victoria
     - Coral Sea Islands
-    how: worked out by the build of world on 11 November 2026
+    how: worked out by the build of world on 20 November 2026
   osm:r87565:
     name: South Africa
     levels:

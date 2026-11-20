@@ -44,6 +44,22 @@ def test_an_area_listed_on_its_own_takes_its_own_tier():
     assert next(r for r in rs if r["id"] == "morbihan")["tier"] == "region"
 
 
+def test_a_distant_part_that_is_a_territory_keeps_no_tier():
+    # Puerto Rico, a distant part of the United States named from a region of the type territory, is said by its
+    # type, so it takes no tier, as the region it is named from would not; before, the writing stage stopped with
+    # KeyError: 'tier' (the world build of 20 November 2026).
+    us = "osm:r148838"
+    rs = [{"id": us, "layer": "countries", "type": "country"},
+          {"id": "pr", "layer": "regions", "type": "region", "parent": us},
+          {"id": "part:pr", "layer": "countries", "type": "territory", "named_from": "pr", "sovereign_id": us},
+          {"id": "part:hawaii", "layer": "countries", "type": "distant part", "named_from": "pr", "sovereign_id": us}]
+    counts = write.give_tiers(rs, write.load_tiers())
+    tier = {r["id"]: r.get("tier") for r in rs}
+    assert tier["part:pr"] is None
+    assert tier["part:hawaii"] == "region"
+    assert counts == {"country": 1, "region": 2}
+
+
 def test_a_tier_not_in_the_list_is_refused(tmp_path):
     path = tmp_path / "tiers.yaml"
     path.write_text("tiers: [country, region]\nlayers: {countries: country, regions: state}\n", encoding="utf-8")

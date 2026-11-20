@@ -159,8 +159,8 @@ def give_tiers(records: list[dict], tiers: dict) -> dict[str, int]:
     # United States (DP191); the regions and counties are given theirs above, after the countries.
     for r in records:
         named = by_id.get(r.get("named_from")) if r["layer"] == "countries" else None
-        if named is None or not named.get("tier"):
-            continue
+        if named is None or not named.get("tier") or r.get("type") in OWN_TYPES:
+            continue   # a territory, such as Puerto Rico, is said by its type and has no tier, as above
         counts[r["tier"]] -= 1
         r["tier"] = named["tier"]
         counts[r["tier"]] = counts.get(r["tier"], 0) + 1

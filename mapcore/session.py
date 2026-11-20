@@ -1251,7 +1251,7 @@ class MapSession:
             probe = geodesy.WGS84.Direct(lat, lon, bearing, END_PROBE_M)
             plat, plon = probe["lat2"], geodesy.wrap_lon(probe["lon2"])
             for area in self.store.at(plat, plon):
-                if area.id in (a.id, b.id):
+                if area.id in (a.id, b.id) or not self._layer_on(area):   # P3-T33b
                     continue
                 if area.layer in ("oceans", "seas"):
                     seas[area.id] = seas.get(area.id, 0) + 1 + (area.layer == "seas")
@@ -1366,8 +1366,9 @@ class MapSession:
         return out
 
     def _name_of(self, identifier: str | None) -> str | None:
+        """A feature's name, or None when it is not found or its layer is off (P3-T33b)."""
         area = self.store.feature(identifier) if identifier else None
-        return area.name if area is not None else None
+        return area.name if area is not None and self._layer_on(area) else None
 
     def _stretch_ends(self, item_id: str, area, stretch: dict, heading) -> list[dict]:
         """The two ends of a stretch of coast, west then east, each with what meets it there (P3-T30b)."""
@@ -1651,6 +1652,11 @@ class MapSession:
         you are; inside, a feature's identifier, such as the current feature's. The results are kept, so
         search_go and search_measure say the same description."""
         w = self.world
+        # A layer that is off is in no list, search's results too (SCP-6, DP186, P3-T33b): the store is asked only
+        # for the layers that are on, so the results it gives are not used up by features that would be left out.
+        on = self.layers.active()
+        if any(not layer.on for layer in self.layers.layers()):
+            layers = on if layers is None else set(layers) & on
         # Ranked from where you are, so of equals the nearest comes first (P3-T32f).
         # Twice as many are asked for, so results listed once for being said alike leave no gap (P3-T32j).
         found = self.store.search(text, 2 * limit, layers, None if near_m is None else (w.lat, w.lon, near_m),
@@ -1666,7 +1672,7 @@ class MapSession:
         kept = []
         for f in found:
             area = self.store.feature(f.id)
-            if area is None:
+            if area is None or not self._layer_on(area):   # disputed and unclaimed land is listed apart
                 continue
             row = self.store.tree_row(contents.DISPUTE_PREFIX + f.name) if special_kind(area.record) else None
             if row is not None:   # one dispute, named by it, going to its largest area (P3-T26a)
@@ -1758,7 +1764,8 @@ class MapSession:
         Overlapping's are (_measured), so a place or line you stand at, as after Enter on it, is "here", and an area
         you are in "you are inside" (P3-T32l); the rest are said towards their own point (_spot_of), which is quick
         for the thousands browsing can list."""
-        areas = [a for a in (self.store.feature(i) for i in self.search_found) if a is not None]
+        # A result whose layer has been switched off since is left out, until it is on again (SCP-6, P3-T33b).
+        areas = [a for a in (self.store.feature(i) for i in self.search_found) if a is not None and self._layer_on(a)]
         nears = self._measured(areas, reach=SEARCH_MEASURE_M)
         items = []
         for area in areas:
@@ -1794,7 +1801,7 @@ class MapSession:
                                                   distance=words.distance_text(self._near_m(), self._units()))})
         for group in self.layer_list()["groups"]:
             scopes.extend({"id": "layer:" + layer["id"], "label": say("search.scope_layer", layer=layer["name"])}
-                          for layer in group["layers"])
+                          for layer in group["layers"] if layer["on"])
         return Response(dialog={
             "kind": "search", "title": say("search.title"), "label": say("search.label"),
             "scope_label": say("search.scope_label"), "scopes": scopes, "results_label": say("search.results_label"),
@@ -1843,7 +1850,23 @@ class MapSession:
         area = self.store.feature(identifier)
         label = say("tree.item", name=name, type=self._type_text(area)) if area is not None else name
         # An item with nothing under it is shown as one, so it is not said as "collapsed" (P3-T19e, P3-T20c).
-        return {"id": identifier, "label": label, "leaf": not self.store.has_tree_children(identifier)}
+        return {"id": identifier, "label": label, "leaf": not self._tree_has_items(identifier)}
+
+    def _tree_on(self, identifier: str) -> list[tuple[str, str]]:
+        """The world tree's items under one, as (identifier, name), by name: an item of a layer that is off is passed
+        over, and what is under it is listed in its place (SCP-6, P3-T33b), so with Countries off Europe lists
+        England and Brittany."""
+        children = self.store.tree_children(identifier)
+        if all(self._on(i) for i, _n in children):
+            return children
+        out = []
+        for i, n in children:
+            out.extend([(i, n)] if self._on(i) else self._tree_on(i))
+        return sorted(dict(out).items(), key=lambda t: (t[1].casefold(), t[0]))
+
+    def _tree_has_items(self, identifier: str) -> bool:
+        """Whether an item of the world tree has anything under it from layers that are on."""
+        return any(self._on(i) or self._tree_has_items(i) for i, _n in self.store.tree_children(identifier))
 
     def _special_label(self, area) -> str:
         """An item of Disputed areas or Unclaimed areas, with its claimants or "no claimant" (P3-T16a)."""
@@ -1880,6 +1903,8 @@ class MapSession:
                 row = self.store.tree_row(identifier)
                 out.append({"id": identifier, "label": self._dispute_label(row) if row else name, "leaf": False})
                 continue
+            if not self._on(identifier):   # P3-T33b
+                continue
             area = self.store.feature(identifier)
             out.append({"id": identifier, "label": self._special_label(area) if area is not None else name, "leaf": True})
         return out
@@ -1888,7 +1913,7 @@ class MapSession:
         """W: the world as a tree, World, then its continents, which each open to their countries, and so on
         (SRB-3). The shell reads each branch as it is opened with tree.children, and Enter on an item runs
         tree.go. The shells' own tree gives the screen reader each item's level and position."""
-        continents = [self._tree_node(i, n) for i, n in self.store.tree_children("world")] + self._special_nodes()
+        continents = [self._tree_node(i, n) for i, n in self._tree_on("world")] + self._special_nodes()
         # Where you were when it last closed: each branch from World down to the item focused is opened again,
         # with its items, and the focus goes back to that item (P3-T19e, checklist 11.5).
         reopen, at = [], "world"
@@ -1915,7 +1940,7 @@ class MapSession:
     def _branch_items(self, id: str) -> list[dict]:
         if id.startswith(("special:", contents.DISPUTE_PREFIX)):
             return self._special_items(id)
-        return [self._tree_node(i, n) for i, n in self.store.tree_children(id)]
+        return [self._tree_node(i, n) for i, n in self._tree_on(id)]
 
     def _tree_children(self, id: str = "world", **_a) -> Response:
         """One branch of the tree, opened: its items by name, or the words for a branch with none."""
@@ -1951,11 +1976,12 @@ class MapSession:
         if current is None:
             return Response().earcon("blocked").speak(say("browse.none_here"), ASSERTIVE)
         counts, _held = self.store.contents_counts(current.id)   # with the islands in a water (P3-T32g)
-        layers = [layer for layer in self.layers.layers() if counts.get(layer.id)]
+        # Only the layers that are on are counted and offered (SCP-6, P3-T33b).
+        layers = [layer for layer in self.layers.layers() if layer.on and counts.get(layer.id)]
         lines = [say("contains.heading", layer=layer.name, count=counts[layer.id]) for layer in layers]
         choices = [("layer", layer.id) for layer in layers]
         for kind in ("disputed", "unclaimed"):   # categories of their own (P3-T16a)
-            inside = self.store.special_areas(kind, current.id)
+            inside = self._special_on(kind, current.id)
             if inside:
                 lines.append(say("contains.heading", layer=say("tree." + kind), count=len(inside)))
                 choices.append(("special", kind))
@@ -1963,6 +1989,10 @@ class MapSession:
             return Response().earcon("blocked").speak(say("browse.nothing_inside", name=current.name), ASSERTIVE)
         return self._choose(say("browse.title", name=current.name), say("browse.help", name=current.name),
                             lines, choices, go="browse.choose")
+
+    def _special_on(self, kind: str, inside: str | None = None) -> list:
+        """The disputed or unclaimed areas (Store.special_areas), less those of a layer that is off (P3-T33b)."""
+        return [f for f in self.store.special_areas(kind, inside) if self._on(f.id)]
 
     def _browse_choose(self, index: int = -1, **_a) -> Response:
         """A kind chosen: every feature of it inside the current feature goes into the Search group, by name,
@@ -1972,7 +2002,7 @@ class MapSession:
             return Response().earcon("blocked")
         kind, which = self._choices[index]
         if kind == "special":
-            found, label = self.store.special_areas(which, current.id), say("tree." + which)
+            found, label = self._special_on(which, current.id), say("tree." + which)
         else:
             layer = self.layers.get(which)
             found, label = self.store.browse(layer.id, current.id), layer.name
@@ -2004,6 +2034,8 @@ class MapSession:
         for identifier, found in self.search_found.items():
             if len(of) > SEARCH_LIMIT:
                 break
+            if not self._on(identifier):   # a result of a layer switched off since (P3-T33b)
+                continue
             if current is None or identifier != current.id:
                 of.append({"id": identifier, "label": say("query.of_found", description=found.description)})
         if chosen and all(o["id"] != chosen for o in of):
@@ -2039,7 +2071,7 @@ class MapSession:
             self._query_form = {"layer": layer, "relation": relation, "distance": str(distance or "")}
             return self._search_dialog(back="query.back")
         chosen = self.layers.get(layer)
-        if chosen is None or relation not in QUERY_RELATIONS or self.store.feature(of) is None:
+        if chosen is None or not chosen.on or relation not in QUERY_RELATIONS or self.store.feature(of) is None:
             return Response(error=say("query.bad_choice"))
         metres = None
         if relation == "near":
@@ -2281,7 +2313,9 @@ class MapSession:
             return say("details.nothing")
         rec = area.record
         lines = [area.name, say("details.type", value=self._type_text(area))]
-        parents = [p for p in (self.store.feature(i) for i in rec.get("parents", [])) if p]
+        # The areas it is related to are named only from layers that are on (SCP-6, P3-T33b); the claimants and the
+        # sovereign are facts about it, said whatever is on.
+        parents = [p for p in (self.store.feature(i) for i in rec.get("parents", [])) if p and self._layer_on(p)]
         if parents:
             lines.append(say("details.part_of", value=say("place.list_separator").join(p.name for p in parents)))
         if rec.get("disputed"):
@@ -2294,19 +2328,20 @@ class MapSession:
                 d = rec["dispute"]
                 key = "details.dispute_view" if d["name"] == area.name else "details.dispute_view_named"
                 lines.append(say(key, source=d["source"], name=d["name"], view=d["view"]))
-        names_of = lambda ids: say("place.list_separator").join(   # noqa: E731
-            str(a.name) for a in (self.store.feature(i) for i in ids) if a is not None)
-        if rec.get("exclave"):   # P3-T24g, DP207
-            lines.append(say("details.exclave_of", sovereign=rec["exclave"].get("sovereign", ""),
-                             where=names_of(rec["exclave"].get("beside", ()))))
-        if rec.get("exclaves"):
-            lines.append(say("details.exclaves", value=names_of(rec["exclaves"])))
-        if rec.get("enclaves"):
-            lines.append(say("details.enclaves", value=say("place.list_separator").join(
+        sep = say("place.list_separator")
+        related = lambda ids: [a for a in (self.store.feature(i) for i in ids or ())   # noqa: E731
+                               if a is not None and self._layer_on(a)]
+        if rec.get("exclave"):   # P3-T24g, DP207: where it lies is a fact about it, said whatever is on
+            lines.append(say("details.exclave_of", sovereign=rec["exclave"].get("sovereign", ""), where=sep.join(
+                str(a.name) for a in (self.store.feature(i) for i in rec["exclave"].get("beside", ())) if a is not None)))
+        if exclaves := related(rec.get("exclaves")):
+            lines.append(say("details.exclaves", value=sep.join(str(a.name) for a in exclaves)))
+        if enclaves := related(rec.get("enclaves")):
+            lines.append(say("details.enclaves", value=sep.join(
                 f"{a.name}, {a.record.get('exclave', {}).get('sovereign') or a.name}" if a.record.get("exclave")
-                else str(a.name) for a in (self.store.feature(i) for i in rec["enclaves"]) if a is not None)))
-        if rec.get("enclave_in"):
-            lines.append(say("details.enclave_in", value=names_of(rec["enclave_in"])))
+                else str(a.name) for a in enclaves)))
+        if enclave_in := related(rec.get("enclave_in")):
+            lines.append(say("details.enclave_in", value=sep.join(str(a.name) for a in enclave_in)))
         if rec.get("status") and rec.get("sovereign"):   # from the territories list (P3-T24d, DP199)
             lines.append(say(f"details.status.{rec['status']}", sovereign=words.name_after_of(rec["sovereign"])))
             if rec.get("claimed_by"):
@@ -3565,7 +3600,7 @@ class MapSession:
         lines = []
         for k, (name, areas) in self._down["kinds"].items():
             total = sum(totals.get(x, 0) for x in (k, *(x for x, kind in CONTAINS_KIND.items() if kind == k))
-                        if contents.water_may_hold(current.layer, x))
+                        if contents.water_may_hold(current.layer, x) and self.layers.is_on(x))   # P3-T33b
             lines.append(say("hierarchy.down_line", layer=name, count=f"{len(areas):,}", total=f"{total:,}") if total > len(areas)
                          else say("contains.heading", layer=name, count=len(areas)))
         return self._choose(say("hierarchy.down_title", name=current.name), say("hierarchy.down_help"), lines,

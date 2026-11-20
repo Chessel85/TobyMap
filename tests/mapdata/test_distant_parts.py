@@ -85,6 +85,43 @@ def test_a_region_mostly_elsewhere_does_not_name_the_part_its_county_does():
     assert reparent == {}   # a county keeps its region as its parent
 
 
+def test_a_region_its_country_keeps_half_of_names_only_the_group_holding_its_half():
+    """P3-T28s: Venezuela's Federal Dependencies are islands, about half of their land in North America, off the
+    coast (Los Roques), and a speck alone 530 km to the north, Isla Aves, a county of its own with Isla Aves's
+    Wikidata link. The region names the islands off the coast, but not the speck, whose own county names it, so
+    the territories list finds Isla Aves. Before, the region took the speck as well, and the world build stopped."""
+    mainland = shapely.box(-70.0, 5.0, -62.0, 10.5)                 # South America
+    kept = shapely.box(-66.0, 9.0, -65.9, 9.1)                      # the region's half its country keeps
+    roques = shapely.box(-66.8, 11.8, -66.69, 11.91)                # North America, a little over the other half
+    aves = shapely.box(-63.62, 15.67, -63.618, 15.672)              # North America, alone
+    venezuela = country("osm:r1", "Venezuela", mainland, roques, aves, wikidata="Q717")
+    region = ({"id": "osm:r2", "layer": "regions", "name": "Federal Dependencies", "parent": "osm:r1",
+               "wikidata": "Q130343"}, shapely.union_all([kept, roques, aves]))
+    bird = ({"id": "osm:r3", "layer": "counties", "name": "Bird Island", "parent": "osm:r2", "wikidata": "Q790669"},
+            aves)
+    _, new, _, _, _, _ = run([venezuela, region, bird])
+    by_name = {r["name"]: (r, g) for r, g in new}
+    assert sorted(by_name) == ["Bird Island", "Federal Dependencies"]
+    assert by_name["Federal Dependencies"][1].equals(roques)
+    assert by_name["Bird Island"][0]["wikidata"] == "Q790669" and by_name["Bird Island"][1].equals(aves)
+
+
+def test_an_area_wholly_distant_stays_whole_across_its_groups():
+    """Easter Island Province holds Isla Salas y Gomez too, 415 km away, so in another group: the province is
+    wholly distant from Chile's mainland, so it takes both and stays one area, as French Polynesia does."""
+    mainland = shapely.box(-72.0, -34.0, -70.0, -32.0)
+    island = shapely.box(-109.45, -27.2, -109.2, -27.05)
+    salas = shapely.box(-105.47, -26.475, -105.46, -26.465)
+    chile = country("osm:r5", "Chile", mainland, island, salas)
+    valparaiso = ({"id": "osm:r6", "layer": "regions", "name": "Valparaiso", "parent": "osm:r5"},
+                  shapely.union_all([mainland, island, salas]))
+    province = ({"id": "osm:r7", "layer": "counties", "name": "Easter Island Province", "parent": "osm:r6"},
+                shapely.union(island, salas))
+    _, new, _, _, _, _ = run([chile, valparaiso, province])
+    assert [r["name"] for r, _ in new] == ["Easter Island Province"]
+    assert new[0][1].equals(shapely.union(island, salas))
+
+
 def test_a_region_with_the_countrys_own_name_is_passed_over():
     """The Netherlands' region named Netherlands holds only its Caribbean municipalities: they name the parts."""
     bonaire = shapely.box(-68.4, 12.0, -68.2, 12.3)

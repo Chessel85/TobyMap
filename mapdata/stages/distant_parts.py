@@ -59,6 +59,9 @@ ID_PREFIX = "part:"
 # Land the build names itself in the Countries layer, which is not a country with parts of its own (P3-T2c).
 OWN_TYPES = ("disputed land", "unclaimed land", "condominium", "territory", TYPE)
 NAMING_LAYERS = ("regions", "counties")
+# A naming area with at least this share of its land in the distant land counts as wholly there, allowing for
+# the slight differences between an area's outline and its country's at the coast (P3-T28s).
+WHOLLY_DISTANT = 0.99
 
 
 def fingerprint_extra(stage: dict) -> dict:
@@ -107,20 +110,34 @@ def share_out(far: list[tuple[int, list]], naming: list[tuple[dict, object]], is
     """The distant land shared out by the naming areas, regions first, then counties. Returns
     [(naming record or None, zone, shape)]. An area with at least min_share of its land in the land left takes
     it; then each part left within distant_km of an area made goes to the nearest. Land still left is one area
-    for each group, named by the largest named island in it, or with no naming record when it has none."""
-    land = polygonal(shapely.union_all([p for _z, ps in far for p in ps]))
+    for each group, named by the largest named island in it, or with no naming record when it has none.
+
+    An area wholly in the distant land, such as French Polynesia or Easter Island Province, takes all of it, in
+    whichever groups it lies, so a territory stays whole. An area its country keeps some of is already split:
+    it takes only the groups in each of which it has at least min_share of its land, and the rest of its land is
+    named by its counties as any other land is. So Venezuela's Federal Dependencies, half off its coast in North
+    America, are one area, and Isla Aves, a group of its own 530 km to the north, is another, named by its own
+    county, Bird Island, with Isla Aves's Wikidata link (P3-T28s). Before, the region took the speck as well."""
     zone_at = [(z, shapely.union_all(ps)) for z, ps in far]
-    left = land
+    lefts = [polygonal(s) for _z, s in zone_at]   # the land left in each group
     units: list[list] = []
     for rec, g in naming:
-        if left.is_empty or not shapely.intersects(g, left):
+        inside = [k for k, lf in enumerate(lefts) if not lf.is_empty and shapely.intersects(g, lf)]
+        if not inside:
             continue
-        got = polygonal(shapely.intersection(g, left))
-        size = continents.km2(got)
-        if size <= 0 or size < min_share * continents.km2(g):
+        gots = {k: polygonal(shapely.intersection(g, lefts[k])) for k in inside}
+        sizes = {k: continents.km2(got) for k, got in gots.items()}
+        whole_size = continents.km2(g)
+        if sum(sizes.values()) <= 0 or sum(sizes.values()) < min_share * whole_size:
             continue
-        units.append([rec, got])
-        left = polygonal(shapely.difference(left, got))
+        if sum(sizes.values()) < WHOLLY_DISTANT * whole_size:   # partly kept by its country: group by group
+            gots = {k: got for k, got in gots.items() if sizes[k] > 0 and sizes[k] >= min_share * whole_size}
+            if not gots:
+                continue
+        units.append([rec, polygonal(shapely.union_all(list(gots.values())))])
+        for k, got in gots.items():
+            lefts[k] = polygonal(shapely.difference(lefts[k], got))
+    left = polygonal(shapely.union_all(lefts))
     leftover: dict[int, list] = defaultdict(list)
     reach = distant_km / continents.KM_PER_DEGREE
     for p in shapely.get_parts(left):

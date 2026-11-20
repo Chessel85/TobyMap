@@ -37,7 +37,7 @@ from mapcore import panel as panel_table
 from mapcore.layers import LayerCatalogue
 from mapcore.layers.visible import VisibleRule
 from mapcore.store import contents
-from mapcore.store.store import Found, special_kind
+from mapcore.store.store import Found, join_parts, special_kind
 from mapcore.world import WorldState
 from mapcore.sound.stretch import split_rate
 from mapcore.world.state import nearest_index
@@ -48,10 +48,14 @@ ASSERTIVE, POLITE = "assertive", "polite"
 BROWSE_LIMIT = 2000   # features listed by browsing a layer (P3-T9b)
 PLACE_LIMIT = 1000   # places kept in the location history (NAV-10, DP142, DP158)
 SEARCH_LIMIT = 20    # search results listed (P3-T8b)
+# How far the Search group measures its items to their nearest point (P3-T32l); beyond it, towards their own point,
+# so the thousands browsing can list are quick (2,000 lakes of Europe took 1.6 seconds measured to half the world).
+SEARCH_MEASURE_M = 100_000.0
 SEARCH_DELAY_MS = 300   # the pause in typing before the search dialog searches (P3-T8c)
 QUERY_RELATIONS = ("inside", "crossing", "bordering", "near")   # the query builder's relations (P3-T10a, INF-9)
 QUERY_SEARCH = "search"   # the Of entry that opens search for the feature (P3-T28q)
 END_PROBE_M = 300.0   # how far round the end of a shared border is looked at, for what is there (P3-T24f)
+SAME_END_M = 100.0   # ends of a shared border closer than this are one end, said once (P3-T32c)
 DRAW_LIMIT = 15000   # features a drawing holds at most; the smallest are left out (P3-T24a, DP202)
 SCAN_LIMIT = 12    # items look around plays (P3-T11a, SON-4)
 HALF_WORLD_M = geodesy.A_M * math.pi   # no point on the Earth is further than this: Overlapping measures to it (P3-T29e)
@@ -156,6 +160,13 @@ def box_centre(bbox) -> tuple[float, float]:
     return (south + north) / 2.0, geodesy.wrap_lon((west + east) / 2.0)
 
 
+def _touches(km: float) -> bool:
+    """Whether a nearly touching area's stored gap is 0: the build keeps it to 10 metres, and an area that meets
+    with under 10 metres of border is not a neighbour, so 0 is a meeting at a point, or a gap under 5 metres too
+    small for the map to measure, as Belgium and the Moselle condominium on the river Our (P3-T32b)."""
+    return km < 0.005
+
+
 # The types of water feature that the outline setting leaves out (P2-T17v, VIS-1). The oceans
 # are the top of the water hierarchy (the VLIZ ocean regions, P3-T1b); seas, bays and straits
 # are below them. A record's type is set by the pack build.
@@ -248,6 +259,9 @@ class MapSession:
         # The last search's results, by identifier (P3-T8b), so Enter says the same description.
         self.search_found: dict = {}
         self.search_title: str | None = None   # the Search group's heading after a query (P3-T10a), else None
+        # The order the Search group's items came in (P3-T32k): "relevance" for a search, "nearest" for a query within
+        # a distance, "from_start" for a line's areas, "name" for browsing and the other queries.
+        self.search_order = "relevance"
         self._query_form: dict | None = None   # the query builder waiting for a feature from search (P3-T28q)
         self._pressed_in = "map"                # the region of the key being carried out
         self._answer_to = "map"                  # where Go to's or the bearing's box was opened (P2-T17k)
@@ -801,7 +815,8 @@ class MapSession:
         be the same land by their shapes, is left out, so it is said once. The Isle of Wight is an island and a
         county; the island of Ireland is not the country, as it holds Northern Ireland too (P3-T23, DP198).
         After an integral part of a country, such as the Canary Islands, its sovereign state is said, unless it is
-        said already: "Canary Islands, Spain" (P3-T24d, DP199)."""
+        said already: "Canary Islands, Spain" (P3-T24d, DP199). An unnamed island barely parted from bigger land,
+        as Ceuta's old town is by its moat, is left out: "Ceuta", not "Unnamed island, Ceuta" (P3-T32e)."""
         out = []
         for a in areas:
             rec = getattr(a, "record", None) or {}
@@ -810,6 +825,8 @@ class MapSession:
                 # part are one land, and only the part knows it is Spain's exclave (the world pack, 20 November).
                 self._said_after(a, rec, areas, out)
                 continue
+            if rec.get("type") == "unnamed island" and self.store.barely_parted(a.id):
+                continue   # land a canal or creek cuts off, as Ceuta's old town, is no island to say (P3-T32e)
             if a.layer == "exclaves":   # said as what it is, after the country: "exclave in France" (P3-T24g)
                 if rec.get("exclave"):
                     out.append(_Said(a.id, self._exclave_words(rec["exclave"], a.name), a.layer, rec))
@@ -920,6 +937,8 @@ class MapSession:
             current = self.current_feature
             if current is not None and self._geometry(current) == "line":
                 return "natural"
+        if gid == "search" and self.search_order == "name":   # browsing, and most queries, find them by name
+            return "name"
         return panel_table.GROUPS[gid].default_sort
 
     def _sort_of(self, gid: str) -> str:
@@ -951,8 +970,11 @@ class MapSession:
         """The words for a group's order: "by distance", "smallest first" (P3-T29g)."""
         if how == "natural":
             key = f"panel.order_natural_{gid}"
-            if gid == "overlapping":
+            if gid == "overlapping" or (gid == "search" and self.search_order == "from_start"):
                 return say("overlapping.order_from_start")
+            if gid == "search":   # as the search ranked them, or nearest first (P3-T32k)
+                return say("panel.order_natural_nearest" if self.search_order == "nearest"
+                           else "panel.order_natural_search")
             return say(key) if gid in ("within", "crossed") else say("panel.order_natural")
         if how == "bearing" and describer.facing(self.world) is None:
             return say("panel.order_bearing_north")
@@ -1104,18 +1126,6 @@ class MapSession:
                                      near.bearing_deg))
         return out
 
-    def _feature_item(self, gid: str, area, label_key: str, heading: float | None, at=None, **fields) -> dict:
-        """One item about a feature in a group about the current feature, with its direction from where
-        you are, its sort keys, and its place kept for Enter and Space. label_key is its template, which
-        gets name and direction, and any other fields given."""
-        lat, lon = self._spot_of(area)
-        if at is None:
-            distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, lat, lon)
-        else:
-            distance, bearing = at
-        self._spots[(gid, area.id)] = (area, lat, lon)
-        return self._item_at(gid, area, area.id, label_key, lat, lon, heading, distance, bearing, **fields)
-
     def _item_at(self, gid: str, area, item_id: str, label_key: str, lat: float, lon: float, heading,
                  distance: float, bearing: float, **fields) -> dict:
         label = say(label_key, name=area.name, distance=words.distance_text(distance, self._units()),
@@ -1137,30 +1147,53 @@ class MapSession:
     def _group_bordering(self, current, heading) -> tuple[list[dict], str]:
         """Bordering (INF-2): the current feature's neighbours in its layer, from the stored relationships,
         each with its shared border; then the areas that only nearly touch, with the distance across. Not
-        limited by the zoom (DP80), but only from layers that are on. Sorted by bearing at first."""
+        limited by the zoom (DP80), but only from layers that are on. Each is said at its nearest point from where
+        you are, as Overlapping says its items (P3-T32m, the PO's decision of 20 November 2026), and sorted by that
+        bearing at first; Enter goes to its own point, as on an Overlapping item."""
         rel = self.store.relationships(current.id)
         units = self._units()
         whole = rel.get("outline_km")
+        neighbours = self._neighbours(rel)
+        _listed, kept, coast_km = self._coast_of(rel)
+        shores = [(area, km) for area, km in (self._on_feature(i, km) for i, km in rel.get("shores", ())) if area]
+        nears = self._measured([a for _k, a, _km in neighbours] + [a for a, _km in shores] + [a for a, _km in kept])
         items = []
+        for key, area, km in neighbours:
+            near = nears.get(area.id)
+            text = words.distance_text(km * 1000.0, units)
+            if key == "bordering.item" and whole:   # its share of the whole border (P3-T24f, DP201)
+                item = self._measured_item(area, near, "bordering.item_share", heading, gid="bordering", length=text,
+                                           share=self._percent(km / whole))
+            elif key == "bordering.near" and _touches(km):
+                item = self._measured_item(area, near, "bordering.touches", heading, gid="bordering")
+            else:
+                field = "length" if key == "bordering.item" else "across"
+                item = self._measured_item(area, near, key, heading, gid="bordering", **{field: text})
+            if key == "bordering.item":   # it opens to the ends of the shared border (P3-T24f, DP201)
+                item["expandable"] = True
+                if area.id in self.panel_open:
+                    item["children"] = [dict(c, level=2) for c in self._border_ends(current, area, heading)]
+            items.append(item)
+        items = self._sorted("bordering", items)
+        return items + self._shores_and_coast(shores, kept, coast_km, nears, heading), \
+            say("bordering.none", name=current.name)
+
+    def _neighbours(self, rel: dict) -> list[tuple[str, object, float]]:
+        """The current feature's neighbours in layers that are on, as (template, area, km): those sharing a border,
+        with its length, then those that nearly touch, with the distance across. Bordering and hierarchy mode's
+        Left and Right both list these."""
+        out = []
         for key, entries in (("bordering.item", rel.get("next", [])), ("bordering.near", rel.get("near", []))):
             for identifier, km in entries:
-                area = self.store.feature(identifier)
-                if area is None or not self._layer_on(area):
-                    continue
-                text = words.distance_text(km * 1000.0, units)
-                if key == "bordering.item" and whole:   # its share of the whole border (P3-T24f, DP201)
-                    item = self._feature_item("bordering", area, "bordering.item_share", heading, length=text,
-                                              share=self._percent(km / whole))
-                else:
-                    field = "length" if key == "bordering.item" else "across"
-                    item = self._feature_item("bordering", area, key, heading, **{field: text})
-                if key == "bordering.item":   # it opens to the ends of the shared border (P3-T24f, DP201)
-                    item["expandable"] = True
-                    if area.id in self.panel_open:
-                        item["children"] = [dict(c, level=2) for c in self._border_ends(current, area, heading)]
-                items.append(item)
-        items = self._sorted("bordering", items)
-        return items + self._shores_and_coast(rel, heading), say("bordering.none", name=current.name)
+                area, km = self._on_feature(identifier, km)
+                if area is not None:
+                    out.append((key, area, km))
+        return out
+
+    def _on_feature(self, identifier: str, km: float) -> tuple:
+        """A stored (identifier, km) as (area, km), with area None when it is not found or its layer is off."""
+        area = self.store.feature(identifier)
+        return (area if area is not None and self._layer_on(area) else None), km
 
     def _border_ends(self, current, other, heading) -> list[dict]:
         """The ends of the border two areas share, each an item with its direction and distance, saying what is
@@ -1169,8 +1202,9 @@ class MapSession:
         import shapely
 
         units = self._units()
-        out = []
-        for k, line in enumerate(self.store.shared_border(current, other)):
+        out, said = [], []
+        # Parts whose ends meet are one border, so where they meet is not an end (P3-T32c).
+        for k, line in enumerate(join_parts(self.store.shared_border(current, other))):
             coords = shapely.get_coordinates(line)
             if shapely.is_closed(line) or len(coords) < 2:
                 from mapcore.store.projection import Flat
@@ -1184,6 +1218,9 @@ class MapSession:
                 continue
             for e, (lon, lat) in enumerate((coords[0], coords[-1])):
                 lat, lon = float(lat), float(lon)
+                if any(geodesy.inverse(lat, lon, p, q)[0] < SAME_END_M for p, q in said):
+                    continue   # an end at the same place as one listed, as where a border forks, is said once (P3-T32c)
+                said.append((lat, lon))
                 key, extra = self._what_is_at_end(current, other, lat, lon)
                 out.append(self._point_item("bordering", other, f"end:{other.id}:{k}:{e}", key, lat, lon, heading,
                                             **extra))
@@ -1239,27 +1276,25 @@ class MapSession:
         whole = max(sum(km for _a, km in kept), max((km for _a, km in listed), default=0.0))   # the outer water holds it all
         return listed, kept, whole
 
-    def _shores_and_coast(self, rel: dict, heading) -> list[dict]:
+    def _shores_and_coast(self, shores: list, kept: list, whole: float, nears: dict, heading) -> list[dict]:
         """Bordering's two headings for land and water (P3-T24e, DP200): for a lake or sea, "Shores", the land
         round it, a heading for each layer, with its length of shore; for land, "Coast", the oceans and seas it
-        touches, with its length of coast. Longest first."""
+        touches (_coast_of's kept, and its whole length), with its length of coast. Longest first. Each is said at
+        its nearest point in nears, as the neighbours are (P3-T32m)."""
         units = self._units()
         out = []
         by_layer: dict[str, list] = {}
-        for identifier, km in rel.get("shores", []):
-            area = self.store.feature(identifier)
-            if area is not None and self._layer_on(area):
-                by_layer.setdefault(area.layer, []).append(
-                    self._feature_item("bordering", area, "bordering.shore", heading,
-                                       length=words.distance_text(km * 1000.0, units)))
+        for area, km in shores:
+            by_layer.setdefault(area.layer, []).append(
+                self._measured_item(area, nears.get(area.id), "bordering.shore", heading, gid="bordering",
+                                    length=words.distance_text(km * 1000.0, units)))
         for layer in self.layers.layers():
             children = by_layer.get(layer.id)
             if children:
                 out.append(panel_table.heading("shores:" + layer.id, say("bordering.shores_heading", layer=layer.name,
                                                                          count=len(children)), children))
-        listed, kept, whole = self._coast_of(rel)
-        coast = [self._feature_item("bordering", a, "bordering.coast", heading,
-                                    length=words.distance_text(km * 1000.0, units)) for a, km in kept]
+        coast = [self._measured_item(a, nears.get(a.id), "bordering.coast", heading, gid="bordering",
+                                     length=words.distance_text(km * 1000.0, units)) for a, km in kept]
         if coast:
             out.append(panel_table.heading("coast", say("bordering.coast_heading",
                                                         length=words.distance_text(whole * 1000.0, units)), coast))
@@ -1289,10 +1324,10 @@ class MapSession:
                 continue
             if not contents.water_may_hold(current.layer, area.layer):   # P3-T29d
                 continue
-            # Wholly inside: the stored "in", made by the build from the real shapes, allowing 0.5 percent. A
-            # feature only partly inside ("partly" for a line, "overlaps" for an area) is not listed here:
-            # Overlapping lists it (P3-T29e).
-            if current.id in self.store.relationships(identifier).get("in", ()):
+            # Wholly inside: the stored "in", made by the build from the real shapes, allowing 0.5 percent, or, for
+            # an island, a water round it, by its shore (P3-T32g). A feature only partly inside ("partly" for a
+            # line, "overlaps" for an area) is not listed here: Overlapping lists it (P3-T29e).
+            if contents.wholly_in(self.store.relationships(identifier), current.id, area.layer):
                 held.append(area)
         nears = self.store.nearest_many(held, lat, lon, zoom)
         by_kind: dict[str, list] = {}
@@ -1358,7 +1393,9 @@ class MapSession:
                 continue
             if partly_by is None and current.id in self.store.relationships(identifier).get("in", ()):
                 continue   # all of it is inside, allowing 0.5 percent: Contains lists it
-            crossing.append((line, [tuple(p) for p in crossed_at.get(identifier, ())]))
+            # Crossings metres apart, such as one on each carriageway, are one (P3-T32d); a pack written before
+            # the build kept one for them stores both.
+            crossing.append((line, geodesy.merge_close(crossed_at.get(identifier, ()), geodesy.ONE_CROSSING_M)))
         along = [a for a in (self.store.feature(i) for i in along_ids) if a is not None]
         nears = self._measured([a for a, _m, _t in areas] + along + [ln for ln, pts in crossing if not pts])
         items = []
@@ -1414,32 +1451,38 @@ class MapSession:
         layer = self.layers.get(self.store.layer_of(identifier) or "")
         return layer is None or layer.on
 
-    def _measured(self, features: list) -> dict:
+    def _measured(self, features: list, reach: float = HALF_WORLD_M) -> dict:
         """Each feature's nearest point to you on its real shape, by identifier (Store.nearest_many), at any
         distance, as Overlapping is not limited by the view (P3-T29e): first within the view, then in circles
         four times as wide each time, to half the world, so each is measured on a drawing as fine as its distance
-        asks for, as Contains measures."""
+        asks for, as Contains measures. reach stops the circles sooner, leaving out what is farther (P3-T32l)."""
         lat, lon = self.world.lat, self.world.lon
-        radius, out = max(self.world.zoom_m, 1000.0), {}
+        reach = min(reach, HALF_WORLD_M)
+        radius, out = min(max(self.world.zoom_m, 1000.0), reach), {}
         left = list(features)
         while left:
             out.update(self.store.nearest_many(left, lat, lon, radius))
             left = [f for f in left if f.id not in out]
-            if radius >= HALF_WORLD_M:
+            if radius >= reach:
                 break
-            radius = min(radius * 4.0, HALF_WORLD_M)
+            radius = min(radius * 4.0, reach)
         return out
 
-    def _measured_item(self, area, near, label_key: str, heading, **fields) -> dict:
-        """An item of Overlapping about a whole feature, said at its nearest point: "you are inside" for an area
-        you are in, "here" for a line you are on, else its distance and direction. Enter and Space use that point.
-        A feature whose shape is not found is said at its own point."""
+    def _nearest_of(self, area, near) -> tuple[float, float, float, float, bool]:
+        """A feature's nearest point as _measured found it, (lat, lon, distance, bearing, inside); for a feature
+        whose shape is not found, its own point (_spot_of)."""
         if near is None:
             lat, lon = self._spot_of(area)
             distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, lat, lon)
-            inside = False
-        else:
-            lat, lon, distance, bearing, inside = near.lat, near.lon, near.distance_m, near.bearing_deg, near.inside
+            return lat, lon, distance, bearing, False
+        return near.lat, near.lon, near.distance_m, near.bearing_deg, near.inside
+
+    def _measured_item(self, area, near, label_key: str, heading, gid: str = "overlapping", **fields) -> dict:
+        """An item of Overlapping, or of Bordering (P3-T32m), about a whole feature, said at its nearest point: "you
+        are inside" for an area you are in, "here" for a line you are on, else its distance and direction, as
+        {where}. Space hears it from that point; Enter goes to an area's own point (_go_to_item), a line's nearest
+        point. A feature whose shape is not found is said at its own point."""
+        lat, lon, distance, bearing, inside = self._nearest_of(area, near)
         is_area = self._geometry(area) == "area"
         if is_area and inside:
             where = say("overlapping.where_inside")
@@ -1448,9 +1491,9 @@ class MapSession:
         else:
             where = say("overlapping.where", distance=words.distance_text(distance, self._units()),
                         direction=words.direction_text(bearing, self.settings["bearing"], heading))
-        self._spots[("overlapping", area.id)] = (area, lat, lon)
-        return self._item_at("overlapping", area, area.id, label_key, lat, lon, heading, distance, bearing,
-                             where=where, **fields)
+        self._spots[(gid, area.id)] = (area, lat, lon)
+        return self._item_at(gid, area, area.id, label_key, lat, lon, heading, distance, bearing, where=where,
+                             **fields)
 
     def _crossing_item(self, line, points: list, heading) -> dict:
         """A line crossing the current feature's border (P3-T24f, DP201): "A8, crosses twice, nearest 6
@@ -1467,16 +1510,23 @@ class MapSession:
                                 times=times)
         item["name"] = str(line.name)
         if line.id in self.panel_open:
-            item["children"] = [self._point_item("overlapping", line, f"crossing:{line.id}:{k}", "overlapping.point",
+            # One crossing has no number: "Crossing of M3", not "Crossing 1 of M3" (P3-T32k).
+            key = "overlapping.point_one" if n == 1 else "overlapping.point"
+            item["children"] = [self._point_item("overlapping", line, f"crossing:{line.id}:{k}", key,
                                                  points[j][0], points[j][1], heading, number=k + 1)
                                 for k, j in enumerate(order)]
         item["expandable"] = True
         return item
 
     @staticmethod
-    def _percent(share: float) -> int:
-        """A share of land as a whole percentage, at least 1, so a small share is not said as none."""
-        return max(1, min(100, round(share * 100)))
+    def _percent(share: float) -> str:
+        """A share as said (P3-T32a): a whole percentage, at most 100, or "less than 1 percent" for a share under 1
+        percent, so a small share is neither said as none nor rounded up to 1, as Burrow Island's of Hampshire was.
+        The build stores shares to 4 decimal places, and an overlap is stored only when one of its two shares is
+        large enough, so a share stored as 0 is still a real one."""
+        if share < 0.01:
+            return say("share.little")
+        return say("share.percent", share=min(100, round(share * 100)))
 
     # Search in the core (P3-T8b; SRB-1, SRB-2, NAV-8, INF-8) ---------------------------------------------
     # The search dialog (P3-T8c) and its narrowing choice (P3-T8d) call these; every word is from the templates.
@@ -1489,7 +1539,10 @@ class MapSession:
         you are; inside, a feature's identifier, such as the current feature's. The results are kept, so
         search_go and search_measure say the same description."""
         w = self.world
-        found = self.store.search(text, limit, layers, None if near_m is None else (w.lat, w.lon, near_m), inside)
+        # Ranked from where you are, so of equals the nearest comes first (P3-T32f).
+        # Twice as many are asked for, so results listed once for being said alike leave no gap (P3-T32j).
+        found = self.store.search(text, 2 * limit, layers, None if near_m is None else (w.lat, w.lon, near_m),
+                                  inside, here=(w.lat, w.lon))
         # "disputed" or "unclaimed" lists those areas first (P3-T16a), within the narrowing chosen.
         word = text.strip().casefold()
         for kind in ("disputed", "unclaimed"):
@@ -1515,9 +1568,37 @@ class MapSession:
                 label = self._dispute_label(row) if row else self._special_label(area)
             out.append({"id": f.id, "name": f.name, "description": f.description, "layer": f.layer,
                         "label": label})
+        out, kept = self._said_once(out, kept)
+        out, kept = out[:limit], kept[:limit]
         self.search_found = {f.id: f for f in kept}
-        self.search_title = None
+        self.search_title, self.search_order = None, "relevance"
         return out
+
+    def _said_once(self, out: list[dict], kept: list) -> tuple[list[dict], list]:
+        """Search results said with the same words told apart, or listed once (P3-T32j, SRB-1, ACC-9). Features
+        of one name and the same description, such as the two points and the relation OpenStreetMap has for
+        Winchester Inlet, or two islands of one name in one province, would sound the same. Each such result
+        gets its distance and direction from where you are; those still said alike are at the same place in
+        words, and only the best ranked is kept."""
+        counts: dict[str, int] = {}
+        for item in out:
+            key = item["label"].casefold()
+            counts[key] = counts.get(key, 0) + 1
+        w = self.world
+        said_out, said_kept, seen = [], [], set()
+        for item, f in zip(out, kept):
+            label = item["label"]
+            if counts[label.casefold()] > 1 and f.lat is not None and f.lon is not None:
+                distance, bearing, _ = geodesy.inverse(w.lat, w.lon, f.lat, f.lon)
+                label = say("search.result_apart", label=label,
+                            distance=words.distance_text(distance, self._units()),
+                            direction=words.direction_text(bearing, self.settings["bearing"]))
+            if label.casefold() in seen:
+                continue
+            seen.add(label.casefold())
+            said_out.append({**item, "label": label})
+            said_kept.append(f)
+        return said_out, said_kept
 
     def name_languages(self) -> dict[str, str]:
         """The names in another language put into words since this was last asked, {name: language code}, such as
@@ -1560,14 +1641,27 @@ class MapSession:
         return self.measure_to(area)
 
     def _group_search(self, current, heading) -> tuple[list[dict], str]:
-        """Search (P3-T8c): the last search's results, in the order of their ranking, each with its direction
-        from where you are. Empty until you have searched."""
+        """Search (P3-T8c): the last search's results, in the order they came, each with its direction from where
+        you are. Empty until you have searched. Those within SEARCH_MEASURE_M are measured to their nearest point, as
+        Overlapping's are (_measured), so a place or line you stand at, as after Enter on it, is "here", and an area
+        you are in "you are inside" (P3-T32l); the rest are said towards their own point (_spot_of), which is quick
+        for the thousands browsing can list."""
+        areas = [a for a in (self.store.feature(i) for i in self.search_found) if a is not None]
+        nears = self._measured(areas, reach=SEARCH_MEASURE_M)
         items = []
-        for identifier, found in self.search_found.items():
-            area = self.store.feature(identifier)
-            if area is not None:
-                items.append(self._feature_item("search", area, "search.item", heading, description=found.description))
-        return self._sorted("search", items, "natural"), say("search.none")
+        for area in areas:
+            lat, lon, distance, bearing, inside = self._nearest_of(area, nears.get(area.id))
+            is_area = self._geometry(area) == "area"
+            if is_area and inside:
+                where = say("overlapping.where_inside")
+            elif not is_area and distance < HERE_M:
+                where = say("overlapping.where_here")
+            else:
+                where = words.direction_text(bearing, self.settings["bearing"], heading)
+            self._spots[("search", area.id)] = (area, lat, lon)
+            items.append(self._item_at("search", area, area.id, "search.item", lat, lon, heading, distance, bearing,
+                                       description=self.search_found[area.id].description, where=where))
+        return items, say("search.none")
 
     # The search dialog (P3-T8c, P3-T8d; SRB-1, SRB-2, NAV-8) -----------------------------------------------
 
@@ -1744,7 +1838,7 @@ class MapSession:
         current = self.current_feature
         if current is None:
             return Response().earcon("blocked").speak(say("browse.none_here"), ASSERTIVE)
-        counts = self.store.relationships(current.id).get("counts", {})
+        counts, _held = self.store.contents_counts(current.id)   # with the islands in a water (P3-T32g)
         layers = [layer for layer in self.layers.layers() if counts.get(layer.id)]
         lines = [say("contains.heading", layer=layer.name, count=counts[layer.id]) for layer in layers]
         choices = [("layer", layer.id) for layer in layers]
@@ -1771,7 +1865,7 @@ class MapSession:
             layer = self.layers.get(which)
             found, label = self.store.browse(layer.id, current.id), layer.name
         self.search_found = {f.id: f for f in found[:BROWSE_LIMIT]}
-        self.search_title = None
+        self.search_title, self.search_order = None, "name"
         key = "browse.done_capped" if len(found) > BROWSE_LIMIT else "browse.done"
         text = say(key, count=len(found), layer=label, name=current.name, limit=BROWSE_LIMIT)
         return Response(panel_stale=True).speak(text, ASSERTIVE)
@@ -1849,6 +1943,9 @@ class MapSession:
             return Response(error=say("query.nothing", heading=heading[:1].lower() + heading[1:]))
         self.search_found = {f.id: f for f in found[:BROWSE_LIMIT]}
         self.search_title = heading
+        # The order the answer came in (P3-T32k): nearest first, a line's areas from its start, else by name.
+        line = relation == "crossing" and self._geometry(self.store.feature(of)) == "line"
+        self.search_order = "nearest" if relation == "near" else "from_start" if line else "name"
         key = "query.done_capped" if len(found) > BROWSE_LIMIT else "query.done"
         text = say(key, heading=heading, count=f"{len(found):,}", limit=f"{BROWSE_LIMIT:,}")
         return Response(panel_stale=True).speak(text, ASSERTIVE)
@@ -3349,8 +3446,8 @@ class MapSession:
         # the size rule leaves some out (P3-T25a, DP204, DP188): "Islands: 11 shown at this zoom, 109,292 in all".
         # The totals are "held", those wholly inside, as Down lists (item 4a); a pack written before it has only
         # "counts", which take in those partly inside too, so it says those, as before, until it is rebuilt.
-        rel = self.store.relationships(current.id)
-        totals = rel["held"] if "held" in rel else rel.get("counts", {})
+        counts, held = self.store.contents_counts(current.id)   # with the islands in a water (P3-T32g)
+        totals = held if held is not None else counts
         lines = []
         for k, (name, areas) in self._down["kinds"].items():
             total = sum(totals.get(x, 0) for x in (k, *(x for x, kind in CONTAINS_KIND.items() if kind == k))
@@ -3385,20 +3482,20 @@ class MapSession:
         heading = describer.words_facing(w, self.settings)
         ahead = describer.facing(w) or 0.0
         units, style = self._units(), self.settings["bearing"]
-        rel = self.store.relationships(current.id)
+        neighbours = self._neighbours(self.store.relationships(current.id))
+        # The direction of each neighbour's nearest point, as Bordering says it, and in the same order (P3-T32m).
+        nears = self._measured([a for _k, a, _km in neighbours])
         found = []
-        for key, entries in (("bordering.item", rel.get("next", [])), ("bordering.near", rel.get("near", []))):
-            for identifier, km in entries:
-                area = self.store.feature(identifier)
-                if area is None or not self._layer_on(area):
-                    continue
-                lat, lon = self._point_of(area)
-                _, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
+        for key, area, km in neighbours:
+            *_, bearing, inside = self._nearest_of(area, nears.get(area.id))
+            direction = say("overlapping.where_inside") if inside else words.direction_text(bearing, style, heading)
+            if key == "bordering.near" and _touches(km):
+                text = say("hierarchy.across_touches", name=area.name, direction=direction)
+            else:
                 field = "length" if key == "bordering.item" else "across"
-                text = say("hierarchy.across" if key == "bordering.item" else "hierarchy.across_near", name=area.name,
-                           direction=words.direction_text(bearing, style, heading),
-                           **{field: words.distance_text(km * 1000.0, units)})
-                found.append(((bearing - ahead) % 360.0, area.name.casefold(), area, text))
+                text = say("hierarchy.across" if key == "bordering.item" else "hierarchy.across_near",
+                           name=area.name, direction=direction, **{field: words.distance_text(km * 1000.0, units)})
+            found.append(((bearing - ahead) % 360.0, area.name.casefold(), area, text))
         found.sort(key=lambda f: f[:2])
         return {"name": current.name, "items": [(a, t) for *_, a, t in found], "index": None, "at": None}
 

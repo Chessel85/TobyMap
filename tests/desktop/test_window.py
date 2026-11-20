@@ -1422,3 +1422,12 @@ def test_opening_a_neighbour_in_bordering_lists_the_ends_of_the_shared_border(wi
     qtbot.waitUntil(lambda: germany.childCount() > 0)
     ends = [germany.child(k).text(0) for k in range(germany.childCount())]
     assert any(e.startswith("End of the border with Germany, where Austria meets it") for e in ends)
+
+
+def test_every_qt_class_is_made_before_the_drawing_thread_starts(window):
+    """P3-T32n: PySide6 makes a class when it is first used, and two threads making classes at once
+    stopped the program with an access violation. The window's thread makes them all first."""
+    from PySide6 import QtCore, QtGui
+
+    for module in (QtCore, QtGui):
+        assert [n for n in dir(module) if n not in module.__dict__] == []

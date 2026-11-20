@@ -213,3 +213,34 @@ def test_local_projection_on_arrays():
     proj = g.LocalProjection(0.0, 0.0)
     x, y = proj.forward(np.array([0.0, 0.1]), np.array([0.1, 0.0]))
     assert x.shape == (2,) and x[0] > 10_000 and y[1] > 10_000
+
+
+# Crossings close together are one crossing (P3-T32d) ---------------------------------------------------------
+
+def test_the_two_carriageways_of_a_road_crossing_a_border_are_one_crossing():
+    """The M3 into Surrey, as the world pack of 20 November stores it: one crossing point on each carriageway,
+    19 metres apart. They are one crossing, said at one of the two."""
+    m3 = [(51.31577, -0.758), (51.31592, -0.75813)]
+    one = g.merge_close(m3, g.ONE_CROSSING_M)
+    assert len(one) == 1 and one[0] in m3
+
+
+def test_crossings_further_apart_than_the_rule_stay_separate_and_in_order():
+    points = [(51.0, -1.0), (51.0027, -1.0), (51.5, -1.0)]   # 300 metres, then 55 kilometres
+    assert g.merge_close(points, g.ONE_CROSSING_M) == points
+
+
+def test_a_cluster_of_crossings_is_said_at_its_middle_point():
+    """The tracks of a railway, or a road that runs on the border for a short way, each a few tens of metres
+    from the next: one crossing, said at the point nearest the middle of them."""
+    points = [(52.0, 0.0), (52.0009, 0.0), (52.0018, 0.0), (52.3, 0.0)]   # 100 metres apart, then far off
+    assert g.merge_close(points, g.ONE_CROSSING_M) == [(52.0009, 0.0), (52.3, 0.0)]
+
+
+def test_crossings_either_side_of_the_180_degree_line_are_one():
+    assert len(g.merge_close([(-17.0, 179.9995), (-17.0, -179.9995)], g.ONE_CROSSING_M)) == 1
+
+
+def test_one_crossing_or_none_is_kept_as_it_is():
+    assert g.merge_close([], g.ONE_CROSSING_M) == []
+    assert g.merge_close([[50.9, -1.3]], g.ONE_CROSSING_M) == [(50.9, -1.3)]

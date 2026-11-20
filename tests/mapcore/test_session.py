@@ -360,19 +360,37 @@ def test_overlapping_says_areas_lines_crossing_and_along_and_a_lines_areas():
     where = say("overlapping.where", distance="4 kilometres", direction="north")
     assert where == "4 kilometres north"
     assert say("overlapping.where_inside") == "you are inside" and say("overlapping.where_here") == "here"
-    assert say("overlapping.item", name="New Forest National Park", where=where, mine=14, theirs=92,
-               current="Hampshire") == ("New Forest National Park, 4 kilometres north, 14 percent of Hampshire and "
-                                        "92 percent of New Forest National Park overlap")
+    assert say("share.percent", share=14) == "14 percent"
+    assert say("share.little") == "less than 1 percent"
+    assert say("overlapping.item", name="New Forest National Park", where=where, mine="14 percent",
+               theirs="92 percent", current="Hampshire") == ("New Forest National Park, 4 kilometres north, 14 percent "
+                                                             "of Hampshire and 92 percent of New Forest National Park "
+                                                             "overlap")
+    assert say("overlapping.item", name="Burrow Island", where=where, mine="less than 1 percent", theirs="24 percent",
+               current="Hampshire") == ("Burrow Island, 4 kilometres north, less than 1 percent of Hampshire and 24 "
+                                        "percent of Burrow Island overlap")
     assert say("overlapping.crossing_heading", count=3) == "Lines crossing its border 3"
     assert say("overlapping.crosses_border", name="A8", times=say("overlapping.times_2"), distance="6 kilometres",
                direction="south-west") == "A8, crosses twice, nearest 6 kilometres south-west"
     assert say("overlapping.times_1") == "once" and say("overlapping.times_n", count=5) == "5 times"
     assert say("overlapping.point", number=1, name="A8", distance="6 kilometres", direction="south-west") \
         == "Crossing 1 of A8, 6 kilometres south-west"
+    # A line that crosses once has one crossing, said without a number (P3-T32k).
+    assert say("overlapping.point_one", name="M3", distance="48 kilometres", direction="north-east") \
+        == "Crossing of M3, 48 kilometres north-east"
+    # The Search group's first order, as the search ranked the results or a query found them (P3-T32k).
+    assert say("panel.order_natural_search") == "best match first"
+    assert say("panel.order_natural_nearest") == "nearest first"
+    # A search result where you are (P3-T32l): its direction, or "here", or "you are inside".
+    assert say("search.item", description="Winchester, England, United Kingdom", where="north-west") \
+        == "Winchester, England, United Kingdom, north-west"
+    assert say("search.item", description="Winchester, England, United Kingdom", where="here") \
+        == "Winchester, England, United Kingdom, here"
     assert say("overlapping.crosses", name="A8", where=where) == "A8, 4 kilometres north, crosses it"
     assert say("overlapping.along_heading", count=1) == "Lines along its border 1"
     assert say("overlapping.along", name="Rhine", where=where) == "Rhine, 4 kilometres north, along its border"
-    assert say("overlapping.partly", name="Hampshire", where="you are inside", share=70, current="River Itchen") \
+    assert say("overlapping.partly", name="Hampshire", where="you are inside", share="70 percent",
+               current="River Itchen") \
         == "Hampshire, you are inside, 70 percent of River Itchen is inside it"
     assert say("overlapping.partly_little", name="France", where=where, current="Rhine") \
         == "France, 4 kilometres north, less than 1 percent of Rhine is inside it"
@@ -627,3 +645,12 @@ def test_the_key_map_and_key_file_wording_is_approved():
     assert say("keys.reset_done", name="Alternative") == "Your keys are reset. The keys are those of the Alternative key map."
     assert say("keys.opened", name="Alternative") == "Key file opened. The key map is Alternative."
     assert say("keys.bad_file") == "That is not a key file TobyMap can read, so your keys are not changed."
+
+
+def test_bordering_says_an_area_that_touches_at_a_point():
+    """The approved wording of an area that meets the current one with under 10 metres of border (P3-T32b)."""
+    from mapcore.describe import say
+    where = say("overlapping.where", distance="12 kilometres", direction="north-west")   # its nearest point (P3-T32m)
+    assert say("bordering.touches", name="Belgium", where=where) == "Belgium, 12 kilometres north-west, touches at a point"
+    assert say("hierarchy.across_touches", name="Belgium", direction="north-west") \
+        == "Belgium, north-west, touches at a point"

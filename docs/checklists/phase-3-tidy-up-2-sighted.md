@@ -21,10 +21,10 @@ Go to 55.76,-6.28, on Islay, at zoom 100 kilometres.
 
 ## 2. The two M3s (P3-T28d, P3-T21b)
 
-Press Ctrl+F, choose "Only Motorways and trunk roads", type m3 and press Enter on "M3, Northern Ireland, United Kingdom, road", eighth in the list. Zoom in to 10 kilometres.
+Press Ctrl+F, choose "Only Motorways and trunk roads", type m3 and press Enter on "M3, Northern Ireland, United Kingdom, road", second in the list. Zoom in to 10 kilometres.
 
 * 2.1 A road is drawn in Belfast, in the colour of motorways and trunk roads. The highlight, if you press Shift+5 and move to it, is the same road.
-* 2.2 Go to the English M3 by searching again and choosing "M3, England, United Kingdom, road", ninth in the list, at zoom 100 kilometres. A long line is drawn running from near London, through Surrey and Hampshire, south-west to Southampton. It is a different line from the one in Belfast: there is no line drawn between Belfast and England.
+* 2.2 Go to the English M3 by searching again and choosing "M3, England, United Kingdom, road", first in the list, at zoom 100 kilometres. A long line is drawn running from near London, through Surrey and Hampshire, south-west to Southampton. It is a different line from the one in Belfast: there is no line drawn between Belfast and England.
 * 2.3 Zoom out to 2,500 kilometres. Is each M3 drawn, or only when zoomed in? Say which.
 * 2.4 Go to Belfast, at zoom 5 kilometres. The M3 crosses the River Lagan on a bridge. The road is drawn unbroken over the river, and the river is drawn under or over it in a way you can follow. How does it look?
 
@@ -94,7 +94,7 @@ Go to 51.06,-1.31, and press Shift+1.
 Go to 51.06,-1.31, at zoom 25 kilometres.
 
 * 10.1 Press Shift+3 and move to West Sussex. It is outlined on the map in the highlight colour.
-* 10.2 Press Shift+5, and move to the M3, a line crossing the border. It is highlighted as a line. Move to a crossing point of the M3 with Right and Enter on a crossing: the map is centred on it.
+* 10.2 Press Shift+5, and move to the M3, a line crossing the border. It is highlighted as a line. Press Right on the M3 to show its one crossing point, and press Enter on it: the map is centred on it.
 * 10.3 In the high contrast themes, is the highlight easy to tell from the current area's outline?
 
 ## 11. Anything else

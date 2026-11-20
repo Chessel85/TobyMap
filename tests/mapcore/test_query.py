@@ -55,7 +55,7 @@ def test_towns_within_a_distance_of_the_current_feature(s):
     assert ask(s, "towns", "near", HAMPSHIRE_ID, "10").error == "No cities and towns within 10 kilometres of Hampshire."
     r = ask(s, "towns", "near", HAMPSHIRE_ID, "20")
     assert r.error is None
-    assert search_group(s)["label"] == "Cities and towns within 20 kilometres of Hampshire, 1 item, by name"
+    assert search_group(s)["label"] == "Cities and towns within 20 kilometres of Hampshire, 1 item, nearest first"
     [item] = search_group(s)["items"]
     assert item["label"].startswith("Newport, 10 kilometres from Hampshire, ")
     # Inside counts as no distance: the Isle of Wight's Newport, not the one in Wales.
@@ -99,6 +99,8 @@ def test_the_areas_a_line_crosses_are_in_order_from_its_start(s):
     r = ask(s, "countries", "crossing", RHINE)
     assert r.announcements[-1]["text"] == "Countries crossed by Rhine: 3, in the Search group."
     assert names(s) == ["Switzerland", "Germany", "France"]
+    # The heading names that order, not "by name" (P3-T32k).
+    assert search_group(s)["label"] == "Countries crossed by Rhine, 3 items, from its start"
 
 
 def test_the_form_has_three_lists_with_no_field_names(s):

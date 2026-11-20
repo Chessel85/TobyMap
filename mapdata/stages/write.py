@@ -7,12 +7,16 @@ and the attribution record credits each of them (DAT-9, DMT-6).
 """
 from __future__ import annotations
 
+import math
+
 from mapdata.pipeline import features
 from mapdata.pipeline.build import pack_file_name
 from mapdata.stages import antimeridian, pack_write
 import numpy as np
 import shapely
 
+from mapcore.geo import geodesy
+from mapcore.store import contents
 from mapdata.stages.geodesy import areas_km2
 
 
@@ -20,6 +24,17 @@ def attribution_text(sources: list[dict]) -> str:
     lines = list(dict.fromkeys(s["attribution"] for s in sources))
     lines += [f"{s['name']}: {s['licence']}, {s['date']}." for s in sources]
     return "\n".join(lines) + "\n"
+
+
+def one_crossing_each(rel: dict[int, dict]) -> None:
+    """Each line's crossings of an area's border with those closer together than the core's ONE_CROSSING_M made
+    one (P3-T32d), such as the M3 into Surrey, which crosses Hampshire's border on each carriageway 19 metres
+    apart and was stored as crossing twice. Done here, not in the long relationships stage, so only the pack is
+    written again; the core keeps the same rule for packs written before."""
+    for r in rel.values():
+        if "crossed_at" in r:
+            r["crossed_at"] = [[i, [list(p) for p in geodesy.merge_close(pts, geodesy.ONE_CROSSING_M)]]
+                               for i, pts in r["crossed_at"]]
 
 
 def keep_ids_unique(records: list[dict], say, renamed: dict | None = None) -> int:
@@ -375,17 +390,97 @@ def drawing_shapes(records, geoms, levels, say, apart=frozenset(), held=None, ex
     return out
 
 
+LAKE_LAYERS = ("lakes",)   # the water layers the relationships stage measures no coast on (P3-T32g)
+LAKE_SHORE_M = 150.0   # an island's outline this close to a lake is shore on it: each is simplified by up to 100 m
+EARTH_KM = 6371.0088
+
+
+def segments_km(a, b) -> np.ndarray:
+    """The length of each segment from points a to points b, in longitude and latitude, over the Earth in km."""
+    a, b = np.radians(np.asarray(a, dtype=float)), np.radians(np.asarray(b, dtype=float))
+    h = (np.sin((b[:, 1] - a[:, 1]) / 2) ** 2
+         + np.cos(a[:, 1]) * np.cos(b[:, 1]) * np.sin((b[:, 0] - a[:, 0]) / 2) ** 2)
+    return 2 * EARTH_KM * np.arcsin(np.sqrt(np.clip(h, 0.0, 1.0)))
+
+
+def shore_km(island, water, eps_deg: float) -> float:
+    """The length of an island's outline, its outer rings only, within eps_deg of a water area, in km: each ring
+    cut into steps no longer than eps_deg, and a step counted when both its ends are that close. `water` is best
+    prepared."""
+    total = 0.0
+    for ring in shapely.get_exterior_ring(shapely.get_parts(island)):
+        c = shapely.get_coordinates(shapely.segmentize(ring, eps_deg))
+        if len(c) < 2:
+            continue
+        near = shapely.dwithin(water, shapely.points(c), eps_deg)
+        both = near[:-1] & near[1:]
+        if both.any():
+            total += float(segments_km(c[:-1][both], c[1:][both]).sum())
+    return total
+
+
+def lake_shores(records: list[dict], geoms: list, relationships: dict[str, dict],
+                metres: float = LAKE_SHORE_M) -> int:
+    """Each island's shore on each lake round it (P3-T32g, INF-4, DAT-4), stored on the island as "lake_shore" and
+    on the lake among its "shores", each [id, km], longest first. An island in a lake is a hole in the lake's
+    outline, and lakes are not water to the relationships stage, so nothing else puts it in the lake; the core's
+    rule (contents.waters_round) does, from this, when at least half its outline is shore on it. The shore is the
+    island's outline within `metres` of the lake, as the two outlines are each simplified on their own. Changes
+    `relationships` in place; returns how many island and lake pairs have a shore."""
+    lakes = [k for k, r in enumerate(records) if r.get("layer") in LAKE_LAYERS
+             and geoms[k] is not None and not geoms[k].is_empty and geoms[k].geom_type.endswith("Polygon")]
+    isles = [k for k, r in enumerate(records) if r.get("layer") in contents.ISLE_LAYERS
+             and geoms[k] is not None and not geoms[k].is_empty and geoms[k].geom_type.endswith("Polygon")]
+    if not lakes or not isles:
+        return 0
+    arr = np.array([geoms[k] for k in isles], dtype=object)
+    tree = shapely.STRtree(arr)
+    touched: set[str] = set()
+    pairs = 0
+    for k in lakes:
+        lake = geoms[k]
+        _w, s, _e, n = lake.bounds
+        # In degrees of longitude, the widest, so the reach is at least `metres` every way.
+        eps = metres / (111_320.0 * max(math.cos(math.radians(max(abs(s), abs(n)))), 0.05))
+        shapely.prepare(lake)
+        for h in tree.query(lake, predicate="dwithin", distance=eps).tolist():
+            km = round(shore_km(arr[h], lake, eps), 2)
+            if km < 0.01:
+                continue
+            isle, water = records[isles[h]]["id"], records[k]["id"]
+            relationships.setdefault(isle, {}).setdefault("lake_shore", []).append([water, km])
+            relationships.setdefault(water, {}).setdefault("shores", []).append([isle, km])
+            touched.update((isle, water))
+            pairs += 1
+        shapely.destroy_prepared(lake)
+    for i in touched:
+        for key in ("lake_shore", "shores"):
+            if key in relationships[i]:
+                relationships[i][key].sort(key=lambda x: -x[1])
+    return pairs
+
+
 def run(ctx) -> None:
     records, geoms = features.load(ctx.previous)
     from mapdata.stages import relationships as relmod
 
     rel = relmod.load(ctx.previous)   # from the relationships stage, by each feature's index (P3-T3)
+    if rel:
+        one_crossing_each(rel)
     renamed: dict = {}
     changed = keep_ids_unique(records, ctx.progress.log, renamed)
     resolve_within(records, renamed)
     if changed:
         ctx.progress.line(f"Ids used twice, written with an ending so every id is different: {changed}. "
                           "The log lists them.")
+    rel_by_id = relmod.by_id(rel, [r["id"] for r in records]) if rel else None
+    if rel_by_id is not None:   # P3-T32g: the islands' shores on the lakes, for the islands in each lake
+        import time
+
+        t = time.perf_counter()
+        pairs = lake_shores(records, geoms, rel_by_id)
+        ctx.progress.line(f"Measured the islands' shores on the lakes: {pairs:,} islands with a shore on a lake, "
+                          f"in {time.perf_counter() - t:.0f} seconds.")
     tiers = load_tiers()
     counts = give_tiers(records, tiers)
     if counts:
@@ -411,7 +506,7 @@ def run(ctx) -> None:
     with parallel.pool(ctx.workers) as executor:
         pool = None if ctx.workers == 1 else executor
         write_with(ctx, records, geoms, sources, pool, tiers["tiers"],
-                   relmod.by_id(rel, [r["id"] for r in records]) if rel else None, search)
+                   rel_by_id, search)
 
 
 def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None = None,
@@ -460,6 +555,8 @@ def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None =
                 "drawing_levels": levels, "sources": sources}
     if tiers:   # the order of the tiers, highest first, for the order of the areas at a point (P3-T17)
         manifest["tiers"] = list(tiers)
+    if relationships:   # each water's "held" and "counts" take in the islands in it by their shore (P3-T32g)
+        manifest["islands_in_water"] = True
     layers = [layer.definition() for k, layer in ctx.pack.layers.items()
               if any(r["layer"] == k for r in records)]
     path = ctx.folder / pack_file_name(data["name"])

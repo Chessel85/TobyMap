@@ -186,6 +186,26 @@ def paint_scene(painter: QPainter, scene: dict) -> None:
         painter.drawPolygon(arrow)
 
 
+_qt_classes_made = False
+
+
+def make_qt_classes() -> None:
+    """Make every class of QtCore and QtGui now, in the window's thread, before the drawing thread starts
+    (P3-T32n). PySide6 makes a class, and its enums, only when it is first used. Two threads making
+    classes at once stopped the program with "access violation": the drawing thread's first paint
+    made one while the window's first paintEvent made another. Once all are made, the drawing thread
+    only uses them. About 0.1 seconds, once."""
+    global _qt_classes_made
+    if _qt_classes_made:
+        return
+    from PySide6 import QtCore, QtGui
+
+    for module in (QtCore, QtGui):
+        for name in dir(module):
+            getattr(module, name)
+    _qt_classes_made = True
+
+
 class Drawer(QObject):
     """Draws the map in its own thread. request() never waits; drawn is sent,
     in the window's thread, with each finished image."""
@@ -205,6 +225,7 @@ class Drawer(QObject):
         # The window's timer and the drawing share Python: let them take turns
         # often, so a held key's step is never kept waiting more than a moment.
         sys.setswitchinterval(min(sys.getswitchinterval(), 0.0002))
+        make_qt_classes()   # before the thread starts, so it never makes a class itself
         self._thread = threading.Thread(target=self._run, name="map drawing", daemon=True)
         self._thread.start()
 

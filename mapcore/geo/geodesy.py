@@ -67,6 +67,66 @@ def rough_distances_m(lat: float, lon: float, lats, lons) -> np.ndarray:
     return 2 * R_MEAN_M * np.arcsin(np.minimum(1.0, np.sqrt(h)))
 
 
+# Crossing points of one line with one border closer together than this are one crossing (P3-T32d). The two
+# carriageways of a dual carriageway cross a border 20 to 60 metres apart (the M3 into Surrey, 19 metres), the
+# tracks of a railway a few metres apart, and the carriageways of a motorway with a wide middle, such as the A11
+# in Cambridgeshire, up to about 110 metres. Real separate crossings of the same border by the same line, as a
+# road or river weaves over it, are hundreds of metres or kilometres apart, and two within 200 metres could not
+# be told apart by stepping round the map anyway.
+ONE_CROSSING_M = 200.0
+
+
+def merge_close(points, within_m: float) -> list[tuple[float, float]]:
+    """Points (latitude, longitude) with those closer than within_m to another of them made one, kept in their
+    order (P3-T32d). A group is every point that can be reached from another of the group in steps shorter than
+    within_m, so the tracks of a railway or a road along the border for a short way are one; it is kept as its
+    point nearest the middle of the group, a real point on the line. Distances are on the mean sphere, which at a
+    few hundred metres is well within a metre."""
+    pts = [(float(p[0]), float(p[1])) for p in points]
+    n = len(pts)
+    if n < 2:
+        return pts
+    lats = np.array([p[0] for p in pts])
+    lons = np.array([p[1] for p in pts])
+    parent = list(range(n))
+
+    def root(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    reach = math.degrees(within_m / R_MEAN_M)   # no point further north or south than this is near enough
+    order = np.argsort(lats, kind="stable")
+    for a in range(n):
+        i = int(order[a])
+        b = a + 1
+        while b < n and lats[order[b]] - lats[i] <= reach:
+            b += 1
+        if b > a + 1:
+            others = order[a + 1:b]
+            near = others[rough_distances_m(lats[i], lons[i], lats[others], lons[others]) < within_m]
+            for j in near:
+                ri, rj = root(i), root(int(j))
+                if ri != rj:
+                    parent[max(ri, rj)] = min(ri, rj)
+    groups: dict[int, list[int]] = {}
+    for i in range(n):
+        groups.setdefault(root(i), []).append(i)
+    out = []
+    for first in sorted(groups):
+        members = groups[first]
+        if len(members) == 1:
+            out.append(pts[first])
+            continue
+        mid_lat = float(lats[members].mean())
+        dl = (lons[members] - lons[first] + 180.0) % 360.0 - 180.0   # about the first, across the 180 degree line
+        mid_lon = float(lons[first] + dl.mean())
+        dist = rough_distances_m(mid_lat, mid_lon, lats[members], lons[members])
+        out.append(pts[members[int(np.argmin(dist))]])
+    return out
+
+
 def inverse_many(lat: float, lon: float, lats, lons) -> tuple[np.ndarray, np.ndarray]:
     """Distances in metres and bearings at the start, from one point to many, on the ellipsoid, as two arrays
     (P3-T20b). Vincenty's method over NumPy arrays, which agrees with GeographicLib to well under a millimetre

@@ -661,6 +661,22 @@ class Pack:
             self._relations[g] = self.get_json(f"relations/{g}") or {}
         return self._relations[g].get(identifier, {})
 
+    def relationships_passing(self, identifiers) -> dict[str, dict]:
+        """Many features' relationships, as relationships() gives them, reading each record once and keeping only
+        those already kept: the islands round an ocean are in nearly every record, and keeping them all took
+        nearly 3 GB (P3-T32g)."""
+        by_group: dict[int, list[str]] = {}
+        for identifier in identifiers:
+            by_group.setdefault(feature_group(identifier, len(self.group_starts)), []).append(identifier)
+        out = {}
+        for g, ids in by_group.items():
+            got = self._relations.get(g)
+            if got is None:
+                got = self.get_json(f"relations/{g}") or {}
+            for identifier in ids:
+                out[identifier] = got.get(identifier, {})
+        return out
+
     @property
     def search_buckets(self) -> int:
         """How many search records the pack has (P3-T8a); 0 for a pack written before the search index."""

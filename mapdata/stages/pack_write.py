@@ -187,7 +187,11 @@ def count_held(records: list[dict], relationships: dict[str, dict]) -> int:
     holds it (item 4a of the plan 2 ledger). Hierarchy mode's Down lists only these (P3-T29c), so its "in all" is
     made from them; "counts" keeps those partly inside too, the number Ctrl+Shift+F lists. "in" allows the build's
     full_share and measures land areas in land areas on land (P3-T28n), and takes in a condominium's owners, so
-    this runs after share_condominiums. Changes `relationships` in place; returns how many areas hold something."""
+    this runs after share_condominiums. An island in a water by its shore (contents.waters_round) is in both the
+    water's "held" and its "counts" (P3-T32g), as the manifest's islands_in_water says. Changes `relationships` in
+    place; returns how many areas hold something."""
+    from mapcore.store import contents
+
     layer_of = {r["id"]: r["layer"] for r in records}
     held: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for identifier, rel in relationships.items():
@@ -196,6 +200,15 @@ def count_held(records: list[dict], relationships: dict[str, dict]) -> int:
             continue
         for area in set(rel.get("in", ())):
             held[area][layer] += 1
+        if layer in contents.ISLE_LAYERS:   # an island in the water round it, by its shore (P3-T32g)
+            before = contents.holders(rel)   # what the relationships stage's "counts" took in
+            for area in contents.waters_round(rel):
+                if area not in rel.get("in", ()):
+                    held[area][layer] += 1
+                if area not in before:
+                    counts = relationships.setdefault(area, {}).setdefault("counts", {})
+                    counts[layer] = counts.get(layer, 0) + 1
+                    relationships[area]["counts"] = dict(sorted(counts.items()))
     for area, by_layer in held.items():
         relationships.setdefault(area, {})["held"] = dict(sorted(by_layer.items()))
     for rel in relationships.values():   # an area with counts but nothing wholly inside: an empty "held", not none,

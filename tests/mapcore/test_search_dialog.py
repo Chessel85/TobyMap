@@ -90,3 +90,40 @@ def test_going_to_something_not_found_is_refused(s):
 def test_run_many_keeps_the_found_results(s):
     r = s.run_many([("search.query", {"text": "Paris", "scope": "all"})])
     assert r.found and PARIS in r.found["ids"]
+
+
+# The Search group's order and where its items are (P3-T32k, P3-T32l) -----------------------------------------
+
+BROCKENHURST, HAMPSHIRE_ID = "osm:n6076836207", "osm:r172799"
+
+
+def search_group(s):
+    return next(g for g in s.panel(open=["search"]) if g["id"] == "search")
+
+
+def test_search_results_are_said_as_best_match_first_and_ctrl_s_goes_on_to_by_name(s):
+    """P3-T32k: the results are listed as the search ranked them, so the heading says so, not "by name"."""
+    s.run("search.query", text="Paris", scope="all")
+    s.panel_at_group = "search"
+    label = search_group(s)["label"]
+    assert label.startswith("Search, ") and label.endswith(" items, best match first")
+    s.run("panel.sort")
+    assert search_group(s)["label"].endswith(", by name")
+    s.run("panel.sort_back")
+    assert search_group(s)["label"].endswith(", best match first")
+
+
+def test_a_place_you_went_to_from_search_is_here_in_the_search_group(s):
+    """P3-T32l: after Enter on a result you stand at it, so it is "here", not a direction (Winchester was "south")."""
+    s.run("search.query", text="Brockenhurst", scope="all")
+    assert s.run("search.go", id=BROCKENHURST).error is None
+    item = next(i for i in search_group(s)["items"] if i["id"] == BROCKENHURST)
+    assert item["label"].endswith(", here")
+
+
+def test_an_area_you_are_in_is_you_are_inside_in_the_search_group(s):
+    s.run("search.query", text="Hampshire", scope="all")
+    item = next(i for i in search_group(s)["items"] if i["id"] == HAMPSHIRE_ID)
+    assert item["label"].endswith(", you are inside")
+    far = [i for i in search_group(s)["items"] if i["id"] != HAMPSHIRE_ID]
+    assert all(not i["label"].endswith((", here", ", you are inside")) for i in far)

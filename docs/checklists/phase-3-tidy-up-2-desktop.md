@@ -8,7 +8,9 @@ For each step, write down its number, such as 4.3, and either "works" or what yo
 
 The expected words below are what TobyMap's core said on the world pack of 20 November, at the places given. Distances to things depend on exactly where you stand, so those are given as "such as". If the words differ only in a number, say so, but it is not a fault unless the number seems wrong.
 
-A few steps now say what TobyMap does where it differs from what was planned, and are marked "Possible fault". You don't need to report those, but tell me if you agree.
+The possible faults found on the world pack on 20 November were fixed on 20 November (P3-T32a to P3-T32g), and the steps they affected have been updated with what TobyMap now says on the same pack. No step is marked "Possible fault" any more. The fixes needed no new build. Step 13.3, Ceuta, is new.
+
+Bordering now says each neighbour, each area that nearly touches and each sea of a coast at its nearest point from where you stand, as Overlapping and Nearby do, not at its own point (P3-T32m, your decision of 20 November). Left and Right in hierarchy mode say the direction of that nearest point too, and go round in that order. Steps 2.3, 5.2, 5.3, 14.3, 14.4 and 15.5 give what TobyMap now says.
 
 ## How to start TobyMap
 
@@ -48,7 +50,7 @@ You don't need to report these.
 * Scotland's stand-in areas are named "Part of Scotland in no county", not "no council area", as the build has no word for Scotland's council areas yet.
 * Space on Exmoor says the range between Great Britain and the British Isles.
 * A line that crosses an area's border where no crossing point is stored is said as "A449, 44 kilometres west, crosses it". This is the agreed wording for that case.
-* The Cornish Main Line "crosses 22 times" England's border, because the coast counts as border until P3-T30.
+* The Cornish Main Line "crosses 8 times" Cornwall's border, because the coast counts as border until P3-T30.
 * Roads with no number and no name are still one "Unnamed road" for each country.
 * Down from Europe takes about 2.5 seconds, a little slower than before. It can be made faster later by giving the map a larger memory store, which costs memory in the browser.
 
@@ -73,7 +75,7 @@ Zoom 25 kilometres, step 10 kilometres.
 
 * 2.1 Go to 55.76,-6.28, on Islay. Space says "Near Bowmore. Argyll and Bute, Scotland, United Kingdom, Islay, British Isles, Europe". Before, it said "Scotland" as if it were a county.
 * 2.2 Press L, then Shift+2 for Nearby. Neither has "Scotland, 6 kilometres east" any more. Nearby has 8 items: the Sea of the Hebrides and the North Atlantic Ocean, 37 metres north, Bowmore, 600 metres south-west, then bays and points such as Laggan Bay and Loch Indaal. Jura is not among them: it is further away than these 8.
-* 2.3 Go to 50.72,-1.88, in Bournemouth. Press Shift+3 for Bordering. The heading is "Bordering Bournemouth, Christchurch and Poole, 3 items, clockwise from north". The neighbours are Hampshire and Dorset, with no "England", then the heading "Coast, 66 kilometres", with the English Channel under it.
+* 2.3 Go to 50.72,-1.88, in Bournemouth. Press Shift+3 for Bordering. The heading is "Bordering Bournemouth, Christchurch and Poole, 3 items, clockwise from north". The neighbours are Dorset, such as "Dorset, 4.9 kilometres north, shared border 34 kilometres, 28 percent", then Hampshire, "8.3 kilometres north-east", with no "England", then the heading "Coast, 66 kilometres", with the English Channel under it, "580 metres south".
 
 ## 3. Within, Shift+1 (P3-T29h)
 
@@ -91,12 +93,12 @@ Zoom 25 kilometres, step 10 kilometres.
 * 4.3 Press Shift+2. Winchester is not in Nearby, as you are at it, and the heading still says 8 items.
 * 4.4 Press Shift+1. The first item of Within is "Winchester, here".
 
-## 5. Bordering, Shift+3 (P3-T28b, P3-T28i, P3-T28r)
+## 5. Bordering, Shift+3 (P3-T28b, P3-T28i, P3-T28r, P3-T32m)
 
 * 5.1 Go to 51.06,-1.31. Press Shift+3. The heading is "Bordering Hampshire, 12 items, clockwise from north".
-* 5.2 Press Down through the neighbours: West Berkshire, Borough of Wokingham, Bracknell Forest, Surrey, West Sussex, Portsmouth, Isle of Wight, Southampton, Bournemouth, Christchurch and Poole, Dorset and Wiltshire. Each says its shared border and its share, such as "West Sussex, 61 kilometres east, shared border 40 kilometres, 7 percent". There is no "England". The Isle of Wight says "nearly touches, 1.3 kilometres across".
-* 5.3 The last item is a heading, "Coast, 190 kilometres". Open it. It has only "English Channel", such as "English Channel, 130 kilometres south-west, 190 kilometres of coast". The North Atlantic Ocean and the Sea of the Hebrides are not there any more.
-* 5.4 Press Right on West Sussex. The ends of the shared border are listed clockwise from north, so "End of the border with West Sussex, where Surrey meets it, 39 kilometres east" comes first. Then "End of the border with West Sussex, at the coast, English Channel, 36 kilometres south-east" is said three times. Possible fault: the shared border is stored in two parts, and three of their four ends are said with the same words, so they sound like one end listed three times.
+* 5.2 Press Down through the neighbours: Borough of Wokingham, Bracknell Forest, Surrey, West Sussex, Portsmouth, Isle of Wight, Southampton, Bournemouth, Christchurch and Poole, Dorset, Wiltshire and West Berkshire. They are in order clockwise from north by the direction of each one's nearest point, so West Berkshire, just west of north, is last. Each says the distance and direction of its nearest point, its shared border and its share, such as "West Sussex, 29 kilometres south-east, shared border 40 kilometres, 7 percent". Before, it said "61 kilometres east", to West Sussex's own point near Horsham. There is no "England". The Isle of Wight says "nearly touches, 1.3 kilometres across".
+* 5.3 The last item is a heading, "Coast, 190 kilometres". Open it. It has only "English Channel", such as "English Channel, 20 kilometres south, 190 kilometres of coast", the nearest point of its water. The North Atlantic Ocean and the Sea of the Hebrides are not there any more.
+* 5.4 Press Right on West Sussex. The ends of the shared border are listed clockwise from north. There are two, each said once: first "End of the border with West Sussex, where Surrey meets it, 39 kilometres east", then "End of the border with West Sussex, at the coast, English Channel, 36 kilometres south-east". Before, the coast end was said three times, as the shared border is stored in two parts (P3-T32c).
 * 5.5 Press Shift+1, move to England and press Shift+Enter. You hear "Current layer: Regions and constituent countries. England is the current feature."
 * 5.6 Press Shift+3. The heading is "Bordering England, 3 items, clockwise from north": Wales, Scotland, then "Coast, 6,270 kilometres". Open the Coast heading. It lists the North Sea, 2,750 kilometres of coast, the English Channel, 1,880, the Irish Sea, 840, and the Bristol Channel, 690. There is no Sea of the Hebrides.
 
@@ -110,16 +112,16 @@ England is still the current feature from 5.5.
 * 6.4 Press Shift+4: "Contains Hampshire, 3 items, by name": Motorways and trunk roads 10, Main railway lines 2, and Cities and towns 13. It holds only what is wholly inside Hampshire, and only what is within 25 kilometres of you, measured to each feature's nearest point. Towns say a short distance to their point, such as "Winchester, 260 metres north-west".
 * 6.5 The M3 is not in Contains Hampshire, as it runs on into Surrey. Nor is the River Itchen, as its mouth is in Southampton. Both are now in Overlapping, section 7.
 * 6.6 Bays and straits, whether drawn as areas or only points, are in one subgroup, "Seas, bays and straits".
-* 6.7 Press Ctrl+F, type english channel, and press Enter on "English Channel, North Atlantic Ocean, sea, bay or strait". You hear "English Channel, North Atlantic Ocean. Zoom 500 kilometres." Press Shift+4. The heading is "Contains English Channel, 1 item, by name", and the one item is the heading "Seas, bays and straits 476", such as Alderney Race and Christchurch Bay. There are no rivers, roads, railways or towns. Possible fault: there are no islands either, though the plan says a sea contains bays, straits and islands. The Channel Islands are not listed.
+* 6.7 Press Ctrl+F, type english channel, and press Enter on "English Channel, North Atlantic Ocean, sea, bay or strait". You hear "English Channel, North Atlantic Ocean. Zoom 500 kilometres." Press Shift+4. The heading is "Contains English Channel, 2 items, by name". The items are two headings: "Seas, bays and straits 476", such as Alderney Race and Christchurch Bay, and "Islands 3": Guernsey, the Isle of Wight and Jersey, such as "Guernsey, 45 kilometres south-east". At this zoom only the larger islands are listed; hierarchy mode's Down, step 14.8, says how many there are in all. There are no rivers, roads, railways or towns. The first time, it takes about 6 seconds to open on this pack, as the pack does not yet store how many islands each sea holds; the next build stores it (P3-T32g).
 
 ## 7. Overlapping, Shift+5 (P3-T29e)
 
 Zoom 25 kilometres, step 10 kilometres.
 
 * 7.1 Go to 51.06,-1.31. Press Shift+5. The heading is "Overlapping Hampshire, 3 items, by name".
-* 7.2 First come the areas of other layers that cover part of Hampshire, under a heading for each layer. There is one, "Islands 1", with "Burrow Island, 31 kilometres south-east, 1 percent of Hampshire and 24 percent of Burrow Island overlap". No sea is listed for Hampshire's coast. Great Britain is not listed: the build counts Hampshire as wholly inside Great Britain. Possible fault: Burrow Island is a tiny island in Portsmouth Harbour, far less than 1 percent of Hampshire, but a share of an area is never said as less than 1 percent.
-* 7.3 Then the heading "Lines crossing its border 24". The M3 is there, "M3, crosses twice, nearest 48 kilometres north-east", and the River Itchen, "River Itchen, crosses once, nearest 14 kilometres south".
-* 7.4 Press Right on the M3. Each crossing point is listed: "Crossing 1 of M3, 48 kilometres north-east" and "Crossing 2 of M3", the same distance and direction. Press Enter on one: you go there. Alt+Comma comes back. Possible fault: both crossings are at the same distance and direction, where the M3 goes into Surrey, so this may be one crossing counted twice.
+* 7.2 First come the areas of other layers that cover part of Hampshire, under a heading for each layer. There is one, "Islands 1", with "Burrow Island, 31 kilometres south-east, less than 1 percent of Hampshire and 24 percent of Burrow Island overlap" (P3-T32a). Burrow Island is a tiny island in Portsmouth Harbour, cut by the border with Portsmouth. It is the only island listed: Hayling Island is wholly inside Hampshire, so it is in Contains, and Portsea Island is in Portsmouth. No sea is listed for Hampshire's coast. Great Britain is not listed: the build counts Hampshire as wholly inside Great Britain.
+* 7.3 Then the heading "Lines crossing its border 24". The M3 is there, "M3, crosses once, nearest 48 kilometres north-east", and the River Itchen, "River Itchen, crosses once, nearest 14 kilometres south".
+* 7.4 Press Right on the M3. Its one crossing point is listed: "Crossing of M3, 48 kilometres north-east", where the M3 goes into Surrey. A line with one crossing has no number; a line with two or more says "Crossing 1 of", "Crossing 2 of" and so on (P3-T32k). Press Enter on it: you go there. Alt+Comma comes back. Before, the two carriageways made two crossings at the same place (P3-T32d).
 * 7.5 The last heading is "Lines along its border 3": the River Avon, the River Test and the River Wey, such as "River Test, 14 kilometres west, along its border".
 * 7.6 Press Shift+2 for Nearby, move to River Itchen and press Enter. Press Shift+5. The heading is "Overlapping River Itchen, 2 items, from its start". The items are the areas the river passes through, in order from its source: "Hampshire, you are inside, 88 percent of River Itchen is inside it", then "Southampton, 13 kilometres south, 12 percent of River Itchen is inside it". England is not listed, as it holds all of the river.
 * 7.7 Press Shift+2, move to Winchester and press Enter. Press Shift+5. The heading is "Overlapping Winchester, no items", and under it "Nothing overlaps Winchester." A place is either inside an area or not.
@@ -144,7 +146,8 @@ Zoom 25 kilometres, step 10 kilometres.
 
 ## 10. Search, Shift+7
 
-* 10.1 Press Ctrl+F and type winchester. The first result is "Winchester, Virginia, United States, county of Virginia"; the second is "Winchester, England, United Kingdom, city or town". Press Enter on the second. Press Shift+7. The heading is "Search, 20 items, by name", with Winchester in it, such as "Winchester, England, United Kingdom, north-east". Possible fault: Winchester in England comes after a county of the same name in Virginia.
+* 10.1 You are at 51.06,-1.31. Press Ctrl+F and type winchester. The first result is "Winchester, England, United Kingdom, city or town"; the second is "Winchester, Virginia, United States, county of Virginia". Search now puts the nearer of two equal results first (P3-T32f). Press Enter on the first. Press Shift+7. The heading is "Search, 20 items, best match first": the results are in the order the search ranked them (P3-T32k). The first item is "Winchester, England, United Kingdom, here", as you are standing at it; before, it said a direction, "south" (P3-T32l). The others say their direction, such as "Winchester, Virginia, United States, west". Press Ctrl+S: you hear "Search, 20 items, by name". Ctrl+S again gives "by distance"; Ctrl+Shift+S twice comes back to "best match first".
+* 10.1a Press Ctrl+F, type hampshire, wait for the results, and press Cancel. Press Shift+7. The first item is "Hampshire, England, United Kingdom, you are inside" (P3-T32l).
 * 10.2 Press F1 on the map. The list has "Go to Passed over: Shift+6" and "Go to Search: Shift+7". Close it.
 
 ## 11. Details and Wikipedia (P3-T28g, P3-T28l)
@@ -180,17 +183,18 @@ Zoom 25 kilometres.
 
 * 13.1 Go to 42.465,1.98, in Llívia. Space says "Girona, Catalonia, Spain, Llívia, exclave of Spain in France", then the mountain ranges.
 * 13.2 Go to 47.697,8.69, in Büsingen. Space says "Near Schaffhausen. Landkreis Konstanz, Baden-Württemberg, Germany, Büsingen am Hochrhein, exclave of Germany in Switzerland, Europe".
+* 13.3 Go to 35.89,-5.31, in Ceuta. Space says "Ceuta, Spain, exclave on the coast of Morocco, Africa". Before, it said "Unnamed island" here, for a small part of Ceuta's land cut off by a narrow channel. Such an island is no longer said when larger land of the same country is within 100 metres (P3-T32e).
 
 ## 14. Hierarchy mode (P3-T28m, P3-T28o, P3-T28n)
 
 * 14.1 Go to 54,-2 and zoom out to 2,500 kilometres. Space says "United Kingdom, British Isles, Europe". Press Shift+3: the heading is "Bordering United Kingdom", not the British Isles, as the current feature is now the first area Space says.
 * 14.2 Zoom in to 25 kilometres. Go to 50.72,-1.88, in Bournemouth. Press M: "Hierarchy mode. Bournemouth, Christchurch and Poole."
-* 14.3 Press Right. You reach Hampshire at once: "Hampshire, north-east, shared border 19 kilometres. Zoom 100 kilometres." Press Enter. You hear "Left and Right now go round Hampshire." Before, it said "Nothing to go to".
-* 14.4 Press Right a few times. You go round Hampshire's neighbours, each with its shared border and the zoom: "Borough of Wokingham, north-east, shared border 12 kilometres", then Bracknell Forest, then "Surrey, east, shared border 49 kilometres".
+* 14.3 Press Right. You reach Dorset at once, the first neighbour clockwise from north by its nearest point: "Dorset, north, shared border 34 kilometres. Zoom 50 kilometres." Press Enter. You hear "Left and Right now go round Dorset." Before, it said "Nothing to go to".
+* 14.4 Press Right a few times. You go round Dorset's neighbours, each with the direction of its nearest point from Dorset's own point, its shared border and the zoom: "Wiltshire, north-east, shared border 39 kilometres. Zoom 50 kilometres.", then "Hampshire, north-east, shared border 42 kilometres. Zoom 100 kilometres.", then "Bournemouth, Christchurch and Poole, east, shared border 34 kilometres. Zoom 25 kilometres.", then "Devon, west, shared border 20 kilometres. Zoom 100 kilometres."
 * 14.5 Press M: "Stepping mode."
 * 14.6 Press Ctrl+F, type exmoor, and press Enter on "Exmoor, England, United Kingdom, mountain range". Press M, then Up. A list "Up from Exmoor" asks which, with England and Great Britain. Before, it said "Nothing holds Exmoor". Press Cancel.
-* 14.7 Press Shift+5. The heading is "Overlapping Exmoor, 3 items, by name". Under "Counties 2" are Devon, "31 percent of Exmoor and 1 percent of Devon overlap", and Somerset, "you are inside, 69 percent of Exmoor and 2 percent of Somerset overlap", as each holds only part of Exmoor. There are also "Oceans and seas 1", the North Atlantic Ocean, and "Seas, bays and straits 1", the Bristol Channel, each "1 percent of Exmoor and 1 percent of" the sea: the range's shape reaches past the coast. Possible fault: Exmoor is far less than 1 percent of the North Atlantic Ocean. Press M to go back to stepping.
-* 14.8 Press Ctrl+F, type english channel, and press Enter on it. Press M, then Down. It takes about 3 seconds. The list "Inside English Channel" has one kind, "Seas, bays and straits 476", and no Rivers, Motorways and trunk roads, Main railway lines or Cities and towns. Possible fault: there are no Islands either, as in 6.7. Press Cancel, then M.
+* 14.7 Press Shift+5. The heading is "Overlapping Exmoor, 3 items, by name". Under "Counties 2" are Devon, "31 percent of Exmoor and less than 1 percent of Devon overlap", and Somerset, "you are inside, 69 percent of Exmoor and 2 percent of Somerset overlap", as each holds only part of Exmoor. There are also "Oceans and seas 1", with "North Atlantic Ocean, 3.3 kilometres north-west, 1 percent of Exmoor and less than 1 percent of North Atlantic Ocean overlap", and "Seas, bays and straits 1", with the Bristol Channel in the same words: the range's shape reaches past the coast. These two headings come before "Counties 2". Press M to go back to stepping.
+* 14.8 Press Ctrl+F, type english channel, and press Enter on it. Press M, then Down. It takes about half a second, as step 6.7 has already counted the islands; without 6.7 first it takes about 6 seconds on this pack. The list "Inside English Channel" has two kinds: "Seas, bays and straits 476" and "Islands: 3 shown at this zoom, 606 in all". There are no Rivers, Motorways and trunk roads, Main railway lines or Cities and towns. Press Cancel, then M.
 
 ## 15. The Moselle condominium (P3-T28f)
 
@@ -198,12 +202,12 @@ Zoom 25 kilometres.
 * 15.2 Press M, then Up. A list asks which to go up to, with Germany and Luxembourg. Press Cancel, then M.
 * 15.3 Press W. Open Europe. The condominium is not among Europe's countries.
 * 15.4 Open Germany. The condominium is listed under it. Close Germany and open Luxembourg: it is listed there too. Close the tree with Cancel.
-* 15.5 Press Shift+3. The heading is "Bordering Moselle condominium, shared by Germany and Luxembourg, 4 items, clockwise from north". Germany and Luxembourg each have "shared border 130 kilometres, 50 percent". France has "shared border 80 metres, 1 percent", at Schengen, and Belgium "nearly touches, 0 metres across", where the condominium's river Our reaches Belgium. Possible fault: "0 metres across" is an odd way to say that they nearly touch.
+* 15.5 Press Shift+3. The heading is "Bordering Moselle condominium, shared by Germany and Luxembourg, 4 items, clockwise from north". Germany and Luxembourg each have "shared border 130 kilometres, 50 percent". France has "shared border 80 metres, less than 1 percent", at Schengen, and Belgium "touches at a point", such as "Belgium, 41 kilometres west, touches at a point", measured to its nearest point (before, "170 kilometres north-west", to its own point), where the condominium's river Our reaches Belgium. They share only about 7 metres of border, too short for the build to store as a border (P3-T32b).
 
 ## 16. Roads that are far apart, and Belfast (P3-T28d, P3-T21b)
 
-* 16.1 Press Ctrl+F, choose "Only Motorways and trunk roads", and type m3. There are M3s in many countries, first Iran, Malawi and others. Two are in the United Kingdom, eighth and ninth in the list: "M3, Northern Ireland, United Kingdom, road" and "M3, England, United Kingdom, road".
-* 16.2 Press Enter on the one in Northern Ireland. You hear "M3, Northern Ireland, United Kingdom. Zoom 1 kilometre." Press Space: "Near Belfast. Belfast City District, Northern Ireland, United Kingdom, Ireland, British Isles, Europe". Before, the two were one road, said "M3, United Kingdom".
+* 16.1 Press Ctrl+F, choose "Only Motorways and trunk roads", and type m3. There are M3s in many countries. The two in the United Kingdom come first, as they are the nearest: "M3, England, United Kingdom, road", then "M3, Northern Ireland, United Kingdom, road". Then come Hungary and others (P3-T32f).
+* 16.2 Press Enter on the second, the one in Northern Ireland. You hear "M3, Northern Ireland, United Kingdom. Zoom 1 kilometre." Press Space: "Near Belfast. Belfast City District, Northern Ireland, United Kingdom, Ireland, British Isles, Europe". Before, the two were one road, said "M3, United Kingdom".
 * 16.3 Press M, then Up. You go straight to Belfast, with no list: "Belfast City District. Zoom 10 kilometres." The road is wholly inside Belfast City District, even where it crosses the River Lagan on a bridge. Press M.
 * 16.4 Go to 54.68,-5.78, in Belfast Lough, at zoom 25 kilometres. Space says "Near Belfast. Sea of the Hebrides, North Atlantic Ocean". This is Natural Earth's own name: its Sea of the Hebrides includes the North Channel and Belfast Lough. Which would you like?
   * Option 1: rename this one area to "Inner Seas off the West Coast of Scotland".
@@ -236,7 +240,7 @@ The words "key map", "your keys" and "key file" are in the glossary.
 * 19.1 Press Q. In Find, choose Countries. In Relation, choose crossing.
 * 19.2 In Of, choose "Search for a feature". The search dialog opens. Choose "Only Rivers", type rhine, and press Enter on the Rhine. You are back in the query builder, with the Rhine in Of.
 * 19.3 Press OK. You hear "Countries crossed by Rhine: 6, in the Search group."
-* 19.4 Press Shift+7. The countries are in the river's order: Switzerland, Liechtenstein, Austria, Germany, France, Netherlands.
+* 19.4 Press Shift+7. The heading is "Countries crossed by Rhine, 6 items, from its start" (P3-T32k). The countries are in the river's order: Switzerland, Liechtenstein, Austria, Germany, France, Netherlands.
 * 19.5 Is this way of choosing the feature better than before? Last time you found pressing Cancel to keep the search unclear.
 
 ## 20. Layer sounds (P3-T11b, SON-3, SON-4, SCP-7)
@@ -251,7 +255,7 @@ Section 20 of the Phase 3 checklist, now on the world pack. You passed it on the
 
 ## 21. Overall
 
-* 21.1 For a line, Overlapping lists areas with less than 1 percent of it inside, said "less than 1 percent of ... is inside it". Search for thames with "Only Rivers". The first result is "Thames River, Ontario, Canada, river"; press Enter on the second, "River Thames, United Kingdom, river", then Shift+5. The heading is "Overlapping River Thames, 77 items, from its start". 46 of the 77 are under 1 percent, and 40 of those are small islands. Should items under 1 percent be left out?
+* 21.1 For a line, Overlapping lists areas with less than 1 percent of it inside, said "less than 1 percent of ... is inside it". Go to 51.06,-1.31. Search for thames with "Only Rivers". The first result is "River Thames, United Kingdom, river", and the second "Thames River, Ontario, Canada, river". Press Enter on the first, then Shift+5. The heading is "Overlapping River Thames, 77 items, from its start". 50 of the 77 are under 1 percent, such as "Nag's Head Island, 38 kilometres west, less than 1 percent of River Thames is inside it"; 40 of those are small islands, and 10 are counties. Should items under 1 percent be left out?
 * 21.2 Tell me anything else that sounds wrong, slow or unclear.
 
 ## Finishing

@@ -11,13 +11,20 @@ and the store reads and matches with them (Store.search). Pure Python, so it run
   small however many scripts the names are in. A search reads only the records of its own words' prefixes,
   never the whole index.
 * A row matches as well as one of these, best first (match): the same name; a name starting with what was
-  typed; every word typed starting a word of the name, in any order; or a name close to it in groups of
-  three letters (similarity), which finds small misspellings such as "Pariss" and "londn".
+  typed; every word typed starting a word of the name, in any order; or a name close to it in groups of three
+  letters (similarity), which finds small misspellings such as "Pariss" and "londn". A word for the kind of
+  feature, such as "River" or "Lake" (KIND_WORDS), makes no difference to the match (P3-T32f): "thames" is the
+  same name as the River Thames, the Thames River and Thames in New Zealand, and importance puts the River
+  Thames first; "michigan" finds Lake Michigan just after the state, not after an island named Michigan.
 * Rows are ranked by how well they match, then by importance, a number from 0 to 1,000 the build gives each
-  feature from its population, its kind and how many Wikimedia sites have it (rank_key).
+  feature from its population, its kind and how many Wikimedia sites have it, with up to NEAR_POINTS more for
+  being near where you are (nearness, P3-T32f): enough to put the M3 in England before the other M3s, all
+  equally important, and Winchester in England before Winchester in Virginia when you are in Hampshire, but not
+  Paris in Texas before Paris in France when you are in Texas (rank_key).
 """
 from __future__ import annotations
 
+import math
 import unicodedata
 import zlib
 
@@ -32,6 +39,15 @@ SMALL_WORDS = frozenset({
     "a", "an", "and", "the", "of", "on", "in", "at", "by", "to",
     "de", "del", "della", "der", "des", "di", "do", "dos", "das", "du", "da", "den", "dem", "het",
     "el", "la", "le", "les", "los", "las", "lo", "il", "al", "y", "e", "et", "und", "van", "von", "zu", "upon",
+})
+
+# Words for the kind of feature, made plain, that a name may have or not without being another name: "River
+# Thames", "Thames River". Water and land forms only; not words such as "forest" or "park", which are often
+# the name itself, as in the New Forest.
+KIND_WORDS = frozenset({
+    "river", "lake", "loch", "lough", "mount", "mt", "mountain", "mountains", "sea", "bay", "gulf", "island",
+    "islands", "isle", "isles", "strait", "cape", "creek", "rio", "riviere", "fleuve", "lac", "lago", "monte",
+    "mont", "isla", "ile", "ilha",
 })
 
 # Match levels, best first.
@@ -111,6 +127,38 @@ def similarity(a: str, b: str, grams_a: set[str] | None = None) -> float:
     return 2.0 * len(ga & gb) / (len(ga) + len(gb))
 
 
+def without_kind(key: str) -> str:
+    """A plain name without its words for the kind of feature and its small words: "river thames" is "thames",
+    "isle of wight" is "wight". A name of nothing but those is kept whole, so "river" is still "river"."""
+    words = [w for w in key.split() if w not in KIND_WORDS and w not in SMALL_WORDS]
+    return " ".join(words) if words else key
+
+
+# Nearness (P3-T32f): up to this many points of importance for being where you are, fewer the farther away, on
+# a scale of the logarithm of the distance, so the difference between 10 km and 100 km counts as much as that
+# between 1,000 and 10,000 km.
+NEAR_POINTS = 100
+NEAR_FROM_KM = 10.0       # nearer than about this counts nearly in full
+NEAR_TO_KM = 20_000.0     # half the way round the world counts nothing
+EARTH_M = 6_371_008.8     # the mean radius
+
+
+def sphere_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """The distance between two points on the mean sphere, which is close enough to rank and narrow a search."""
+    a, b = math.radians(lat1), math.radians(lat2)
+    h = math.sin((b - a) / 2) ** 2 + math.cos(a) * math.cos(b) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    return 2 * EARTH_M * math.asin(min(1.0, math.sqrt(h)))
+
+
+def nearness(metres: float | None) -> int:
+    """The points of importance for being this far from where you are: NEAR_POINTS at 0, none at NEAR_TO_KM;
+    none when it is not known where either is."""
+    if metres is None:
+        return 0
+    share = math.log1p(metres / 1000 / NEAR_FROM_KM) / math.log1p(NEAR_TO_KM / NEAR_FROM_KM)
+    return int(round(NEAR_POINTS * max(0.0, 1.0 - share)))
+
+
 class Query:
     """What was typed, made ready to match many rows quickly."""
 
@@ -120,6 +168,7 @@ class Query:
         self.words = self.key.split()
         self.grams = trigrams(self.key)
         self.prefixes = looked_up(self.key)
+        self.core = without_kind(self.key)
 
     def match(self, key: str) -> tuple[int, float] | None:
         """How well a row's plain name matches: (level, similarity), or None. Similarity is 1 for the levels
@@ -127,7 +176,7 @@ class Query:
         q = self.key
         if not q:
             return None
-        if key == q:
+        if key == q or without_kind(key) == self.core:
             return SAME, 1.0
         if key.startswith(q):
             return STARTS, 1.0
@@ -142,7 +191,7 @@ class Query:
         return None
 
 
-def rank_key(level: int, similar: float, importance: int, name: str, identifier: str) -> tuple:
-    """The order of results: how well they match, then the most important, then by name and identifier, so the
-    order is always the same."""
-    return (-level, -round(similar, 3), -importance, name.casefold(), identifier)
+def rank_key(level: int, similar: float, importance: int, name: str, identifier: str, near: int = 0) -> tuple:
+    """The order of results: how well they match, then the most important with its points for nearness (near,
+    from nearness), then by name and identifier, so the order is always the same."""
+    return (-level, -round(similar, 3), -(importance + near), name.casefold(), identifier)

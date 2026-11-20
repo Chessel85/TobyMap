@@ -142,6 +142,7 @@ Optional fields:
 
 The manifest may also have:
 
+* islands_in_water: true for a pack whose writing stage stored islands' shores on lakes ("lake_shore") and counted each water's islands in its "held" and "counts" (P3-T32g). A pack without it has the water's islands worked out when they are first asked for. Optional, so the format number did not change.
 * tiers: the tiers, highest first, such as `["country", "constituent_country", "region", "county"]` (P3-T17). "Where am I" orders the areas at a point by rank, then by this list, the lowest tier first, then the smallest. Optional, so the format number did not change.
 
 ### relations/G
@@ -161,6 +162,7 @@ From format 4 (P3-T3e, architecture 6.5): the relationships of group G's feature
 * held: from 20 November 2026 (item 4a of the plan 2 ledger), for an area with counts, how many features of each layer are wholly inside it, those whose "in" holds it, by layer id; an empty object where none are. Made by the writing stage after each condominium is put inside its owners. Hierarchy mode's Down says these as "in all", as it lists only what is wholly inside (P3-T29c). A pack without it says its counts there, as before.
 * coast: from 17 November 2026 (P3-T24e, DP200), for a country, region, county or island, the oceans and seas it touches, each as [id, km of coast], the longest first.
 * shores: for an ocean, sea or lake, the countries, regions and counties round it, each as [id, km of shore], the longest first. A sea's shore is the land's coast; a lake's is its outline inside each area, as a lake lies on the land.
+* lake_shore: from 20 November 2026 (P3-T32g), for an island, the lakes it lies in, each as [id, km of shore], counting its outline within 150 metres of the lake, as the two outlines are simplified separately. The island is also added to the lake's "shores". An island is in an ocean, sea or lake when at least half its outline is shore on it (`mapcore/store/contents.py`, `waters_round`), as an island is a hole in the water and never inside it whole.
 * outline_km: for an area, its whole outline in km, land border and coast together, leaving out the cut along the 180 degree line (P3-T24f, DP201).
 * crossed_at: for a country, region or county, each line that crosses its border, as [line id, [[lat, lon], ...]], the points where it crosses, to 5 decimal places (P3-T24f, DP201).
 * partly_by: for an area with crossed_by or crossed_at, the lines partly inside it: those crossing it, less those wholly inside it. An empty list where every crossing line is wholly inside. A pack without it is read the old way (item 4b of the plan 2 ledger, INF-5).

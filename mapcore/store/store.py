@@ -47,6 +47,10 @@ FIRST_SEARCH_M = 2_000.0   # the first search box for an area's nearest point
 SEARCH_GROWTH = 3.0
 PART_SKIP_MARGIN = 1.1   # a part whose box is a tenth further than the best point found is not measured
 M_PER_DEG_LAT_MIN = 110_574.0  # the shortest degree of latitude, at the equator
+JOIN_M = 100.0   # parts of a shared border whose ends are closer than this are one border (P3-T32c)
+PARTED_M = 100.0   # an unnamed island bigger land comes this close to is barely parted from it (P3-T32e)
+MAINLAND_KM2 = 1.0   # land with no island, this big within MAINLAND_M of the gap, is a continent's (P3-T32e, DP169)
+MAINLAND_M = 1_500.0
 
 
 @dataclass(frozen=True)
@@ -228,10 +232,7 @@ def _within(row: list, near: tuple[float, float, float]) -> bool:
     if lat is None:
         return False
     plat, plon, metres = near
-    a = math.radians(lat)
-    b = math.radians(plat)
-    h = math.sin((b - a) / 2) ** 2 + math.cos(a) * math.cos(b) * math.sin(math.radians(plon - lon) / 2) ** 2
-    return 2 * 6_371_008.8 * math.asin(min(1.0, math.sqrt(h))) <= metres
+    return search.sphere_m(plat, plon, lat, row[search.LON]) <= metres
 
 
 @dataclass(frozen=True)
@@ -306,6 +307,50 @@ def _meet(a: list[tuple[float, float]], b: list[tuple[float, float]]) -> list[tu
             w, e = max(w1, w2), min(e1, e2)
             if w <= e:
                 out.append((w, e))
+    return out
+
+
+def _ends_apart_m(p, q) -> np.ndarray:
+    """Metres between points in longitude and latitude, near enough for a few hundred metres."""
+    p, q = np.asarray(p, dtype=float), np.asarray(q, dtype=float)
+    dx = (p[..., 0] - q[..., 0] + 180.0) % 360.0 - 180.0
+    dx = dx * np.cos(np.radians((p[..., 1] + q[..., 1]) / 2.0)) * 111_320.0
+    dy = (p[..., 1] - q[..., 1]) * M_PER_DEG_LAT_MIN
+    return np.hypot(dx, dy)
+
+
+def join_parts(lines: list, metres: float = JOIN_M) -> list:
+    """Parts of one shared border joined where their ends meet (P3-T32c): two areas' outlines can miss each other
+    by a metre or so, which leaves the border in parts, and the ends where they meet are not ends. The closest
+    pair of ends under `metres` apart is joined first, until none is left; then a line whose own two ends meet,
+    and that is longer than the gap many times over, is closed into a ring. Lines in longitude and latitude."""
+    import shapely
+
+    rings = [g for g in lines if shapely.is_closed(g)]
+    parts = [shapely.get_coordinates(g) for g in lines if not shapely.is_closed(g)]
+    parts = [c for c in parts if len(c) >= 2]
+    while len(parts) > 1:
+        ends = np.array([[c[0], c[-1]] for c in parts])   # part, which end, (lon, lat)
+        flat = ends.reshape(-1, 2)
+        apart = _ends_apart_m(flat[:, None, :], flat[None, :, :])
+        owner = np.repeat(np.arange(len(parts), dtype=np.intp), 2)
+        apart[owner[:, None] == owner[None, :]] = np.inf
+        k = int(np.argmin(apart))
+        i, j = divmod(k, len(flat))
+        if apart[i, j] >= metres:
+            break
+        (pi, ei), (pj, ej) = divmod(i, 2), divmod(j, 2)
+        a = parts[pi] if ei == 1 else parts[pi][::-1]   # runs to the meeting end
+        b = parts[pj] if ej == 0 else parts[pj][::-1]   # runs from it
+        if np.array_equal(a[-1], b[0]):
+            b = b[1:]
+        parts = [c for n, c in enumerate(parts) if n not in (pi, pj)] + [np.concatenate([a, b])]
+    out = list(rings)
+    for c in parts:
+        length = float(_ends_apart_m(c[:-1], c[1:]).sum())
+        if len(c) >= 3 and _ends_apart_m(c[0], c[-1]) < metres and length > 10.0 * metres:
+            c = np.concatenate([c, c[:1]])
+        out.append(shapely.LineString(c))
     return out
 
 
@@ -431,6 +476,10 @@ class Store:
         # use of a tile's shape is under this lock, one shape test at a time, so a step never
         # waits for a whole search.
         self._shapes = threading.Lock()
+        self._parted: dict[str, bool] = {}   # barely_parted's answers, by island
+        # water_islands' answers, by water: (the islands in it by their shore, how many of them the stored "held"
+        # leaves out, and how many the stored "counts" leaves out) (P3-T32g)
+        self._isles: dict[str, tuple[list[str], int, int]] = {}
         for p in packs if isinstance(packs, (list, tuple)) else [packs]:
             pack = p if isinstance(p, Pack) else Pack(p)
             self._indexes.append(_PackIndex(pack, self.problems))
@@ -800,9 +849,10 @@ class Store:
     # Search (P3-T8b, SRB-1, SRB-2, architecture 7.9) ------------------------------------------------------
 
     def search(self, text: str, limit: int = 20, layers=None, near: tuple[float, float, float] | None = None,
-               inside: str | None = None) -> list[Found]:
+               inside: str | None = None, here: tuple[float, float] | None = None) -> list[Found]:
         """Features whose names match what was typed, best first: by how well they match, then by importance
-        (mapcore.search). Only the search records of the words typed are read, never the whole index.
+        and, given `here` (lat, lon), nearness to it (mapcore.search, P3-T32f). Only the search records of the
+        words typed are read, never the whole index.
 
         Narrowing (SRB-2): `layers`, a collection of layer ids; `near`, (lat, lon, metres), the feature's point
         within that distance; `inside`, an identifier: the feature itself, or one the stored relationships put
@@ -840,8 +890,12 @@ class Store:
                         if near is not None and not _within(row, near):
                             continue
                         level, similar = got
+                        near_points = 0
+                        if here is not None and row[search.LAT] is not None:
+                            near_points = search.nearness(search.sphere_m(here[0], here[1], row[search.LAT],
+                                                                          row[search.LON]))
                         order = search.rank_key(level, similar, row[search.IMPORTANCE], row[search.NAME],
-                                                row[search.ID])
+                                                row[search.ID], near_points)
                         old = best.get(row[search.ID])
                         if old is None or order < old[0]:
                             best[row[search.ID]] = (order, Found(
@@ -965,6 +1019,17 @@ class Store:
             out.append(Found(p, rec["id"], name, layer, 0, point[1] if point else None,
                              point[0] if point else None, description, "", 0, 1.0))
 
+        isles = holder.layer in contents.WATER_HOLDERS and layer in contents.ISLE_LAYERS
+        if isles:
+            # The islands in a water by their shore come from its shores (P3-T32g); the layer is read through only
+            # for islands inside its area by the stored relationships, such as those a lake's outline leaves in.
+            for i in self.water_islands(identifier):
+                rec = self.feature(i)
+                if rec is not None and rec.layer == layer:
+                    found(rec.pack, rec.record, False)
+            if not self.relationships(identifier).get("counts", {}).get(layer):
+                out.sort(key=lambda f: (f.name.casefold(), f.id))
+                return out
         for p, index in enumerate(self._indexes):
             pack = index.pack
             try:
@@ -981,12 +1046,71 @@ class Store:
                                                    and not _boxes_meet(box, rec["bbox"])):
                         continue
                     rel = self.relationships(rec["id"])
-                    if identifier in contents.holders(rel):
-                        found(p, rec, contents.partly_in(rel, identifier))
+                    if identifier in contents.holders(rel, layer):
+                        found(p, rec, contents.partly_in(rel, identifier, layer))
             except DamagedRecord as exc:
                 self._note(exc)
         out.sort(key=lambda f: (f.name.casefold(), f.id))
         return out
+
+    def water_islands(self, identifier: str) -> list[str]:
+        """The islands in a sea, an ocean or a lake by their shore (P3-T32g, contents.waters_round), in the order of
+        its stored "shores": the islands on its shores at least SHORE_SHARE of whose outline is on it. Worked out
+        once for each water, then remembered. Empty for land."""
+        return self._water_isles(identifier)[0]
+
+    def _water_isles(self, identifier: str) -> tuple[list[str], int, int]:
+        got = self._isles.get(identifier)
+        if got is not None:
+            return got
+        if self.layer_of(identifier) not in contents.WATER_HOLDERS:
+            return [], 0, 0
+        ids = [i for i, _km in self.relationships(identifier).get("shores", ())
+               if self.layer_of(i) in contents.ISLE_LAYERS]
+        rels = self._relationships_many(ids)
+        isles, not_held, not_counted = [], 0, 0
+        for i in ids:
+            rel = rels.get(i, {})
+            if identifier in contents.waters_round(rel):
+                isles.append(i)
+                not_held += identifier not in rel.get("in", ())
+                not_counted += identifier not in contents.holders(rel)   # what the stored counts took in
+        got = self._isles[identifier] = (isles, not_held, not_counted)
+        return got
+
+    def _relationships_many(self, identifiers) -> dict[str, dict]:
+        """relationships() of many features, without keeping every pack record they are in (Pack.relationships_passing)."""
+        out: dict[str, dict] = {}
+        left = list(identifiers)
+        for index in self._indexes:
+            pack = index.pack
+            try:
+                known = index.layer_by_id   # held in memory: no feature record is read
+                mine = [i for i in left if i in known]
+                out.update(pack.relationships_passing(mine))
+            except DamagedRecord as exc:
+                self._note(exc)
+                continue
+            left = [i for i in left if i not in out]
+        return out
+
+    def contents_counts(self, identifier: str) -> tuple[dict, dict | None]:
+        """How many features of each layer a feature holds, as Ctrl+Shift+F and hierarchy mode's Down say them: the
+        stored "counts" (inside fully or partly) and "held" (wholly inside; None for a pack written before it), with
+        the islands in a water by their shore added (P3-T32g), which a pack written before it leaves out; a pack
+        whose manifest says islands_in_water has them already."""
+        rel = self.relationships(identifier)
+        counts, held = dict(rel.get("counts", {})), (dict(rel["held"]) if "held" in rel else None)
+        if all(index.pack.manifest.get("islands_in_water") for index in self._indexes):
+            return counts, held   # a pack written from P3-T32g on stores them so
+        isles, not_held, not_counted = self._water_isles(identifier)
+        if isles:
+            layer = contents.ISLE_LAYERS[0]
+            if not_counted:
+                counts[layer] = counts.get(layer, 0) + not_counted
+            if held is not None and not_held:
+                held[layer] = held.get(layer, 0) + not_held
+        return counts, held
 
     # Within a distance of a feature (P3-T10a, INF-9) ---------------------------------------------------------
 
@@ -1026,6 +1150,106 @@ class Store:
                                   point[0] if point else None, name, "", 0, 1.0), distance))
         out.sort(key=lambda t: (t[1], t[0].name.casefold(), t[0].id))
         return out
+
+    def barely_parted(self, identifier: str) -> bool:
+        """Whether an unnamed island is land that bigger land of its own country comes within PARTED_M of, across
+        a canal or a creek, so it is not said as "Unnamed island" (P3-T32e, DP87, DP169). Ceuta's old town, cut
+        off by a moat 20 metres wide, the Peloponnese, cut off by the Corinth Canal, and Cape Ann are; an unnamed
+        island 1 kilometre off the coast, or with only rocks beside it, is not. The bigger land is an island
+        bigger than this one, or land with no island that has MAINLAND_KM2 or more within MAINLAND_M of the
+        gap, which is a continent's, as smaller land with no name has no island (DP169). Worked out from the pack
+        tiles round the island once, then remembered. A named island is never barely parted."""
+        found = self._parted.get(identifier)
+        if found is None:
+            found = self._parted[identifier] = self._barely_parted(identifier)
+        return found
+
+    def _barely_parted(self, identifier: str) -> bool:
+        """barely_parted, worked out from the pack tiles, without joining any shape: a country such as Greece is
+        large, and joining it made the Peloponnese take 2 seconds. Each pack tile part of the country near the
+        island, the biggest first, less the island's parts beside it, gives pieces of land; one within PARTED_M
+        of the island is bigger land if it is in a bigger island, or if it has no island and is MAINLAND_KM2 or
+        more, or has that much round the gap (_mainland_at). Rocks of under a hectare are passed over."""
+        import shapely
+
+        isl = self.feature(identifier)
+        if isl is None or isl.layer != "islands" or isl.record.get("type") != "unnamed island":
+            return False
+        own_km2 = float(isl.record.get("area_km2") or 0.0)
+        west, south, east, north = isl.record["bbox"]
+        k = math.cos(math.radians((south + north) / 2))
+        scale = np.array([k * M_PER_DEG_LAT_MIN, M_PER_DEG_LAT_MIN])
+
+        def flat(g):   # metres, near enough for a gap of tens of metres
+            return shapely.transform(g, lambda c: c * scale)
+
+        countries = [a for a in (self.feature(i) for i in self.relationships(identifier).get("in", ()))
+                     if a is not None and a.layer == "countries"]
+        slack = PARTED_M / (M_PER_DEG_LAT_MIN * max(k, 1e-3))   # PARTED_M or more, in degrees
+        for box in _grown_boxes(isl.record["bbox"], PARTED_M):
+            own = [g for g in (shapely.clip_by_rect(q, *box) for q in self._parts(isl, [box])) if not g.is_empty]
+            if not own:
+                continue
+            tree = shapely.STRtree(own)
+            parts = []
+            for country in countries:
+                for part, tbox in self._pieces_with_tiles(country, [box]):
+                    part = shapely.clip_by_rect(part, *box)
+                    if not part.is_empty:
+                        parts.append((part, tbox))
+            parts.sort(key=lambda t: -t[0].area)   # the biggest first: the mainland, if it is there
+            for part, tbox in parts:
+                w, s, e, n = part.bounds
+                beside = tree.query(shapely.box(w - slack, s - slack, e + slack, n + slack)).tolist()
+                if not beside:
+                    continue
+                rest = part
+                for j in beside:
+                    rest = shapely.difference(rest, own[j])
+                edge = shapely.box(max(tbox[0], box[0]), max(tbox[1], box[1]), min(tbox[2], box[2]),
+                                   min(tbox[3], box[3])).exterior   # where the land may go on
+                pieces = sorted((g for g in shapely.get_parts(rest) if not g.is_empty and g.area > 0),
+                                key=lambda g: -g.area)
+                for g in pieces:
+                    m2 = g.area * scale[0] * scale[1]
+                    reaches_edge = shapely.intersects(g, edge)
+                    if m2 < 1e4 and not reaches_edge:
+                        continue   # a rock of under a hectare
+                    near = [own[j] for j in beside if shapely.dwithin(own[j], g, slack)]
+                    if not near or min(shapely.distance(flat(q), flat(g)) for q in near) > PARTED_M:
+                        continue
+                    p = shapely.point_on_surface(g)
+                    there = [a for a in self.at(p.y, p.x, layers=["islands"]) if a.id != identifier]
+                    if there:
+                        if max(float(a.record.get("area_km2") or 0.0) for a in there) > own_km2:
+                            return True
+                    elif m2 >= MAINLAND_KM2 * 1e6 or (reaches_edge and self._mainland_at(
+                            countries, isl, shapely.shortest_line(shapely.union_all(near), g).coords[-1], flat)):
+                        return True
+        return False
+
+    def _mainland_at(self, countries: list, isl: Area, q, flat) -> bool:
+        """Whether the land at q, a point on its edge, has MAINLAND_KM2 or more within MAINLAND_M, the island
+        left out."""
+        import shapely
+
+        at = shapely.Point(q)
+        for box in _grown_boxes([q[0], q[1], q[0], q[1]], MAINLAND_M):
+            own = self._land_in(isl, box)
+            for country in countries:
+                land = shapely.difference(self._land_in(country, box), own)
+                if any(not w.is_empty and shapely.distance(w, at) < 1e-5 and shapely.area(flat(w)) >= MAINLAND_KM2 * 1e6
+                       for w in shapely.get_parts(land)):
+                    return True
+        return False
+
+    def _land_in(self, area: Area, box):
+        """A feature's land within a box (west, south, east, north, not across the 180 degree line), as one
+        shape: each part cut to the box before they are joined, as a country's parts can be large."""
+        import shapely
+
+        parts = [shapely.clip_by_rect(g, *box) for g in self._parts(area, [box])]
+        return shapely.union_all([g for g in parts if not g.is_empty])
 
     def _distance_to(self, p: int, holder: Area, area: Area, metres: float, touching: set, near_km: dict,
                      point_layer: bool, reach) -> float | None:
@@ -1189,10 +1413,8 @@ class Store:
                 # A line or an area may reach into the box with its point outside it.
                 if f.layer and self._geometry_of(f.layer) == "point":
                     continue
-            rel = self.relationships(f.id)
-            if identifier in rel.get("in", ()) or identifier in rel.get("same", ()) \
-                    or identifier in rel.get("crosses", ()) \
-                    or any(x[0] == identifier for x in (*rel.get("partly", ()), *rel.get("overlaps", ()))):
+            # By the rule of Browse, so an island is found in the sea round it too (P3-T32g).
+            if identifier in contents.holders(self.relationships(f.id), f.layer):
                 out.append(f)
         return out
 

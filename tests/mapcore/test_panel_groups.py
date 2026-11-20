@@ -43,7 +43,8 @@ def test_each_groups_default_sort_and_zoom_limit():
     g = panel_table.GROUPS
     assert g["within"].default_sort == "natural" and g["nearby"].default_sort == "distance"
     assert g["bordering"].default_sort == "bearing"
-    assert all(g[x].default_sort == "name" for x in ("contains", "overlapping", "search"))
+    assert all(g[x].default_sort == "name" for x in ("contains", "overlapping"))
+    assert g["search"].default_sort == "natural"   # as the search ranked them, best match first (P3-T32k)
     assert g["crossed"].default_sort == "natural"   # Passed over: along the move
     assert {x for x, v in g.items() if v.zoom_limited} == {"contains", "nearby", "crossed"}
     assert {x for x, v in g.items() if v.about_current} == {"contains", "bordering", "overlapping"}
@@ -109,9 +110,9 @@ def test_bordering_switzerland_lists_its_five_neighbours_by_bearing_with_their_b
     bearings = [i["bearing_deg"] for i in items]
     assert bearings == sorted(bearings)   # clockwise from ahead, which is north here
     france = next(i for i in items if i["name"] == "France")
-    # West: France's point is no longer pulled towards French Guiana, an area of its own (DP191).
-    # With its distance, as every item now says (P3-T19c): "France, 210 kilometres west, shared border 573 kilometres".
-    assert france["label"].startswith("France, ") and " kilometres west, shared border " in france["label"]
+    # With its distance, as every item now says (P3-T19c), to its nearest point (P3-T32m): north-west, by Basel, not
+    # west to its own point: "France, 93 kilometres north-west, shared border 550 kilometres, 30 percent".
+    assert france["label"].startswith("France, ") and " kilometres north-west, shared border " in france["label"]
     assert all({"id", "label", "level", "name", "distance_m", "bearing_deg"} <= set(i) for i in items)
     assert all(i["level"] == 1 for i in items)
 

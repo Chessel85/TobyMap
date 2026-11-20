@@ -10,6 +10,8 @@ their Shift and number keys (DP156); this table gives how each behaves:
   along the move, and Ctrl+S then sorts it like the others (P3-T29f). The Crossing group went in P3-T29a (INF-10): its content,
   a line's areas in order from its start and an area's lines, is in Overlapping since P3-T29e. Overlapping about a
   line starts in that order, "from its start", and Ctrl+S then sorts it like the others (MapSession._first_order).
+  Search starts in the order its results came (P3-T32k): a search's as it ranked them, "best match first"; a query
+  within a distance, "nearest first"; a line's areas, "from its start"; browsing and the other queries, by name.
 * zoom_limited: whether it shows only visible features (ANN-7, DP80, DP160). Contains, Nearby,
   and Passed over are; Within follows the zoom ranges through "where am I"; the others
   show everything from the layers that are switched on.
@@ -51,7 +53,7 @@ GROUPS: dict[str, Group] = {g.id: g for g in [
     Group("contains", "name", zoom_limited=True, about_current=True, lazy=True),
     Group("overlapping", "name", zoom_limited=False, about_current=True, lazy=True),
     Group("crossed", "natural", zoom_limited=True, about_current=False, lazy=False),   # "Passed over"
-    Group("search", "name", zoom_limited=False, about_current=False, lazy=True),
+    Group("search", "natural", zoom_limited=False, about_current=False, lazy=True),   # as found (P3-T32k)
 ]}
 
 

@@ -417,3 +417,18 @@ def test_a_road_over_an_estuary_is_measured_on_its_land(fine):
     assert out["Sea bridge"]["partly"]["Sea"] == pytest.approx(0.9, abs=0.002)
     assert "England" not in out["Ferry"]["in"]
     assert out["Ferry"]["partly"]["England"] == pytest.approx(0.008, abs=0.0005)
+
+
+def test_the_writing_stage_stores_crossings_metres_apart_as_one():
+    """P3-T32d: the M3 crossed Hampshire's border on each carriageway, 19 metres apart, and was stored as crossing
+    twice. The writing stage, not the long relationships stage, keeps one point for crossings of a line closer
+    together than the core's ONE_CROSSING_M, the core's own rule, so a pack already written reads the same."""
+    from mapdata.stages import write
+    rel = {0: {"crossed_at": [[5, [[51.31577, -0.758], [51.31592, -0.75813]]], [6, [[50.0, 1.0], [51.0, 1.0]]]],
+               "partly_by": [5, 6]},
+           1: {"in": [0]}}
+    write.one_crossing_each(rel)
+    assert rel[0]["crossed_at"][1] == [6, [[50.0, 1.0], [51.0, 1.0]]]
+    assert rel[0]["crossed_at"][0][0] == 5 and len(rel[0]["crossed_at"][0][1]) == 1
+    assert rel[0]["crossed_at"][0][1][0] in ([51.31577, -0.758], [51.31592, -0.75813])
+    assert rel[0]["partly_by"] == [5, 6] and rel[1] == {"in": [0]}

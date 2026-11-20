@@ -468,7 +468,7 @@ The panel is a tree. Its top level holds these groups:
 
 The groups are in this order, on Shift+1 to Shift+7 (the PO, R6, 19 November 2026).
 
-Every list can be sorted three ways: by name, by distance, or by bearing clockwise from ahead. Ctrl+S, in the panel, cycles the sort and announces it: "Sorted by distance". Within also has its natural order, smallest to largest, which is its default. Nearby starts sorted by distance, Bordering by bearing, and the rest by name. Typing the start of a name jumps to it, as in any Windows tree.
+Every list can be sorted three ways: by name, by distance, or by bearing clockwise from ahead. Ctrl+S, in the panel, cycles the sort and announces it: "Sorted by distance". Within also has its natural order, smallest to largest, which is its default. Nearby starts sorted by distance, Bordering by bearing, and the rest by name, except Search, which starts in the order its results came: a search's best match first, a query within a distance nearest first, and the areas a line passes through from its start (P3-T32k). Typing the start of a name jumps to it, as in any Windows tree.
 
 Each group heading says how many items it holds: "Nearby, 5 items", "Within, 1 item", or "Passed over, no items".
 

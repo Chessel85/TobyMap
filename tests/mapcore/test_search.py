@@ -329,3 +329,140 @@ def test_measuring_to_a_result_does_not_move_you(s):
 def test_nothing_found_and_nothing_typed(s):
     assert s.search("") == [] and s.search("   ") == []
     assert s.search("Xyzzyqqq") == []
+
+
+# Ranking (P3-T32f, SRB-1): a word for the kind of feature, and nearness -----------------------------------------
+
+def test_a_word_for_the_kind_of_feature_does_not_lower_the_match():
+    q = search.Query("thames")
+    assert q.match("river thames") == q.match("thames river") == q.match("thames") == (search.SAME, 1.0)
+    assert search.Query("river thames").match("thames river") == (search.SAME, 1.0)
+    assert q.match("thamesmead") == (search.STARTS, 1.0)
+    assert q.match("thames ditton") == (search.STARTS, 1.0)
+    assert search.Query("wight").match("isle of wight") == (search.SAME, 1.0)
+    assert search.Query("michigan").match("lake michigan") == (search.SAME, 1.0)
+    assert search.Query("river").match("river") == (search.SAME, 1.0)   # the kind word alone is still a name
+    assert search.Query("river").match("river thames")[0] == search.STARTS
+    assert search.Query("new forest").match("new") is None   # "forest" is not a kind word: a forest has its name
+
+
+def test_nearness_counts_a_little_towards_importance():
+    assert search.nearness(0) == search.NEAR_POINTS
+    assert search.nearness(None) == 0
+    near, far, farthest = search.nearness(20_000), search.nearness(6_000_000), search.nearness(20_000_000)
+    assert search.NEAR_POINTS > near > far > farthest >= 0
+    # A place nearby wins over a slightly better known one far away, but not over a far better known one
+    assert search.rank_key(4, 1.0, 457, "Winchester", "a", near) < search.rank_key(4, 1.0, 491, "Winchester", "b", far)
+    assert search.rank_key(4, 1.0, 681, "Paris", "a", far) < search.rank_key(4, 1.0, 430, "Paris", "b", near)
+
+
+def _store_of(rows):
+    from mapcore.packs.source import MemorySource
+    from mapcore.store.store import Store
+
+    buf = io.BytesIO()
+    w = PackWriter(buf)
+    w.add_features([selfcheck_record(r[search.ID]) for r in rows])
+    n, records = search_index.buckets(rows)
+    w.add_search(n, records, len(rows))
+    w.finish({"name": "t", "version": "1", "coverage": {"kind": "world"}, "app_versions": {"from": "0.0.1"},
+              "sources": [{"name": "s", "licence": "ODbL 1.0", "date": "2026-11-13"}], "drawing_levels": []},
+             "credit", [{"id": "countries", "name": "Countries"}])
+    return Store([Pack(MemorySource(buf.getvalue()), check_app=False)])
+
+
+WINCHESTER_HERE = (51.06, -1.31)   # in Hampshire
+
+
+def test_the_nearest_of_equals_comes_first_and_a_kind_word_is_no_worse():
+    rows = [
+        ["m3", "M3", "m:ir", "roads", 19, 48.876, 38.441, "M3, Iran", ""],
+        ["m3", "M3", "m:mw", "roads", 19, 35.216, -15.057, "M3, Malawi", ""],
+        ["m3", "M3", "m:ni", "roads", 19, -5.915, 54.601, "M3, Northern Ireland, United Kingdom", ""],
+        ["m3", "M3", "m:en", "roads", 19, -0.935, 51.277, "M3, England, United Kingdom", ""],
+        ["winchester", "Winchester", "w:va", "counties", 491, -78.173, 39.168, "Winchester, Virginia", ""],
+        ["winchester", "Winchester", "w:en", "towns", 457, -1.313, 51.061, "Winchester, England", ""],
+        ["thames river", "Thames River", "t:ca", "rivers", 197, -81.479, 42.784, "Thames River, Ontario", ""],
+        ["river thames", "River Thames", "t:uk", "rivers", 330, -0.757, 51.565, "River Thames, United Kingdom", ""],
+        ["paris", "Paris", "p:fr", "counties", 681, 2.32, 48.861, "Paris, France", ""],
+        ["paris", "Paris", "p:tx", "towns", 430, -95.556, 33.662, "Paris, Texas", ""],
+    ]
+    store = _store_of(sorted(rows, key=lambda r: (r[0], r[2])))
+    ids = lambda text, here: [f.id for f in store.search(text, here=here)]
+    assert ids("m3", WINCHESTER_HERE)[:2] == ["m:en", "m:ni"]
+    assert ids("winchester", WINCHESTER_HERE)[0] == "w:en"
+    assert ids("winchester", None)[0] == "w:va"   # with nowhere to be near, importance alone
+    assert ids("thames", WINCHESTER_HERE)[0] == "t:uk"
+    assert ids("thames", (42.98, -81.25))[0] == "t:uk"   # from London, Ontario: still the better known
+    assert ids("paris", (33.66, -95.55))[0] == "p:fr"   # from Paris, Texas: France's is far better known
+
+
+def test_the_session_ranks_from_where_you_are(test_pack):
+    oregon, maine = "osm:n1666626393", "osm:n158867610"
+    for place, first in ((HAMPSHIRE, oregon), ({**HAMPSHIRE, "lat": 43.66, "lon": -70.26}, maine)):
+        s = MapSession(packs=[test_pack], saved_state=dict(place))
+        s.start()
+        try:
+            assert s.search("Portland", layers={"towns"})[0]["id"] == first
+        finally:
+            s.store.close()
+
+
+def test_a_kind_word_lets_importance_choose():
+    rows = [
+        ["lake michigan", "Lake Michigan", "l:mi", "lakes", 386, -87.0, 44.0, "Lake Michigan", ""],
+        ["michigan", "Michigan", "r:mi", "regions", 806, -85.0, 44.0, "Michigan, United States", ""],
+        ["michigan", "Michigan", "i:mi", "islands", 75, 55.2, 25.1, "Michigan, Dubai", ""],
+    ]
+    store = _store_of(sorted(rows, key=lambda r: (r[0], r[2])))
+    assert [f.id for f in store.search("michigan")] == ["r:mi", "l:mi", "i:mi"]
+
+
+# Results said with the same words (P3-T32j, SRB-1, ACC-9) ----------------------------------------------------
+# On the world pack "winchester" listed "Winchester Inlet, Hudson Bay" three times: three features of one inlet
+# in OpenStreetMap, two points and a relation about 6 km apart. Two islands named "St. John Island" in one part of
+# Newfoundland and Labrador, 350 km apart, were also said with the same words.
+
+def _found_as(s, monkeypatch, rows):
+    """Make the store's search give these results, each (id, description, lat, lon), all named "Paris"."""
+    import dataclasses
+    real = s.store.search("Paris", 50)
+    by_id = {f.id: f for f in real}
+    made = [dataclasses.replace(by_id[i], description=d, lat=lat, lon=lon, via="") for i, d, lat, lon in rows]
+    asked = []
+
+    def fake(text, limit=20, *a, **k):
+        asked.append(limit)
+        return made[:limit]
+    monkeypatch.setattr(s.store, "search", fake)
+    return asked
+
+
+def test_results_said_with_the_same_words_far_apart_are_told_apart_by_distance_and_direction(s, monkeypatch):
+    _found_as(s, monkeypatch, [(PARIS, "Paris", 48.86, 2.35), (PARIS_TEXAS, "Paris", 33.66, -95.55)])
+    found = s.search("Paris")
+    assert [f["id"] for f in found] == [PARIS, PARIS_TEXAS]
+    labels = [f["label"] for f in found]
+    assert labels[0].startswith("Paris, city or town, ") and labels[0].endswith(" kilometres south-east")
+    assert labels[1].startswith("Paris, city or town, ") and " kilometres " in labels[1]
+    assert len(set(labels)) == 2
+
+
+def test_results_said_with_the_same_words_at_the_same_spot_are_listed_once(s, monkeypatch):
+    # From Hampshire, two features 6 km apart and 400 km away are the same distance and direction in words.
+    _found_as(s, monkeypatch, [(PARIS, "Paris", 48.86, 2.35), (PARIS_TEXAS, "Paris", 48.88, 2.40)])
+    found = s.search("Paris")
+    assert [f["id"] for f in found] == [PARIS]   # the better ranked is kept
+    assert set(s.search_found) == {PARIS}
+
+
+def test_results_said_differently_keep_their_own_words(s):
+    labels = [f["label"] for f in s.search("Paris")]
+    assert labels[0] == "Paris, France, city or town"   # no distance where none is needed
+    assert len(labels) == len(set(labels))
+
+
+def test_a_full_list_stays_full_when_results_are_listed_once(s, monkeypatch):
+    asked = _found_as(s, monkeypatch, [(PARIS, "Paris", 48.86, 2.35), (PARIS_TEXAS, "Paris", 48.88, 2.40)])
+    assert len(s.search("Paris", limit=1)) == 1
+    assert asked[0] > 1   # more are asked of the store than are listed, so ones listed once leave no gap

@@ -69,6 +69,45 @@ def test_an_area_lists_the_areas_of_other_layers_over_it_by_layer_with_both_shar
     s.store.close()
 
 
+def test_an_area_under_1_percent_of_another_is_said_as_less_than_1_percent(test_pack, monkeypatch):
+    """P3-T32a, checklist 7.2 and 14.7: Burrow Island, a tiny island in Portsmouth Harbour, was said as "1 percent
+    of Hampshire", as a share was never said under 1. The build stores each share to 4 decimal places, so a share
+    under 1 percent, even one stored as 0, is said as "less than 1 percent", as a line's is; 1 percent and over is
+    said as before."""
+    s = _session(test_pack, IN_THE_PARK, PARK)
+    # The test pack's own: 5.4 percent of the park is in Wiltshire, 0.93 percent of Wiltshire is in the park.
+    wilts = _heading(_group(s), "Counties ")["children"][1]
+    assert wilts["label"].endswith(", 5 percent of New Forest National Park and less than 1 percent of Wiltshire "
+                                   "overlap")
+    real = s.store.relationships
+
+    def small(identifier):
+        rel = dict(real(identifier))
+        if identifier == PARK:
+            rel["overlaps"] = [[HAMPSHIRE, 0.0042, 0.0] if i == HAMPSHIRE else [i, m, t] for i, m, t in rel["overlaps"]]
+        return rel
+
+    monkeypatch.setattr(s.store, "relationships", small)
+    s.run("move.north")   # a new place, so the group is made again
+    s.release()
+    s.set_current_feature(PARK)
+    hants = _heading(_group(s), "Counties ")["children"][0]
+    assert hants["label"].endswith(", less than 1 percent of New Forest National Park and less than 1 percent of "
+                                   "Hampshire overlap")
+    s.store.close()
+
+
+def test_a_share_is_said_in_whole_percents_and_less_than_1_percent_under_1():
+    """P3-T32a: every share said as a percentage (Overlapping's areas and lines, Bordering's border) uses one rule."""
+    assert MapSession._percent(0.0) == "less than 1 percent"
+    assert MapSession._percent(0.0042) == "less than 1 percent"
+    assert MapSession._percent(0.0099) == "less than 1 percent"
+    assert MapSession._percent(0.01) == "1 percent"
+    assert MapSession._percent(0.144) == "14 percent"
+    assert MapSession._percent(0.996) == "100 percent"
+    assert MapSession._percent(1.2) == "100 percent"
+
+
 def test_an_overlapping_area_is_measured_to_its_nearest_point_not_its_centre(test_pack):
     """From the north of Hampshire, the park's nearest point is much nearer than the centre of its box."""
     s = _session(test_pack, IN_HAMPSHIRE, HAMPSHIRE)
@@ -265,4 +304,35 @@ def test_a_diagonal_line_whose_box_covers_the_area_is_not_listed_unless_the_rela
     assert "River Itchen" not in _names(_group(s))
     s.set_current_feature(ITCHEN)
     assert "Southampton" not in _names(_group(s))
+    s.store.close()
+
+
+def test_crossings_metres_apart_are_one_crossing(test_pack, monkeypatch):
+    """P3-T32d: the M3 was "crosses twice" for Hampshire, with two crossings at the same distance and direction,
+    as the build stored a crossing on each carriageway, 19 metres apart. Crossings of one line closer together than
+    ONE_CROSSING_M are one, so a pack already written is said right; one 1 kilometre off is another crossing."""
+    s = _session(test_pack, IN_HAMPSHIRE, HAMPSHIRE)
+    real = s.store.relationships
+    stored = [[50.93828, -1.35856], [50.93845, -1.35856]]   # 19 metres apart
+
+    def two_carriageways(identifier, extra=()):
+        rel = dict(real(identifier))
+        if identifier == HAMPSHIRE:
+            rel["crossed_at"] = [[i, stored + list(extra)] if i == ITCHEN else [i, p]
+                                 for i, p in rel.get("crossed_at", ())]
+        return rel
+
+    monkeypatch.setattr(s.store, "relationships", two_carriageways)
+    itchen = _heading(_group(s, ITCHEN), "Lines crossing its border ")["children"][0]
+    assert itchen["label"].startswith("River Itchen, crosses once, nearest ")
+    # One crossing is said without a number (P3-T32k): "Crossing of River Itchen", not "Crossing 1 of".
+    assert [p["label"].split(",")[0] for p in itchen["children"]] == ["Crossing of River Itchen"]
+
+    monkeypatch.setattr(s.store, "relationships", lambda i: two_carriageways(i, [[50.94728, -1.35856]]))
+    s.run("move.north")   # a new place, so the group is made again
+    s.release()
+    s.set_current_feature(HAMPSHIRE)
+    itchen = _heading(_group(s, ITCHEN), "Lines crossing its border ")["children"][0]
+    assert itchen["label"].startswith("River Itchen, crosses twice, nearest ")
+    assert len(itchen["children"]) == 2
     s.store.close()

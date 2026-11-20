@@ -179,18 +179,46 @@ def water_may_hold(holder_layer: str, layer: str) -> bool:
     return True if allowed is None else layer in allowed
 
 
-def holders(rel: dict) -> set[str]:
+ISLE_LAYERS = ("islands",)   # the layers whose areas are in the water round them (P3-T32g)
+SHORE_SHARE = 0.5   # an island is in a water when at least this share of its outline is shore on it (P3-T32g)
+
+
+def waters_round(rel: dict) -> set[str]:
+    """The waters an island is in by its shore (P3-T32g, INF-4, DAT-4): those on which at least SHORE_SHARE of its
+    outline is shore, by its stored "coast" on the seas and oceans and "lake_shore" on the lakes, against its
+    "outline_km". An island is a hole in the sea's outline, so the stored "in" never holds the sea. Jersey, all
+    round in the English Channel, is in it, and in the ocean the Channel is in, as its coast is on both; Great
+    Britain, a seventh of whose coast is on the Channel, is not; nor is an island joined to the mainland for most
+    of its outline, nor one in a lake on another island, whose shore is all on the lake."""
+    outline = float(rel.get("outline_km") or 0.0)
+    if outline <= 0.0:
+        return set()
+    return {w for w, km in (*rel.get("coast", ()), *rel.get("lake_shore", ())) if km >= SHORE_SHARE * outline}
+
+
+def holders(rel: dict, layer: str | None = None) -> set[str]:
     """The ids of the areas a feature is inside fully or partly, is the same land as, crosses or overlaps, by its
-    stored relationships: the areas whose contents it is in (SRB-4)."""
+    stored relationships: the areas whose contents it is in (SRB-4). For an island (its `layer` given), the waters
+    round it too (waters_round, P3-T32g)."""
     out = set(rel.get("in", ())) | set(rel.get("same", ())) | set(rel.get("crosses", ()))
     out.update(x[0] for x in (*rel.get("partly", ()), *rel.get("overlaps", ())))
+    if layer in ISLE_LAYERS:
+        out |= waters_round(rel)
     return out
 
 
-def partly_in(rel: dict, holder: str) -> bool:
+def wholly_in(rel: dict, holder: str, layer: str | None = None) -> bool:
+    """Whether a feature is wholly inside an area, as Contains lists (P3-T29c): the stored "in", or, for an island,
+    a water round it (P3-T32g)."""
+    return holder in rel.get("in", ()) or (layer in ISLE_LAYERS and holder in waters_round(rel))
+
+
+def partly_in(rel: dict, holder: str, layer: str | None = None) -> bool:
     """Whether a feature, by its stored relationships, is only partly inside an area: partly inside it or
     overlapping it, not inside it whole or the same land (P3-T25b, DP204): "Kazakhstan, partly in Europe"."""
     if holder in rel.get("in", ()) or holder in rel.get("same", ()):
+        return False
+    if layer in ISLE_LAYERS and holder in waters_round(rel):
         return False
     return any(x[0] == holder for x in (*rel.get("partly", ()), *rel.get("overlaps", ())))
 
@@ -204,11 +232,11 @@ def contents(records: list[dict], relationships_of, numbers: dict[str, int],
     for r in records:
         fid = r["id"]
         rel = relationships_of(fid)
-        for h in holders(rel):
+        for h in holders(rel, r["layer"]):
             if h in holding and h != fid:
                 every, partly = out.setdefault(h, {}).setdefault(r["layer"], (set(), set()))
                 every.add(numbers[fid])
-                if partly_in(rel, h):
+                if partly_in(rel, h, r["layer"]):
                     partly.add(numbers[fid])
     return {h: {layer: (sorted(every), sorted(partly)) for layer, (every, partly) in by_layer.items()}
             for h, by_layer in out.items()}

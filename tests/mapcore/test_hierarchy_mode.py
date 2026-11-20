@@ -8,7 +8,6 @@ which gives the ambiguous up.
 """
 import pytest
 
-from mapcore.geo import geodesy
 from mapcore.session import MapSession
 
 HAMPSHIRE = {"lat": 51.06, "lon": -1.31, "zoom_m": 1000, "step_m": 100}
@@ -194,7 +193,8 @@ def test_a_parent_in_a_layer_switched_off_is_not_offered(test_pack):
 # Left and Right: the neighbours, clockwise from ahead (NAV-4, INF-2) ------------------------------------
 
 def neighbours(s, key="move.east"):
-    """Go round the neighbours once, and give each one's name and bearing from where you started."""
+    """Go round the neighbours once, and give each one's name and the bearing of its nearest point from where you
+    started, as Bordering says it (P3-T32m)."""
     start = (s.world.lat, s.world.lon)
     out, first = [], None
     while True:
@@ -203,7 +203,7 @@ def neighbours(s, key="move.east"):
         if name == first:
             return out
         first = first or name
-        _, bearing, _ = geodesy.inverse(*start, s.world.lat, s.world.lon)
+        bearing = s.store.measure(s.current_feature, *start).bearing_deg
         out.append((name, bearing, said(r)))
 
 

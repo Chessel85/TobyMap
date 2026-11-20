@@ -365,3 +365,55 @@ def test_the_lines_partly_inside_are_kept_by_id(pack):
 def test_the_lines_partly_inside_are_written_by_id():
     by = rel.by_id({0: {"crossed_by": [1, 2], "partly_by": [2]}}, ["a", "b", "c"])
     assert by == {"a": {"crossed_by": ["b", "c"], "partly_by": ["c"]}}
+
+
+# A road or railway over the sea is measured on land -----------------------------------------------------------
+
+@pytest.mark.parametrize("fine", [False, True], ids=["whole boxes", "small boxes"])
+def test_a_road_over_an_estuary_is_measured_on_its_land(fine):
+    """Belfast's M3 crosses the Lagan, which is in the sea, so 8 percent of it was in the Sea of the Hebrides and
+    it was only partly inside Northern Ireland, and Up went to the British Isles. A road's or railway's share
+    inside a land area is now measured on its length on land, by the rule of P3-T28n for areas: the bridge is
+    wholly inside England. Its share of the sea is kept as before. A river is measured on its whole length, as
+    its estuary truly lies in the sea. A sea bridge mostly over the water, such as the Tay Bridge, is wholly inside
+    the land at its ends too, but a line nearly all over the sea, under land_least on land, is measured on its whole
+    length. Small boxes make the sea and England each cover a box whole."""
+    inlet = shapely.box(4, 5, 4.4, 10.5)
+    shapes = {
+        "England": ("countries", shapely.box(0, 0, 10, 10).difference(inlet)),
+        "Wales": ("countries", shapely.box(-10, 0, 0, 10)),
+        "Sea": ("oceans", shapely.box(10, -5, 20, 15).union(shapely.box(-10, -5, 20, 0)).union(
+            shapely.box(-10, 10, 20, 15)).union(inlet)),
+        "Park": ("national_parks", shapely.box(3, 6, 5, 9)),   # reaches over the inlet, as Exmoor over the sea
+        "Bridge road": ("roads", shapely.LineString([(1, 7), (9, 7)])),         # 0.4 of 8 over the inlet
+        "Bridge railway": ("railways", shapely.LineString([(1, 8), (9, 8)])),
+        "Estuary river": ("rivers", shapely.LineString([(1, 6.5), (9, 6.5)])),
+        "Border road": ("roads", shapely.LineString([(-4, 2), (4, 2)])),        # half in each country
+        "Sea bridge": ("railways", shapely.LineString([(9, 3), (19, 3)])),      # 1 of 10 on land
+        "Ferry": ("roads", shapely.LineString([(9.92, 2), (19.92, 2)])),        # 0.08 of 10 on land
+    }
+    names = list(shapes)
+    records = [{"id": n, "layer": shapes[n][0], "name": n} for n in names]
+    geoms = [shapes[n][1] for n in names]
+    kinds = [rel.LINE if shapes[n][0] in ("roads", "railways", "rivers") else rel.AREA for n in names]
+    settings = {**rel.SETTINGS, **({"leaf_points": 0, "min_leaf_deg": 0.5} if fine else {}), "sea": ["oceans"],
+                "water": ["oceans"], "land": ["countries", "national_parks"]}
+    ranks = {"countries": 2, "oceans": 2, "national_parks": 6, "roads": 8, "railways": 8, "rivers": 8}
+    sums = rel.measure(records, geoms, kinds, settings, say=lambda s: None)
+    got = rel.relationships(records, geoms, kinds, sums, ranks, {"oceans"}, settings)
+    out = {names[i]: {"in": [names[j] for j in r.get("in", [])],
+                      "partly": {names[a]: s for a, s in r.get("partly", [])}} for i, r in got.items()}
+    for line in ("Bridge road", "Bridge railway"):
+        assert out[line]["in"] == ["England"], line
+        assert out[line]["partly"]["Sea"] == pytest.approx(0.05, abs=0.002), line   # kept, for Overlapping
+        assert "England" not in out[line]["partly"], line
+    # In the park and in the sea for 0.4 of the 2 it runs in the park: on land, 1.6 of its 7.6 on land.
+    assert out["Bridge road"]["partly"]["Park"] == pytest.approx(1.6 / 7.6, abs=0.003)
+    assert out["Estuary river"]["partly"]["England"] == pytest.approx(0.95, abs=0.002)
+    assert "England" not in out["Estuary river"]["in"]
+    assert out["Border road"]["partly"] == {"England": pytest.approx(0.5, abs=0.002),
+                                            "Wales": pytest.approx(0.5, abs=0.002)}
+    assert out["Sea bridge"]["in"] == ["England"]
+    assert out["Sea bridge"]["partly"]["Sea"] == pytest.approx(0.9, abs=0.002)
+    assert "England" not in out["Ferry"]["in"]
+    assert out["Ferry"]["partly"]["England"] == pytest.approx(0.008, abs=0.0005)

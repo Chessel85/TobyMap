@@ -32,6 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help="use 6 worker processes, for when nobody is using the laptop (DP103)")
     bu.add_argument("--wait-for-yes", action="store_true",
                     help="if continue.txt says no, wait until it says yes, then carry on (otherwise stop)")
+    rq = sub.add_parser("report", help="make a pack's quality report again, from the kept stage folders (DMT-3)")
+    rq.add_argument("pack", help="the pack's name, such as test")
     sub.add_parser("spike-s2-stage1", help="spike S2 stage 1: the UK, France and Spain, with its report")
     st = sub.add_parser("spike-s2", help="spike S2 stage 1 again (the UK, France and Spain, with the faster "
                                          "methods), 2 (Norway and Sweden), 3 (the 180 degree line), 4 (Argentina), "
@@ -288,6 +290,10 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_fetch(args)
     if args.command == "build":
         return cmd_build(args)
+    if args.command == "report":
+        from mapdata.pipeline.report import report_command
+        folders = _folders(args)
+        return 2 if folders is None else report_command(args.pack, folders)
     if args.command == "spike-s2-stage1":
         from mapdata.stages import s2_stage1
         try:

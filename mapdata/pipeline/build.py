@@ -287,12 +287,31 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
     for src, dst in ((built, target), (checksum_path(built), checksum_path(target))):
         if not dst.is_file() or dst.read_bytes() != src.read_bytes():
             shutil.copyfile(src, ledger.claim(dst))
-    summary(pack, target, ran, skipped, progress, log_path, earlier.get("corrections"))
+    report_path = quality_report(pack, target, plan, log_path, ledger, progress)
+    summary(pack, target, ran, skipped, progress, log_path, earlier.get("corrections"), report_path)
     return 0
 
 
+def quality_report(pack: PackSettings, target: Path, plan: list[tuple], log_path: Path,
+                   ledger: ledgermod.Ledger, progress: Progress) -> Path | None:
+    """The quality report (P4-T11a, DMT-3), once the build has finished. A fault in making it never stops the build,
+    which has made its pack: it is said, with its details in the log."""
+    from mapdata.pipeline import report
+
+    try:
+        return report.make_report(pack.name, pack.data["title"], target, report.stage_folders_of(plan), log_path,
+                                  ledger, say=lambda _line: None)
+    except Exception as error:
+        import traceback
+
+        progress.always(f"The quality report could not be made: {type(error).__name__}: {error}. The pack is built. "
+                        "The details are in the log; python -m mapdata report " + pack.name + " tries again.")
+        progress.log(traceback.format_exc())
+        return None
+
+
 def summary(pack: PackSettings, target: Path, ran: list, skipped: list, progress: Progress, log_path: Path,
-            corrections: Path | None = None) -> None:
+            corrections: Path | None = None, report_path: Path | None = None) -> None:
     from mapcore.packs.pack import Pack
 
     with Pack(target, check_app=False) as p:
@@ -315,6 +334,8 @@ def summary(pack: PackSettings, target: Path, ran: list, skipped: list, progress
 
         counts = json.loads((corrections / "corrections.json").read_text(encoding="utf-8"))
         progress.always(f"{summary_line(counts)} Each is listed in {corrections / REPORT}.")
+    if report_path is not None:
+        progress.always(f"The quality report is {report_path}. Its full lists are CSV files beside it.")
     if ran:
         progress.always("Stages run: " + ", ".join(f"{k} in {duration_words(t)}" for k, t in ran) + ".")
     if skipped:

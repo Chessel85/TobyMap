@@ -96,6 +96,27 @@ The rules are applied by the corrections stage, just before the pack is written.
 
 The build's summary says how many rules were applied and how many name a feature that is not in the data. Each is listed in the log, and in `corrections.txt` in the corrections stage's folder in the working folder. A rule for a feature outside a pack's area, such as a Scottish sea in a pack of France, is simply not found in that pack.
 
+## Reading the quality report
+
+Every build that finishes writes a quality report beside the pack, in the pack's output folder, so you can judge the build without looking at a map (DMT-3). It is a text file named "<pack> quality report.txt", with a CSV file for each section's full list, named "<pack> quality <section>.csv".
+
+To make the report again without a build, from the stage results already kept, run:
+
+* `python -m mapdata report <pack>`
+
+The report starts with an "In short" list of one count for each section. Then each section has its count first, at most 20 example lines, and the name of the CSV file that holds the full list. The sections are:
+
+* Repaired shapes: shapes the planet reading repaired, from the reading stage's log.
+* Features without names: features in the pack with no name.
+* Gaps in coverage: land no county covers, where the region itself stands in, and small islands in no country, from the joining stage's report.
+* Gaps filled by the counties record: where a level below the county level filled a gap, by country.
+* Matches made by name for Wikidata: features Wikidata linked by name and place, not by a link in OpenStreetMap.
+* Correction rules applied: each rule applied, not found or not applied.
+* Size by layer: each layer's share of the pack, largest first.
+* Differences from the last build: by layer and by feature, the ones added, left out and renamed.
+
+A section that says "Not recorded by this build yet" names facts that no stage keeps for this pack. For the differences, each build keeps a small summary beside the pack, "<pack> quality summary of this build.json.gz". When the pack changes, the summary the build before kept becomes "<pack> quality summary of the build before.json.gz", and the report compares with that. The first build says there is no earlier build to compare with. Making the report again for the same pack changes neither summary.
+
 ## mapdata inspect
 
 Answers questions about a built pack, so it can be checked without a map. The pack is a pack file, or the name of a pack in the output folder.

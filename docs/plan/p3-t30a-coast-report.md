@@ -16,9 +16,13 @@ Written 20 November 2026, from the Western Europe trial built on 20 November 202
 ### Decisions asked of you
 
 1. Do you approve stretches of coast as items under Bordering's Coast heading, with the wording proposed below?
+> yes 
 2. Do you agree that a neighbour's slivers on the shore, bits under 0.05 square kilometres, count as sea, and that a break in the coast shorter than 100 metres is joined over? Then Portsmouth Harbour does not split Hampshire's coast into dozens of short stretches, and Hampshire's coast meets Portsmouth at Paulsgrove, where Portsmouth really begins.
+> yes 
 3. Do you agree that stretches under 1 kilometre are not listed, but still count in the Coast heading's length?
+> yes 
 4. Should each stretch name its water as the English Channel only, or also name the bays and straits along it, such as Christchurch Bay and Portsmouth Harbour?
+> no just do the sea. the user can discover bays by looking inside the sea object or with nearby.
 
 If you approve, P3-T30b builds it for every area and times it on the Western Europe trial before the world build.
 

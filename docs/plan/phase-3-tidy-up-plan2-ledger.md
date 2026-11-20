@@ -12,10 +12,40 @@ The orchestrator's record of work on docs/plan/phase-3-tidy-up-plan2.md. Only th
 
 ## Current state
 
-Last updated 19 November 2026.
+Last updated 20 November 2026, about midday, before the PO cleared the session. Read this section first to resume.
 
-* Resumed by the PO on the evening of 19 November 2026 for an overnight run without the PO (toOrchestrate.txt): work through the to-do list, build the Western Europe trial (P3-T21a) when the build code changes are in, then the world pack (P3-T21b) when all code changes are done. Choices normally put to the PO are made by the orchestrator and listed under "Overnight choices for the PO" below.
-* git stash holds "P3-T28d unfinished". Keep it until P3-T28d is run again.
+### Where things stand
+
+* Every task in "To do, in order" below is done and pushed, the overnight run included. The last commits are on main and pushed; the working tree holds only toOrchestrate.txt (the PO's) and nothing else.
+* The world pack was built on 20 November (536.3 MB, E:\osmdata\tobymap\output\world\world.pack) and the Western Europe trial on 20 November (53.1 MB). Both fit the code as it is now; the core fix 9353f80 (Ceuta) came after the world build and needs no rebuild.
+* End-of-plan tests passed on 20 November: full Python suite 2,019, none skipped; browser tests 238 in Chromium and Firefox.
+* The checklists for the PO's next pass are written and checked on the world pack: docs/checklists/phase-3-tidy-up-2-desktop.md, -web.md and -sighted.md. Steps marked "Possible fault" are the faults listed below.
+* No stash is kept (P3-T28d's was dropped once it was done).
+
+### Outstanding, waiting for the PO's word
+
+1. P3-T30b, the coast stretches, Opus. The PO answered P3-T30a's four questions in docs/plan/p3-t30a-coast-report.md (answers committed with this ledger): yes to stretches with the proposed wording; yes to counting a neighbour's slivers under 0.05 square kilometres as sea and joining breaks under 100 metres; yes to leaving stretches under 1 kilometre out of the list; and the sea only, no bays ("the user can discover bays by looking inside the sea object or with nearby"). The orchestrator asked the PO whether to start it; no answer yet. When started: a new stage after the relationships, rehearsed and timed on the Western Europe trial, then the world pack (only the new stage and the writing stage rerun, about 1.5 hours), "stretch of coast" added to the glossary first.
+2. The possible faults found on the world pack (listed under "Done", the entry "Checklists checked on the world pack"). The orchestrator proposed: fix 1, 3, 4, 6 and 8 in the core now, with no rebuild; make 2 (which islands a sea holds) and 7 (search order: Winchester, Virginia before Winchester, England) new discussion points. No answer yet.
+   * (1) Bordering Hampshire: West Sussex's border end at the coast said three times, the border being stored in two parts.
+   * (2) Contains the English Channel lists no islands: an island is a hole in the sea, never wholly inside it.
+   * (3) An area's share is never said under 1 percent: "Burrow Island, 1 percent of Hampshire"; lines say "less than 1 percent".
+   * (4) "M3, crosses twice" Hampshire's border, both crossings at one place.
+   * (5) Overlapping Hampshire lists only Burrow Island (unsure it is wrong).
+   * (6) The Moselle condominium "nearly touches" Belgium, "0 metres across".
+   * (7) Search order, as above; also the Thames and the M3.
+   * (8) Ceuta says "Unnamed island" at 35.89 N 5.31 W and 35.90 N 5.29 W.
+3. The PO's review of the "Overnight choices for the PO" below, such as the "Near" distances and Belfast Lough's sea name.
+4. Still waiting from before: P3-T20d (browser speed), DP208 (what Down lists), DP209 to DP217 (bookmarks and measuring, from P3-T27), and the PO's desktop, web and sighted passes with the new checklists.
+
+### Left for later, by the PO's decision
+
+* The visible rule's slow view, North America at 5,000 kilometres (about 0.55 seconds), is for the speed review, P7-T4a (the PO, 20 November 2026). The test's median limit stays 25 ms for now; 15 ms was proposed.
+* The flaky Firefox test test_the_helper_script_isolates_the_page_and_the_pack_still_downloads failed twice in continuous integration overnight; worth a fix like item 1a's when convenient.
+* Documents now out of date (from P3-T27): user experience description sections 6.3 and 9, implementation plan P4-T8 and P4-T9, architecture (pins and collections).
+
+### The overnight run, 19 to 20 November
+
+* The PO's instructions were in toOrchestrate.txt: work through the plan with a fresh subagent per task, check each, commit and push; build the Western Europe trial, then the world pack; make best judgements and log them below.
 
 ## Overnight choices for the PO
 

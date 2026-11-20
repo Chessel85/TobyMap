@@ -410,6 +410,9 @@ place:
   # Disputed land is said with "disputed", once, after the largest disputed area of the place (P3-T2c, ANN-6):
   # "Autonomous Republic of Crimea, Crimea, disputed".
   disputed: "{name}, disputed"
+  # Where am I names a town you are near, before the place (P3-T28p, Q6, LOC-5):
+  # "Near Winchester. Hampshire, England, United Kingdom".
+  near: "Near {name}. {place}"
 
 # The words after a move that crosses a pole (NAV-1 says the block is silent,
 # so there are none here).

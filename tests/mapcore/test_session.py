@@ -339,6 +339,13 @@ def test_within_says_a_current_line_or_place_first_as_here_or_by_distance_and_di
         == "River Itchen, 300 metres north"
 
 
+def test_where_am_i_names_a_town_you_are_near():
+    """The approved wording of Space with a town near (P3-T28p, Q6, LOC-5)."""
+    from mapcore.describe import say
+    assert say("place.near", name="Winchester", place="Hampshire, England, United Kingdom") \
+        == "Near Winchester. Hampshire, England, United Kingdom"
+
+
 def test_contains_says_an_area_you_are_in_and_a_line_or_place_where_you_are():
     """The approved wording of Contains' items without a distance (P3-T29c, INF-4)."""
     from mapcore.describe import say

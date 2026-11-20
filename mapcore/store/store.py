@@ -319,6 +319,7 @@ class _PackIndex:
         self._sizes = None
         self._ids = None
         self._layer_by_id = None
+        self._points: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
         self._tile_index: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
         by_kind: dict[tuple[str, int], list[tuple[int, int]]] = {}
         for key in pack.keys():
@@ -388,6 +389,15 @@ class _PackIndex:
         self._ids = np.array(ids, dtype=object)
         self._sizes = (np.array(widths, dtype=np.float64), np.array(layer_of, dtype=object))
         self._boxes = (np.array(numbers, dtype=np.intp), np.array(box, dtype=np.float64).reshape(-1, 4))
+
+    def points_of(self, layer: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """The features of a layer that are one point: their numbers, latitudes and longitudes, worked out once
+        from the feature table (P3-T28p)."""
+        if layer not in self._points:
+            numbers, boxes = self.boxes
+            keep = (self.sizes[1] == layer) & (boxes[:, 0] == boxes[:, 2]) & (boxes[:, 1] == boxes[:, 3])
+            self._points[layer] = (numbers[keep], boxes[keep, 1].copy(), boxes[keep, 0].copy())
+        return self._points[layer]
 
     def tiles_in(self, kind: str, level: int, x0: int, x1: int, y0: int, y1: int):
         """The (x, y) of stored tiles at a level within the ranges, both ends included."""
@@ -757,6 +767,35 @@ class Store:
                     results.append(found)
                     results.sort(key=lambda n: (n.distance_m, n.area.id))
         return results[:limit]
+
+    def points_near(self, lat: float, lon: float, radius_m: float, layer: str) -> list[Near]:
+        """The places of one point in a layer within radius_m of the point, nearest first, measured on the
+        ellipsoid, as Nearby measures a place (P3-T28p, for the town Where am I names). Only the points of
+        that layer are looked at, from arrays kept in memory, so it is quick enough for every press of Space."""
+        lon = geodesy.wrap_lon(lon)
+        out: list[Near] = []
+        for p in self._covering(lat, lon)[:1]:
+            numbers, lats, lons = self._indexes[p].points_of(layer)
+            if not len(numbers):
+                continue
+            dlat = radius_m / M_PER_DEG_LAT_MIN
+            keep = np.abs(lats - lat) <= dlat
+            worst = math.cos(math.radians(min(89.9, abs(lat) + dlat)))
+            dlon = math.degrees(radius_m / (geodesy.A_M * worst)) if worst > 1e-6 else 360.0
+            if dlon < 180.0:
+                keep &= np.abs((lons - lon + 180.0) % 360.0 - 180.0) <= dlon
+            rows = np.nonzero(keep)[0]
+            if not len(rows):
+                continue
+            dist, bear = geodesy.inverse_many(lat, lon, lats[rows], lons[rows])
+            for k, d, b in zip(rows.tolist(), dist.tolist(), bear.tolist()):
+                if d > radius_m:
+                    continue
+                area = self._area(p, int(numbers[k]))
+                if area is not None:
+                    out.append(Near(area, d, 0.0 if d == 0.0 else b, float(lats[k]), float(lons[k]), d == 0.0))
+        out.sort(key=lambda n: (n.distance_m, n.area.id))
+        return out
 
     # Search (P3-T8b, SRB-1, SRB-2, architecture 7.9) ------------------------------------------------------
 

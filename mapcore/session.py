@@ -2915,7 +2915,20 @@ class MapSession:
 
     def _where_am_i(self, **_a) -> Response:
         self.areas = self._here()
-        return Response(panel_stale=True).speak(self._place_text(), ASSERTIVE)
+        place = self._place_text()
+        town = self._near_town()
+        if town is not None:
+            place = say("place.near", name=town.name, place=place)
+        return Response(panel_stale=True).speak(place, ASSERTIVE)
+
+    def _near_town(self):
+        """The town Where am I names as near (P3-T28p, Q6, LOC-5), by describer.near_town's rule, or None. Only
+        while the towns' layer is on and in its zoom range, as a place is said only where it is drawn (DP160)."""
+        if describer.TOWN_LAYER not in self.visible.shown_layers(self.world.zoom_m):
+            return None
+        nears = self.store.points_near(self.world.lat, self.world.lon, describer.TOWN_REACH_MAX_M,
+                                       describer.TOWN_LAYER)
+        return describer.near_town(nears, [a.name for a in self._said(self.areas)])
 
     def _coordinates(self, **_a) -> Response:
         return Response().speak(words.coordinates_text(self.world.lat, self.world.lon, self.settings["coordinates"],

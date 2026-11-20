@@ -15,6 +15,60 @@ HERE_M = 1.0   # closer than this, an item is "here", with no distance or direct
 COUNTRY_LAYER = "countries"
 
 
+# Where am I names a town you are near (P3-T28p, Q6, LOC-5). The places of this layer are its towns.
+TOWN_LAYER = "towns"
+# A town's reach, the distance within which it is near: this many metres times the square root of its population,
+# as a town's built-up area grows about with its population, so its width with the root. 25 metres is about two
+# and a half times the radius of a town of 3,000 people to the square kilometre: Winchester, 35,000 people, 4.7 km.
+TOWN_REACH_PER_ROOT_M = 25.0
+TOWN_REACH_MIN_M = 2_000.0    # a small town: 2 km, a walk from its centre
+TOWN_REACH_MAX_M = 30_000.0   # London and Paris: 30 km, the edge of their built-up areas
+# The types that are near, and the reach of one with no population known: a city as one of about 100,000 people,
+# a town as one of about 15,000, the middle of each in the Western Europe trial. Villages, hamlets and suburbs are
+# not named: they are many, and a suburb is inside its town.
+TOWN_REACH_BY_TYPE_M = {"city": 8_000.0, "town": 3_000.0}
+
+
+def population(record: dict) -> float | None:
+    """A place's population: Wikidata's, else OpenStreetMap's; None when neither is a number above 0."""
+    for value in (((record.get("facts") or {}).get("population") or {}).get("value"), record.get("population")):
+        try:
+            if value is not None and float(value) > 0:
+                return float(value)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def town_reach_m(record: dict) -> float | None:
+    """The distance within which a town is near (P3-T28p), or None for a place of a type that is never near."""
+    kind = record.get("type")
+    if kind not in TOWN_REACH_BY_TYPE_M:
+        return None
+    people = population(record)
+    if people is None:
+        return TOWN_REACH_BY_TYPE_M[kind]
+    return min(TOWN_REACH_MAX_M, max(TOWN_REACH_MIN_M, TOWN_REACH_PER_ROOT_M * people ** 0.5))
+
+
+def near_town(nears, said_names):
+    """The town to name as near (P3-T28p): of the towns within their reach, the nearest for its reach, so a small
+    town you are in is said before the large city whose edge you are on; a tie goes to the larger. None when no
+    town is near, or when the one chosen has the name of an area said, as Paris in the department of Paris, which
+    the place says already. `nears` are Store Near results; `said_names` the names the place says."""
+    best, best_key = None, None
+    for n in nears:
+        reach = town_reach_m(n.area.record)
+        if reach is None or n.distance_m > reach:
+            continue
+        key = (n.distance_m / reach, -reach, n.area.id)
+        if best_key is None or key < best_key:
+            best, best_key = n.area, key
+    if best is None or str(best.name) in {str(s) for s in said_names}:
+        return None
+    return best
+
+
 SAME_SIZE = 0.01   # two areas of one name within this share of each other's size are the same land, said once
 
 

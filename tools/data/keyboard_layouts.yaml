@@ -1,0 +1,102 @@
+# Common keyboard layouts and the facts that matter to TobyMap's keys (P3-T31c, ACC-3, ACC-4).
+# Used by tools/make_key_list.py to fill the Variations and Notes columns of docs/design/keymap.csv.
+# Short and factual, from memory of the layouts as Windows and macOS ship them, not from a test on
+# each keyboard. A fact marked "unsure: true" should be checked on a real keyboard before it is relied on.
+#
+# How TobyMap recognises a key (plan 3a): a letter by the letter it types, a punctuation key by the
+# character it types, Shift with a number by the key's place. So a letter or number that sits in another
+# place (QWERTZ Y and Z, AZERTY A, Q, W, Z and M, the number row needing Shift on AZERTY) is no clash.
+# What does clash:
+# * AltGr, which Windows treats as Ctrl+Alt: Ctrl+Alt with a letter or number is the character AltGr
+#   makes on that keyboard ("altgr_letters", "altgr_digits").
+# * A punctuation key that needs Shift or AltGr, is a dead key, or is not on the keyboard ("punctuation").
+# * On a Mac, Option with a letter or punctuation types a character, and Control with Option is VoiceOver.
+#
+# Fields of each layout:
+#   name:           as the Variations column says it.
+#   system:         windows (AltGr rules apply to Windows key maps) or mac (the Option rule applies to Mac key maps).
+#   altgr_letters:  letters that type a character with AltGr (Ctrl+Alt on Windows), with what each types.
+#   altgr_digits:   the same for numbers.
+#   punctuation:    for a character a key uses, how it is typed: "shift", "altgr", "dead" or "none". A character
+#                   not listed is typed plainly, on a key that may be in another place.
+#   moved:          letters and other keys in other places (a fact only; they are no clash).
+#   unsure:         true when a fact above is not certain.
+layouts:
+  - name: UK
+    system: windows
+    altgr_letters: {A: á, E: é, I: í, O: ó, U: ú}
+    altgr_digits: {"4": "euro sign"}
+    punctuation: {}
+    moved: {}
+    unsure: false
+  - name: US
+    system: windows
+    altgr_letters: {}
+    altgr_digits: {}
+    punctuation: {}
+    moved: {}
+    unsure: false
+  - name: US International
+    system: windows
+    altgr_letters: {A: á, E: é, I: í, O: ó, U: ú, Q: ä, W: å, Y: ü, P: ö, S: ß, L: ø, N: ñ, D: ð, T: þ, Z: æ, C: ©, R: ®, M: micro sign}
+    altgr_digits: {"1": "inverted exclamation mark", "4": "pound sign", "5": "euro sign"}
+    punctuation: {"'": dead, '"': dead, "`": dead, "~": dead, "^": dead}
+    moved: {}
+    unsure: true   # the letters AltGr types are listed from memory and may be incomplete
+  - name: German
+    system: windows
+    altgr_letters: {Q: "@", E: "euro sign", M: micro sign}
+    altgr_digits: {"2": "²", "3": "³", "7": "{", "8": "[", "9": "]", "0": "}"}
+    punctuation: {"/": shift, "=": shift, "[": altgr, "]": altgr, "\\": altgr, ";": shift, ":": shift}
+    moved: {Y: "Z's place", Z: "Y's place", "-": "where the slash is on a US keyboard"}
+    unsure: false
+  - name: French
+    system: windows
+    altgr_letters: {E: "euro sign"}
+    altgr_digits: {"2": "~", "3": "#", "4": "{", "5": "[", "6": "|", "7": "`", "8": "\\", "9": "^", "0": "@"}
+    punctuation: {".": shift, "/": shift, ":": shift, "+": shift, "[": altgr, "]": altgr, "\\": altgr}
+    moved: {A: "Q's place", Q: "A's place", W: "Z's place", Z: "W's place", M: "the comma's place", ",": "M's place", ";": "comma's place", "numbers": "need Shift"}
+    unsure: false
+  - name: Spanish
+    system: windows
+    altgr_letters: {E: "euro sign"}
+    altgr_digits: {"1": "|", "2": "@", "3": "#", "4": "~", "7": "{", "0": "}"}
+    punctuation: {"/": shift, "=": shift, "[": altgr, "]": altgr, "\\": altgr, ";": shift, ":": shift}
+    moved: {"-": "where the slash is on a US keyboard"}
+    unsure: true   # the numbers AltGr types and the bracket keys are from memory
+  - name: Italian
+    system: windows
+    altgr_letters: {E: "euro sign"}
+    altgr_digits: {}
+    punctuation: {"/": shift, "=": shift, "[": altgr, "]": altgr, ";": shift, ":": shift}
+    moved: {"-": "where the slash is on a US keyboard"}
+    unsure: true   # the brackets may need AltGr with Shift on some Italian layouts
+  - name: Nordic (Swedish, Norwegian, Danish, Finnish)
+    system: windows
+    altgr_letters: {E: "euro sign", M: micro sign}
+    altgr_digits: {"2": "@", "3": "pound sign", "4": "$", "7": "{", "8": "[", "9": "]", "0": "}"}
+    punctuation: {"/": shift, "=": shift, "[": altgr, "]": altgr, "\\": altgr, ";": shift, ":": shift}
+    moved: {"-": "where the slash is on a US keyboard"}
+    unsure: true   # the AltGr letter M is from memory; the four languages differ a little
+  - name: Polish (Programmers)
+    system: windows
+    altgr_letters: {A: ą, C: ć, E: ę, L: ł, N: ń, O: ó, S: ś, X: ź, Z: ż}
+    altgr_digits: {}
+    punctuation: {}
+    moved: {}
+    unsure: true   # the Polish (214) typewriter layout is different and is not covered
+  - name: Czech and its neighbours (Slovak, Hungarian, Slovene, Croatian)
+    system: windows
+    altgr_letters: {Q: "\\", W: "|", E: "euro sign", F: "[", G: "]", X: "#", C: "&", V: "@", B: "{", N: "}"}
+    altgr_digits: {}
+    punctuation: {"/": shift, "[": altgr, "]": altgr, "\\": altgr}
+    moved: {Y: "Z's place", Z: "Y's place", "numbers": "need Shift on Czech and Slovak"}
+    unsure: true   # listed for Czech; the neighbours differ in detail, and the slash key is not certain
+  - name: Mac layouts
+    system: mac
+    altgr_letters: {}
+    altgr_digits: {}
+    punctuation: {}
+    moved: {}
+    option_types_characters: true   # Option with a letter or punctuation types a character (Option+W is a sum sign)
+    unsure: false

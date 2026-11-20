@@ -1,0 +1,101 @@
+Command,Where it works,Windows desktop,Mac desktop,Windows browser,Mac browser,Variations,Notes on the variations
+Step north or forward,the map,Up,Up,Up,Up,None known,No problem known.
+Step south or back,the map,Down,Down,Down,Down,None known,No problem known.
+Step west or turn left,the map,Left,Left,Left,Left,None known,No problem known.
+Step east or turn right,the map,Right,Right,Right,Right,None known,No problem known.
+Hierarchy mode,the map,M,M,M,M,None known,No problem known.
+Zoom out,the map,Page Up,Page Up,Page Up,Page Up,None known,No problem known.
+Zoom in,the map,Page Down,Page Down,Page Down,Page Down,None known,No problem known.
+Larger step,the map,Shift+Page Up,Shift+Page Up,Shift+Page Up,Shift+Page Up,None known,No problem known.
+Smaller step,the map,Shift+Page Down,Shift+Page Down,Shift+Page Down,Shift+Page Down,None known,No problem known.
+Link step to zoom,the map,S,S,S,S,None known,No problem known.
+"Change orientation: north-fixed, cardinal facing, free facing",the map,O,O,O,O,None known,No problem known.
+"Change orientation the other way: free facing, cardinal facing, north-fixed",the map,Shift+O,Shift+O,Shift+O,Shift+O,None known,No problem known.
+Large turn left in free facing,the map,Shift+Left,Shift+Left,Shift+Left,Shift+Left,None known,No problem known.
+Large turn right in free facing,the map,Shift+Right,Shift+Right,Shift+Right,Shift+Right,None known,No problem known.
+Fine turn left in free facing,the map,Ctrl+Left,Alt+Left,Ctrl+Left,Alt+Left,None known,No problem known.
+Fine turn right in free facing,the map,Ctrl+Right,Alt+Right,Ctrl+Right,Alt+Right,None known,No problem known.
+Type a bearing,anywhere,Ctrl+B,Cmd+B,Ctrl+B,Cmd+B,None known,No problem known.
+Orientation beacon,the map,B,B,B,B,None known,No problem known.
+Go to coordinates,anywhere,Ctrl+G,Cmd+G,Ctrl+G,Cmd+G,None known,No problem known.
+Back to the previous place,the map,"Alt+,",Shift+Cmd+Left,"Alt+,",Shift+Cmd+Left,None known,No problem known.
+Forward to the next place,the map,Alt+.,Shift+Cmd+Right,Alt+.,Shift+Cmd+Right,French,"French: The full stop key needs Shift, so Alt+. is hard to press there. Use the Alternative key map, which has Windows desktop and Windows browser: Ctrl+Shift+Right."
+Location history,anywhere,Ctrl+Shift+Space,Shift+Cmd+Space,Ctrl+Shift+Space,Shift+Cmd+Space,None known,No problem known.
+Search,anywhere,Ctrl+F,Cmd+F,Ctrl+F,Cmd+F,None known,No problem known.
+World tree,the map,W,W,W,W,None known,No problem known.
+List every feature of a kind in the current feature,anywhere,Ctrl+Shift+F,Shift+Cmd+F,Ctrl+Shift+F,Shift+Cmd+F,None known,No problem known.
+Layers,anywhere,Ctrl+Shift+L,Shift+Cmd+L,Ctrl+Shift+L,Shift+Cmd+L,None known,No problem known.
+Map views,anywhere,Ctrl+Shift+V,Shift+Cmd+V,Ctrl+Shift+V,Shift+Cmd+V,None known,No problem known.
+Next theme,the map,T,T,T,T,None known,No problem known.
+Previous theme,the map,Shift+T,Shift+T,Shift+T,Shift+T,None known,No problem known.
+Isolate the current area,the map,Ctrl+I,Cmd+I,Ctrl+I,Cmd+I,None known,No problem known.
+Reset all settings,anywhere,No key,No key,No key,No key,None known,No problem known.
+Look around,the map,L,L,L,L,None known,No problem known.
+Go to the item look around is playing,the map,Enter,Enter,Enter,Enter,None known,No problem known.
+Where am I,the map,Space,Space,Space,Space,None known,No problem known.
+Coordinates,the map,C,C,C,C,None known,No problem known.
+Heading,the map,H,H,H,H,None known,No problem known.
+Size of the visible map,the map,V,V,V,V,None known,No problem known.
+Go to the map,anywhere,F2,F2,F2,F2,None known,No problem known.
+Go to the Information panel,anywhere,F3,F3,F3,F3,None known,No problem known.
+Go to Details,anywhere,F4,F4,F4,F4,None known,No problem known.
+Open the Wikipedia article,anywhere,W,W,W,W,None known,No problem known.
+Open the current feature's Wikipedia article,anywhere,Ctrl+Alt+W,Ctrl+Shift+W,Alt+Shift+W,Ctrl+Shift+W,"US International; Czech and its neighbours (Slovak, Hungarian, Slovene, Croatian)","US International: Ctrl+Alt+W is AltGr+W, which types å (unsure). Czech and its neighbours (Slovak, Hungarian, Slovene, Croatian): Ctrl+Alt+W is AltGr+W, which types | (unsure). Use the Alternative key map, which has Windows desktop: Alt+Shift+W."
+Open the article on this line,anywhere,Enter,Enter,Enter,Enter,None known,No problem known.
+Go to Within,anywhere,Shift+1,Shift+1,Shift+1,Shift+1,None known,No problem known.
+Go to Nearby,anywhere,Shift+2,Shift+2,Shift+2,Shift+2,None known,No problem known.
+Go to Bordering,anywhere,Shift+3,Shift+3,Shift+3,Shift+3,None known,No problem known.
+Go to Contains,anywhere,Shift+4,Shift+4,Shift+4,Shift+4,None known,No problem known.
+Go to Overlapping,anywhere,Shift+5,Shift+5,Shift+5,Shift+5,None known,No problem known.
+Go to Passed over,anywhere,Shift+6,Shift+6,Shift+6,Shift+6,None known,No problem known.
+Go to Search,anywhere,Shift+7,Shift+7,Shift+7,Shift+7,None known,No problem known.
+Hear its direction,the Information panel,Space,Space,Space,Space,None known,No problem known.
+Measure to the item,anywhere,Shift+M,Shift+M,Shift+M,Shift+M,None known,No problem known.
+Go there,the Information panel,Enter,Enter,Enter,Enter,None known,No problem known.
+Make its layer the current layer,the Information panel,Shift+Enter,Shift+Enter,Shift+Enter,Shift+Enter,None known,No problem known.
+Sort the group,the Information panel,Ctrl+S,Cmd+S,Ctrl+S,Cmd+S,None known,No problem known.
+Sort the group the other way round,the Information panel,Ctrl+Shift+S,Shift+Cmd+S,Ctrl+Shift+S,Shift+Cmd+S,None known,No problem known.
+Bookmark the item,the Information panel,Ctrl+Enter,Cmd+Enter,Ctrl+Enter,Cmd+Enter,None known,No problem known.
+Exit,anywhere,No key,No key,Not in this version,Not in this version,None known,No problem known.
+Repeat the last announcement,anywhere,Shift+Space,Shift+Space,Shift+Space,Shift+Space,None known,No problem known.
+Mute all sound,anywhere,Ctrl+M,Ctrl+M,Ctrl+M,Ctrl+M,None known,No problem known.
+Next verbosity preset,the map,A,A,A,A,None known,No problem known.
+Previous verbosity preset,the map,Shift+A,Shift+A,Shift+A,Shift+A,None known,No problem known.
+Send a Braille-only message,anywhere,No key,No key,No key,No key,None known,No problem known.
+Settings,anywhere,"Ctrl+,","Cmd+,","Ctrl+,","Ctrl+,",None known,No problem known.
+Keys for this region,anywhere,F1,F1,F1,F1,None known,No problem known.
+Key describer,anywhere,Shift+F1,Shift+F1,Shift+F1,Shift+F1,None known,No problem known.
+About TobyMap,anywhere,No key,No key,No key,No key,None known,No problem known.
+About the data,anywhere,No key,No key,No key,No key,None known,No problem known.
+The sounds,anywhere,No key,No key,No key,No key,None known,No problem known.
+Copy diagnostics,anywhere,No key,No key,No key,No key,None known,No problem known.
+Drawing speed,anywhere,No key,No key,No key,No key,None known,No problem known.
+Go to the menu bar,anywhere,Not in this version,Not in this version,Ctrl+Alt+M,Ctrl+Shift+M,"US International; German; Nordic (Swedish, Norwegian, Danish, Finnish)","US International: Ctrl+Alt+M is AltGr+M, which types micro sign (unsure). German: Ctrl+Alt+M is AltGr+M, which types micro sign. Nordic (Swedish, Norwegian, Danish, Finnish): Ctrl+Alt+M is AltGr+M, which types micro sign (unsure). Use the Alternative key map, which has Windows browser: Ctrl+F2."
+Move the location to a clicked point,the map,No key,No key,No key,No key,None known,No problem known.
+Zoom with the wheel or a pinch,the map,No key,No key,No key,No key,None known,No problem known.
+Turn the globe by dragging,the map,No key,No key,No key,No key,None known,No problem known.
+Describe the point under the mouse,the map,No key,No key,No key,No key,None known,No problem known.
+Select an item in the Information panel,anywhere,No key,No key,No key,No key,None known,No problem known.
+Change the key of a command,anywhere,No key,No key,No key,No key,None known,No problem known.
+Play a sound from the list of sounds,anywhere,No key,No key,No key,No key,None known,No problem known.
+Change a setting,anywhere,No key,No key,No key,No key,None known,No problem known.
+Change a layer,anywhere,No key,No key,No key,No key,None known,No problem known.
+Check a layer's zoom range,anywhere,No key,No key,No key,No key,None known,No problem known.
+Face the typed bearing,the map,No key,No key,No key,No key,None known,No problem known.
+Go to the typed coordinates,the map,No key,No key,No key,No key,None known,No problem known.
+Go to a place in the location history,anywhere,No key,No key,No key,No key,None known,No problem known.
+Choose from the ambiguous up or a down list in hierarchy mode,anywhere,No key,No key,No key,No key,None known,No problem known.
+Search for what was typed,anywhere,No key,No key,No key,No key,None known,No problem known.
+Go to a search result,anywhere,No key,No key,No key,No key,None known,No problem known.
+Open a branch of the world tree,anywhere,No key,No key,No key,No key,None known,No problem known.
+Go to an item of the world tree,anywhere,No key,No key,No key,No key,None known,No problem known.
+The item focused in the world tree,anywhere,No key,No key,No key,No key,None known,No problem known.
+Choose a kind of feature to list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Query builder,anywhere,Q,Q,Q,Q,None known,No problem known.
+Run a query,anywhere,No key,No key,No key,No key,None known,No problem known.
+Back to the query builder,anywhere,No key,No key,No key,No key,None known,No problem known.
+Reset all settings once asked,anywhere,No key,No key,No key,No key,None known,No problem known.
+Add the layers as a view with the typed name,anywhere,No key,No key,No key,No key,None known,No problem known.
+Rename the chosen view to the typed name,anywhere,No key,No key,No key,No key,None known,No problem known.
+Delete the chosen view,anywhere,No key,No key,No key,No key,None known,No problem known.
+Keep the map views changes and use the chosen view,anywhere,No key,No key,No key,No key,None known,No problem known.

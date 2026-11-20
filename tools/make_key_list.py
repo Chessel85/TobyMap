@@ -1,20 +1,22 @@
-"""Make a phase's key list from the command list and the Windows key maps (P2-T0c, P3-T0c, DP109; ACC-3, ACC-4).
+"""Make docs/design/keymap.csv from the command list and the key maps (P3-T31c, ACC-3, ACC-4).
 
-The file has one line for every command now in the registry and one for every
-new command of the phase, so the product owner can write the key wanted in the
-"Your key" column. Each proposed key is checked against the keys already in use
-where they would meet, and against the keys screen readers and browsers keep
-(tests/data/forbidden_keys.yaml); any clash is written in the Notes column.
-It can be made again at any time. The end of each line is CRLF and there is no
-BOM, as in the discussion points file.
+One line for every command. The four key columns hold the command's key in each key map that TobyMap
+starts with: Windows desktop, Mac desktop, Windows browser and Mac browser, read with the same functions
+the shells use (mapcore/commands/keys.py). The Variations column names the common keyboard layouts
+(tools/data/keyboard_layouts.yaml) where that key is a problem, and the Notes column says why and which
+key the Alternative key map uses. A test (tests/tools/test_keymap_csv.py) fails if the file is out of date.
 
-Usage: python tools/make_key_list.py [--phase 2|3] [--force]
-The phase is 3 unless given. A file that already holds the product owner's keys
-is not changed without --force.
+The end of each line is CRLF and there is no BOM, as in the discussion points file.
+
+Usage: python tools/make_key_list.py [--check]
+Without --check the file is written; with it nothing is written, and the exit code is 1 when the file
+is out of date.
 """
 from __future__ import annotations
 
+import argparse
 import csv
+import io
 import sys
 from pathlib import Path
 
@@ -23,162 +25,145 @@ import yaml
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 REGISTRY = REPO / "mapcore" / "commands" / "registry.yaml"
-FORBIDDEN = REPO / "tests" / "data" / "forbidden_keys.yaml"
+LAYOUTS = REPO / "tools" / "data" / "keyboard_layouts.yaml"
+OUT = REPO / "docs" / "design" / "keymap.csv"
 
-COLUMNS = ["Command", "Where it works", "Phase", "Key now", "Key proposed", "Your key", "Notes"]
-
-# New Phase 2 commands: (command, where, key proposed, note). Keys are from the user
-# experience description, section 12, except where the note says they are new.
-NEW_2 = [
-    ("Cycle the orientation: north-fixed, cardinal facing, free facing", "the map", "F", "P2-T1"),
-    ("Turn 90 degrees left", "the map", "Shift+Left", "P2-T1"),
-    ("Turn 90 degrees right", "the map", "Shift+Right", "P2-T1"),
-    ("Fine turn left, in free facing", "the map", "Ctrl+Left", "P2-T1"),
-    ("Fine turn right, in free facing", "the map", "Ctrl+Right", "P2-T1"),
-    ("Type a bearing", "the map", "A", "P2-T1"),
-    ("Go to coordinates", "the map", "G", "P2-T2"),
-    ("Back through the location history", "the map", "Backspace", "P2-T2"),
-    ("Forward through the location history", "the map", "Shift+Backspace", "P2-T2"),
-    ("Go to a place in the location history", "the location history", "Enter", "P2-T15, P2-T17t. In the location history."),
-    ("Layers list", "anywhere", "Shift+L", "P2-T3"),
-    ("Orientation beacon on or off", "the map", "B", "P2-T9"),
-    ("Hear its direction", "the Information panel", "Ctrl+Enter", "DP143, P2-T7. On Nearby and Passed over items."),
-    ("Isolate the current feature, and again to show everything", "the map", "Ctrl+I", "P2-T12. New, proposed by me; no key was set in the design."),
-    ("Next verbosity preset", "anywhere", "Ctrl+Shift+V", "P2-T11. New, proposed by me; no key was set in the design."),
-    ("Next theme", "anywhere", "Ctrl+Shift+T", "P2-T12. New, proposed by me; no key was set in the design."),
-]
-
-# Information panel group keys (DP109). Proposed to be dropped, so that you can keep any you want.
-PANEL_2 = [
-    ("Panel group: Contains", "I"),
-    ("Panel group: Bordering", "N"),
-    ("Panel group: Overlapping", "O"),
-    ("Panel group: Passed over", "Shift+X"),
-]
-
-# New Phase 3 commands (docs/plan/phase-3-plan.md): (command, where, key proposed, note).
-# Keys are from the user experience description, section 12, unless the note says otherwise.
-NEW_3 = [
-    ("Stepping mode", "the map", "1", "P3-T6. Goes back to stepping from hierarchy mode, without moving."),
-    ("Hierarchy mode", "the map", "2", "P3-T6. In hierarchy mode, Up goes to the parent, Down lists what is inside, "
-     "and Left and Right go to the neighbours, clockwise. No new keys for those."),
-    ("Go to Bordering", "anywhere", "Shift+3", "P3-T29a. The groups and their keys, in the order you chose (INF-10): Within, Nearby, Bordering, Contains, Overlapping, Passed over, Search."),
-    ("Go to Contains", "anywhere", "Shift+4", "P3-T29a."),
-    ("Go to Overlapping", "anywhere", "Shift+5", "P3-T29a."),
-    ("Go to Passed over", "anywhere", "Shift+6", "P3-T29a. Was Crossed and passed, on Shift+3. The Crossing group went."),
-    ("Go to Search", "anywhere", "Shift+7", "P3-T29a. The search results, the world tree's lists and the query builder's answers."),
-    ("Next sort order: name, distance, bearing", "the Information panel", "Ctrl+S", "P3-T4. Agreed in DP79."),
-    ("Previous sort order", "the Information panel", "Ctrl+Shift+S",
-     "P3-T4. New: Shift goes the other way round a list (P2-T17l)."),
-    ("Bookmark the item", "the Information panel", "Ctrl+Enter",
-     "Phase 4, from DP170. Until then it says that bookmarks come in Phase 4."),
-    ("Measure to the item or the search result", "the map and the Information panel", "M",
-     "P3-T7. You were not sure of this key (DP170); I ask again when P3-T7 is done."),
-    ("Distance to a feature found by search, without moving", "the map", "Shift+M", "P3-T7, INF-8. New, proposed by me."),
-    ("Search", "anywhere", "Ctrl+F", "P3-T8. In the web version, the page takes Ctrl+F from the browser's own find while TobyMap has focus; "
-     "the browser tests check this in Chromium and Firefox."),
-    ("World tree", "the map", "W", "P3-T9. The design had T, which is now Next theme; W for World. New, proposed by me."),
-    ("Open the current feature's Wikipedia article", "anywhere", "Ctrl+Alt+W",
-     "P3-T5, P3-T28l. Now Ctrl+Alt+W on the desktop and Alt+Shift+W in the web version (AltGr is Ctrl+Alt on Windows, and on Czech, "
-     "Slovak, Hungarian, Slovene and Croatian keyboards AltGr+W types a bar). Ctrl+W and Ctrl+Shift+W close the browser tab or window."),
-    ("List every feature of a kind in the current feature", "the map", "Ctrl+Shift+F",
-     "P3-T9, SRB-4, such as every lake in Finland. New, proposed by me."),
-    ("Query builder", "the map", "Q", "P3-T10."),
-    ("Look around", "the map", "L", "P3-T11."),
-    ("Pack manager", "the map", "P", "P3-T13. On the map only, so P still finds an item by its first letter in the panel."),
-]
-
-PHASES = {2: (NEW_2, PANEL_2), 3: (NEW_3, [])}
-PLACES = {"the map": {"map"}, "the Information panel": {"panel"}, "anywhere": {"map", "panel", "global"},
-          "the map and the Information panel": {"map", "panel"}}
+COLUMNS = ["Command", "Where it works", "Windows desktop", "Mac desktop", "Windows browser", "Mac browser",
+           "Variations", "Notes on the variations"]
+# Each key map column: its name in the key map files, the version and the system as the session names them.
+KEY_COLUMNS = [("Windows desktop", "windows-desktop", "desktop", "windows"),
+               ("Mac desktop", "mac-desktop", "desktop", "mac"),
+               ("Windows browser", "windows-browser", "web", "windows"),
+               ("Mac browser", "mac-browser", "web", "mac")]
+# The information panel's groups: the key map holds one key for each, the command list one command for all.
+GROUPS = [("within", "Within"), ("nearby", "Nearby"), ("bordering", "Bordering"), ("contains", "Contains"),
+          ("overlapping", "Overlapping"), ("crossed", "Passed over"), ("search", "Search")]
+CHARACTER_NAMES = {",": "comma", ".": "full stop", "/": "slash", "\\": "backslash", "[": "left bracket",
+                   "]": "right bracket", "-": "minus", "=": "equals", "+": "plus", ";": "semicolon",
+                   ":": "colon", "'": "apostrophe", '"': "quotation mark", "`": "grave accent",
+                   "~": "tilde", "^": "caret"}
+HOW = {"shift": "needs Shift", "altgr": "needs AltGr", "dead": "is a dead key, which waits for the next letter",
+       "none": "is not on the keyboard"}
+NO_KEY, NOT_HERE = "No key", "Not in this version"
 
 
 def where(region: str) -> str:
     return {"map": "the map", "panel": "the Information panel"}.get(region, "anywhere")
 
 
-def windows_keys() -> dict[str, str]:
-    """Each command's key in the Windows key maps (P3-T31a): the desktop's, then the browser's for a
-    command only in the web version. The panel groups' keys are written "Shift+number", once."""
+def layouts() -> list[dict]:
+    return yaml.safe_load(LAYOUTS.read_text(encoding="utf-8"))["layouts"]
+
+
+def problems(key: str, system: str, layout: dict) -> list[str]:
+    """Why this key, in a key map for this system, is a problem on this keyboard layout: sentences, or none."""
     from mapcore.commands import keys as keymaps
 
-    out = {**keymaps.resolve("windows-browser", "web", "windows"), **keymaps.resolve("windows-desktop", "desktop", "windows")}
-    out["panel.group"] = "Shift+{number}"
-    return out
-
-
-def clash_notes(key: str, place: str, registry: dict, forbidden: dict) -> list[str]:
-    """What the proposed key would clash with: a key already used where they meet,
-    or a key a screen reader or browser keeps (ACC-4)."""
-    notes = []
-    regions = PLACES.get(place)
-    keys = windows_keys()
-    if regions is not None:
-        for c in registry["commands"]:
-            if keys.get(c["name"]) == key and (c["region"] == "global" or "global" in regions or c["region"] in regions):
-                notes.append(f"Clash: {key} is already {c['label']}.")
-    parts = key.split("+")
-    if (key in forbidden["exact"] or key in forbidden["web_only"] or set(parts) & set(forbidden["no_modifier_words"])
-            or (forbidden["digits_with_ctrl"] and parts[0] == "Ctrl" and parts[-1].isdigit())):
-        notes.append(f"Clash: {key} belongs to the screen reader or the browser.")
-    return notes
-
-
-def rows(phase: int) -> list[list[str]]:
-    registry = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))
-    forbidden = yaml.safe_load(FORBIDDEN.read_text(encoding="utf-8"))
-    new, panel = PHASES[phase]
-    earlier = "1" if phase == 2 else "earlier"
-    keys = windows_keys()
+    if not key:
+        return []
+    mods, base = keymaps.split_key(key)
+    if len(base) != 1:
+        return []
     out = []
-    seen = set()
-    for c in registry["commands"]:
-        if c["name"] in seen:
-            continue
-        seen.add(c["name"])
-        notes = []
-        if c.get("pointer"):
-            notes.append("Sent by the mouse, touch or a list; it has no key.")
-        if c.get("platforms") and c["platforms"] != ["desktop", "web"]:
-            notes.append("Only in the " + " and ".join(c["platforms"]) + " version.")
-        if c.get("toggle"):
-            notes.append("On or off.")
-        key = keys.get(c["name"], "")
-        if phase > 2:
-            key = key.replace("{number}", "number")
-        out.append([c["label"], where(c["region"]), earlier, key, key, "", " ".join(notes)])
-    for label, place, key, note in new:
-        notes = [note] + (clash_notes(key, place, registry, forbidden) if phase > 2 else [])
-        out.append([label, place, str(phase), "", key, "", " ".join(notes)])
-    for label, key in panel:
-        out.append([label, "the Information panel", str(phase), "", "",
-                    "", f"Proposed to be dropped (DP109). The key in the design is {key}. Write it in Your key to keep it."])
+    unsure = " (unsure)" if layout.get("unsure") else ""
+    if system == "windows" and layout["system"] == "windows" and "Ctrl" in mods and "Alt" in mods:
+        table = layout["altgr_digits"] if base.isdigit() else layout["altgr_letters"]
+        if base.upper() in table:
+            out.append(f"{key} is AltGr+{base.upper()}, which types {table[base.upper()]}{unsure}.")
+    if system == "mac" and layout.get("option_types_characters") and "Alt" in mods:
+        out.append(f"Option with {CHARACTER_NAMES.get(base, base)} types a character on a Mac.")
+    if not base.isalnum() and layout["system"] == "windows" and base in layout["punctuation"]:
+        name = CHARACTER_NAMES.get(base, base)
+        out.append(f"The {name} key {HOW[layout['punctuation'][base]]}, so {key} is hard to press there{unsure}.")
     return out
 
 
-def has_your_keys(out: Path) -> bool:
-    """True when the file already holds keys written by the product owner."""
-    if not out.is_file():
-        return False
-    with out.open(encoding="utf-8-sig", newline="") as f:
-        return any(r.get("Your key", "").strip() for r in csv.DictReader(f))
+def key_rows() -> list[tuple[str, str, dict[str, str], str]]:
+    """Each command as (label, where it works, key by column, name), in the command list's order."""
+    from mapcore.commands import keys as keymaps
+
+    registry = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))
+    resolved = {col: keymaps.resolve(name, version, system) for col, name, version, system in KEY_COLUMNS}
+    commands = []
+    for c in registry["commands"]:
+        if c["name"] == "panel.group":
+            for short, label in GROUPS:
+                commands.append((f"Go to {label}", where(c["region"]), f"panel.{short}", None))
+        else:
+            commands.append((c["label"], where(c["region"]), c["name"], c.get("platforms")))
+    out = []
+    for label, place, name, platforms in commands:
+        keys = {}
+        for col, _n, version, _s in KEY_COLUMNS:
+            if platforms and version not in platforms:
+                keys[col] = NOT_HERE
+            else:
+                keys[col] = resolved[col].get(name, "") or NO_KEY
+        out.append((label, place, keys, name))
+    return out
+
+
+def alternative_hint(name: str, problem_columns: list[str]) -> str:
+    """The key the Alternative key map uses for this command, in the columns that had a problem."""
+    from mapcore.commands import keys as keymaps
+
+    by_key: dict[str, list[str]] = {}
+    for col, _n, version, system in KEY_COLUMNS:
+        if col not in problem_columns:
+            continue
+        key = keymaps.resolve(keymaps.ALTERNATIVE, version, system).get(name, "")
+        if key:
+            by_key.setdefault(key, []).append(col)
+    parts = [f"{' and '.join(cols)}: {key}" for key, cols in by_key.items()]
+    return "Use the Alternative key map, which has " + "; ".join(parts) + "." if parts else ""
+
+
+def rows() -> list[list[str]]:
+    all_layouts = layouts()
+    out = []
+    for label, place, keys, name in key_rows():
+        found: dict[str, list[str]] = {}
+        problem_columns = []
+        for col, _n, _v, system in KEY_COLUMNS:
+            key = keys[col]
+            if key in (NO_KEY, NOT_HERE):
+                continue
+            for layout in all_layouts:
+                for why in problems(key, system, layout):
+                    if why not in found.setdefault(layout["name"], []):
+                        found[layout["name"]].append(why)
+                    if col not in problem_columns:
+                        problem_columns.append(col)
+        variations = "; ".join(found) if found else "None known"
+        notes = " ".join(f"{lay}: {' '.join(whys)}" for lay, whys in found.items())
+        if found:
+            notes = " ".join(x for x in (notes, alternative_hint(name, problem_columns)) if x)
+        out.append([label, place] + [keys[col] for col, *_ in KEY_COLUMNS] + [variations, notes or "No problem known."])
+    return out
+
+
+def csv_text() -> str:
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer, lineterminator="\r\n")
+    writer.writerow(COLUMNS)
+    writer.writerows(rows())
+    return buffer.getvalue()
 
 
 def main() -> int:
-    phase = int(sys.argv[sys.argv.index("--phase") + 1]) if "--phase" in sys.argv else 3
-    if phase not in PHASES:
-        print(f"There is no key list for phase {phase}. Use --phase 2 or --phase 3.")
-        return 1
-    out = REPO / "docs" / "plan" / f"phase-{phase}-keys.csv"
-    if has_your_keys(out) and "--force" not in sys.argv:
-        print(f"{out} already holds your keys, so it was not changed. Use --force to make it again.")
-        return 1
-    data = rows(phase)
-    with out.open("w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f, lineterminator="\r\n")
-        w.writerow(COLUMNS)
-        w.writerows(data)
-    print(f"Wrote {len(data)} commands to {out}.")
+    parser = argparse.ArgumentParser(description="Make docs/design/keymap.csv from the key maps.")
+    parser.add_argument("--check", action="store_true", help="write nothing; exit 1 if the file is out of date")
+    args = parser.parse_args()
+    text = csv_text()
+    if args.check:
+        current = OUT.read_bytes().decode("utf-8") if OUT.is_file() else None
+        if current != text:
+            print(f"{OUT} is out of date. Run tools/make_key_list.py to make it again.")
+            return 1
+        print(f"{OUT} is up to date.")
+        return 0
+    OUT.write_bytes(text.encode("utf-8"))
+    print(f"Wrote {len(rows())} commands to {OUT}.")
     return 0
 
 

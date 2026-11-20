@@ -211,7 +211,7 @@ Before each one I tell you how long it should take, how many cores it uses and h
 
 ### P3-T0c The key list (Sonnet)
 
-* docs/plan/phase-3-keys.csv, made by tools/make_key_list.py, with every Phase 3 command and the key proposed in the user experience description, section 12.
+* docs/plan/phase-3-keys.csv (replaced by docs/design/keymap.csv in P3-T31c), made by tools/make_key_list.py, with every Phase 3 command and the key proposed in the user experience description, section 12.
 * It marks the proposed keys already taken, so you choose: T is the world tree and the next theme; O is Overlapping and the orientation; L is look around, which is free; D details and M measure are free; 1 and 2 are stepping and hierarchy mode; Q is the query builder; Ctrl+F is search.
 * The new Information panel groups get Shift and their number from the group list, as Shift+1 to Shift+3 do now (DP156). With all eight groups in the order of INF-10, Nearby would move from Shift+2 to Shift+6. I propose new groups go after the three you know, so your keys do not change: Within, Nearby, Crossed and passed, Contains, Bordering, Overlapping, Crossing, Search.
 * Your keys go into the registry with the task that adds each command. The key clash test runs on them then.

@@ -804,21 +804,31 @@ class MapSession:
         said already: "Canary Islands, Spain" (P3-T24d, DP199)."""
         out = []
         for a in areas:
-            if any(b.name == a.name and b.id in self.store.relationships(a.id).get("same", ()) for b in out):
-                continue
             rec = getattr(a, "record", None) or {}
+            if any(b.name == a.name and b.id in self.store.relationships(a.id).get("same", ()) for b in out):
+                # Said once, but its sovereign and what it is are still said: Ceuta's county, region and distant
+                # part are one land, and only the part knows it is Spain's exclave (the world pack, 20 November).
+                self._said_after(a, rec, areas, out)
+                continue
             if a.layer == "exclaves":   # said as what it is, after the country: "exclave in France" (P3-T24g)
                 if rec.get("exclave"):
                     out.append(_Said(a.id, self._exclave_words(rec["exclave"], a.name), a.layer, rec))
                 continue
             out.append(a)
-            if rec.get("say_sovereign") and rec.get("sovereign"):
-                if not any(str(b.name) == rec["sovereign"] for b in areas):
-                    out.append(_Said("sovereign:" + str(rec.get("sovereign_id") or rec["sovereign"]),
-                                     rec["sovereign"], a.layer))
-            if rec.get("exclave") and a.layer != "exclaves":   # an exclave that is an area of its own, as Ceuta
-                out.append(_Said("exclave:" + a.id, self._exclave_words(rec["exclave"]), a.layer))
+            self._said_after(a, rec, areas, out)
         return out
+
+    def _said_after(self, a, rec: dict, areas, out: list) -> None:
+        """What is said after an area: its sovereign state, for an integral part such as the Canary Islands, unless
+        said already; and, for an exclave that is an area of its own such as Ceuta, what it is."""
+        if rec.get("say_sovereign") and rec.get("sovereign"):
+            if not any(str(b.name) == rec["sovereign"] for b in (*areas, *out)):
+                out.append(_Said("sovereign:" + str(rec.get("sovereign_id") or rec["sovereign"]),
+                                 rec["sovereign"], a.layer))
+        if rec.get("exclave") and a.layer != "exclaves":   # an exclave that is an area of its own, as Ceuta
+            sid = "exclave:" + a.id
+            if not any(b.id == sid for b in out):
+                out.append(_Said(sid, self._exclave_words(rec["exclave"]), a.layer))
 
     def _exclave_words(self, info: dict, name=None) -> str:
         """What an exclave is, from its record: "exclave in France", "exclave on the coast of Morocco", or

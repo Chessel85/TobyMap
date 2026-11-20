@@ -83,6 +83,20 @@ def test_an_exclave_that_is_an_area_of_its_own_is_said_after_its_sovereign(sessi
     assert names(session, ceuta) == ["Ceuta", "Spain", "exclave on the coast of Morocco", "Africa"]
 
 
+def test_a_distant_part_said_once_with_its_county_still_says_its_sovereign(session, monkeypatch):
+    # On the world pack of 20 November 2026, Ceuta's county, region and distant part are all "Ceuta", the same
+    # land, so only the county is said; the distant part's sovereign and exclave words were lost with it: "Ceuta,
+    # Africa", where the check place wants Spain.
+    session.known["ma"] = area("ma", "Morocco", "countries")
+    same = {"county": ["region", "part"], "region": ["county", "part"], "part": ["county", "region"]}
+    monkeypatch.setattr(session.store, "relationships", lambda i: {"same": same.get(i, [])})
+    ceuta = [area("county", "Ceuta", "counties"), area("region", "Ceuta", "regions"),
+             area("part", "Ceuta", "countries", sovereign="Spain", say_sovereign=True,
+                  exclave={"beside": ["ma"], "coast": True, "enclave": False}),
+             area("af", "Africa", "continents")]
+    assert names(session, ceuta) == ["Ceuta", "Spain", "exclave on the coast of Morocco", "Africa"]
+
+
 def test_an_exclave_beside_several_countries(session):
     session.known.update({"lt": area("lt", "Lithuania", "countries"), "pl": area("pl", "Poland", "countries")})
     words = session._exclave_words({"beside": ["lt", "pl"], "coast": False, "enclave": False})

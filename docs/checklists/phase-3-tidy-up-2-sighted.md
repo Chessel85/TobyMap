@@ -4,7 +4,7 @@ These steps need sight to judge. They are for a sighted or partially sighted hel
 
 Do them on the desktop version first, with the world pack, then in the web version in Firefox. Start the desktop as in docs/checklists/phase-3-tidy-up-2-desktop.md, and the web version as in docs/checklists/phase-3-tidy-up-2-web.md. Both start with Reset all settings from the Map menu, then Reset. Use "Go to" with Ctrl+G for each place.
 
-Write down each step's number, such as 3.2, and what you saw. Put your notes in a text file next to this one, docs/checklists/phase-3-tidy-up-2-sighted-results.txt. Lines starting with ">" are fine for answers to questions. Numbers below, such as lengths, are "such as": a difference only in a number is not a fault unless it seems wrong.
+Write down each step's number, such as 3.2, and what you saw. Put your notes in a text file next to this one, docs/checklists/phase-3-tidy-up-2-sighted-results.txt. Lines starting with ">" are fine for answers to questions. The places and words below were checked on the world pack of 20 November. A difference only in a number is not a fault unless it seems wrong.
 
 In the web version, Ctrl+Alt+M is the menu bar and Ctrl+Comma is Settings.
 
@@ -14,19 +14,19 @@ Go to 55.76,-6.28, on Islay, at zoom 100 kilometres.
 
 * 1.1 Press Ctrl+Shift+L for the layers list and make sure Counties is on. Close the list.
 * 1.2 Islay is inside the area "Argyll and Bute", which is outlined as the area you are in.
-* 1.3 Zoom out to 250 kilometres. Scotland's land that is in no council area is drawn as one area, "Part of Scotland in no county", beside the counties. There is no gap between areas.
-* 1.4 Go to 51.06,-1.31, in Winchester, at zoom 250 kilometres. Hampshire and its neighbours are drawn as areas. Look for land of England in no county, such as along the coast. Where there is some, it is drawn as an area named "Part of England in no county". Step onto it and see whether the name appears on the screen as well as being spoken.
+* 1.3 Go to 58.0012,-6.4323, at zoom 25 kilometres, on a small island off the east coast of Lewis, in the Outer Hebrides. Scotland's land that is in no council area is a few small islands in the north-west, about 8 square kilometres in all, drawn as one area, "Part of Scotland in no county". Space says "Part of Scotland in no county, Scotland, United Kingdom, Eilean Liubhaird, Outer Hebrides, British Isles, Europe". Is it drawn beside the council area round it, with no gap between them?
+* 1.4 Go to 50.3625,-3.5790, at zoom 10 kilometres, by the mouth of the River Dart near Dartmouth in Devon. England's land in no county is here, about 2 square kilometres, drawn as an area named "Part of England in no county". Space says "Near Dartmouth. Part of England in no county, England, United Kingdom, Great Britain, British Isles, Europe". See whether the name appears on the screen as well as being spoken. There is none along Hampshire's coast.
 * 1.5 In the layers list, switch off Counties. The stand-in areas go with the Counties layer: nothing of them is drawn. Switch it on again.
 * 1.6 Do the stand-in areas look the same as the real counties, in the same colour and with the same kind of border? They should: nothing marks them as different.
 
 ## 2. The two M3s (P3-T28d, P3-T21b)
 
-Press Ctrl+F, choose "Only Motorways and trunk roads", type m3 and press Enter on the one in Northern Ireland. Zoom in to 10 kilometres.
+Press Ctrl+F, choose "Only Motorways and trunk roads", type m3 and press Enter on "M3, Northern Ireland, United Kingdom, road", eighth in the list. Zoom in to 10 kilometres.
 
 * 2.1 A road is drawn in Belfast, in the colour of motorways and trunk roads. The highlight, if you press Shift+5 and move to it, is the same road.
-* 2.2 Go to the English M3 by searching again and choosing the other result, in England, at zoom 100 kilometres. A long line is drawn running from near London south-west to Southampton. It is a different line from the one in Belfast: there is no line drawn between Belfast and England.
+* 2.2 Go to the English M3 by searching again and choosing "M3, England, United Kingdom, road", ninth in the list, at zoom 100 kilometres. A long line is drawn running from near London, through Surrey and Hampshire, south-west to Southampton. It is a different line from the one in Belfast: there is no line drawn between Belfast and England.
 * 2.3 Zoom out to 2,500 kilometres. Is each M3 drawn, or only when zoomed in? Say which.
-* 2.4 Go to Belfast, at zoom 5 kilometres. The M3 crosses the River Lagan on a bridge. The road is drawn in one piece over the river, and the river is drawn under or over it in a way you can follow. How does it look?
+* 2.4 Go to Belfast, at zoom 5 kilometres. The M3 crosses the River Lagan on a bridge. The road is drawn unbroken over the river, and the river is drawn under or over it in a way you can follow. How does it look?
 
 ## 3. Hatch Pool is gone, and bays are kept (P3-T28c)
 

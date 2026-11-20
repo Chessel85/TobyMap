@@ -2,7 +2,7 @@
 
 This is the web version of the short third pass, for you to work through with NVDA in Firefox, then a few main steps again in Chrome or Edge. It covers only what changed in the second tidy-up plan (docs/plan/phase-3-tidy-up-plan2.md): the fixes and changes of P3-T28, the Information panel group by group (P3-T29), key maps and key files (P3-T31), and the layer sounds. It also lists what is still owed from the Phase 3 web checklist.
 
-The web version uses the same core and the same world pack as the desktop, so the expected words are the same. Rather than repeat them, each section below points to its section of the desktop checklist, docs/checklists/phase-3-tidy-up-2-desktop.md, and adds what is different in a browser. Numbers there are given as "about" or "such as", and so they are here: a difference only in a number is not a fault unless it seems wrong.
+The web version uses the same core and the same world pack as the desktop, so the expected words are the same. Rather than repeat them, each section below points to its section of the desktop checklist, docs/checklists/phase-3-tidy-up-2-desktop.md, and adds what is different in a browser. The desktop checklist's words are what the core said on the world pack, with "such as" only for distances that depend on exactly where you stand. Steps marked "Possible fault" there say what TobyMap does now. A difference only in a number is not a fault unless it seems wrong.
 
 For each step, write down its number, such as 4.3, and either "works" or what you heard instead. If you did the desktop checklist first, you only need to note where the web version differs. Put your notes in a text file next to this one, docs/checklists/phase-3-tidy-up-2-web-results.txt, as before. Lines starting with ">" are fine for answers to questions.
 
@@ -33,7 +33,7 @@ The Information panel's keys are as on the desktop: Shift+1 Within, Shift+2 Near
 
 ## 1. The first visit with the new pack
 
-* 1.1 Start with `?at=51.06,-1.31`. Note roughly how long it takes before you hear the place, starting "TobyMap. Winchester". The pack is about 495 MB.
+* 1.1 Start with `?at=51.06,-1.31`. Note roughly how long it takes before you hear "TobyMap. Hampshire, England, United Kingdom, Great Britain, British Isles, Europe. Press F1 for keys." There is no "Near Winchester" at the start: only Space names the town. The pack is about 536 MB.
 * 1.2 Press F1. The list has "Go to Passed over: Shift+6" and "Go to Search: Shift+7". Close it.
 
 ## 2. Where am I, stand-in areas and exclaves
@@ -49,7 +49,7 @@ The Information panel's keys are as on the desktop: Shift+1 Within, Shift+2 Near
 * 3.3 Do desktop section 10, Search, Shift+7.
 * 3.4 In the panel's tree, typing letters quickly adds them up, as in a Windows tree. A pause of a second starts again.
 * 3.5 Ctrl+Enter works in the tree, and the browser does not take it.
-* 3.6 In desktop step 7.8, and in 6.1, tell me how long Overlapping and Contains take to open in the browser. On the desktop Overlapping on England takes about 2 seconds the first time.
+* 3.6 In desktop step 7.8, and in 6.1, tell me how long Overlapping and Contains take to open in the browser. In the core, on this laptop, Overlapping on England takes about half a second and Contains on England under a second.
 * 3.7 In desktop step 9.2, listen for the heading being said twice. In a browser it should be said once.
 
 ## 4. Details and Wikipedia

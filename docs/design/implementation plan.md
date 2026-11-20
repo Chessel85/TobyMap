@@ -1,6 +1,17 @@
 # Implementation Plan
 
-Version 0.8, 17 November 2026.
+Version 0.9, 20 November 2026.
+
+## Changes in version 0.9
+
+These changes come from your closing of Phase 3 on 20 November 2026, your notes on the Phase 3 tidy-up 2 desktop checklist, and your answers to DP209 to DP217. The detail is in docs/plan/phase-4-plan.md, version 0.1.
+
+* Phase 3 is closed, without the web and sighted checklists and without a new world pack. Help (P3-T15), speed in the browsers (P3-T20d) and the web and sighted checklists move to Phase 4.
+* P4-T0 (new): the start of Phase 4, as for Phase 3.
+* P4-T14 (new): your notes on the Phase 3 tidy-up 2 desktop checklist.
+* P4-T15 (new): the world pack rebuilt once in Phase 4, with everything since 20 November.
+* P4-T8 and P4-T9 rewritten from DP209 to DP217: a bookmark is always a point, made with a dialog on Ctrl+Enter, in bookmark lists; measuring is from a measure start; chains and measuring between features are dropped; files are GeoJSON, and GPX if DP219 agrees.
+* Phase 4's exit check "a bookmark still resolves after the pack is rebuilt" becomes "a bookmark list saved on the desktop opens the same in the web version", as bookmarks are now points.
 
 ## Changes in version 0.8
 
@@ -140,7 +151,7 @@ There are no deadlines (DP37). A phase ends when its gate is passed, not on a da
 * Phase 1: Walking skeleton. Step around a simple world in both desktop and web, hear where you are, see the globe, and run the listening test.
 * Phase 2: Orientation, layers and sound. The three orientations, turning, layers, earcons, spatial sound, the beacon, and the crossed and passed list.
 * Phase 3: Information, hierarchy and search, with the complete worldwide base pack, tiers and controls for sighted users.
-* Phase 4: Street detail. The Great Britain pack, combining packs, the full pack manager, and pins, bookmarks and collections.
+* Phase 4: Street detail. The Great Britain pack, combining packs, the full pack manager, bookmarks, and the data manager's tools.
 * Phase 5: Network mode and driving.
 * Phase 6: Touch, grids and finishing touches.
 * Phase 7: Worldwide readiness and version 1.0. Contrasting regions, on-demand data, hardening and release.
@@ -316,6 +327,9 @@ LOC-3, LOC-4, NAV-4, NAV-8 (in full), INF-1 to INF-10, SRB-1 to SRB-4, SON-4, AN
 ### PO acceptance gate
 * Follow the Phase 3 checklist: hierarchy from Hampshire up to the World, down into France, neighbours of Switzerland, the Information panel groups and sorting, search, the world tree, the query builder and look around.
 
+### Closed
+Closed by the PO on 20 November 2026, after three desktop checklist passes. The report is docs/plan/phase-3-report.md. Help (P3-T15), speed in the browsers (P3-T20d) and the web and sighted checklists move to Phase 4.
+
 ---
 
 ## 7. Phase 4: Street detail
@@ -327,6 +341,11 @@ Street-level exploration of Great Britain, with packs combining seamlessly, a co
 DAT-2, DAT-3 (detailed coastlines), DAT-15, PLT-4, PCK-1 (regional packs), PCK-2, PCK-4, DMT-3, DMT-4, DMT-5, DMT-7 (complete), NFR-3, NFR-4, USR-1 to USR-5.
 
 ### Tasks
+The detail, with each task's work items, is in docs/plan/phase-4-plan.md.
+
+* P4-T0 Start of the phase: P4-T0a versions, P4-T0b the questions (DP218 to DP223), P4-T0c this plan at version 0.9, P4-T0d the bookmark requirements and documents rewritten after DP219, P4-T0e street samples for the test pack, P4-T0f the key list.
+* Carried from Phase 3: P3-T15 Help, P3-T20d speed in the browsers (DP222), the two unreliable browser tests, and the web and sighted checklists, folded into Phase 4's.
+* P4-T14 Your notes on the Phase 3 tidy-up 2 desktop checklist (20 November 2026): say only what changed after a zoom; "Near" after Go to; how near counts as near, explained; the current feature after Space, Enter on a line or crossing point, Shift+Enter and a zoom; the focus on the group's heading after Enter; fewer messages that only confirm; Rename and Delete unavailable on built-in views and a Save changes button; Passed over without "along the path"; England's coast stretches; Ceuta; Sark; your questions on Exmoor; and the checklist's own faults.
 * P4-T1 Full OpenStreetMap pipeline for a region, built on the spike S2 method: all administrative levels cut to the land polygons, slivers given to neighbours, named islands (and unnamed islands if DP87 says so), shared-edge simplification across levels, roads and paths, land use, national parks (moved from Phase 3), parks and public spaces, school grounds, points of interest with friendly categories, river assembly, and matching to base identifiers.
 * P4-T2 Great Britain pack built from drive E:, aiming for 1 GB or less, split if it is larger.
 * P4-T3 Combining packs: tile coverage and the most detailed pack wins, merging records and relations by identifier, and the no-missing-detail rule (PLT-4).
@@ -334,22 +353,24 @@ DAT-2, DAT-3 (detailed coastlines), DAT-15, PLT-4, PCK-1 (regional packs), PCK-2
 * P4-T5 Pipeline safety in full: the disk space estimate, the data folder check, and the record of files created (DMT-7).
 * P4-T6 The pack manager, whole, including P3-T13's work items (DP197): the catalogue, install and remove, checksum checks, the first-run offer of the base pack, downloads on the desktop from GitHub Releases and in the web version from Hugging Face (PCK-4), updates offered, downloads cancelled and resumed, and browser storage reported in the web version. Tested through a GitHub pre-release (DP171).
 * P4-T7 Robustness: corrupt packs detected and set aside (NFR-4). Memory checked against 2 GB with the base and Great Britain packs (NFR-3).
-* P4-T8 Pins, feature bookmarks and collections, shown in the Information panel and on the map (USR-1 to USR-3).
-* P4-T9 Measuring a chain of pins (USR-4) and GeoJSON export and import (USR-5).
+* P4-T8 Bookmarks and bookmark lists (USR-1, USR-3; DP209 to DP213, DP219): a bookmark is always a point. Ctrl+Enter opens the bookmark dialog, with the name filled in and numbered, the current feature and coordinates read-only, the bookmark list, New list, OK and Cancel. A Bookmarks group in the Information panel, a bookmark as the current feature (Delete, rename, cut, copy and paste), the bookmark list dialog and the bookmark manager, each list on or off with its own zoom range on the map, and the beacon from a bookmark.
+* P4-T9 Measuring from a bookmark, and bookmark files (USR-4, USR-5; DP214 to DP217): the measure start; one GeoJSON file kept by TobyMap, and lists saved and opened as GeoJSON, and GPX if DP219 agrees. Measuring between two features (DP215) and measuring a list as a chain (DP216) are dropped.
 * P4-T10 Languages of names on the desktop (ACC-9, DP196): a test harness that sends speech to NVDA through its Controller Client with each name's language marked (SSML), to find out with the PO whether NVDA switches voices for it. If it does, what TobyMap says can go that way when NVDA is running and the Names setting is "Always the local name".
 * P4-T11 Quality reports and the publish command, P3-T14's work items (DMT-3, DMT-5, PCK-4, DP197): every build writes a quality report and CSV files, with the corrections of P4-T4 listed in it; and `mapdata publish` puts a pack, its checksum and the catalogue on a GitHub release with an identical copy on Hugging Face, after asking the PO.
 * P4-T12 Territorial waters (DAT-15): the build keeps the sea part of each OpenStreetMap country area, which it now cuts off at the coast, as a layer of its own, painted a lighter blue than the open sea.
 * P4-T13 Groups of islands from a fuller source than Natural Earth's physical regions, which have no Channel Islands, perhaps OpenStreetMap's archipelagos (DP198).
+* P4-T15 The world pack rebuilt, once, after P4-T4, P4-T12, P4-T13 and the identifier register of P4-T1: with the stretches of coast, search importance and stored islands of Phase 3's last changes, territorial waters, groups of islands, mountain ranges cut to the coast (DP220) and the correction rules.
 
 ### Automatic exit checks
 * The street-level acceptance scripts pass for the UK test area (DAT-2).
 * A point 2 km off the Brittany coast is announced as sea (DAT-3). The S2 coastline checks pass on the Great Britain pack.
-* A bookmark still resolves after the pack is rebuilt (USR-2).
+* A bookmark list saved on the desktop opens in the web version with the same bookmarks, names and order (USR-5). This replaces "a bookmark still resolves after the pack is rebuilt" (USR-2), as bookmarks are now points (DP219).
 * Step timing meets NFR-1 on the Great Britain pack.
 * The base pack is published to a test release and installed from it by the pack manager (moved from Phase 3, DP197).
 
 ### PO acceptance gate
-* Install the Great Britain pack. Follow the Phase 4 checklist: explore streets around a familiar place, move between areas covered and not covered by the pack, drop pins, bookmark features, build a collection and measure it, and export it.
+* Install the Great Britain pack with the pack manager. Follow the Phase 4 checklist: explore streets around a familiar place, move between areas covered and not covered by the pack, make bookmarks into two bookmark lists, measure from one, and save a list to a file and open it in the web version.
+* The checks of P4-T14 and the parts of the Phase 3 checklists not yet done: the web and sighted checklists, and sets 10 and 18 of the tidy-up 2 desktop checklist.
 * Run the pipeline yourself as data manager, following the guide: check, build a small region, read the quality report.
 
 ---

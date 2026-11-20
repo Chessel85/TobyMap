@@ -4,6 +4,8 @@ Phase 3 is information, hierarchy and search, with the complete base pack. The t
 
 Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP174. The plan is version 0.2, with your answers.
 
+Closed on 20 November 2026, by your decision after the tidy-up 2 desktop checklist. The work done is recorded below and in the tidy-up plans and their ledger; boxes left unticked below were done through those plans, except P3-T15 (Help), P3-T20d (speed in the browsers) and the web and sighted checklists (P3-T22), which move to Phase 4. The phase report is docs/plan/phase-3-report.md, and Phase 4's plan is docs/plan/phase-4-plan.md.
+
 ## Start of the phase
 
 * [x] P3-T0a Versions: check for newer PySide6 and Pyodide, and upgrade if every test passes. Done on 10 November 2026: PySide6 6.12.0 and Pyodide 314.0.7 are still the latest, so nothing was upgraded.
@@ -332,8 +334,8 @@ Started on 10 November 2026, after you accepted Phase 2 and answered DP167 to DP
 
 ## Closing the phase
 
-* [ ] The checklists for the desktop, the web and a sighted helper.
+* [x] The checklists for the desktop, the web and a sighted helper. Three desktop passes done, the last on 20 November 2026; the web and sighted checklists move to Phase 4.
   * Written on 14 November 2026: docs/checklists/phase-3-desktop.md, phase-3-web.md and phase-3-sighted.md. The expected words were taken from the core on the world pack of 14 November. Section 20 of the desktop checklist, layer sounds, waits for the world build of the night of 14 November, which writes the pack again with them. The checklist lists what is already known: the Isle of Wight said twice, the Rhine's countries out of order, the search ranking, the slow first opening of the world tree (DP194, not yet built), Hampshire with no Wikipedia article, Hawaii's "Source: part", and Ctrl+Shift+F's counts (Lakes 13) not matching the list (17 lakes in Switzerland).
-* [ ] The phase report, docs/plan/phase-3-report.md.
-* [ ] Your acceptance.
-* [ ] The question about publishing (DP110).
+* [x] The phase report, docs/plan/phase-3-report.md. Written on 20 November 2026.
+* [x] Your acceptance. You closed the phase on 20 November 2026, without the web and sighted checklists and without a new world pack. Your notes on the tidy-up 2 desktop checklist are Phase 4's task P4-T14.
+* [x] The question about publishing (DP110). Asked again as DP218, on 20 November 2026.

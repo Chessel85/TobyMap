@@ -117,6 +117,10 @@ Older documents written before this glossary, such as architecture section 6 and
 * Base pack lite: the Phase 1 world pack, with countries, first-level divisions, oceans and seas, cut to the coast. The full base pack replaces it in Phase 3.
 * Test pack: a small pack built from samples kept in the repository, so the automatic tests never need the data folder (architecture 11.1).
 * Base pack: the complete world pack from Phase 3, which replaces the base pack lite. It adds continents, named seas, mountain ranges, major rivers, lakes, roads and railways, towns and cities, facts from Wikidata, the relationships and the search index (DAT-1).
+* Regional pack: a pack with street detail for one region, such as the Great Britain pack: every administrative level, every road and path, land use, parks, school grounds and points of interest (DAT-2). Where it covers a place it answers; elsewhere the base pack does (AD-14, PLT-4).
+* Great Britain pack: the first regional pack, for England, Scotland and Wales and their islands, built in Phase 4 (DP223).
+* Catalogue: the small file, catalogue.json, that lists every published pack with its size, date, checksum and where to download it (architecture 6.10).
+* Pack manager: the dialog, on P, that lists the packs in the catalogue and installs, updates and removes them (PCK-2).
 * Relationship: something the pipeline works out between two features and stores in the pack, so the application never has to: which areas contain a feature, its neighbours and the length of each shared border, how much of an area another overlaps, and which lines cross an area, in order (AD-8, architecture 6.5). Not to be confused with an OSM relation.
 * Search index: the records in a pack that let the application find a feature by name, with accents, case and small misspellings ignored (SRB-1, architecture 7.9).
 * Fact: a piece of information about a feature with its source and date, such as "Population 67 million (Wikidata, 2024)" (DAT-7).
@@ -125,6 +129,7 @@ Older documents written before this glossary, such as architecture section 6 and
 
 * Settings file: one of the files in mapdata/config that say what a build does: sources.yaml for the sources, a layers file for each group of layers, and a pack file for each pack. docs/data-manager/configuration.md describes every setting.
 * Stage: one step of a build, such as reading the samples or writing the pack. A pack's settings file lists its stages in order.
+* Correction rule: a line in the correction rules file that renames a feature, leaves it out, changes its layer or kind, or sets its parent, so a data fault is fixed without editing a shape. Each one is listed in the quality report (DMT-4).
 * Fingerprint: a long number worked out from everything a stage uses: its settings, its sources, the stage before it and its code. If the fingerprint is the same as last time, the stage's kept results are used and the stage is skipped.
 * Working folder: the folder in the data folder, tobymap\working, where stages keep their results between builds.
 * Created files list: the list, in tobymap\created files.txt, of every file mapdata has made. mapdata overwrites only files on the list, and never deletes any.

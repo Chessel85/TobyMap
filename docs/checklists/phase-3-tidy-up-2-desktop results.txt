@@ -1,0 +1,133 @@
+Start with:
+.venv\Scripts\python.exe -m desktop --pack "E:\osmdata\tobymap\output\trial-western-europe\trial-western-europe.pack"   
+
+1.1 and 1.2 When I hit enter from the goto dialogue, it just said "Hampshire, England ...".  Why not also add the "Near Winchester" bit since this is what is announced when hitting spacebar.
+1.3 pass
+1.4 pass
+1.5 pass. in the explanation doc you have a section on the logic for what counts as near and not near enough.  Or is it already just the nearby setting when passing?
+1.6 fail. it said "Near Hythe".  But this doesn't seem wrong and is probably a poorly written test.
+1.7 yes, feels good.
+1.8 pass
+1.9 test passes. but why is so much announced?  What has changed is that 'Hampshire' has disappeared from the list but the list is otherwise unchanged. so logic currently saying 'only announce what has changed' should say nothing. but that would be silly. so announce the leftmost item, in this case, 'England'.
+1.10 Test passes, but following on from 1.9, what has changed is Hampshire has been added, so the logic should mean only 'Hampshire' is announced.
+
+2.1 pass
+2.2 pass. but saying both Sea of the Hebrides and North Atlantic Ocean isn't quite right since Sea of the Hebrides is inside North Atlantic Ocean.  But park this for now.  I'm keen to move to phase 4.
+2.3 pass. 
+
+3.1 pass
+3.2 pass 
+3.3 pass. but pressing space on the map should start with River Itchen as it is 'here', as listed in Within from the Information Panel.
+and pressing enter on an item in the information panel should move the focus to the current group heading rather than the first entry in that group. That goes for all groups and is needed as the number of items will change.
+3.4 pass
+
+4.1 pass
+4.2 pass
+4.3 pass
+4.4 pass
+
+5.1 pass
+5.2 pass
+5.3 pass
+5.4 pass
+5.5 pass
+5.6. Mostly pass. this is what was in the list which doesn't quite match on coastlines.
+Bordering England, 3 items, clockwise from north
+level 2  Wales, 110 kilometres north-west, shared border 440 kilometres, 6 percent  collapsed
+Scotland, 450 kilometres north, shared border 170 kilometres, 3 percent  collapsed  level 2
+Coast, 6,270 kilometres  expanded  level 2
+level 3  Coast from Wales to Scotland, Irish Sea, 270 kilometres north, 760 kilometres, 12 percent  collapsed
+Coast with Wales at both ends, Irish Sea, 270 kilometres north-west, 3.3 kilometres, less than 1 percent  collapsed  level 3
+Coast from Wales to Scotland, North Atlantic Ocean, 20 kilometres south, 4,070 kilometres, 65 percent  collapsed  level 3
+Coast with Scotland at both ends, North Sea, 530 kilometres north, 17 kilometres, less than 1 percent  collapsed  level 3
+Coast of islands, 1,420 kilometres, 23 percent  collapsed  level 3
+
+
+
+6.1 pass
+6.2 pass
+6.3 fails test. i get told that current layer is counties and current feature is hampshire. if I press shift enter again on hampshire i get the message from the test.
+6.4 passes
+6.5 passes but I hit enter on A27 and this doesn't become the current feature.
+6.6 could not test as no bays and straits at this location.
+6.7 pass. 
+Although I was surprised not to be able to find Sark as an island.  Only as a region of Guernsey.  When I hit enter on this result, the Within list was very odd.
+
+
+7.1 pass
+7.2 pass
+7.3 pass
+7.4 Pass. hitting enter on m3 crossing point does   move me to it but same bug as earlier, the Within list does not say it as the current feature.
+7.5 pass
+7.6 pass
+7.7 pass
+7.8 pass. no time delay.
+
+
+8.1 pass
+8.2 pass
+8.3 pass. not sure "along the path" is a useful sort order since distance is so close to being exactly the same. so unless you think there is a good reason, drop this sort order.
+8.4 yes
+
+9.1 to 9.5 all pass. 9.5 is fine.
+
+set 10. not done.
+
+11.1 pass
+11.2 pass
+11.3 and 11.4 pass
+but don't bother announce "Opening wikipedia article". it gets cut-off and is also obvious because the screen reader announces the new window.
+11.5 pass
+
+
+set 12. passes in general.
+If the pick list is on political or physical, then rename and delete should be disabled (still tabbable to, but cannot be activated). this means you don't need those messages if someone presses those buttons on invalid list items.
+When renaming a view, don't bother push an announcement "Oldlist is now called newlist".  
+if a user adds a new view, are the values stored on the current config?  If they update the settings subsequently, and they just wanted to update the current view, there is no way to do it.
+So could have a "Save" or "Save changes" button which is only enabled on user created views and when something has changed.
+
+
+
+
+
+
+
+13.1 pass
+13.2 pass
+13.3 i think you know this one fails as does not say it is an exclave
+14.1 fail. it said bordering north yorkshire.  When I first went to the location, my zoom was 25km, then I zoomed out to 2500km to do the test.
+14.2 pass
+14.3 pass. but you do not need to say "Left and right now go around ...".  You have a habit of putting in pointless or superfluous messages.  The user will know that their instruction of pressing enter has been accepted because it announces the new focus.
+So general rule (though probably not a hard and fast one) is not to announce a message to confirm a user's action since the new focus usually makes its own announcement which is sufficient for telling the user their action has worked.
+14.4 pass
+14.5 pass
+14.6 pass
+14.6 pass
+14.7 pass. however, it still feels like exmoor should not overlap the atlantic or bristol channel. Exmoor is a moor, a very land centric feature in geography.  is this just a slithers problem?  Or does the polygon for exmoor genuinely extend into the sea?  I doubt this is worth worrying about at the moment.
+Although you do say that "1% of Exmoor overlaps with less than 1% of the Bristol Channel".  Is it really 1% of Exmoor, or is it less than 1% and you are rounding up?
+
+15.1 pass
+15.2 pass
+15.3 pass
+15.4 pass
+15.5 pass
+
+16.1 pass
+16.2 pass
+16.3 pass
+16.4 pass. leave as it is.
+
+17.1 pass
+17.2 pass
+
+set 18. didn't test but trust this will work. will test at a later date.
+
+
+set 19. passes. much better and makes sense now.
+
+set 20: pass all is fine for now.
+
+set 21. all is good.
+
+
+

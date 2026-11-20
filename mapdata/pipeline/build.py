@@ -26,6 +26,7 @@ from mapdata.pipeline import ledger as ledgermod
 from mapdata.pipeline.errors import BuildStopped
 from mapdata.pipeline.progress import Progress, duration_words
 from mapdata.pipeline.settings import REPO, PackSettings, Source, load_pack, stage_sources
+from mapdata.pipeline.space import free_mb, stop_if_too_little  # noqa: F401  (free_mb is used by check)
 from mapdata.pipeline.switch import PAUSED_EXIT, Paused, Switch
 
 ENGINE_VERSION = "pipeline-1"
@@ -176,11 +177,21 @@ def pack_file_name(name: str) -> str:
     return f"{name}.pack"
 
 
-def free_mb(path: Path) -> float:
-    path = Path(path)
-    while not path.exists():
-        path = path.parent
-    return shutil.disk_usage(path).free / 1e6
+def plan_stages(pack: PackSettings, folders: DataFolders, source_prints: dict[str, str]) -> list[tuple]:
+    """Each stage's number, settings, fingerprint, folder and whether it is already finished, worked out before
+    any stage runs, since a fingerprint depends only on settings, sources and code."""
+    plan = []
+    previous_print = ""
+    for n, stage in enumerate(pack.stages, 1):
+        kind_name = stage["stage"]
+        if kind_name not in STAGES:
+            raise BuildStopped(f"Stage {n} in {pack.path.name} is {kind_name}, which mapdata does not know. "
+                               f"The stages are: {', '.join(sorted(STAGES))}.")
+        fp = fingerprint(pack, stage, previous_print, source_prints)
+        folder = folders.working / pack.name / f"{n:02d}-{kind_name}-{fp[:16]}"
+        plan.append((n, stage, fp, folder, (folder / FINISHED).is_file()))
+        previous_print = fp
+    return plan
 
 
 def build(name: str, folders: DataFolders, workers: int = 1, say=print, clock=time.monotonic,
@@ -212,20 +223,19 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
     # Everything that can stop the build is checked before any work (DMT-6, DMT-7).
     pack = load_pack(name, config_dir)
     if not folders.root.is_dir():
-        raise BuildStopped(f"The data folder, {folders.root}, cannot be reached. If it is on an external drive, "
-                           "connect the drive, then build again. mapdata check says more.")
-    needed = float(pack.data.get("space_needed_mb", 100))
-    free = free_mb(folders.own)
-    if free < needed:
-        raise BuildStopped(f"The pack {name} needs about {needed:,.0f} MB, and the drive holding {folders.own} has "
-                           f"{free:,.0f} MB free. Free some space on that drive, then build again.")
+        raise BuildStopped(f"The data folder, {folders.root}, set by {folders.where_from}, cannot be reached. "
+                           "If it is on an external drive, connect the drive, then build again. To use a different "
+                           "folder, change that setting: --data, the MAPDATA_ROOT environment variable, or "
+                           "mapdata\\config\\paths.yaml. mapdata check says more.")
+    source_paths = resolve_sources(pack, folders)
+    source_prints = {k: pack.sources[k].fingerprint(p) for k, p in source_paths.items()}
+    plan = plan_stages(pack, folders, source_prints)
+    stop_if_too_little(pack, [stage["stage"] for _, stage, _, _, done in plan if not done], folders.own)
     ledger = ledgermod.Ledger(folders.own)
     out_dir = folders.output / name
     log_path = ledger.claim(out_dir / f"{name} build log.txt")
     progress.open_log(log_path)
     progress.start_heartbeat()
-    source_paths = resolve_sources(pack, folders)
-    source_prints = {k: pack.sources[k].fingerprint(p) for k, p in source_paths.items()}
 
     progress.line(f"Building the pack {name}: {pack.data['title']}")
     shown = pack.path.relative_to(REPO).as_posix() if REPO in pack.path.parents else pack.path
@@ -235,21 +245,16 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
                      f"{source.data_date(source_paths[key])}, from {source_paths[key]}.")
 
     total = len(pack.stages)
-    previous_print, previous_folder = "", None
+    previous_folder = None
     ran, skipped = [], []
     stage_folders: list[Path] = []
     earlier: dict[str, Path] = {}
-    for n, stage in enumerate(pack.stages, 1):
+    for n, stage, fp, folder, finished in plan:
         if previous_folder is not None:
             stage_folders.append(previous_folder)
         kind_name = stage["stage"]
-        if kind_name not in STAGES:
-            raise BuildStopped(f"Stage {n} in {pack.path.name} is {kind_name}, which mapdata does not know. "
-                               f"The stages are: {', '.join(sorted(STAGES))}.")
         kind = STAGES[kind_name]
-        fp = fingerprint(pack, stage, previous_print, source_prints)
-        folder = folders.working / name / f"{n:02d}-{kind_name}-{fp[:16]}"
-        if (folder / FINISHED).is_file():
+        if finished:
             skipped.append(kind_name)
             progress.line(f"Stage {n} of {total}, {kind.title}: skipped, as nothing it uses has changed.")
         else:
@@ -266,7 +271,7 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
                 encoding="utf-8", newline="\n")
             ran.append((kind_name, took))
             progress.line(f"Stage {n} of {total} finished in {duration_words(took)}.")
-        previous_print, previous_folder = fp, folder
+        previous_folder = folder
         earlier[kind_name] = folder
 
     stage_folders.append(previous_folder)

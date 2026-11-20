@@ -84,7 +84,7 @@ One file per pack, such as `packs\test.yaml`. The file name is the pack's name.
 * app_versions: the application versions it works with: from, and optionally before.
 * coverage: what it covers: kind, world or region.
 * layer_groups: the layer files it uses, by name.
-* space_needed_mb: about how much disk space a build needs. The build stops before starting if there is less.
+* space_needed_mb: the least disk space a build that runs every stage is taken to need. The build also estimates each stage's space from the pack's area (the largest `box` in its stages, or the whole Earth for a world pack with no box), and uses whichever is larger. It stops before starting if there is less free.
 * stages: the stages, in order. Each starts with `stage:` and its kind, followed by its own settings.
 
 ### The stages

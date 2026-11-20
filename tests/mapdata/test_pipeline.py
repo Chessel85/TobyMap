@@ -366,7 +366,7 @@ def test_check_reports_space_and_dates(tmp_path):
     assert "Planet file: planet-2025-10-20.gol, dated 20 October 2025" in text
     assert "Land polygons: land-polygons-split-4326.zip, dated 31 October 2026." in text
     assert "376 days apart" in text
-    assert "The pack test needs about 50 MB, which fits." in text
+    assert "The pack test needs about 575 MB if every stage is run, which fits." in text
 
 
 def test_fetch_finds_the_samples_in_the_repository(tmp_path, capsys):

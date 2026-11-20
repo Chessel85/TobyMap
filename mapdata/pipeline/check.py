@@ -13,7 +13,7 @@ import glob
 from pathlib import Path
 
 from mapdata.paths import CONFIG_DIR, DataFolders
-from mapdata.pipeline.build import free_mb
+from mapdata.pipeline.space import estimate_mb, free_mb
 from mapdata.pipeline.settings import file_date, load_pack, load_sources
 
 DAYS_APART = 14
@@ -66,13 +66,13 @@ def check(folders: DataFolders, pack: str | None = None, say=print, config_dir: 
 
     if pack:
         settings = load_pack(pack, config_dir)
-        needed = float(settings.data.get("space_needed_mb", 100))
+        needed = estimate_mb(settings, [s["stage"] for s in settings.stages])
         free = free_mb(folders.own)
         if free < needed:
-            say(f"Warning: the pack {pack} needs about {needed:,.0f} MB, and only {free:,.0f} MB is free. "
+            say(f"Warning: the pack {pack} needs about {needed:,.0f} MB if every stage is run, and only {free:,.0f} MB is free. "
                 "Free some space before building it.")
             warnings += 1
         else:
-            say(f"The pack {pack} needs about {needed:,.0f} MB, which fits.")
+            say(f"The pack {pack} needs about {needed:,.0f} MB if every stage is run, which fits.")
     say("Ready to build." if not warnings else f"{warnings} warning{'s' if warnings != 1 else ''}, listed above.")
     return 1 if warnings else 0

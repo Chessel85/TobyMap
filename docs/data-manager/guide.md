@@ -25,6 +25,8 @@ Says whether the data folder is ready:
 
 Add `--pack` and a pack's name to hear whether that pack's build fits in the free space.
 
+A build makes the same two checks before its first stage, and stops, changing nothing, if either fails. If the data folder's drive is not connected, it says so, names the setting that points to the folder (`--data`, the `MAPDATA_ROOT` environment variable, or `mapdata\config\paths.yaml`) and stops. It then estimates the space each stage still to run needs, from the pack's area and the sizes of the world build; a stage that is already finished needs none. If the drive has less free than the total, it says how much is needed, which stage needs most, and how much is free. The figures are in `mapdata\pipeline\space.py`.
+
 ## mapdata fetch
 
 Gets the sources a build needs, one line for each source, then a summary.

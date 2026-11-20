@@ -27,11 +27,14 @@ Started 22:10. About 10 hours. The whole phase does not fit in one night, so the
 2. The world rebuild, P4-T15, from a snapshot copy, with the run switch and a stall watch.
 3. While it builds, work in the core and shells only: P4-T14's other items, P4-T0d, P4-T0f, then bookmarks (P4-T8, P4-T9), P3-T15 Help, the two unreliable browser tests.
 
+World stage times (finished.json, last world builds): osm-areas 16 min, squares 1 to 2 hours, join 15 to 30 min, physical 12 to 16 min, osm-places 1 to 2 min each, osm-lines 8 to 11 min, disputes 1 min, enclaves 5 min, wikidata 12 to 23 min, relationships about 2 h 30 min, coast-stretches about 15 min (guess), write 70 to 80 min, checks under 1 min. A rerun from physical onwards is about 5 hours. So every world change tonight goes in the physical stage or later; osm-areas, squares and join are never touched.
+
 Not started tonight, as they need the PO: P4-T14f's change (the PO sees the list first), P4-T13 (the source of groups of islands is a choice for the PO), P4-T1 and P4-T2 (long design work and builds the PO is told about first), P4-T6h and P4-T11b (publishing), P4-T7b (an hour with the laptop idle), P4-T10 (listening with the PO).
 
 ## Progress
 
 * P4-T14i done, checked (22 tests): coast stretches split where the sea changes and short same-neighbour stretches (estuaries of the Dee and the Tweed) joined; settings join_km and sea_km, 20 each. Western Europe trial rebuilt 20 November about 22:40 (coast-stretches, writing, checks only, 6 min 12 s, 53.39 MB, 60 of 60 places). England now: Bristol Channel 610 km, English Channel 1,570 km, Irish Sea 760 km, North Sea 1,910 km, islands 1,420 km. Report: docs/plan/p4-t14i-coast-report.md. Glossary and configuration guide updated by the orchestrator. Left over: no Celtic Sea in Natural Earth's seas; Milford Haven reads as the Irish Sea (a seas-layer fault, not this stage).
+* P4-T5 done, checked (57 pipeline, space and paths tests; the stage plan of the Western Europe trial and the world worked out with the new code: fingerprints unchanged). New mapdata/pipeline/space.py: each stage's space from a fixed figure plus MB per million square kilometres (measured from the world's stage folders), times 1.3; finished stages need none. The build checks the data folder, sources and space before any work, and names the setting for a missing data folder. DMT-7 gap for the task list: no check of memory before a build (criterion 6, handled by practice).
 
 ## Overnight choices for the PO
 

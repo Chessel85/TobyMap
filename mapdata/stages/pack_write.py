@@ -182,6 +182,28 @@ def split_full_tiles(cut: dict, executor=None, workers: int = 1) -> int:
     return split
 
 
+def count_held(records: list[dict], relationships: dict[str, dict]) -> int:
+    """Each area's "held": how many features of each layer are wholly inside it, by layer id, those whose "in"
+    holds it (item 4a of the plan 2 ledger). Hierarchy mode's Down lists only these (P3-T29c), so its "in all" is
+    made from them; "counts" keeps those partly inside too, the number Ctrl+Shift+F lists. "in" allows the build's
+    full_share and measures land areas in land areas on land (P3-T28n), and takes in a condominium's owners, so
+    this runs after share_condominiums. Changes `relationships` in place; returns how many areas hold something."""
+    layer_of = {r["id"]: r["layer"] for r in records}
+    held: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for identifier, rel in relationships.items():
+        layer = layer_of.get(identifier)
+        if layer is None:
+            continue
+        for area in set(rel.get("in", ())):
+            held[area][layer] += 1
+    for area, by_layer in held.items():
+        relationships.setdefault(area, {})["held"] = dict(sorted(by_layer.items()))
+    for rel in relationships.values():   # an area with counts but nothing wholly inside: an empty "held", not none,
+        if "counts" in rel:              # so the application knows the pack has them
+            rel.setdefault("held", {})
+    return len(held)
+
+
 def feature_records(records: list[dict], geoms: list, executor=None, workers: int = 1) -> list[dict]:
     """feature_record for each feature, in the workers when there is an executor, in batches of about the same
     number of points."""
@@ -497,6 +519,8 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
     if relationships:   # a condominium inside each of its owners, by the core's rule, before anything reads them (P3-T28f)
         if contents.share_condominiums(made, relationships):
             step("Put each condominium inside its owners")
+        held = count_held(made, relationships)
+        step(f"Counted what is wholly inside each of {held:,} areas")
     index = None
     if search is not None:   # P3-T8a: from the feature records, with their final ids, points and areas
         from mapdata.stages import search_index

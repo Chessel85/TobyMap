@@ -3255,10 +3255,14 @@ class MapSession:
                       "kinds": {k: (self.layers.get(k).name, nears) for k, nears in kinds.items()}}
         # Each line says what it counts: those shown at this zoom, and all inside, from the stored counts, when
         # the size rule leaves some out (P3-T25a, DP204, DP188): "Islands: 11 shown at this zoom, 109,292 in all".
-        totals = self.store.relationships(current.id).get("counts", {})
+        # The totals are "held", those wholly inside, as Down lists (item 4a); a pack written before it has only
+        # "counts", which take in those partly inside too, so it says those, as before, until it is rebuilt.
+        rel = self.store.relationships(current.id)
+        totals = rel["held"] if "held" in rel else rel.get("counts", {})
         lines = []
         for k, (name, areas) in self._down["kinds"].items():
-            total = sum(totals.get(x, 0) for x in (k, *(x for x, kind in CONTAINS_KIND.items() if kind == k)))
+            total = sum(totals.get(x, 0) for x in (k, *(x for x, kind in CONTAINS_KIND.items() if kind == k))
+                        if contents.water_may_hold(current.layer, x))
             lines.append(say("hierarchy.down_line", layer=name, count=f"{len(areas):,}", total=f"{total:,}") if total > len(areas)
                          else say("contains.heading", layer=name, count=len(areas)))
         return self._choose(say("hierarchy.down_title", name=current.name), say("hierarchy.down_help"), lines,

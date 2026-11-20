@@ -250,7 +250,7 @@ def test_a_line_says_how_many_are_shown_and_how_many_are_inside_in_all(continent
     s._hierarchy_go(s.store.feature("continent:europe"), "Europe")   # at the zoom that fits it
     from mapcore.session import CONTAINS_KIND
 
-    counts = s.store.relationships(s.current_feature.id)["counts"]
+    counts = s.store.relationships(s.current_feature.id)["held"]   # only those wholly inside (item 4a)
     kinds = s._contained(s.current_feature)
     lines = down_kinds(s)
     both = 0
@@ -264,6 +264,48 @@ def test_a_line_says_how_many_are_shown_and_how_many_are_inside_in_all(continent
         else:
             assert line == f"{name} {len(areas)}"
     assert both, "the test pack has a kind the size rule thins at Europe's zoom"
+    s.store.close()
+
+
+def wholly_inside(s, layer_id):
+    """The features of a layer wholly inside the current feature, by their stored "in", whatever the zoom."""
+    current = s.current_feature
+    return [f for f in s.store.browse(layer_id, current.id) if current.id in s.store.relationships(f.id).get("in", ())]
+
+
+@pytest.mark.parametrize("where, name", [("continent:europe", "Europe"), ("osm:r58447", "England"),
+                                         ("osm:r172799", "Hampshire")])
+def test_in_all_counts_only_what_is_wholly_inside(continents_pack, where, name):
+    """Item 4a of the plan 2 ledger: Down lists only what is wholly inside (P3-T29c), so "in all" counts the
+    same: Europe's countries leave out those only partly in it, and Hampshire's the national park and river only partly in it."""
+    from mapcore.session import CONTAINS_KIND
+
+    s = session(continents_pack, {"lat": 46.95, "lon": 7.45, "zoom_m": 100000, "step_m": 10000})
+    s._hierarchy_go(s.store.feature(where), name)
+    kinds = s._contained(s.current_feature)
+    for (layer_id, areas), line in zip(kinds.items(), down_kinds(s)):
+        layer_name = s.layers.get(layer_id).name
+        total = sum(len(wholly_inside(s, x)) for x in (layer_id, *(x for x, k in CONTAINS_KIND.items() if k == layer_id)))
+        assert total >= len(areas), (layer_id, total, len(areas))
+        assert line == (f"{layer_name}: {len(areas):,} shown at this zoom, {total:,} in all" if total > len(areas)
+                        else f"{layer_name} {len(areas)}")
+    s.store.close()
+
+
+def test_a_pack_without_held_counts_says_its_counts_as_before(continents_pack):
+    """A pack written before item 4a has no "held": Down's "in all" is its "counts", as before, until rebuilt."""
+    from mapcore.session import CONTAINS_KIND
+
+    s = session(continents_pack, {"lat": 46.95, "lon": 7.45, "zoom_m": 100000, "step_m": 10000})
+    s._hierarchy_go(s.store.feature("continent:europe"), "Europe")
+    stored = s.store.relationships
+    s.store.relationships = lambda i: {k: v for k, v in stored(i).items() if k != "held"}
+    counts = s.store.relationships(s.current_feature.id)["counts"]
+    kinds = s._contained(s.current_feature)
+    for (layer_id, areas), line in zip(kinds.items(), down_kinds(s)):
+        total = sum(counts.get(x, 0) for x in (layer_id, *(x for x, k in CONTAINS_KIND.items() if k == layer_id)))
+        if total > len(areas):
+            assert line.endswith(f"{total:,} in all")
     s.store.close()
 
 

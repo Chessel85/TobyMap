@@ -157,7 +157,8 @@ From format 4 (P3-T3e, architecture 6.5): the relationships of group G's feature
 * crosses: for a line, the areas it passes through, in order from its start (INF-6).
 * crossed_by and along: for an area, the lines crossing it, and those along its border.
 * water_in: for a water area, the water area of a lower rank that holds most of it (DAT-4).
-* counts: for an area, how many features of each layer are inside it, fully or partly, by layer id.
+* counts: for an area, how many features of each layer are inside it, fully or partly, by layer id. Ctrl+Shift+F says these.
+* held: from 20 November 2026 (item 4a of the plan 2 ledger), for an area with counts, how many features of each layer are wholly inside it, those whose "in" holds it, by layer id; an empty object where none are. Made by the writing stage after each condominium is put inside its owners. Hierarchy mode's Down says these as "in all", as it lists only what is wholly inside (P3-T29c). A pack without it says its counts there, as before.
 * coast: from 17 November 2026 (P3-T24e, DP200), for a country, region, county or island, the oceans and seas it touches, each as [id, km of coast], the longest first.
 * shores: for an ocean, sea or lake, the countries, regions and counties round it, each as [id, km of shore], the longest first. A sea's shore is the land's coast; a lake's is its outline inside each area, as a lake lies on the land.
 * outline_km: for an area, its whole outline in km, land border and coast together, leaving out the cut along the 180 degree line (P3-T24f, DP201).

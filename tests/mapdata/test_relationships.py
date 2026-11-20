@@ -92,6 +92,32 @@ def test_each_count_is_the_number_ctrl_shift_f_lists(test_pack):
         store.close()
 
 
+def test_each_held_count_is_the_number_wholly_inside(test_pack):
+    """Item 4a of the plan 2 ledger: hierarchy mode's Down lists only what is wholly inside (P3-T29c), so its
+    "in all" comes from "held", each layer's features whose "in" holds the area, not from "counts", which takes
+    in those partly inside too, as Ctrl+Shift+F lists them. The Rhine is only partly in Switzerland, and the New
+    Forest National Park and the sample's river only partly in Hampshire."""
+    from mapcore.store import Store
+
+    store = Store([test_pack])
+    try:
+        for holder in (SWITZERLAND, ENGLAND, HAMPSHIRE):
+            rel = store.relationships(holder)
+            held, counts = rel["held"], rel["counts"]
+            for layer in counts:
+                inside = [f for f in store.browse(layer, holder) if holder in store.relationships(f.id).get("in", ())]
+                assert held.get(layer, 0) == len(inside), (holder, layer)
+                assert held.get(layer, 0) <= counts[layer]
+            assert set(held) <= set(counts)
+        swiss = store.relationships(SWITZERLAND)
+        assert swiss["counts"] == {"rivers": 1} and swiss["held"] == {}   # the Rhine; empty, not missing
+        hants = store.relationships(HAMPSHIRE)
+        assert hants["counts"]["national_parks"] == 1 and "national_parks" not in hants["held"]
+        assert hants["counts"]["rivers"] == 1 and "rivers" not in hants["held"]
+    finally:
+        store.close()
+
+
 def test_an_area_counts_what_is_inside_it_by_layer(pack):
     counts = pack.relationships(ENGLAND)["counts"]
     assert counts["counties"] >= 21 and counts["rivers"] == 1 and counts["stations"] == 2   # Southampton Central, Brockenhurst

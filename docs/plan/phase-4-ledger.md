@@ -8,7 +8,7 @@ The orchestrator's record of work on docs/plan/phase-4-plan.md. Only the orchest
 * The working tree must be clean before a subagent starts (apart from toOrchestrate.txt, the PO's). Subagents do not commit and never edit this ledger, the task list or the discussion points file unless told.
 * Each subagent runs only its own area's tests. The full Python suite and the browser tests run at the end, or after a task whose changes reach widely.
 * Overnight, nothing that needs the PO is started. Choices the orchestrator makes are listed under "Overnight choices for the PO".
-* When the code changes are done, the world pack is rebuilt (P4-T15). The build runs from a snapshot copy of the repository, so work in the core can carry on without changing the code under the running build.
+* When the code changes are done, the world pack is rebuilt (P4-T15). The build runs from a snapshot copy of the repository (a detached git worktree, C:\Users\chess\github\Mapping-build, with paths.yaml copied in and MAPDATA_SWITCH pointing at the main folder's continue.txt), so work in the core can carry on without changing the code under the running build. mapdata imports mapcore.geo, packs, store and names, which is why.
 
 ## The PO's answers, 20 November 2026
 
@@ -31,11 +31,11 @@ Not started tonight, as they need the PO: P4-T14f's change (the PO sees the list
 
 ## Progress
 
-(none yet)
+* P4-T14i done, checked (22 tests): coast stretches split where the sea changes and short same-neighbour stretches (estuaries of the Dee and the Tweed) joined; settings join_km and sea_km, 20 each. Western Europe trial rebuilt 20 November about 22:40 (coast-stretches, writing, checks only, 6 min 12 s, 53.39 MB, 60 of 60 places). England now: Bristol Channel 610 km, English Channel 1,570 km, Irish Sea 760 km, North Sea 1,910 km, islands 1,420 km. Report: docs/plan/p4-t14i-coast-report.md. Glossary and configuration guide updated by the orchestrator. Left over: no Celtic Sea in Natural Earth's seas; Milford Haven reads as the Irish Sea (a seas-layer fault, not this stage).
 
 ## Overnight choices for the PO
 
-(none yet)
+* P4-T14i: the plan said you would see the new coast list before it went into the world pack. As you asked for a world build tonight, it goes in; the list is in docs/plan/p4-t14i-coast-report.md. A change afterwards reruns only the coast stretches, writing and checks stages (about 1.5 hours on the world).
 
 ## Current state
 

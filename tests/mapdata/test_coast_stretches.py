@@ -26,7 +26,7 @@ def _layers():
             "seas": layer("seas", "water", 2)}
 
 
-def _world(tmp_path, with_sliver=True):
+def _world(tmp_path, with_sliver=True, two_seas=False):
     a = shapely.box(0, 0, 1, 1)
     b = shapely.box(1, 0, 2, 1)
     c = shapely.box(2, 0, 3, 1)
@@ -35,18 +35,22 @@ def _world(tmp_path, with_sliver=True):
         c = shapely.MultiPolygon([c, SLIVER])
     b = shapely.MultiPolygon([b, ISLAND])
     ocean = shapely.difference(shapely.box(0, -1, 3, 0), ISLAND)
-    sea = shapely.difference(shapely.box(1, -0.3, 2, 0), ISLAND)
+    sea = shapely.difference(shapely.box(1, -0.3, 1.5 if two_seas else 2, 0), ISLAND)
     records = [{"id": "A", "name": "A", "layer": "counties"}, {"id": "B", "name": "B", "layer": "counties"},
                {"id": "C", "name": "C", "layer": "counties"}, {"id": "O", "name": "Ocean", "layer": "oceans"},
                {"id": "S", "name": "Sea", "layer": "seas"}]
     geoms = [a, b, c, ocean, sea]
+    if two_seas:   # B's coast on two seas, the west half on S, the east half on T
+        records.append({"id": "T", "name": "Other sea", "layer": "seas"})
+        geoms.append(shapely.box(1.5, -0.3, 2, 0))
     src = tmp_path / "relationships"
     src.mkdir()
     features.save(src, records, geoms)
     rel = {}
     for i in range(3):   # the coast as the relationships stage stores it: where the outline meets the ocean's
         km = float(lengths_km([shapely.intersection(shapely.boundary(geoms[i]), shapely.boundary(ocean))])[0])
-        rel[str(i)] = {"coast": [[3, round(km, 2)]] + ([[4, round(km, 2)]] if i == 1 else [])}
+        seas = ([[4, round(km / 2, 2)], [5, round(km / 2, 2)]] if two_seas else [[4, round(km, 2)]]) if i == 1 else []
+        rel[str(i)] = {"coast": [[3, round(km, 2)]] + seas}
     (src / "relationships.json").write_text(json.dumps(rel), encoding="utf-8")
     return src
 
@@ -144,3 +148,69 @@ def test_with_ids_names_the_neighbours_and_the_water_by_identifier():
 def test_the_sliver_counted_as_sea_keeps_the_coast_whole_with_no_break_joined(tmp_path):
     rel, _lines, _out = _run(tmp_path, _world(tmp_path), gap_m=0.0)
     assert [[e[2] for e in s["ends"]] for s in rel[1]["coast_stretches"]["stretches"]] == [[0, 2]]
+
+
+# P4-T14i: a stretch split where its sea changes, and a short one with one neighbour at both ends joined ---------------
+
+def _stretch(points, km, west, east):
+    c = np.array(points, dtype=float)
+    return {"c": c, "km": km, "ends": [[c[0][0], c[0][1], west], [c[-1][0], c[-1][1], east]]}
+
+
+def test_a_short_stretch_with_one_neighbour_at_both_ends_is_joined_to_the_stretch_beside_it():
+    # As England's shore of the Dee: a long stretch from Wales, then 600 metres of Wales's shore, then 3 km of England's
+    # with Wales at both ends.
+    long_ = _stretch([[-3.10, 53.27], [-3.0, 54.0], [-3.05, 55.0]], 757.0, 7, 9)
+    short = _stretch([[-3.095, 53.262], [-3.074, 53.254]], 3.3, 7, 7)
+    far = _stretch([[-2.7, 51.6], [-1.0, 50.7]], 4000.0, 7, 9)   # Wales at its west end too, but 180 km away
+    got = cs.join_short([far, long_, short], 20.0)
+    assert len(got) == 2 and got[0] is not far and got[0]["c"] is far["c"]
+    joined = got[1]
+    assert joined["km"] == pytest.approx(760.3)
+    assert [e[2] for e in joined["ends"]] == [7, 9]
+    assert joined["ends"][0][:2] == pytest.approx([-3.074, 53.254])   # the short one's far end is the new west end
+    assert len(joined["c"]) == 5 and joined["c"][-1] == pytest.approx([-3.05, 55.0])
+
+
+def test_a_short_stretch_is_left_alone_with_no_stretch_beside_it_with_that_neighbour():
+    monaco = _stretch([[7.41, 43.72], [7.44, 43.75]], 6.9, 3, 3)   # France at both ends, its only stretch
+    other = _stretch([[7.5, 43.8], [7.6, 43.9]], 15.0, 4, 3)       # France at one end, but 8 km away
+    lone = cs.join_short([monaco], 20.0)
+    assert len(lone) == 1 and lone[0]["km"] == 6.9
+    assert len(cs.join_short([monaco, other], 5.0)) == 2   # further than join_km
+
+
+def test_a_stretch_of_20_km_or_more_with_one_neighbour_at_both_ends_is_kept():
+    a = _stretch([[0.0, 0.0], [0.3, 0.0]], 33.0, 1, 1)
+    b = _stretch([[0.301, 0.0], [0.5, 0.0]], 22.0, 1, 2)
+    assert len(cs.join_short([a, b], 20.0)) == 2
+
+
+def test_parts_on_one_water_and_a_short_bay_goes_to_the_longer_part_beside_it():
+    labels = np.array([5, 5, 5, 3, 5, 5, -1, 6, 6, 6])   # a 5 km bay of the ocean (3), a step on no water (-1)
+    step_km = np.array([10.0, 10, 10, 5, 10, 10, 1, 10, 10, 10])
+    assert cs.sea_runs(labels, step_km, 20.0) == [(0, 6, 5), (6, 10, 6)]   # the step on no water goes east, the longer
+    assert cs.sea_runs(labels, step_km, 4.0) == [(0, 3, 5), (3, 4, 3), (4, 6, 5), (6, 10, 6)]
+    assert cs.sea_runs(labels, step_km, 100.0) == [(0, 10, 5)]   # the longest takes all
+    assert cs.sea_runs(np.array([-1, -1]), np.array([1.0, 1.0]), 20.0) == [(0, 2, -1)]
+
+
+def test_a_stretch_on_two_seas_is_split_where_the_sea_changes(tmp_path):
+    rel, lines, _out = _run(tmp_path, _world(tmp_path, two_seas=True))
+    got = rel[1]["coast_stretches"]["stretches"]
+    assert [[e[2] for e in s["ends"]] for s in got] == [[0, None], [None, 2]]   # the new ends have no neighbour
+    assert [s["water"] for s in got] == [4, 5]
+    assert sum(s["km"] for s in got) == pytest.approx(111.2, abs=0.5)
+    assert got[0]["ends"][1][:2] == pytest.approx([1.5, 0.0], abs=0.001)
+    assert got[0]["half"] == pytest.approx([1.25, 0.0], abs=0.01)
+    assert coords.decode_stretch(got[1]["line"])[-1] == pytest.approx([2.0, 0.0], abs=1e-4)
+    assert [s["water"] for s in rel[0]["coast_stretches"]["stretches"]] == [3]   # A's, on the ocean alone, as before
+    assert any("0 differ by more than 1 percent" in line for line in lines)
+
+
+def test_in_the_stage_a_short_stretch_with_one_neighbour_at_both_ends_is_joined(tmp_path):
+    # Without the sliver counted as sea, B's coast east of the sliver, 55 km, has C at both ends.
+    rel, _lines, _out = _run(tmp_path, _world(tmp_path), sliver_km2=0.0, gap_m=0.0, join_km=60.0)
+    [s] = rel[1]["coast_stretches"]["stretches"]
+    assert [e[2] for e in s["ends"]] == [0, 2]
+    assert s["km"] == pytest.approx(111.2, abs=0.5)

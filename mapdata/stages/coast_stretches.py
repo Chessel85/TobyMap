@@ -27,12 +27,25 @@ with at least one stretch of least_km (1 kilometre) or more, "coast_stretches", 
 Stretches under least_km are not kept, but their length still counts in the Coast heading's whole length, which is
 the relationships stage's. The writing stage turns the indexes into identifiers (with_ids).
 
+Two rules of P4-T14i, from the PO's note on England's coast:
+
+* A stretch under join_km (20 kilometres) with the same neighbour at both ends is joined to the stretch beside it: the
+  one with that neighbour at its nearest end, within join_km. Where the tidal water of an estuary reaches past the
+  border, as the Dee's between England and Wales and the Tweed's between England and Scotland, the shore crosses the
+  border back and forth, and each short bit of one side's shore was a stretch of its own.
+* A stretch is split where its sea changes. Each step of it lies on the most detailed water of the area's coast that
+  touches it, and a run of steps on one water is a part of it; a part under sea_km (20 kilometres), as a small bay
+  the named sea does not reach, goes to the longer part beside it. The new ends, where one sea meets the next, have no
+  neighbour. Without this, England's coast from the Severn round Land's End and up the Channel to the Tweed was one
+  stretch, named after the ocean, the only water touching most of it.
+
 Checks: each area's coast found here, stretches and islands together, against its stored coast plus the shore along
 the slivers counted as sea; and each end with a neighbour against the ends of that neighbour's own coast. The build
 report says how many differ, and the log lists each.
 
 Settings: sliver_km2 (0.05), gap_m (100), least_km (1), tolerance_m (200), samples (9, the points along a stretch
-tested for its water), end_match_m (200, how near the neighbour's end must be for the check).
+tested for its water), end_match_m (200, how near the neighbour's end must be for the check), join_km (20) and sea_km
+(20).
 """
 from __future__ import annotations
 
@@ -51,7 +64,7 @@ from mapdata.stages.geodesy import areas_km2
 from mapdata.stages.relationships import FILE, SETTINGS as REL_SETTINGS, lengths_km, sea_and_land
 
 SETTINGS = {"sliver_km2": 0.05, "gap_m": 100.0, "least_km": 1.0, "tolerance_m": 200.0, "samples": 9,
-            "end_match_m": 200.0}
+            "end_match_m": 200.0, "join_km": 20.0, "sea_km": 20.0}
 KEY = "coast_stretches"
 CHUNK = 200            # points in each short line of the sea's outline, for the spatial index
 M_PER_DEG = 111_320.0  # metres in a degree of latitude, near enough for gaps of 100 metres
@@ -306,6 +319,124 @@ def water_of(c: np.ndarray, along: np.ndarray, allowed: dict[int, float], water_
     return max(counts, key=lambda w: (counts[w], detail[w][0], -w))
 
 
+def join_short(stretches: list[dict], join_km: float) -> list[dict]:
+    """Stretches under join_km with the same neighbour at both ends joined to the stretch beside them: of the other
+    stretches, the one with that neighbour at an end nearest to one of its ends, within join_km. Each stretch is a
+    dict of c, its points west to east; km; and ends, [[lon, lat, neighbour], [lon, lat, neighbour]]. The joined
+    stretch's line jumps the gap between them, and its km is the two stretches' own. Nearest first; returns a new
+    list, each west to east."""
+    out = [dict(s) for s in stretches]
+    while True:
+        best = None
+        for k, s in enumerate(out):
+            n = s["ends"][0][2]
+            if n is None or n != s["ends"][1][2] or s["km"] >= join_km:
+                continue
+            for j, t in enumerate(out):
+                if j == k:
+                    continue
+                for ek in (0, 1):
+                    for ej in (0, 1):
+                        if t["ends"][ej][2] != n:
+                            continue
+                        d = float(_metres(np.array(s["ends"][ek][:2]), np.array(t["ends"][ej][:2])))
+                        if d <= join_km * 1000.0 and (best is None or (d, k, j, ek, ej) < best):
+                            best = (d, k, j, ek, ej)
+        if best is None:
+            return out
+        _d, k, j, ek, ej = best
+        s, t = out[k], out[j]
+        mine = s["c"] if ek == ej else s["c"][::-1]   # facing t's end ej with its end ek
+        if ej == 1:
+            c, ends = np.concatenate([t["c"], mine]), [t["ends"][0], s["ends"][1 - ek]]
+        else:
+            c, ends = np.concatenate([mine, t["c"]]), [s["ends"][1 - ek], t["ends"][1]]
+        if c[0][0] > c[-1][0]:
+            c, ends = c[::-1], ends[::-1]
+        out[j] = {"c": c, "km": s["km"] + t["km"], "ends": ends}
+        del out[k]
+
+
+def step_waters(c: np.ndarray, allowed, water_tree, water_owner, water_ids, detail: dict[int, tuple]) -> np.ndarray:
+    """For each step of a line, the most detailed water of allowed whose outline touches its middle, or -1 where none
+    does, as along a neighbour's sliver."""
+    mids = (c[:-1] + c[1:]) / 2.0
+    out = np.full(len(mids), -1, dtype=np.intp)
+    if not len(mids):
+        return out
+    a, b = water_tree.query(shapely.points(mids), predicate="dwithin", distance=WATER_DEG)
+    best: dict[int, tuple] = {}
+    for step, h in zip(a.tolist(), b.tolist()):
+        w = int(water_ids[water_owner[h]])
+        if w not in allowed or w not in detail:
+            continue
+        key = (-detail[w][0], detail[w][1], w)
+        if step not in best or key < best[step]:
+            best[step] = key
+    for step, key in best.items():
+        out[step] = key[2]
+    return out
+
+
+def sea_runs(labels: np.ndarray, step_km: np.ndarray, sea_km: float) -> list[tuple[int, int, int]]:
+    """A line's parts on one water each, as (first step, step after the last, water), from each step's water (-1 for
+    none) and length. A part on no water, or under sea_km, goes to the longer part beside it, the shortest first."""
+    runs = []   # [water, km, first step, step after]
+    for k, w in enumerate(labels.tolist()):
+        if runs and runs[-1][0] == w:
+            runs[-1][1] += float(step_km[k])
+            runs[-1][3] = k + 1
+        else:
+            runs.append([w, float(step_km[k]), k, k + 1])
+
+    def merge(r):   # run r goes to the longer run beside it; runs on one water beside each other become one
+        left = runs[r - 1] if r > 0 else None
+        right = runs[r + 1] if r + 1 < len(runs) else None
+        into = left if right is None or (left is not None and left[1] >= right[1]) else right
+        into[1] += runs[r][1]
+        into[2], into[3] = min(into[2], runs[r][2]), max(into[3], runs[r][3])
+        del runs[r]
+        k = 1
+        while k < len(runs):
+            if runs[k][0] == runs[k - 1][0]:
+                runs[k - 1][1] += runs[k][1]
+                runs[k - 1][3] = runs[k][3]
+                del runs[k]
+            else:
+                k += 1
+
+    while len(runs) > 1:
+        none = [r for r in range(len(runs)) if runs[r][0] == -1]
+        if none:
+            merge(none[0])
+            continue
+        short = min(range(len(runs)), key=lambda r: (runs[r][1], r))
+        if runs[short][1] >= sea_km:
+            break
+        merge(short)
+    return [(a, b, w) for w, _km, a, b in runs]
+
+
+def split_by_sea(s: dict, labels: np.ndarray, sea_km: float) -> list[dict]:
+    """A stretch (as join_short's) split where its sea changes (sea_runs), west to east; the new ends have no
+    neighbour. Each part's km is its share of the stretch's own km."""
+    c = s["c"]
+    along = _along(c)
+    runs = sea_runs(labels, np.diff(along), sea_km)
+    if len(runs) <= 1:
+        return [s]
+    out = []
+    for k, (a, b, _w) in enumerate(runs):
+        part = c[a:b + 1]
+        west = s["ends"][0] if k == 0 else [round(float(part[0][0]), 5), round(float(part[0][1]), 5), None]
+        east = s["ends"][1] if k == len(runs) - 1 else [round(float(part[-1][0]), 5), round(float(part[-1][1]), 5), None]
+        share = (along[b] - along[a]) / along[-1] if along[-1] > 0 else 1.0 / len(runs)
+        if part[0][0] > part[-1][0]:
+            part, west, east = part[::-1], east, west
+        out.append({"c": part, "km": s["km"] * share, "ends": [west, east]})
+    return out
+
+
 def _copy(src, dst) -> None:
     """A file of the stage before, unchanged: linked where the drive allows, else copied."""
     try:
@@ -400,7 +531,7 @@ def run(ctx) -> None:
                         checks["differ"] += 1
                         differ_lines.append(f"{records[i]['name']} ({layer}): coast found {total:.2f} km, stored "
                                             f"{want - sliver_km:.2f} km and {sliver_km:.2f} km along slivers.")
-                    kept = []
+                    found = []
                     islands = 0.0
                     for c, closed, km in lines:
                         if closed:
@@ -410,15 +541,22 @@ def run(ctx) -> None:
                             continue
                         if c[0][0] > c[-1][0]:
                             c = c[::-1]
-                        along = _along(c)
                         ends = [[round(float(lon), 5), round(float(lat), 5), neighbour_at(lon, lat, i, tree, ids, layer_shapes)]
                                 for lon, lat in (c[0], c[-1])]
-                        hx, hy = at_share(c, along, 0.5)
-                        allowed = {w: km for w, km in rel[i].get("coast", ())}
-                        kept.append({"km": round(km, 2), "ends": ends, "half": [round(hx, 5), round(hy, 5)],
-                                     "water": water_of(c, along, allowed, water_tree, water_owner, water_ids, detail,
-                                                       int(settings["samples"])),
-                                     "line": encode_line(c, settings["tolerance_m"])})
+                        found.append({"c": c, "km": km, "ends": ends})
+                    allowed = {w: km for w, km in rel[i].get("coast", ())}
+                    kept = []
+                    for whole in join_short(found, settings["join_km"]):
+                        labels = step_waters(whole["c"], allowed, water_tree, water_owner, water_ids, detail)
+                        for part in split_by_sea(whole, labels, settings["sea_km"]):
+                            c = part["c"]
+                            along = _along(c)
+                            hx, hy = at_share(c, along, 0.5)
+                            kept.append({"km": round(part["km"], 2), "ends": part["ends"],
+                                         "half": [round(hx, 5), round(hy, 5)],
+                                         "water": water_of(c, along, allowed, water_tree, water_owner, water_ids,
+                                                           detail, int(settings["samples"])),
+                                         "line": encode_line(c, settings["tolerance_m"])})
                     if kept:
                         kept.sort(key=lambda s: (s["ends"][0][0], s["ends"][0][1]))
                         stored[i] = {"stretches": kept, "islands_km": round(islands, 2)}

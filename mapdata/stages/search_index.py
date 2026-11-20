@@ -7,7 +7,9 @@ keep_ids_unique), its point, its area, and the names of the areas it is in, from
   the local name for now). Each made plain by mapcore.search.normalise, so "Sao Paulo" finds São Paulo. A
   feature with no name of its own, such as "Unnamed island", is not in the index.
 * Importance, 0 to 1,000: from the population, how many Wikimedia sites have the feature (Wikidata's site
-  links, which the wikidata stage keeps), its layer's rank, and its size. The weights are settings. A name with
+  links, which the wikidata stage keeps), its layer's rank, and its size (its area, length or extent). A place
+  with people is weighed by its people as much as by its area and kind, and a feature without people on what it
+  has (P3-T33a, importance). The weights are settings. A name with
   ä, ö or ü is filed a second time as it is often typed, with ae, oe and ue, so "muenchen" finds München.
 * A description that tells it apart from others of the same name: the name, then the region and the country it
   is in, such as "Paris, Île-de-France, France"; for a country, its continent, or its sovereign state for a
@@ -44,6 +46,7 @@ SITES_FULL = 300           # Wikimedia sites for full marks
 PEOPLE_FULL = 1e9          # people for full marks
 SIZE_FULL = 1e7            # square kilometres, or kilometres for a line, for full marks
 ADMIN = ("countries", "regions", "counties")
+PLACE_RANK = 6             # a feature with people counts at least as a county (P3-T33a)
 
 
 def settings_of(given: dict | None) -> dict:
@@ -64,14 +67,31 @@ def population_of(rec: dict):
 
 
 def importance(rec: dict, sites: int | None, weights: dict) -> int:
-    """A feature's importance, from 0 to 1,000 (architecture 7.9)."""
+    """A feature's importance, from 0 to 1,000 (architecture 7.9, P3-T33a).
+
+    * Size: the area; else, for a line, its length from Wikidata; else its extent (width_km), so a long road or
+      railway counts for more than a short one.
+    * A feature with people is weighed as a place: its size is its people or its area, whichever counts for more,
+      and its kind counts at least as a county's. A town or city is a point, with no area, and its layer's rank
+      is only the order it is drawn in, so Winchester the city is weighed fairly against Winchester the county.
+    * A feature without people, such as a river or a road, is weighed on what it has: the share population would
+      have is shared among the others, so a river is not buried under small towns of its name."""
+    pop = population_of(rec)
     rank = rec.get("rank", 8)
-    size = rec.get("area_km2") or ((rec.get("facts") or {}).get("length_km") or {}).get("value")
-    score = (weights["population"] * _log_share(population_of(rec), PEOPLE_FULL)
-             + weights["sites"] * _log_share(sites, SITES_FULL)
-             + weights["rank"] * max(0.0, min(1.0, (9 - rank) / 8))
-             + weights["size"] * _log_share(size, SIZE_FULL))
-    return int(round(1000 * score))
+    length = ((rec.get("facts") or {}).get("length_km") or {}).get("value")
+    size = _log_share(rec.get("area_km2") or length or rec.get("width_km"), SIZE_FULL)
+    people = _log_share(pop, PEOPLE_FULL)
+    if people:
+        rank = min(rank, PLACE_RANK)
+        size = max(size, people)
+    w = dict(weights)
+    if not people:
+        w["population"] = 0.0
+    score = (w["population"] * people
+             + w["sites"] * _log_share(sites, SITES_FULL)
+             + w["rank"] * max(0.0, min(1.0, (9 - rank) / 8))
+             + w["size"] * size)
+    return int(round(1000 * score / (sum(w.values()) or 1.0)))
 
 
 def names_of(rec: dict, skip: set[str]) -> list[tuple[str, str]]:

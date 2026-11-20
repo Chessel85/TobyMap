@@ -18,8 +18,8 @@ and the store reads and matches with them (Store.search). Pure Python, so it run
   Thames first; "michigan" finds Lake Michigan just after the state, not after an island named Michigan.
 * Rows are ranked by how well they match, then by importance, a number from 0 to 1,000 the build gives each
   feature from its population, its kind and how many Wikimedia sites have it, with up to NEAR_POINTS more for
-  being near where you are (nearness, P3-T32f): enough to put the M3 in England before the other M3s, all
-  equally important, and Winchester in England before Winchester in Virginia when you are in Hampshire, but not
+  being near where you are (nearness, P3-T32f): enough to put the M3 in England before the other M3s, of
+  much the same importance, and Winchester in England before Winchester in Virginia when you are in Hampshire, but not
   Paris in Texas before Paris in France when you are in Texas (rank_key).
 """
 from __future__ import annotations

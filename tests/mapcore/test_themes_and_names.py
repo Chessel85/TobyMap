@@ -123,7 +123,7 @@ def test_the_frame_uses_the_theme_and_the_display_setting(session):
 
 
 def test_t_and_shift_t_go_through_the_themes_and_say_them(session):
-    assert registry.by_name("theme.next").key == "T" and registry.by_name("theme.previous").key == "Shift+T"
+    assert registry.default_key("theme.next") == "T" and registry.default_key("theme.previous") == "Shift+T"
     r = session.press("T")
     assert spoken(r) == ["High contrast dark theme."] and r.redraw and r.settings_changed
     assert spoken(session.press("T")) == ["High contrast light theme."]

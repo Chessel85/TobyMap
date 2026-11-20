@@ -28,6 +28,7 @@ from mapcore import memory
 from mapcore import views as views_mod
 from mapcore import names as names_mod
 from mapcore import settings as settings_mod
+from mapcore.commands import keys as keymaps
 from mapcore.commands import registry
 from mapcore.describe import describer, say, templates, words
 from mapcore.describe.describer import HERE_M
@@ -178,13 +179,16 @@ def outlined(record: dict, setting: str) -> bool:
 
 class MapSession:
     def __init__(self, platform: str = "desktop", packs=None, store=None, settings: dict | None = None,
-                 saved_state: dict | None = None, clock=time.perf_counter, start_at: str | None = None):
+                 saved_state: dict | None = None, clock=time.perf_counter, start_at: str | None = None,
+                 system: str = "windows"):
         from mapcore.store import Store
 
         self.platform = platform
+        self.system = system if system in keymaps.SYSTEMS else "windows"   # "windows" or "mac", from the shell
         self.defaults = yaml.safe_load(DEFAULTS_FILE.read_text(encoding="utf-8"))
         self.store = store or Store(list(packs or []))
         self.settings = settings_mod.Settings.from_dict(settings)
+        self._choose_first_keymap()
         self.store.set_names(self.settings["names"])   # English or local names (P3-T12a)
         # The layers, with the user's changes from the settings in use (SCP-6, SCP-7).
         # The layers as the map view in use has them, with the user's changes on top (P3-T23, DP198).
@@ -461,7 +465,7 @@ class MapSession:
         """A key pressed in a region ("map", "panel", "details" or "menu").
         Returns None when the key is not one of ours, so the shell lets it through.
         In the key describer nothing is carried out: the key is only described."""
-        command = registry.command_for_key(self.platform, key, region, self.settings.keys)
+        command = self.command_for_key(key, region)
         if self.describing:
             if command is not None and command.name == "help.describer":
                 return self.run("help.describer")
@@ -478,8 +482,8 @@ class MapSession:
         """What a key does, wherever the focus is (PO feedback on checklist 2.2). Keys
         with only their standard job in a list or text, such as Tab or Down in the
         Information panel, are not described."""
-        commands = registry.commands_for_key(self.platform, key, self.settings.keys)
-        key = registry.key_text(key)
+        commands = registry.commands_for_key(self.platform, key, self.keys())
+        key = self.key_text(key)
         if not commands:
             return say("describer.unassigned", key=key)
         if len(commands) == 1:
@@ -2177,7 +2181,68 @@ class MapSession:
         return area.record.get("tier_name") or words_for["tiers"][tier]
 
     def registry(self) -> dict:
-        return registry.describe(self.platform, self.settings.keys)
+        return registry.describe(self.platform, self.keys(), self.system)
+
+    # Keys (AD-3, ACC-3, P3-T31a) --------------------------------------------
+
+    def _choose_first_keymap(self) -> None:
+        """The first time TobyMap starts, and the first time after key maps came in, it picks the key map for
+        your system and version. Keys you changed before then stay as your keys, on top of it. On a Mac the
+        desktop called Command "Ctrl" before key maps, so those keys become Cmd keys; the browser called the
+        Control key "Ctrl", as now."""
+        before_keymaps = self.settings.keymap is None
+        self.settings.keymap = keymaps.for_version(self.settings.keymap, self.platform, self.system)
+        if before_keymaps and self.system == "mac" and self.platform == "desktop":
+            self.settings.keys = {c: keymaps.to_mac(k) for c, k in self.settings.keys.items()}
+        self.settings.keys = keymaps.only_changes(self.settings.keymap, self.platform, self.system, self.settings.keys)
+
+    def keys(self) -> dict[str, str]:
+        """The keys in use, by command name: the chosen key map's, with your keys on top."""
+        return keymaps.keys_in_use(self.settings.keymap, self.platform, self.system, self.settings.keys)
+
+    def keymap_keys(self) -> dict[str, str]:
+        """The chosen key map's own keys, without your keys: what Reset gives back."""
+        return keymaps.resolve(self.settings.keymap, self.platform, self.system)
+
+    def command_for_key(self, key: str, region: str = "map"):
+        """The command a key runs in a region, with the keys in use; None when the key is not one of ours."""
+        return registry.command_for_key(self.platform, key, region, self.keys())
+
+    def key_text(self, key: str) -> str:
+        """A key as it is said and shown on this system: "Ctrl+Comma", or on a Mac "Shift+Command+F"."""
+        return registry.key_text(key, self.system)
+
+    def keymap_choices(self) -> list[dict]:
+        """The key maps that can be chosen in this version, with their names and which is chosen (P3-T31b)."""
+        names = templates()["keymaps"]
+        return [{"id": k, "label": names[k], "chosen": k == self.settings.keymap}
+                for k in keymaps.choices(self.platform)]
+
+    def choose_keymap(self, name: str) -> bool:
+        """Use another key map (P3-T31b). Your keys stay on top of it, less any that are now its own.
+        False, and nothing changes, for a name that is not a key map."""
+        if name not in keymaps.KEYMAPS:
+            return False
+        self.settings.keymap = keymaps.for_version(name, self.platform, self.system)
+        self.settings.keys = keymaps.only_changes(self.settings.keymap, self.platform, self.system, self.settings.keys)
+        return True
+
+    def reset_keys(self) -> None:
+        """Reset gives back the chosen key map's own keys: your keys are forgotten (P3-T31b)."""
+        self.settings.keys = {}
+
+    def key_file(self) -> str:
+        """Your keys as a key file's text, with the key map they are based on, for Save as (P3-T31b)."""
+        return keymaps.key_file_text(self.settings.keymap, self.settings.keys)
+
+    def open_key_file(self, text: str) -> None:
+        """Use the key map and your keys from a key file's text (P3-T31b). A key file from the other version
+        uses this version's key map for the same system. ValueError, and nothing changes, if the text is
+        not a key file TobyMap can read."""
+        name, yours = keymaps.read_key_file(text)
+        name = keymaps.for_version(name, self.platform, self.system)
+        self.settings.keymap = name
+        self.settings.keys = keymaps.only_changes(name, self.platform, self.system, yours)
 
     def toggles(self) -> dict[str, bool]:
         """Whether each menu item with a tick is on, by command name."""
@@ -2193,8 +2258,9 @@ class MapSession:
 
     def key_table(self) -> list[dict]:
         """Every command with its key now and its default, for the Keys tab (ACC-3)."""
-        return [{"name": c.name, "label": c.label, "key": registry.key_of(c, self.settings.keys),
-                 "key_text": registry.key_text(registry.key_of(c, self.settings.keys)), "default": c.key}
+        keys, own = self.keys(), self.keymap_keys()
+        return [{"name": c.name, "label": c.label, "key": registry.key_of(c, keys),
+                 "key_text": self.key_text(registry.key_of(c, keys)), "default": registry.key_of(c, own)}
                 for c in registry.for_platform(self.platform) if not c.pointer]
 
     def earcon_file(self, event: str) -> dict:
@@ -3513,7 +3579,7 @@ class MapSession:
         the shell to forget what it keeps itself, such as the web's own sound files; it then saves,
         as settings_changed asks, which writes the new installation's settings."""
         keep = {"map_size": self.map_size, "trace": self.trace}
-        self.__init__(platform=self.platform, store=self.store, clock=self.clock)
+        self.__init__(platform=self.platform, store=self.store, clock=self.clock, system=self.system)
         for name, value in keep.items():
             setattr(self, name, value)
         self.areas = self._here()
@@ -3607,29 +3673,29 @@ class MapSession:
         """Give a command a different key (ACC-3). A key that is in use is refused,
         and the command that has it is named."""
         if key and not registry.valid_key(key):
-            return Response().speak(say("keys.invalid", key=registry.key_text(key)), ASSERTIVE)
-        other = registry.clash(self.platform, command, key, self.settings.keys) if key else None
+            return Response().speak(say("keys.invalid", key=self.key_text(key)), ASSERTIVE)
+        other = registry.clash(self.platform, command, key, self.keys()) if key else None
         if other is not None:
-            return Response().speak(say("keys.taken", key=registry.key_text(key), other=other.label), ASSERTIVE)
-        default = registry.by_name(command).key
-        if key == default:
+            return Response().speak(say("keys.taken", key=self.key_text(key), other=other.label), ASSERTIVE)
+        if key == self.keymap_keys().get(command, ""):   # the key map's own: not one of your keys
             self.settings.keys.pop(command, None)
         else:
             self.settings.keys[command] = key
         label = registry.by_name(command).label
         return Response(settings_changed=True).speak(
-            say("keys.changed", label=label, key=registry.key_text(key)) if key else say("keys.cleared", label=label), ASSERTIVE)
+            say("keys.changed", label=label, key=self.key_text(key)) if key else say("keys.cleared", label=label), ASSERTIVE)
 
     def _help_keys(self, region: str = "map", **_a) -> Response:
         """F1: the commands for the focused region, each with its key (ACC-3)."""
         region = region if region in REGIONS else "map"
         region_name = say(f"ui.{'menu_bar' if region == 'menu' else region}")
         lines = [line.format(region=region_name) for line in templates()["dialogs"]["keys_intro_region"]]
+        keys = self.keys()
         for c in registry.for_platform(self.platform):
             if c.pointer or c.region not in ("global", region):
                 continue
-            key = registry.key_of(c, self.settings.keys)
-            lines.append(say("dialogs.keys_line", label=c.label, key=registry.key_text(key)) if key
+            key = registry.key_of(c, keys)
+            lines.append(say("dialogs.keys_line", label=c.label, key=self.key_text(key)) if key
                          else say("dialogs.keys_menu_only", label=c.label, menu=c.menu))
         return Response(dialog={"kind": "text", "title": say("dialogs.keys_title"), "text": "\n".join(lines)})
 

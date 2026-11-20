@@ -1,4 +1,4 @@
-"""Make a phase's key list from the command registry (P2-T0c, P3-T0c, DP109; ACC-3, ACC-4).
+"""Make a phase's key list from the command list and the Windows key maps (P2-T0c, P3-T0c, DP109; ACC-3, ACC-4).
 
 The file has one line for every command now in the registry and one for every
 new command of the phase, so the product owner can write the key wanted in the
@@ -21,6 +21,7 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
 REGISTRY = REPO / "mapcore" / "commands" / "registry.yaml"
 FORBIDDEN = REPO / "tests" / "data" / "forbidden_keys.yaml"
 
@@ -96,14 +97,25 @@ def where(region: str) -> str:
     return {"map": "the map", "panel": "the Information panel"}.get(region, "anywhere")
 
 
+def windows_keys() -> dict[str, str]:
+    """Each command's key in the Windows key maps (P3-T31a): the desktop's, then the browser's for a
+    command only in the web version. The panel groups' keys are written "Shift+number", once."""
+    from mapcore.commands import keys as keymaps
+
+    out = {**keymaps.resolve("windows-browser", "web", "windows"), **keymaps.resolve("windows-desktop", "desktop", "windows")}
+    out["panel.group"] = "Shift+{number}"
+    return out
+
+
 def clash_notes(key: str, place: str, registry: dict, forbidden: dict) -> list[str]:
     """What the proposed key would clash with: a key already used where they meet,
     or a key a screen reader or browser keeps (ACC-4)."""
     notes = []
     regions = PLACES.get(place)
+    keys = windows_keys()
     if regions is not None:
         for c in registry["commands"]:
-            if c.get("key") == key and (c["region"] == "global" or "global" in regions or c["region"] in regions):
+            if keys.get(c["name"]) == key and (c["region"] == "global" or "global" in regions or c["region"] in regions):
                 notes.append(f"Clash: {key} is already {c['label']}.")
     parts = key.split("+")
     if (key in forbidden["exact"] or key in forbidden["web_only"] or set(parts) & set(forbidden["no_modifier_words"])
@@ -117,8 +129,13 @@ def rows(phase: int) -> list[list[str]]:
     forbidden = yaml.safe_load(FORBIDDEN.read_text(encoding="utf-8"))
     new, panel = PHASES[phase]
     earlier = "1" if phase == 2 else "earlier"
+    keys = windows_keys()
     out = []
+    seen = set()
     for c in registry["commands"]:
+        if c["name"] in seen:
+            continue
+        seen.add(c["name"])
         notes = []
         if c.get("pointer"):
             notes.append("Sent by the mouse, touch or a list; it has no key.")
@@ -126,7 +143,7 @@ def rows(phase: int) -> list[list[str]]:
             notes.append("Only in the " + " and ".join(c["platforms"]) + " version.")
         if c.get("toggle"):
             notes.append("On or off.")
-        key = c.get("key") or ""
+        key = keys.get(c["name"], "")
         if phase > 2:
             key = key.replace("{number}", "number")
         out.append([c["label"], where(c["region"]), earlier, key, key, "", " ".join(notes)])

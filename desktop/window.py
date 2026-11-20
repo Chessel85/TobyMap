@@ -31,12 +31,11 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QHBoxLayout, 
 from desktop import storage
 from desktop.announcer import Announcer
 from desktop.dialogs import ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, ViewsDialog, WorldTreeDialog
-from desktop.keys import key_name
+from desktop.keys import key_name, system
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
 from desktop.scan import ScanPlayer
 from desktop.sounds import SoundPlayer
-from mapcore.commands import registry
 from mapcore.session import HOLD_SILENCE_S, MapSession, Response
 
 ITEM_ID = Qt.ItemDataRole.UserRole
@@ -330,7 +329,7 @@ class MainWindow(QMainWindow):
 
     def _new_session(self, start_at: str | None = None) -> MapSession:
         saved = storage.load(self.data_folder)
-        return MapSession(platform="desktop", packs=storage.find_packs(self.data_folder),
+        return MapSession(platform="desktop", system=system(), packs=storage.find_packs(self.data_folder),
                           settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at)
 
     def closeEvent(self, event):
@@ -434,7 +433,7 @@ class MainWindow(QMainWindow):
             return False
         region = self.region_of(QApplication.focusWidget()) or "map"
         started = time.time()
-        command = registry.command_for_key("desktop", name, region, self.session.settings.keys)
+        command = self.session.command_for_key(name, region)
         if command is None and not self.session.describing:
             return False
         held = command is not None and not self.session.describing and command.held
@@ -458,7 +457,7 @@ class MainWindow(QMainWindow):
         if event.isAutoRepeat() or self._held_key is None:
             return False
         key = key_name(event)
-        command = registry.command_for_key("desktop", key, "map", self.session.settings.keys) if key else None
+        command = self.session.command_for_key(key, "map") if key else None
         if command is not None and command.name == self._held_key:
             self.release_held()
         return False

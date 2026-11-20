@@ -73,7 +73,7 @@ def test_the_speech_tab_has_the_preset_first_then_its_switches():
 
 def test_a_goes_to_the_next_preset_and_says_it(session):
     command = registry.by_name("verbosity.next")
-    assert command.key == "A" and command.menu == "Speech"
+    assert registry.default_key(command.name) == "A" and command.menu == "Speech"
     r = session.press("A")
     assert spoken(r) == ["Detailed. The whole place is said when an area changes, "
                          "and the heading after each step in free facing."]

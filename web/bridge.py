@@ -121,12 +121,13 @@ def _extras(response, out: dict, width: int, height: int) -> dict:
 
 
 def start(width: int, height: int, startup_ms: float, packs, saved_json: str, start_at: str = "",
-          slow_ms: float = 0.0):
+          slow_ms: float = 0.0, system: str = "windows"):
+    """system is "mac" or "windows", from the page (js/keys.js): the core picks the key map for it (P3-T31a)."""
     global _session, _slow_ms
     _slow_ms = float(slow_ms or 0)
     saved = json.loads(saved_json) if saved_json else {}
     sources = [HandleSource(p.handle, str(p.name)) for p in packs]
-    _session = MapSession(platform="web", packs=[_pack(s) for s in sources],
+    _session = MapSession(platform="web", system=system, packs=[_pack(s) for s in sources],
                           settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at or None)
     _session.startup_took(startup_ms)
     response = _session.start()
@@ -231,10 +232,8 @@ def settings_schema():
 
 
 def key_text(key: str) -> str:
-    """A key as it is said and shown, such as "Ctrl+Comma", for the key dialog."""
-    from mapcore.commands.registry import key_text as text
-
-    return text(key)
+    """A key as it is said and shown, such as "Ctrl+Comma", or on a Mac "Shift+Command+F", for the key dialog."""
+    return _session.key_text(key)
 
 
 def voice_problem(problem: str, width: int, height: int):

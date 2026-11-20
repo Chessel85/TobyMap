@@ -3,7 +3,7 @@
 // responses into speech, sound, painting and focus. Every key comes from the
 // command registry, and every word from the core.
 import { speak, log } from "./announcer.js";
-import { keyName } from "./keys.js";
+import { keyName, systemName } from "./keys.js";
 import { languageOf, learn, markWhole } from "./langs.js";
 import { MenuBar } from "./menu.js";
 import * as ownSounds from "./own_sounds.js";
@@ -1637,7 +1637,7 @@ async function boot() {
   const at = new URLSearchParams(location.search).get("at") || "";
   // ?slowdraw=200 makes every drawing take 200 ms longer, for the held key test only (P2-T14).
   const slowMs = Number(new URLSearchParams(location.search).get("slowdraw")) || 0;
-  const result = await client.send({ type: "start", width, height, saved, at, slowMs });
+  const result = await client.send({ type: "start", width, height, saved, at, slowMs, system: systemName() });
   registry = result.registry;
   words = result.words;
   client.latestOnly = new Set(registry.latest_only);

@@ -57,6 +57,7 @@ def report(session, now: float | None = None) -> str:
     s = session.world
     out.append(f"Location {s.lat:.5f}, {s.lon:.5f}; zoom {s.zoom_m:g} m; step {s.step_m:g} m; linked {s.link}")
     out.append("Settings " + ", ".join(f"{k}={v}" for k, v in sorted(session.settings.values.items())))
+    out.append(f"Key map {session.settings.keymap} on {session.system}")
     if session.settings.keys:
         out.append("Changed keys " + ", ".join(f"{k}={v}" for k, v in sorted(session.settings.keys.items())))
     out.append(f"Events in the last {int(TRACE_SECONDS // 60)} minutes: {len(events)}")

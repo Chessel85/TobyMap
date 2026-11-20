@@ -31,7 +31,7 @@ def session(test_pack):
 @pytest.mark.parametrize("forward,back", ROUND.items())
 def test_each_key_that_goes_round_goes_back_with_shift(forward, back):
     f, b = registry.by_name(forward), registry.by_name(back)
-    assert b.key == f"Shift+{f.key}" and b.region == f.region and b.menu == f.menu
+    assert registry.default_key(b.name) == f"Shift+{registry.default_key(f.name)}" and b.region == f.region and b.menu == f.menu
 
 
 def test_shift_o_goes_back_through_the_orientations(session):

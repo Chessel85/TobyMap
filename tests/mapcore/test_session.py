@@ -267,9 +267,10 @@ def test_the_key_describer_lists_every_command_on_a_key(session, monkeypatch):
     from mapcore.commands import registry
 
     real = registry.for_platform
-    extra = registry.Command(name="panel.sort", label="Sort the list", key="Down", region="panel", menu="",
+    extra = registry.Command(name="panel.sort", label="Sort the list", region="panel", menu="",
                              platforms=("desktop", "web"))
-    monkeypatch.setattr(registry, "for_platform", lambda platform: real(platform) + [extra])
+    monkeypatch.setattr(registry, "for_platform", lambda platform: [c for c in real(platform) if c.name != extra.name] + [extra])
+    session.settings.keys["panel.sort"] = "Down"
     session.press("Shift+F1")
     assert spoken(session.press("Down", "panel")) == [
         "Down: Step south or back, on the map. Sort the list, in the Information panel."]

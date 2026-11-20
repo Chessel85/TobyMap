@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, 
 
 from desktop.keys import key_name
 from desktop.panel_tree import PanelTree
-from mapcore.commands.registry import key_text
 
 
 def button_row(parent_layout, labels: list[str], default: bool = True) -> list[QPushButton]:
@@ -590,7 +589,7 @@ class KeyCaptureDialog(QDialog):
         self.setWindowTitle(command["label"])
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(words["key_prompt"]))
-        self.field = QLineEdit(key_text(self.key))
+        self.field = QLineEdit(session.key_text(self.key))
         self.field.setReadOnly(True)
         self.field.setAccessibleName(words["key_field"])
         self.field.installEventFilter(self)
@@ -614,7 +613,7 @@ class KeyCaptureDialog(QDialog):
             name = key_name(event)
             if name:
                 self.key = name
-                self.field.setText(key_text(name))
+                self.field.setText(self.session.key_text(name))
                 self._show_message("")
             return True
         return super().eventFilter(obj, event)

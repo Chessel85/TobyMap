@@ -1,0 +1,23 @@
+# The Mac browser key map (P3-T31a): the web version on a Mac. See windows-desktop.yaml for the fields.
+#
+# Every key comes from the Windows browser key map with Ctrl turned into Cmd. Only the keys that differ are
+# listed; the first four are the Mac desktop key map's, so both Mac versions share them. Here a key is as
+# pressed on a Mac: Ctrl is the Control key, Alt is Option and Cmd is Command.
+#
+# Kept clear of, as well as the Mac desktop key map's list: the keys Mac browsers keep, such as Cmd+L,
+# Cmd+T, Cmd+N, Cmd+R, Cmd+D, Cmd+Y, Cmd+Comma (the browser's settings), Cmd+1 to Cmd+9 (tabs), Cmd+[ and
+# Cmd+] and Cmd with Left and Right (Back and Forward), and Cmd+Option with Left and Right (tabs).
+system: mac
+version: browser
+based_on: windows-browser
+keys:
+  turn.fine_left: Alt+Left
+  turn.fine_right: Alt+Right
+  history.back: Shift+Cmd+Left
+  history.forward: Shift+Cmd+Right
+  wikipedia.open: Ctrl+Shift+W
+  sound.mute: Ctrl+M
+  # Cmd+Comma opens the browser's own settings: Control+Comma, where the Windows key is.
+  settings.open: "Ctrl+,"
+  # Cmd+Option+M minimises every window, and Option+M types a character.
+  focus.menu: Ctrl+Shift+M

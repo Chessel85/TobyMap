@@ -27,7 +27,24 @@ def press(key, mods=Qt.KeyboardModifier.NoModifier):
     (Qt.Key.Key_Up, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier, "Ctrl+Shift+Up"),
 ])
 def test_key_names(key, mods, name):
-    assert key_name(press(key, mods)) == name
+    assert key_name(press(key, mods), mac=False) == name
+
+
+@pytest.mark.parametrize("key, mods, name", [
+    # Qt calls Command Control and Control Meta on a Mac; the key maps call them Cmd and Ctrl (P3-T31a).
+    (Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier, "Cmd+F"),
+    (Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier, "Shift+Cmd+F"),
+    (Qt.Key.Key_M, Qt.KeyboardModifier.MetaModifier, "Ctrl+M"),
+    (Qt.Key.Key_Left, Qt.KeyboardModifier.AltModifier, "Alt+Left"),
+    (Qt.Key.Key_Comma, Qt.KeyboardModifier.MetaModifier, "Ctrl+,"),
+    (Qt.Key.Key_Space, Qt.KeyboardModifier.MetaModifier | Qt.KeyboardModifier.ControlModifier, "Ctrl+Cmd+Space"),
+])
+def test_key_names_on_a_mac(key, mods, name):
+    assert key_name(press(key, mods), mac=True) == name
+
+
+def test_the_windows_key_is_not_named_on_windows():
+    assert key_name(press(Qt.Key.Key_H, Qt.KeyboardModifier.MetaModifier), mac=False) == "H"
 
 
 @pytest.mark.parametrize("symbol", [Qt.Key.Key_Percent, Qt.Key.Key_ParenLeft])

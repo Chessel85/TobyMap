@@ -321,7 +321,7 @@ def test_the_chosen_order_does_not_change_the_cached_items(swiss):
 
 def test_ctrl_enter_says_bookmarks_come_later(swiss):
     assert swiss.run("panel.bookmark").announcements[0]["text"] == "Bookmarks come in Phase 4."
-    assert registry.by_name("panel.bookmark").key == "Ctrl+Enter"
+    assert registry.default_key("panel.bookmark") == "Ctrl+Enter"
 
 
 # The map's highlight for an item of each new group (P3-T4f, VIS-1) ------------------------------

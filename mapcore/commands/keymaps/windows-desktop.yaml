@@ -1,0 +1,96 @@
+# The Windows desktop key map (P3-T31a, AD-3): the key for every command in the desktop version on Windows.
+# The other key maps are based on this one and list only the keys that differ.
+#
+# Fields:
+#   system: windows or mac
+#   version: desktop or browser
+#   based_on: the key map whose keys this one starts from, or empty
+#   keys: command name (from the command list, registry.yaml) -> key, in the shared key names
+#     (see registry.py). A command left out has the key of the key map it is based on; "" takes
+#     a key away. A command with no key in any key map is reached from its menu.
+#
+# In a Windows key map the keys are as pressed. A Mac key map based on a Windows one turns Ctrl
+# into Cmd in every key it takes from it, as Visual Studio Code does, so most keys are written
+# once for both systems.
+system: windows
+version: desktop
+based_on: ""
+keys:
+  # Moving (NAV-1); in hierarchy mode the arrows go up, down and round the neighbours (NAV-4).
+  move.north: Up
+  move.south: Down
+  move.west: Left
+  move.east: Right
+  mode.toggle: M
+  # Zoom and step (NAV-2, NAV-13).
+  zoom.out: Page Up
+  zoom.in: Page Down
+  step.larger: Shift+Page Up
+  step.smaller: Shift+Page Down
+  step.link: S
+  # Orientation and turning (NAV-3, NAV-11, NAV-12).
+  orientation.cycle: O
+  orientation.previous: Shift+O
+  turn.left: Shift+Left
+  turn.right: Shift+Right
+  turn.fine_left: Ctrl+Left
+  turn.fine_right: Ctrl+Right
+  bearing.type: Ctrl+B
+  beacon.toggle: B
+  # Going to coordinates and back through the places you have been (NAV-8, NAV-10).
+  goto.coordinates: Ctrl+G
+  history.back: "Alt+,"
+  history.forward: "Alt+."
+  history.list: Ctrl+Shift+Space
+  # Search, the world tree, browsing, layers and views (SRB-1, SRB-3, SRB-4, SCP-6, DP198).
+  search.open: Ctrl+F
+  tree.open: W
+  browse.open: Ctrl+Shift+F
+  layers.open: Ctrl+Shift+L
+  views.open: Ctrl+Shift+V
+  # Themes and isolate (VIS-2).
+  theme.next: T
+  theme.previous: Shift+T
+  isolate.toggle: Ctrl+I
+  # Look around (SON-4, INF-10).
+  look.around: L
+  look.go: Enter
+  # Where am I (LOC-1, LOC-7).
+  where.am_i: Space
+  where.coordinates: C
+  where.heading: H
+  where.visible: V
+  # Going to a region (DP106).
+  focus.map: F2
+  focus.panel: F3
+  focus.details: F4
+  # Wikipedia (INF-1). On Windows AltGr is Ctrl+Alt; the Alternative key map has a key without it.
+  details.wikipedia: W
+  wikipedia.open: Ctrl+Alt+W
+  details.open_line: Enter
+  # The Information panel's groups (INF-10), in the order of panel_groups in the command list.
+  # Shift with a number is found by the key's place, whatever symbol it types (DP109).
+  panel.within: Shift+1
+  panel.nearby: Shift+2
+  panel.bordering: Shift+3
+  panel.contains: Shift+4
+  panel.overlapping: Shift+5
+  panel.crossed: Shift+6
+  panel.search: Shift+7
+  panel.hear: Space
+  measure.to: Shift+M
+  panel.go: Enter
+  panel.current_layer: Shift+Enter
+  panel.sort: Ctrl+S
+  panel.sort_back: Ctrl+Shift+S
+  panel.bookmark: Ctrl+Enter
+  # Speech (ANN-4, SON-7, ACC-5).
+  speech.repeat: Shift+Space
+  sound.mute: Ctrl+M
+  verbosity.next: A
+  verbosity.previous: Shift+A
+  # Settings and help (PLT-5, ACC-3).
+  settings.open: "Ctrl+,"
+  help.keys: F1
+  help.describer: Shift+F1
+  query.open: Q

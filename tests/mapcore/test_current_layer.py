@@ -33,7 +33,7 @@ def _within(session, name):
 
 def test_shift_enter_in_the_panel_is_the_current_layer_command():
     command = registry.by_name("panel.current_layer")
-    assert command.key == "Shift+Enter" and command.region == "panel"
+    assert registry.default_key(command.name) == "Shift+Enter" and command.region == "panel"
 
 
 def test_shift_enter_on_england_makes_regions_the_current_layer_and_it_follows_you(session):

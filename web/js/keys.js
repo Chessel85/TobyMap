@@ -1,5 +1,7 @@
 // Browser key events to the registry's shared key names
-// (mapcore/commands/registry.py): modifiers Ctrl, Alt, Shift, then the key.
+// (mapcore/commands/registry.py): modifiers Ctrl, Alt, Shift, Cmd, then the key.
+// On a Mac, Ctrl is the Control key, Alt is Option and Cmd is Command, as in the
+// core's key maps (P3-T31a); Windows has no Cmd, and its Windows key is not named.
 const NAMED = {
   ArrowUp: "Up", ArrowDown: "Down", ArrowLeft: "Left", ArrowRight: "Right",
   PageUp: "Page Up", PageDown: "Page Down", Home: "Home", End: "End", " ": "Space",
@@ -7,7 +9,15 @@ const NAMED = {
 };
 const MODIFIER_KEYS = new Set(["Control", "Shift", "Alt", "Meta", "AltGraph", "CapsLock"]);
 
-export function keyName(event) {
+// The system, for the core's key maps: "mac" or "windows" (any other uses the Windows keys).
+export function systemName(nav = globalThis.navigator) {
+  const platform = (nav && ((nav.userAgentData && nav.userAgentData.platform) || nav.platform || nav.userAgent)) || "";
+  return /mac|iphone|ipad/i.test(platform) ? "mac" : "windows";
+}
+
+const MAC = systemName() === "mac";
+
+export function keyName(event, mac = MAC) {
   if (MODIFIER_KEYS.has(event.key)) return null;
   let base = NAMED[event.key];
   if (!base && /^F([1-9]|1[0-2])$/.test(event.key)) base = event.key;
@@ -21,6 +31,7 @@ export function keyName(event) {
   if (event.ctrlKey) parts.push("Ctrl");
   if (event.altKey) parts.push("Alt");
   if (event.shiftKey && (base.length > 1 || base === " " || /[A-Z0-9]/.test(base))) parts.push("Shift");
+  if (mac && event.metaKey) parts.push("Cmd");
   parts.push(base);
   return parts.join("+");
 }

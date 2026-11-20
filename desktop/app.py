@@ -56,7 +56,9 @@ def self_test(out: str | None = None) -> int:
         lines.append("No pack found.")
         code = 1
     else:
-        session = MapSession(platform="desktop", packs=packs)
+        from desktop.keys import system
+
+        session = MapSession(platform="desktop", system=system(), packs=packs)
         lines.append(session.start().announcements[0]["text"])
         lines.append(session.run("where.am_i").announcements[0]["text"])
         lines.append("Sounds: " + ", ".join(sorted(p.name for p in SOUNDS.glob("*.wav"))))

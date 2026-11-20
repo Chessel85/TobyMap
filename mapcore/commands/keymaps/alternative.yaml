@@ -1,0 +1,23 @@
+# The Alternative key map (P3-T31a): for keyboards where Ctrl+Alt with a letter types a character
+# (AltGr, on many European keyboards), and where the punctuation keys are in other places.
+# See windows-desktop.yaml for the fields.
+#
+# It is based on the key map for your system and version ("system"), and replaces only the keys
+# there that use Ctrl+Alt with a letter or a number, or a punctuation key. Every key here is written
+# for Windows; on a Mac, Ctrl becomes Cmd, as in the Mac key maps. A key here that would replace
+# nothing in your system's key map is not used.
+system: any
+version: any
+based_on: system
+keys:
+  # Alt+Comma and Alt+Full stop: the comma and full stop move between layouts (French, Belgian).
+  history.back: Ctrl+Shift+Left
+  history.forward: Ctrl+Shift+Right
+  # Ctrl+Comma. Ctrl+Shift+U is Edge's Read aloud, so not U; nothing in Windows, NVDA or the
+  # browsers uses Ctrl+Shift+X outside a text field.
+  settings.open: Ctrl+Shift+X
+  # Ctrl+Alt+W: AltGr+W types "|" on Czech, Slovak, Hungarian, Slovene and Croatian keyboards. The
+  # browser's own key.
+  wikipedia.open: Alt+Shift+W
+  # Ctrl+Alt+M: AltGr+M types a character on Polish and other keyboards.
+  focus.menu: Ctrl+F2

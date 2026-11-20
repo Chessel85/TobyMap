@@ -26,3 +26,70 @@ web_only:
   - Escape
 digits_with_ctrl: true     # Ctrl+1 to Ctrl+9 switch browser tabs
 no_modifier_words: [NVDA, Insert, Option, Meta, Win, Cmd]
+
+# The Mac key maps (P3-T31a): there Ctrl is the Control key, Alt is Option and Cmd is Command.
+# The lists above are for the Windows key maps; these are for the Mac ones.
+mac:
+  exact:   # macOS's own keys
+    - Tab
+    - Shift+Tab
+    - Cmd+Q
+    - Cmd+W
+    - Cmd+H
+    - Cmd+M
+    - Cmd+Tab
+    - Shift+Cmd+Tab
+    - Cmd+Space
+    - Alt+Cmd+Space
+    - Ctrl+Space
+    - Ctrl+Cmd+Space
+    - Alt+Cmd+W
+    - Alt+Cmd+M
+    - Alt+Cmd+H
+    - Alt+Cmd+D
+    - Alt+Cmd+Escape
+    - Ctrl+Cmd+F
+    - Ctrl+Cmd+Q
+    - Shift+Cmd+Q
+    - Cmd+F5           # VoiceOver on and off
+    - "Cmd+`"
+    - Shift+Cmd+3
+    - Shift+Cmd+4
+    - Shift+Cmd+5
+    - Ctrl+Up          # Mission Control
+    - Ctrl+Down
+    - Ctrl+Left
+    - Ctrl+Right
+    - Ctrl+F1          # keyboard navigation, Control with F1 to F8
+    - Ctrl+F2
+    - Ctrl+F3
+    - Ctrl+F4
+    - Ctrl+F5
+    - Ctrl+F6
+    - Ctrl+F7
+    - Ctrl+F8
+  browser:   # the keys Mac browsers keep
+    - Escape
+    - Cmd+L
+    - Cmd+T
+    - Cmd+N
+    - Cmd+R
+    - Cmd+D
+    - Cmd+Y
+    - "Cmd+,"
+    - "Cmd+["
+    - "Cmd+]"
+    - Cmd+Left
+    - Cmd+Right
+    - Alt+Cmd+Left
+    - Alt+Cmd+Right
+    - Shift+Cmd+W
+    - Shift+Cmd+T
+    - Shift+Cmd+N
+    - "Shift+Cmd+["
+    - "Shift+Cmd+]"
+    - Ctrl+Tab
+    - Ctrl+Shift+Tab
+  digits_with_cmd: true     # Cmd+1 to Cmd+9 switch browser tabs
+  ctrl_with_alt: true       # Control with Option is VoiceOver's
+  alt_with_a_character: true   # Option with a letter, number or symbol types a character, so it cannot be told

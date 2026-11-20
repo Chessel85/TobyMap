@@ -1,11 +1,11 @@
-# The command registry (AD-3): every command, once.
-# The key map, the menu bar, F1 help, the key describer and the coverage tests
-# are all built from this file. Shells never add their own key handler for a command.
+# The command list (AD-3), once called the command registry: every command, once, where it
+# works and its menu. The menu bar, F1 help, the key describer and the coverage tests are built
+# from this file. The keys are in the key maps, keymaps/*.yaml (P3-T31a): one for each system and
+# version, and Alternative. Shells never add their own key handler for a command.
 #
 # Fields:
 #   name: the command name the shells send to the core
 #   label: the words used in menus, help and the key describer
-#   key: the default key, in the shared key names (see registry.py), or empty
 #   region: "map" (only when the map has focus), "panel" (only in the
 #     Information panel) or "global" (anywhere)
 #   menu: the menu it appears in, or empty for none
@@ -26,153 +26,151 @@ menus:
   - {label: Help, access: H}
 
 # The Information panel's groups, in order (UX section 6). The session makes them in this order,
-# and each has its Shift and number key from it. A new group is added here, and in the group table,
-# mapcore/panel.py. Their order and keys are the PO's of 19 November 2026 (INF-10, P3-T29a): Within, Nearby,
+# and each has its Shift and number key in the key maps. A new group is added here, in the group table,
+# mapcore/panel.py, and in the key maps. Their order and keys are the PO's of 19 November 2026 (INF-10, P3-T29a): Within, Nearby,
 # Bordering, Contains, Overlapping, Passed over (id "crossed"), Search, on Shift+1 to Shift+7.
 panel_groups: [within, nearby, bordering, contains, overlapping, crossed, search]
 
 commands:
   # Moving (NAV-1). Arrow keys step north, south, west and east; in hierarchy mode they go up to the
   # area that holds the current feature, down into it, and round its neighbours (NAV-4, P3-T6a).
-  - {name: move.north, label: Step north or forward, key: Up, region: map, menu: Map, latest_only: true, held: true}
-  - {name: move.south, label: Step south or back, key: Down, region: map, menu: Map, latest_only: true, held: true}
-  - {name: move.west, label: Step west or turn left, key: Left, region: map, menu: Map, latest_only: true, held: true}
-  - {name: move.east, label: Step east or turn right, key: Right, region: map, menu: Map, latest_only: true, held: true}
+  - {name: move.north, label: Step north or forward, region: map, menu: Map, latest_only: true, held: true}
+  - {name: move.south, label: Step south or back, region: map, menu: Map, latest_only: true, held: true}
+  - {name: move.west, label: Step west or turn left, region: map, menu: Map, latest_only: true, held: true}
+  - {name: move.east, label: Step east or turn right, region: map, menu: Map, latest_only: true, held: true}
   # Stepping or hierarchy mode (NAV-4, NAV-11): M, from the key list, in place of 1 and 2. It never moves you.
-  - {name: mode.toggle, label: Hierarchy mode, key: M, region: map, menu: Map, toggle: true}
+  - {name: mode.toggle, label: Hierarchy mode, region: map, menu: Map, toggle: true}
   # Zoom and step (NAV-2, NAV-13).
-  - {name: zoom.out, label: Zoom out, key: Page Up, region: map, menu: Map}
-  - {name: zoom.in, label: Zoom in, key: Page Down, region: map, menu: Map}
-  - {name: step.larger, label: Larger step, key: Shift+Page Up, region: map, menu: Map}
-  - {name: step.smaller, label: Smaller step, key: Shift+Page Down, region: map, menu: Map}
+  - {name: zoom.out, label: Zoom out, region: map, menu: Map}
+  - {name: zoom.in, label: Zoom in, region: map, menu: Map}
+  - {name: step.larger, label: Larger step, region: map, menu: Map}
+  - {name: step.smaller, label: Smaller step, region: map, menu: Map}
   # S, from the PO's note on checklist 13.6. On the map only, so letters in the Information panel
   # still go to the item starting with that letter.
-  - {name: step.link, label: Link step to zoom, key: S, region: map, menu: Map, toggle: true}
+  - {name: step.link, label: Link step to zoom, region: map, menu: Map, toggle: true}
   # Orientation and turning (NAV-3, NAV-11, NAV-12). Left and Right also turn, in the facing orientations.
-  - {name: orientation.cycle, label: "Change orientation: north-fixed, cardinal facing, free facing", key: O, region: map, menu: Map}
+  - {name: orientation.cycle, label: "Change orientation: north-fixed, cardinal facing, free facing", region: map, menu: Map}
   # Every key that goes round a list goes back with Shift (P2-T17l, the PO's note on desktop checklist 4.4).
-  - {name: orientation.previous, label: "Change orientation the other way: free facing, cardinal facing, north-fixed", key: Shift+O, region: map, menu: Map}
-  - {name: turn.left, label: Large turn left in free facing, key: Shift+Left, region: map, menu: Map}
-  - {name: turn.right, label: Large turn right in free facing, key: Shift+Right, region: map, menu: Map}
-  - {name: turn.fine_left, label: Fine turn left in free facing, key: Ctrl+Left, region: map, menu: Map}
-  - {name: turn.fine_right, label: Fine turn right in free facing, key: Ctrl+Right, region: map, menu: Map}
+  - {name: orientation.previous, label: "Change orientation the other way: free facing, cardinal facing, north-fixed", region: map, menu: Map}
+  - {name: turn.left, label: Large turn left in free facing, region: map, menu: Map}
+  - {name: turn.right, label: Large turn right in free facing, region: map, menu: Map}
+  - {name: turn.fine_left, label: Fine turn left in free facing, region: map, menu: Map}
+  - {name: turn.fine_right, label: Fine turn right in free facing, region: map, menu: Map}
   # Ctrl+B and Ctrl+G work from the map, the Information panel and Details (P2-T17k, desktop
   # checklist 10.5), so they are global; the focus comes back to where they were pressed.
-  - {name: bearing.type, label: Type a bearing, key: Ctrl+B, region: global, menu: Map}
+  - {name: bearing.type, label: Type a bearing, region: global, menu: Map}
   # The orientation beacon (SON-10): your key, from the key list.
-  - {name: beacon.toggle, label: Orientation beacon, key: B, region: map, menu: Map, toggle: true}
+  - {name: beacon.toggle, label: Orientation beacon, region: map, menu: Map, toggle: true}
   # Going to coordinates and back through the places you have been (NAV-8, NAV-10).
-  - {name: goto.coordinates, label: Go to coordinates, key: Ctrl+G, region: global, menu: Map}
-  - {name: history.back, label: Back to the previous place, key: "Alt+,", region: map, menu: Map}
-  - {name: history.forward, label: Forward to the next place, key: "Alt+.", region: map, menu: Map}
+  - {name: goto.coordinates, label: Go to coordinates, region: global, menu: Map}
+  - {name: history.back, label: Back to the previous place, region: map, menu: Map}
+  - {name: history.forward, label: Forward to the next place, region: map, menu: Map}
   # The location history: the same places as a list (NAV-10, DP158).
-  - {name: history.list, label: Location history, key: Ctrl+Shift+Space, region: global, menu: Map}
+  - {name: history.list, label: Location history, region: global, menu: Map}
   # Search (P3-T8c, SRB-1): Ctrl+F, from the map, the Information panel and Details.
-  - {name: search.open, label: Search, key: Ctrl+F, region: global, menu: Map}
+  - {name: search.open, label: Search, region: global, menu: Map}
   # The world tree (P3-T9a, SRB-3): W, on the map, so letters in the Information panel still go to the item starting with that letter.
-  - {name: tree.open, label: World tree, key: W, region: map, menu: Map}
+  - {name: tree.open, label: World tree, region: map, menu: Map}
   # Browse by category (P3-T9b, SRB-4): every feature of a kind inside the current feature.
-  - {name: browse.open, label: List every feature of a kind in the current feature, key: Ctrl+Shift+F, region: global, menu: Map}
+  - {name: browse.open, label: List every feature of a kind in the current feature, region: global, menu: Map}
   # The layers list (SCP-6, SCP-7).
-  - {name: layers.open, label: Layers, key: Ctrl+Shift+L, region: global, menu: Map}
+  - {name: layers.open, label: Layers, region: global, menu: Map}
   # Map views (P3-T23, DP198): the political and physical views and your own.
-  - {name: views.open, label: Map views, key: Ctrl+Shift+V, region: global, menu: Map}
+  - {name: views.open, label: Map views, region: global, menu: Map}
   # Themes and isolate (VIS-2): your keys, from the key list. Escape is kept for the screen reader and the browser.
-  - {name: theme.next, label: Next theme, key: T, region: map, menu: Map}
-  - {name: theme.previous, label: Previous theme, key: Shift+T, region: map, menu: Map}
-  - {name: isolate.toggle, label: Isolate the current area, key: Ctrl+I, region: map, menu: Map, toggle: true}
+  - {name: theme.next, label: Next theme, region: map, menu: Map}
+  - {name: theme.previous, label: Previous theme, region: map, menu: Map}
+  - {name: isolate.toggle, label: Isolate the current area, region: map, menu: Map, toggle: true}
   # Every setting back to a new installation's, after a yes in a message box (P2-T18h).
-  - {name: settings.reset, label: Reset all settings, key: "", region: global, menu: Map}
+  - {name: settings.reset, label: Reset all settings, region: global, menu: Map}
   # Look around (P3-T11a, SON-4): L plays the Nearby group as sound, clockwise from ahead, at most 12 items.
   # Any key stops it; Enter on the map, while an item plays, goes to that item (INF-10).
   # Enter on the map, in hierarchy mode with nothing playing, makes the current feature the one Left and Right go round (P3-T28o).
-  - {name: look.around, label: Look around, key: L, region: map, menu: Map}
-  - {name: look.go, label: Go to the item look around is playing, key: Enter, region: map, menu: Map}
+  - {name: look.around, label: Look around, region: map, menu: Map}
+  - {name: look.go, label: Go to the item look around is playing, region: map, menu: Map}
   # Where am I (LOC-1, LOC-7).
-  - {name: where.am_i, label: Where am I, key: Space, region: map, menu: Map}
-  - {name: where.coordinates, label: Coordinates, key: C, region: map, menu: Map}
-  - {name: where.heading, label: Heading, key: H, region: map, menu: Map}
-  - {name: where.visible, label: Size of the visible map, key: V, region: map, menu: Map}
+  - {name: where.am_i, label: Where am I, region: map, menu: Map}
+  - {name: where.coordinates, label: Coordinates, region: map, menu: Map}
+  - {name: where.heading, label: Heading, region: map, menu: Map}
+  - {name: where.visible, label: Size of the visible map, region: map, menu: Map}
   # Going to a region (DP106). From anywhere.
-  - {name: focus.map, label: Go to the map, key: F2, region: global, menu: Map}
-  - {name: focus.panel, label: Go to the Information panel, key: F3, region: global, menu: Map}
-  - {name: focus.details, label: Go to Details, key: F4, region: global, menu: Map}
+  - {name: focus.map, label: Go to the map, region: global, menu: Map}
+  - {name: focus.panel, label: Go to the Information panel, region: global, menu: Map}
+  - {name: focus.details, label: Go to Details, region: global, menu: Map}
   # The Information panel's groups (INF-10, DP109): one command for each group in panel_groups,
-  # below, named panel.<group>, with Shift+1 for the first, Shift+2 for the second, and so on,
-  # for as many groups as there are (the PO's answer, 8 November 2026). "{group}" is the group's name.
+  # below, named panel.<group>, with Shift+1 for the first, Shift+2 for the second, and so on, in the
+  # key maps (the PO's answer, 8 November 2026). "{group}" is the group's name.
   # Open the Wikipedia article of the feature Details is about, in the browser (P3-T5b, INF-1). Ctrl+W
   # and Ctrl+Shift+W close the browser's tab or window and a page cannot stop them, so it is W, in Details.
-  - {name: details.wikipedia, label: Open the Wikipedia article, key: W, region: details, menu: ""}
-  # The same for the current feature, from anywhere (P3-T28l, INF-1). Ctrl+Alt+W on the desktop. On Windows
-  # AltGr is Ctrl+Alt, and on Czech, Slovak, Hungarian, Slovene and Croatian keyboards AltGr+W types "|", so
-  # the browser's key is Alt+Shift+W.
-  - {name: wikipedia.open, label: Open the current feature's Wikipedia article, key: Ctrl+Alt+W, region: global, menu: Map, platforms: [desktop]}
-  - {name: wikipedia.open, label: Open the current feature's Wikipedia article, key: Alt+Shift+W, region: global, menu: Map, platforms: [web]}
+  - {name: details.wikipedia, label: Open the Wikipedia article, region: details, menu: ""}
+  # The same for the current feature, from anywhere (P3-T28l, INF-1). Ctrl+Alt+W on the Windows desktop,
+  # Alt+Shift+W in the browser: see the key maps.
+  - {name: wikipedia.open, label: Open the current feature's Wikipedia article, region: global, menu: Map}
   # Enter on the Wikipedia article line does the same (P3-T28g); the shell sends the line the cursor is on.
-  - {name: details.open_line, label: Open the article on this line, key: Enter, region: details, menu: ""}
-  - {name: panel.group, label: "Go to {group}", key: "Shift+{number}", region: global, menu: Map, each_panel_group: true}
+  - {name: details.open_line, label: Open the article on this line, region: details, menu: ""}
+  - {name: panel.group, label: "Go to {group}", region: global, menu: Map, each_panel_group: true}
   # Hear its direction (DP143, SON-3): your key, from the key list. On an item of Nearby or Passed over.
-  - {name: panel.hear, label: Hear its direction, key: Space, region: panel, menu: ""}
+  - {name: panel.hear, label: Hear its direction, region: panel, menu: ""}
   # Measure from where you are to the focused item, or the current feature (INF-3, P3-T7a). DP187: Shift+M.
-  - {name: measure.to, label: Measure to the item, key: Shift+M, region: global, menu: Map}
+  - {name: measure.to, label: Measure to the item, region: global, menu: Map}
   # Enter on an item goes there: to a point, or to an area's centre (P2-T17k, INF-10, DP155).
-  - {name: panel.go, label: Go there, key: Enter, region: panel, menu: ""}
+  - {name: panel.go, label: Go there, region: panel, menu: ""}
   # The current layer (P3-T24b, DP202): the item's layer, followed as you step; on the smallest area, back to it.
-  - {name: panel.current_layer, label: Make its layer the current layer, key: Shift+Enter, region: panel, menu: ""}
+  - {name: panel.current_layer, label: Make its layer the current layer, region: panel, menu: ""}
   # Sort the group the focus is in: next order, and the previous (P3-T4d, INF-10; the key list).
-  - {name: panel.sort, label: Sort the group, key: Ctrl+S, region: panel, menu: ""}
-  - {name: panel.sort_back, label: Sort the group the other way round, key: Ctrl+Shift+S, region: panel, menu: ""}
+  - {name: panel.sort, label: Sort the group, region: panel, menu: ""}
+  - {name: panel.sort_back, label: Sort the group the other way round, region: panel, menu: ""}
   # Ctrl+Enter on an item: a bookmark. They come in Phase 4 (P3-T4e, DP170).
-  - {name: panel.bookmark, label: Bookmark the item, key: Ctrl+Enter, region: panel, menu: ""}
-  - {name: app.exit, label: Exit, key: "", region: global, menu: Map, platforms: [desktop]}
+  - {name: panel.bookmark, label: Bookmark the item, region: panel, menu: ""}
+  - {name: app.exit, label: Exit, region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
-  - {name: speech.repeat, label: Repeat the last announcement, key: Shift+Space, region: global, menu: Speech}
-  - {name: sound.mute, label: Mute all sound, key: Ctrl+M, region: global, menu: Speech, toggle: true}
+  - {name: speech.repeat, label: Repeat the last announcement, region: global, menu: Speech}
+  - {name: sound.mute, label: Mute all sound, region: global, menu: Speech, toggle: true}
   # The verbosity presets (ACC-5, DP144): your key, from the key list.
-  - {name: verbosity.next, label: Next verbosity preset, key: A, region: map, menu: Speech}
-  - {name: verbosity.previous, label: Previous verbosity preset, key: Shift+A, region: map, menu: Speech}
-  - {name: speech.braille_test, label: Send a Braille-only message, key: "", region: global, menu: Speech}
+  - {name: verbosity.next, label: Next verbosity preset, region: map, menu: Speech}
+  - {name: verbosity.previous, label: Previous verbosity preset, region: map, menu: Speech}
+  - {name: speech.braille_test, label: Send a Braille-only message, region: global, menu: Speech}
   # Settings (PLT-5, ACC-3).
-  - {name: settings.open, label: Settings, key: "Ctrl+,", region: global, menu: Settings}
+  - {name: settings.open, label: Settings, region: global, menu: Settings}
   # Help (ACC-3, DAT-9, DEL-4).
-  - {name: help.keys, label: Keys for this region, key: F1, region: global, menu: Help}
-  - {name: help.describer, label: Key describer, key: Shift+F1, region: global, menu: Help, toggle: true}
-  - {name: help.about, label: About TobyMap, key: "", region: global, menu: Help}
-  - {name: help.about_data, label: About the data, key: "", region: global, menu: Help}
-  - {name: help.earcons, label: The sounds, key: "", region: global, menu: Help}
-  - {name: diagnostics.copy, label: Copy diagnostics, key: "", region: global, menu: Help}
-  - {name: diagnostics.timing, label: Drawing speed, key: "", region: global, menu: Help}
+  - {name: help.keys, label: Keys for this region, region: global, menu: Help}
+  - {name: help.describer, label: Key describer, region: global, menu: Help, toggle: true}
+  - {name: help.about, label: About TobyMap, region: global, menu: Help}
+  - {name: help.about_data, label: About the data, region: global, menu: Help}
+  - {name: help.earcons, label: The sounds, region: global, menu: Help}
+  - {name: diagnostics.copy, label: Copy diagnostics, region: global, menu: Help}
+  - {name: diagnostics.timing, label: Drawing speed, region: global, menu: Help}
   # Tab does not reach the menu bar (DP93). The desktop uses Alt; browsers keep
-  # Alt for themselves, so the web version has this key. It focuses the first
-  # menu, Map, without opening it.
-  - {name: focus.menu, label: Go to the menu bar, key: Ctrl+Alt+M, region: global, menu: "", platforms: [web]}
+  # Alt for themselves, so the web version has a key for this. It focuses the
+  # first menu, Map, without opening it.
+  - {name: focus.menu, label: Go to the menu bar, region: global, menu: "", platforms: [web]}
   # Sent by the shells for the mouse, touch and the lists, so not in a menu and with no key.
-  - {name: map.click, label: Move the location to a clicked point, key: "", region: map, menu: "", pointer: true}
-  - {name: map.zoom_to, label: Zoom with the wheel or a pinch, key: "", region: map, menu: "", pointer: true}
-  - {name: map.drag, label: Turn the globe by dragging, key: "", region: map, menu: "", pointer: true}
-  - {name: map.hover, label: Describe the point under the mouse, key: "", region: map, menu: "", pointer: true}
-  - {name: panel.select, label: Select an item in the Information panel, key: "", region: global, menu: "", pointer: true}
-  - {name: keys.remap, label: Change the key of a command, key: "", region: global, menu: "", pointer: true}
-  - {name: sound.preview, label: Play a sound from the list of sounds, key: "", region: global, menu: "", pointer: true}
-  - {name: settings.set, label: Change a setting, key: "", region: global, menu: "", pointer: true}
-  - {name: layers.set, label: Change a layer, key: "", region: global, menu: "", pointer: true}
-  - {name: layers.check, label: Check a layer's zoom range, key: "", region: global, menu: "", pointer: true}
-  - {name: bearing.set, label: Face the typed bearing, key: "", region: map, menu: "", pointer: true}
-  - {name: goto.set, label: Go to the typed coordinates, key: "", region: map, menu: "", pointer: true}
-  - {name: history.go, label: Go to a place in the location history, key: "", region: global, menu: "", pointer: true}
-  - {name: hierarchy.choose, label: Choose from the ambiguous up or a down list in hierarchy mode, key: "", region: global, menu: "", pointer: true}
-  - {name: search.query, label: Search for what was typed, key: "", region: global, menu: "", pointer: true}
-  - {name: search.go, label: Go to a search result, key: "", region: global, menu: "", pointer: true}
-  - {name: tree.children, label: Open a branch of the world tree, key: "", region: global, menu: "", pointer: true}
-  - {name: tree.go, label: Go to an item of the world tree, key: "", region: global, menu: "", pointer: true}
-  - {name: tree.at, label: The item focused in the world tree, kept to open there again, key: "", region: global, menu: "", pointer: true}
-  - {name: browse.choose, label: Choose a kind of feature to list, key: "", region: global, menu: "", pointer: true}
+  - {name: map.click, label: Move the location to a clicked point, region: map, menu: "", pointer: true}
+  - {name: map.zoom_to, label: Zoom with the wheel or a pinch, region: map, menu: "", pointer: true}
+  - {name: map.drag, label: Turn the globe by dragging, region: map, menu: "", pointer: true}
+  - {name: map.hover, label: Describe the point under the mouse, region: map, menu: "", pointer: true}
+  - {name: panel.select, label: Select an item in the Information panel, region: global, menu: "", pointer: true}
+  - {name: keys.remap, label: Change the key of a command, region: global, menu: "", pointer: true}
+  - {name: sound.preview, label: Play a sound from the list of sounds, region: global, menu: "", pointer: true}
+  - {name: settings.set, label: Change a setting, region: global, menu: "", pointer: true}
+  - {name: layers.set, label: Change a layer, region: global, menu: "", pointer: true}
+  - {name: layers.check, label: Check a layer's zoom range, region: global, menu: "", pointer: true}
+  - {name: bearing.set, label: Face the typed bearing, region: map, menu: "", pointer: true}
+  - {name: goto.set, label: Go to the typed coordinates, region: map, menu: "", pointer: true}
+  - {name: history.go, label: Go to a place in the location history, region: global, menu: "", pointer: true}
+  - {name: hierarchy.choose, label: Choose from the ambiguous up or a down list in hierarchy mode, region: global, menu: "", pointer: true}
+  - {name: search.query, label: Search for what was typed, region: global, menu: "", pointer: true}
+  - {name: search.go, label: Go to a search result, region: global, menu: "", pointer: true}
+  - {name: tree.children, label: Open a branch of the world tree, region: global, menu: "", pointer: true}
+  - {name: tree.go, label: Go to an item of the world tree, region: global, menu: "", pointer: true}
+  - {name: tree.at, label: The item focused in the world tree, kept to open there again, region: global, menu: "", pointer: true}
+  - {name: browse.choose, label: Choose a kind of feature to list, region: global, menu: "", pointer: true}
   # The query builder (P3-T10a, P3-T10b, INF-9): Q opens the form; query.run is sent by its OK button.
-  - {name: query.open, label: Query builder, key: Q, region: global, menu: Map}
-  - {name: query.run, label: Run a query, key: "", region: global, menu: "", pointer: true}
-  - {name: query.back, label: Back to the query builder, key: "", region: global, menu: "", pointer: true}
-  - {name: settings.reset_confirm, label: Reset all settings once asked, key: "", region: global, menu: "", pointer: true}
-  - {name: views.add, label: Add the layers as a view with the typed name, key: "", region: global, menu: "", pointer: true}
-  - {name: views.rename, label: Rename the chosen view to the typed name, key: "", region: global, menu: "", pointer: true}
-  - {name: views.delete, label: Delete the chosen view, key: "", region: global, menu: "", pointer: true}
-  - {name: views.apply, label: Keep the map views changes and use the chosen view, key: "", region: global, menu: "", pointer: true}
+  - {name: query.open, label: Query builder, region: global, menu: Map}
+  - {name: query.run, label: Run a query, region: global, menu: "", pointer: true}
+  - {name: query.back, label: Back to the query builder, region: global, menu: "", pointer: true}
+  - {name: settings.reset_confirm, label: Reset all settings once asked, region: global, menu: "", pointer: true}
+  - {name: views.add, label: Add the layers as a view with the typed name, region: global, menu: "", pointer: true}
+  - {name: views.rename, label: Rename the chosen view to the typed name, region: global, menu: "", pointer: true}
+  - {name: views.delete, label: Delete the chosen view, region: global, menu: "", pointer: true}
+  - {name: views.apply, label: Keep the map views changes and use the chosen view, region: global, menu: "", pointer: true}

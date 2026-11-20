@@ -1,0 +1,12 @@
+# The Windows browser key map (P3-T31a): the web version on Windows. Only the keys that differ
+# from the Windows desktop key map. See windows-desktop.yaml for the fields.
+system: windows
+version: browser
+based_on: windows-desktop
+keys:
+  # Ctrl+W and Ctrl+Shift+W close the browser's tab or window and a page cannot stop them, so
+  # it is not Ctrl+Alt+W either: on Czech, Slovak, Hungarian, Slovene and Croatian keyboards
+  # AltGr+W types "|" (P3-T28l).
+  wikipedia.open: Alt+Shift+W
+  # Tab does not reach the menu bar (DP93), and browsers keep Alt for their own menus.
+  focus.menu: Ctrl+Alt+M

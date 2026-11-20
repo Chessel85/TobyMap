@@ -253,6 +253,20 @@ key_names:
   "*": Star
   "&": Ampersand
 
+# On a Mac the modifiers are said and shown by the Mac's own names (P3-T31a): "Shift+Command+F".
+mac_modifiers:
+  Ctrl: Control
+  Alt: Option
+  Cmd: Command
+
+# The key maps' names, for Settings (P3-T31a; the glossary's words).
+keymaps:
+  windows-desktop: Windows desktop
+  mac-desktop: Mac desktop
+  windows-browser: Windows browser
+  mac-browser: Mac browser
+  alternative: Alternative
+
 describer:
   started: "Key describer on. Press a key to hear what it does. Nothing is carried out. Press Shift+F1 again to leave."
   stopped: "Key describer off."

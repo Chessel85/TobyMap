@@ -1,0 +1,27 @@
+# The Mac desktop key map (P3-T31a): the desktop version on a Mac. See windows-desktop.yaml for the fields.
+#
+# Every key comes from the Windows desktop key map with Ctrl turned into Cmd: Cmd+F searches, Cmd+G goes
+# to coordinates, Cmd+Comma opens Settings, as in Apple's own applications. Only the keys that differ are
+# listed. Here a key is as pressed on a Mac: Ctrl is the Control key, Alt is Option and Cmd is Command.
+#
+# Kept clear of (chosen by Claude Code from Apple's and VoiceOver's own keys; the PO asked not to review them):
+# * VoiceOver's keys: Control with Option, and anything with both.
+# * macOS's own keys: Cmd+Q, Cmd+W, Cmd+H, Cmd+M, Cmd+Tab, Cmd+Space, Cmd+Option+W, Cmd+Option+M,
+#   Control with an arrow (Mission Control) and Control with F1 to F8 (keyboard navigation).
+# * Option with a letter or a symbol, which types a character on a Mac (Option+W is a sum sign, Option+Comma
+#   is "less than or equal to"), so the key could not be told by the letter it types.
+system: mac
+version: desktop
+based_on: windows-desktop
+keys:
+  # Fine turns on Option with Left and Right, the Mac's word-by-word keys, in both Mac versions; Cmd+Left
+  # and Cmd+Right are Back and Forward in Mac browsers.
+  turn.fine_left: Alt+Left
+  turn.fine_right: Alt+Right
+  # Back and forward through the places you have been: Option+Comma types a character on a Mac.
+  history.back: Shift+Cmd+Left
+  history.forward: Shift+Cmd+Right
+  # Cmd+Option+W closes every window on a Mac, and Option+W types a character.
+  wikipedia.open: Ctrl+Shift+W
+  # Cmd+M minimises the window on a Mac: Control+M, the Windows key's own letter.
+  sound.mute: Ctrl+M

@@ -28,7 +28,7 @@ def face(s, orientation, heading):
 
 def test_b_switches_the_beacon_on_and_off_and_says_which(session):
     command = registry.by_name("beacon.toggle")
-    assert command.key == "B" and command.region == "map" and command.toggle
+    assert registry.default_key(command.name) == "B" and command.region == "map" and command.toggle
     r = session.press("B")
     assert spoken(r) == ["Beacon on."] and session.settings["beacon_on"]
     assert r.settings_changed and r.beacon["on"] and r.beacon["placed"] is not None

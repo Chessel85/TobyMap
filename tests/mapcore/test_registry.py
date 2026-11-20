@@ -5,6 +5,7 @@ import pytest
 import yaml
 from pathlib import Path
 
+from mapcore.commands import keys as keymaps
 from mapcore.commands import registry
 from mapcore.session import MapSession
 
@@ -20,8 +21,19 @@ def session(test_pack):
 
 def test_every_command_has_a_key_or_a_menu_entry():
     # Pointer commands come from the mouse, touch or a list, which have keyboard routes of their own.
-    for cmd in registry.load():
-        assert cmd.key or cmd.menu or cmd.pointer, cmd.name
+    # Checked in every key map, for each system and version (P3-T31a).
+    for name in keymaps.KEYMAPS:
+        for system in keymaps.SYSTEMS:
+            for platform in PLATFORMS:
+                keys = keymaps.resolve(name, platform, system)
+                for cmd in registry.for_platform(platform):
+                    assert keys.get(cmd.name) or cmd.menu or cmd.pointer, (name, system, platform, cmd.name)
+
+
+def test_the_command_list_holds_no_keys():
+    """The keys are in the key maps; the command list keeps the commands, where each works and its menu."""
+    raw = yaml.safe_load(registry.REGISTRY_FILE.read_text(encoding="utf-8"))
+    assert not [c["name"] for c in raw["commands"] if "key" in c]
 
 
 def test_every_command_has_a_label_region_and_platforms():
@@ -31,35 +43,81 @@ def test_every_command_has_a_label_region_and_platforms():
         assert set(cmd.platforms) <= PLATFORMS and cmd.platforms, cmd.name
 
 
+def test_each_command_is_in_the_command_list_once():
+    names = [c.name for c in registry.load()]
+    assert len(names) == len(set(names))
+
+
+def _all_keys():
+    """Every key map's keys for each system and version: (key map, system, platform, {command: key})."""
+    for name in keymaps.KEYMAPS:
+        for system in keymaps.SYSTEMS:
+            for platform in PLATFORMS:
+                yield name, system, platform, keymaps.resolve(name, platform, system)
+
+
 def test_no_key_is_used_twice_where_it_can_clash():
-    commands = registry.load()
-    for platform in PLATFORMS:
-        mine = [c for c in commands if platform in c.platforms and c.key]
-        globals_ = {c.key for c in mine if c.region == "global"}
+    for name, system, platform, keys in _all_keys():
+        mine = [(c, keys[c.name]) for c in registry.for_platform(platform) if keys.get(c.name)]
+        globals_ = {k for c, k in mine if c.region == "global"}
         for region in REGIONS:
-            counts = Counter(c.key for c in mine if c.region == region)
-            assert all(n == 1 for n in counts.values()), (platform, region, counts)
-        for c in mine:
+            counts = Counter(k for c, k in mine if c.region == region)
+            assert all(n == 1 for n in counts.values()), (name, system, platform, region, counts)
+        for c, k in mine:
             if c.region != "global":
-                assert c.key not in globals_, c.name
+                assert k not in globals_, (name, system, platform, c.name)
 
 
 def test_keys_use_the_shared_key_names():
-    for cmd in registry.load():
-        if cmd.key:
-            assert registry.valid_key(cmd.key), cmd.key
+    for name, system, platform, keys in _all_keys():
+        for command, key in keys.items():
+            if key:
+                assert registry.valid_key(key), (name, command, key)
+    for name in keymaps.KEYMAPS:   # as written in the files too, so a Mac key map's own keys are in order
+        for command, key in keymaps.own_keys(name).items():
+            assert not key or registry.valid_key(key), (name, command, key)
+
+
+def test_every_command_in_a_key_map_is_in_the_command_list():
+    names = {c.name for c in registry.load()}
+    for name in keymaps.KEYMAPS:
+        assert set(keymaps.own_keys(name)) <= names, (name, set(keymaps.own_keys(name)) - names)
 
 
 def test_no_default_key_is_a_screen_reader_or_browser_key():
-    for cmd in registry.load():
-        for platform in cmd.platforms:
+    """The Windows key maps, and Alternative on Windows: ACC-4's list, in each version."""
+    for name in (keymaps.WINDOWS_DESKTOP, keymaps.WINDOWS_BROWSER, keymaps.ALTERNATIVE):
+        for platform in PLATFORMS:
+            keys = keymaps.resolve(name, platform, "windows")
             banned = set(FORBIDDEN["exact"]) | (set(FORBIDDEN["web_only"]) if platform == "web" else set())
-            assert cmd.key not in banned, cmd.name
-        if cmd.key:
-            parts = cmd.key.split("+")
-            assert not set(parts) & set(FORBIDDEN["no_modifier_words"]), cmd.name
-            if FORBIDDEN["digits_with_ctrl"] and parts[0] == "Ctrl" and parts[-1].isdigit():
-                pytest.fail(f"{cmd.name} uses {cmd.key}, a browser tab key")
+            for cmd in registry.for_platform(platform):
+                key = keys.get(cmd.name, "")
+                assert key not in banned, (name, cmd.name)
+                if key:
+                    parts = key.split("+")
+                    assert not set(parts) & set(FORBIDDEN["no_modifier_words"]), (name, cmd.name)
+                    if FORBIDDEN["digits_with_ctrl"] and parts[0] == "Ctrl" and parts[-1].isdigit():
+                        pytest.fail(f"{cmd.name} uses {key}, a browser tab key")
+
+
+def test_no_mac_key_is_a_macos_voiceover_or_browser_key():
+    """The Mac key maps, and Alternative on a Mac: macOS's and VoiceOver's keys, Option with a character, and
+    in the browser the browser's keys (P3-T31a)."""
+    mac = FORBIDDEN["mac"]
+    for name in (keymaps.MAC_DESKTOP, keymaps.MAC_BROWSER, keymaps.ALTERNATIVE):
+        for platform in PLATFORMS:
+            keys = keymaps.resolve(name, platform, "mac")
+            banned = set(mac["exact"]) | (set(mac["browser"]) if platform == "web" else set())
+            for cmd in registry.for_platform(platform):
+                key = keys.get(cmd.name, "")
+                if not key:
+                    continue
+                mods, base = registry.split_key(key)
+                assert key not in banned, (name, platform, cmd.name, key)
+                assert not ("Ctrl" in mods and "Alt" in mods), (name, cmd.name, key)
+                assert not ("Alt" in mods and len(base) == 1), (name, cmd.name, key)
+                if platform == "web" and "Cmd" in mods and base.isdigit():
+                    pytest.fail(f"{cmd.name} uses {key}, a browser tab key")
 
 
 def test_every_command_has_a_handler_in_the_session(session):

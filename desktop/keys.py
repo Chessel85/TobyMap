@@ -1,5 +1,11 @@
-"""Turning Qt key events into the registry's shared key names (mapcore/commands/registry.py)."""
+"""Turning Qt key events into the registry's shared key names (mapcore/commands/registry.py).
+
+On a Mac, Qt calls the Command key Control and the Control key Meta. The shared names call
+them Cmd and Ctrl, as the key maps do (P3-T31a). Option is Alt on both.
+"""
 from __future__ import annotations
+
+import sys
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
@@ -21,7 +27,15 @@ _MAC_DIGITS = {0x1D: "0", 0x12: "1", 0x13: "2", 0x14: "3", 0x15: "4", 0x17: "5",
 _MODIFIER_KEYS = {Qt.Key.Key_Control, Qt.Key.Key_Shift, Qt.Key.Key_Alt, Qt.Key.Key_Meta, Qt.Key.Key_AltGr}
 
 
-def key_name(event: QKeyEvent) -> str | None:
+def system() -> str:
+    """The system, for the core's key maps: "mac" or "windows" (Linux uses the Windows keys)."""
+    return "mac" if sys.platform == "darwin" else "windows"
+
+
+def key_name(event: QKeyEvent, mac: bool | None = None) -> str | None:
+    """The key's shared name, or None for a modifier alone or a key TobyMap does not name.
+    mac says whether Qt's modifiers are a Mac's; the system's own when not given."""
+    mac = system() == "mac" if mac is None else mac
     key = Qt.Key(event.key())
     if key in _MODIFIER_KEYS:
         return None
@@ -40,13 +54,16 @@ def key_name(event: QKeyEvent) -> str | None:
         return None
     mods = event.modifiers()
     parts = []
-    if mods & Qt.KeyboardModifier.ControlModifier:
+    # The Control key: Qt's Control on Windows, Qt's Meta on a Mac. The Windows key is not named.
+    if mods & (Qt.KeyboardModifier.MetaModifier if mac else Qt.KeyboardModifier.ControlModifier):
         parts.append("Ctrl")
     if mods & Qt.KeyboardModifier.AltModifier:
         parts.append("Alt")
     if (mods & Qt.KeyboardModifier.ShiftModifier and (len(base) > 1 or base.isalnum())) \
             or key == Qt.Key.Key_Backtab:
         parts.append("Shift")
+    if mac and mods & Qt.KeyboardModifier.ControlModifier:   # Command
+        parts.append("Cmd")
     return "+".join(parts + [base])
 
 
@@ -54,7 +71,5 @@ def _shifted_digit(event: QKeyEvent) -> str | None:
     """The number key under a shifted symbol, or None."""
     if not event.modifiers() & Qt.KeyboardModifier.ShiftModifier or Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9:
         return None
-    import sys
-
     table = _MAC_DIGITS if sys.platform == "darwin" else _WINDOWS_DIGITS if sys.platform == "win32" else {}
     return table.get(event.nativeVirtualKey())

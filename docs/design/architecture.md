@@ -123,6 +123,15 @@ Every key press, menu choice or mouse click becomes a named command, such as "st
 ### AD-3 One command registry is the source of keys, menus and help
 Each command is defined once, with its name, default key, region and menu position. The key map, the menu bar, F1 help, the key describer and the "every command has a key or menu entry" test (SCP-2) are all built from that one table.
 
+Key maps (P3-T31a). The command list, `mapcore/commands/registry.yaml`, keeps the commands, where each works and its menu. The keys are in five key maps, each a file in `mapcore/commands/keymaps/`, read when TobyMap starts: Windows desktop, Mac desktop, Windows browser, Mac browser and Alternative. `mapcore/commands/keys.py` reads them:
+
+* Windows desktop holds every key. The others are based on another key map and list only the keys that differ.
+* A Mac key map based on a Windows one turns Ctrl into Cmd in every key it takes from it, as Visual Studio Code does. Its own keys are as pressed on a Mac: Ctrl is Control, Alt is Option and Cmd is Command. The Mac keys keep clear of VoiceOver (Control with Option), macOS's own keys, Option with a character, and in the browser the browser's keys.
+* Alternative is based on the key map for your system and version, and replaces only the keys there that use Ctrl+Alt with a letter or number (AltGr on many keyboards) or a punctuation key.
+* Your keys are kept in the settings as changes on top of the chosen key map, never as a full copy, with the key map's name. The session makes the keys in use from them and sends them to the shells as before. Settings saved before key maps have no key map: the session picks the one for the system and version, and the keys changed then become your keys.
+* The shell tells the session the system, Windows or Mac. When TobyMap first starts it picks that system's key map for its version; `default_keymap` is where the keyboard layout will be taken into account later.
+* A key file is your keys with the name of the key map they are based on, as JSON. One made in the other version opens on this version's key map for the same system.
+
 ### AD-4 One feature store and one visibility rule for sight and sound
 The visual map and every list draw their features through the same layer catalogue and the same visibility rule (NAV-13). So a feature that is drawn can always be found by a query, and a layer switched off disappears from both (SCP-2, SCP-6).
 

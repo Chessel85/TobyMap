@@ -79,7 +79,22 @@ A build reads the switch before each stage. Long stages, such as building the wo
 
 The report to read afterwards is the build log, `world build log.txt`, in `tobymap\output\world`. Lines starting FAIL need a decision. The lines on overlaps, on unclaimed land and on water in no ocean are the ones that become discussion points.
 
-To prove the pack is the same every time (DMT-1), build the write stage again from its kept results and compare the two files byte for byte: `toolsuild_twice.py world`.
+To prove the pack is the same every time (DMT-1), build the write stage again from its kept results and compare the two files byte for byte: `tools\build_twice.py world`.
+
+## Correcting the data by rule
+
+When a feature's data is wrong, such as a sea with the wrong name, you can correct it with a correction rule, without editing a shape. The rules are in `mapdata\config\corrections.yaml`, whose first lines explain each kind of rule with an example. Each rule names one feature by its identifier, such as osm:r62149, gives a reason, and does one of four things:
+
+* rename: gives the feature a new name.
+* leave_out: leaves it out of the pack.
+* change: gives it another layer, or another kind, such as strait in place of bay, or both.
+* parent: sets the area it belongs to.
+
+To find a feature's identifier, use `mapdata inspect`, below, at a point inside it.
+
+The rules are applied by the corrections stage, just before the pack is written. After you change a rule, build the pack again: only the corrections, the writing and the checks run again, a few minutes even for the world pack. A rule that cannot be read, such as one with no reason, stops the build before any work, saying which rule and why.
+
+The build's summary says how many rules were applied and how many name a feature that is not in the data. Each is listed in the log, and in `corrections.txt` in the corrections stage's folder in the working folder. A rule for a feature outside a pack's area, such as a Scottish sea in a pack of France, is simply not found in that pack.
 
 ## mapdata inspect
 

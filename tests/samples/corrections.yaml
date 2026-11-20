@@ -1,0 +1,5 @@
+# The test pack's correction rules (P4-T4a): none, so the samples are as they are. The rules for the real packs are
+# in mapdata/config/corrections.yaml, whose header explains each kind of rule. The tests add their own rules in the
+# corrections stage's setting rules.
+
+rules: []

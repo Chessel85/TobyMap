@@ -56,4 +56,7 @@ stages:
   - stage: relationships
   # Each area's coast in stretches between its neighbours, with their ends (P3-T30b, INF-2). Settings: see configuration.md.
   - stage: coast-stretches
+  # The correction rules (P4-T4a, DMT-4): the test pack's own file has none; the tests add their own.
+  - stage: corrections
+    file: tests/samples/corrections.yaml
   - stage: write

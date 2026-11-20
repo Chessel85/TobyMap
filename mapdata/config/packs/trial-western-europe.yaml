@@ -179,6 +179,9 @@ stages:
   - stage: relationships
   # Each area's coast in stretches between its neighbours, with their ends (P3-T30b, INF-2). Settings: see configuration.md.
   - stage: coast-stretches
+  # The correction rules, in mapdata/config/corrections.yaml, just before the writing, so a changed rule runs only
+  # the writing and the checks again (P4-T4a, DMT-4). Settings: see configuration.md.
+  - stage: corrections
   - stage: write
     drawing_levels:
       # As the world pack's, so the sizes compare.

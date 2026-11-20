@@ -37,6 +37,8 @@ STAGE_MB = {
     "continents": (50, 3.0), "osm-layer": (50, 3.2), "osm-rivers": (50, 3.2),
     "osm-lines": (50, 3.6), "physical": (50, 3.3), "disputes": (20, 3.5),
     "enclaves": (20, 3.5), "relationships": (50, 3.8), "coast-stretches": (50, 3.8),
+    # The features record and relationships written again; the shapes are linked, not copied (P4-T4a).
+    "corrections": (50, 1.0),
     "wikidata": (20, 3.6), "checks": (10, 0.1), "write": (100, 2.2),
 }
 UNKNOWN_STAGE_MB = (100, 2.0)

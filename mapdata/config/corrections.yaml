@@ -1,0 +1,45 @@
+# The correction rules (P4-T4, DMT-4). Each rule fixes a fault in the data without editing a shape.
+#
+# The corrections stage reads this file, just before the pack is written. A changed rule runs only that stage, the
+# writing and the checks again; a changed comment runs nothing. The reference is docs/data-manager/configuration.md.
+#
+# Each rule starts with "- id:", the identifier of the feature it corrects, such as osm:r62149. `mapdata inspect`
+# gives a feature's identifier. Each rule has a reason, in plain words, and does one of four things:
+#
+# Rename a feature: give its new name. You may also give a new local name, its name in the place's own language.
+#   - id: osm:r62149
+#     rename: United Kingdom
+#     local_name: United Kingdom
+#     reason: Why the name was wrong.
+#
+# Leave a feature out of the pack. It is dropped from every other feature's relationships too.
+#   - id: osm:r123
+#     leave_out: true
+#     reason: Why it should not be in the pack.
+#
+# Change its layer, its kind (what it is called, such as bay or strait), or both. A feature can move only to a
+# layer of the same sort: areas to a layer of areas, lines to lines, places to places.
+#   - id: osm:n456
+#     change: {layer: sea-places, kind: strait}
+#     reason: Why the layer or kind was wrong.
+#
+# Set its parent: the area it belongs to, by that area's identifier. The area is put first in what the feature is
+# inside, in place of any other area of the same layer.
+#   - id: osm:r789
+#     parent: osm:r58447
+#     reason: Why the parent was wrong.
+#
+# Where two layers take a feature from one OpenStreetMap object, such as an island that is also a region, a rule may
+# add "layer:" to correct only the one in that layer.
+#
+# Every build lists each rule applied, and each rule whose feature was not found, in its log and in corrections.txt
+# in the corrections stage's folder; its summary says how many of each. A rule for a feature outside a pack's area is
+# simply not found in that pack.
+
+rules:
+  - id: ne:marine:1159115921
+    rename: Inner Seas off the West Coast of Scotland
+    reason: >-
+      Natural Earth calls this marine area the Sea of the Hebrides, but its shape is the International Hydrographic
+      Organization's Inner Seas off the West Coast of Scotland, which takes in the North Channel and Belfast Lough,
+      so Space in Belfast Lough said Sea of the Hebrides (DP221, agreed by the product owner).

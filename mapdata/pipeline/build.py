@@ -80,6 +80,8 @@ STAGES = {
                                  "mapdata.stages.coast_stretches",
                                  ("mapdata.stages.coast_stretches", "mapdata.stages.relationships", "mapdata.stages.geodesy",
                                   "mapcore.packs.coords")),
+    "corrections": StageKind("applying the correction rules", "mapdata.stages.corrections",
+                             ("mapdata.stages.corrections",)),
     "wikidata": StageKind("taking the facts of each feature from Wikidata", "mapdata.stages.wikidata",
                           ("mapdata.stages.wikidata",)),
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
@@ -285,11 +287,12 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
     for src, dst in ((built, target), (checksum_path(built), checksum_path(target))):
         if not dst.is_file() or dst.read_bytes() != src.read_bytes():
             shutil.copyfile(src, ledger.claim(dst))
-    summary(pack, target, ran, skipped, progress, log_path)
+    summary(pack, target, ran, skipped, progress, log_path, earlier.get("corrections"))
     return 0
 
 
-def summary(pack: PackSettings, target: Path, ran: list, skipped: list, progress: Progress, log_path: Path) -> None:
+def summary(pack: PackSettings, target: Path, ran: list, skipped: list, progress: Progress, log_path: Path,
+            corrections: Path | None = None) -> None:
     from mapcore.packs.pack import Pack
 
     with Pack(target, check_app=False) as p:
@@ -307,6 +310,11 @@ def summary(pack: PackSettings, target: Path, ran: list, skipped: list, progress
         # "point" is a corner on an outline in the glossary, so a point layer's features are "places".
         word = {"line": "line", "point": "place"}.get(geometry.get(layer, "area"), "area")
         progress.always(f"{layer_names.get(layer, layer)}: {count} {word}{'s' if count != 1 else ''}.")
+    if corrections is not None and (corrections / "corrections.json").is_file():   # P4-T4a, DMT-4
+        from mapdata.stages.corrections import REPORT, summary_line
+
+        counts = json.loads((corrections / "corrections.json").read_text(encoding="utf-8"))
+        progress.always(f"{summary_line(counts)} Each is listed in {corrections / REPORT}.")
     if ran:
         progress.always("Stages run: " + ", ".join(f"{k} in {duration_words(t)}" for k, t in ran) + ".")
     if skipped:

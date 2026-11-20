@@ -129,7 +129,7 @@ Older documents written before this glossary, such as architecture section 6 and
 
 * Settings file: one of the files in mapdata/config that say what a build does: sources.yaml for the sources, a layers file for each group of layers, and a pack file for each pack. docs/data-manager/configuration.md describes every setting.
 * Stage: one step of a build, such as reading the samples or writing the pack. A pack's settings file lists its stages in order.
-* Correction rule: a line in the correction rules file that renames a feature, leaves it out, changes its layer or kind, or sets its parent, so a data fault is fixed without editing a shape. Each one is listed in the quality report (DMT-4).
+* Correction rule: a rule in the correction rules file, mapdata/config/corrections.yaml, that renames a feature, leaves it out, changes its layer or kind, or sets its parent, so a data fault is fixed without editing a shape. Each names the feature by its identifier and gives a reason. The corrections stage applies them just before the pack is written, and lists each rule applied, and each whose feature was not found, in the build's log and in the quality report (DMT-4, P4-T4a).
 * Fingerprint: a long number worked out from everything a stage uses: its settings, its sources, the stage before it and its code. If the fingerprint is the same as last time, the stage's kept results are used and the stage is skipped.
 * Working folder: the folder in the data folder, tobymap\working, where stages keep their results between builds.
 * Created files list: the list, in tobymap\created files.txt, of every file mapdata has made. mapdata overwrites only files on the list, and never deletes any.

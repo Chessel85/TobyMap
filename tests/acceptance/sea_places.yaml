@@ -12,7 +12,8 @@ places:
   - {name: The English Channel south of the Isle of Wight, lat: 50.2, lon: -1.5, includes: [English Channel]}
   - {name: The English Channel at Dover, lat: 51.0, lon: 1.45, includes: [English Channel]}
   - {name: The Irish Sea, lat: 53.8, lon: -5.0, includes: [Irish Sea]}
-  - {name: The Sea of the Hebrides, lat: 56.5, lon: -6.2, includes: [Sea of the Hebrides]}
+  # Natural Earth names it the Sea of the Hebrides; a correction rule gives it the IHO's name (DP221, P4-T4b).
+  - {name: The Inner Seas off the West Coast of Scotland, lat: 56.5, lon: -6.2, includes: [Inner Seas off the West Coast of Scotland]}
   - {name: The Gulf of Lion, lat: 43.0, lon: 4.0, includes: [Gulf of Lion]}
   - {name: The Balearic Sea, lat: 40.0, lon: 2.0, includes: [Balearic Sea]}
   - {name: The Ligurian Sea, lat: 43.8, lon: 9.0, includes: [Ligurian Sea]}

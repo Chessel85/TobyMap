@@ -2,6 +2,10 @@
 
 On a Mac, Qt calls the Command key Control and the Control key Meta. The shared names call
 them Cmd and Ctrl, as the key maps do (P3-T31a). Option is Alt on both.
+
+system() is the one place the desktop version learns the system: the window gives it to the session,
+and the window and its dialogs then read Qt's modifiers by the session's system (session.system), so
+the key names and the key map in use always agree.
 """
 from __future__ import annotations
 

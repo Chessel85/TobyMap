@@ -3,6 +3,7 @@ No file dialog is opened: the tests give the dialogs their file names."""
 import json
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from desktop import dialogs
@@ -82,3 +83,67 @@ def test_a_bad_key_file_says_why_and_changes_nothing(window, tmp_path, monkeypat
     assert window.session.settings.keys == {"where.heading": "G"}
     assert dialog.keys_message.text() == "That is not a key file TobyMap can read, so your keys are not changed."
     dialog.reject()
+
+
+# On a Mac (P3-T31a): the window reads Qt's modifiers as a Mac's, by its session's system. Qt calls the
+# Command key Control and the Control key Meta. The other desktop tests use a Windows session, so their
+# Ctrl is Qt's Control on any system.
+
+@pytest.fixture
+def mac_window(qtbot, test_pack, tmp_path):
+    session = MapSession(packs=[test_pack], system="mac",
+                         saved_state={"lat": 51.2, "lon": 1.2, "zoom_m": 25000, "step_m": 25000})
+    w = MainWindow(session=session, announcer=RecordingAnnouncer(), sounds=RecordingSounds(), data_folder=tmp_path)
+    qtbot.addWidget(w)
+    w.show()
+    qtbot.waitExposed(w)
+    w.map.setFocus()
+    QApplication.processEvents()
+    yield w
+    w.close()
+
+
+COMMAND = Qt.KeyboardModifier.ControlModifier   # Qt's name for the Mac's Command key
+CONTROL = Qt.KeyboardModifier.MetaModifier      # Qt's name for the Mac's Control key
+OPTION = Qt.KeyboardModifier.AltModifier
+
+
+def test_a_new_window_tells_its_session_the_system(monkeypatch, tmp_path):
+    import desktop.window
+
+    monkeypatch.setattr(desktop.window, "system", lambda: "mac")
+    monkeypatch.setattr(desktop.window.storage, "find_packs", lambda folder: [])
+    monkeypatch.setattr(desktop.window.storage, "load", lambda folder: {})
+    assert MainWindow._new_session(type("W", (), {"data_folder": tmp_path})()).system == "mac"
+
+
+def test_command_f_opens_search_on_a_mac(mac_window, qtbot):
+    from desktop.dialogs import SearchDialog
+
+    qtbot.keyClick(mac_window.map, Qt.Key.Key_F, COMMAND)
+    QApplication.processEvents()
+    (box,) = [d for d in mac_window.findChildren(SearchDialog) if d.isVisible()]
+    box.reject()
+
+
+def test_control_f_does_not_open_search_on_a_mac(mac_window, qtbot):
+    from desktop.dialogs import SearchDialog
+
+    qtbot.keyClick(mac_window.map, Qt.Key.Key_F, CONTROL)
+    QApplication.processEvents()
+    assert not [d for d in mac_window.findChildren(SearchDialog) if d.isVisible()]
+
+
+def test_option_left_is_the_fine_turn_on_a_mac(mac_window, qtbot):
+    qtbot.keyClick(mac_window.map, Qt.Key.Key_O)   # cardinal facing
+    qtbot.keyClick(mac_window.map, Qt.Key.Key_O)   # free facing, where a fine turn turns
+    qtbot.keyClick(mac_window.map, Qt.Key.Key_Left, OPTION)
+    QApplication.processEvents()
+    assert mac_window.session.world.heading == 359.0
+    assert mac_window.announcer.texts[-1] == "Facing 359 degrees."
+
+
+def test_control_m_mutes_on_a_mac(mac_window, qtbot):
+    qtbot.keyClick(mac_window.map, Qt.Key.Key_M, CONTROL)
+    QApplication.processEvents()
+    assert mac_window.actions_by_name["sound.mute"].isChecked()

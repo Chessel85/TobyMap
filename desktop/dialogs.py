@@ -610,7 +610,7 @@ class KeyCaptureDialog(QDialog):
         if obj is self.field and event.type() == QEvent.Type.KeyPress:
             if event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab):
                 return False   # Tab still leaves the field
-            name = key_name(event)
+            name = key_name(event, mac=self.session.system == "mac")
             if name:
                 self.key = name
                 self.field.setText(self.session.key_text(name))

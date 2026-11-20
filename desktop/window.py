@@ -428,7 +428,7 @@ class MainWindow(QMainWindow):
 
     def key_pressed(self, event) -> bool:
         """Returns True when the key was ours. Keys in dialogs and other windows are never touched."""
-        name = key_name(event)
+        name = key_name(event, mac=self.session.system == "mac")
         if name is None or name in ("Tab", "Shift+Tab") and not self.session.describing:
             return False
         region = self.region_of(QApplication.focusWidget()) or "map"
@@ -456,7 +456,7 @@ class MainWindow(QMainWindow):
     def key_released(self, event) -> bool:
         if event.isAutoRepeat() or self._held_key is None:
             return False
-        key = key_name(event)
+        key = key_name(event, mac=self.session.system == "mac")
         command = self.session.command_for_key(key, "map") if key else None
         if command is not None and command.name == self._held_key:
             self.release_held()

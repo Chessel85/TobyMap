@@ -221,6 +221,12 @@ Older documents written before this glossary, such as architecture section 6 and
 * Your keys: the keys you have changed, kept as changes on top of the key map you chose, so keys added in a new version still reach you. Reset gives the key map's own keys back. Save as writes them to a key file.
 * Key file: your keys saved as a file, with the name of the key map they are based on, so it can be shared and opened in Settings on another computer, in either version (P3-T31).
 * Keyboard layout: what each key types, set in Windows or macOS, such as UK, US, German or French. Not the same as a key map.
+* Bookmark: something the user has kept, to go back to, hear and measure: a feature or a position (USR-1, from Phase 4). Bookmarks replace the pins, markers and collections of earlier documents (DP203).
+* Feature bookmark: a bookmark of a feature, such as Hampshire or the River Itchen, kept by its identifier so it still works after the packs are rebuilt (USR-2).
+* Position bookmark: a bookmark of one position on the Earth, such as where you are standing, named after the place there.
+* Bookmark list: a named, ordered list of bookmarks, such as "Places I've been on holiday" (USR-3). Called a list, not a group, because a group is a part of the Information panel. It was called a collection.
+* Measure start: what Shift+M measures from. It is where you are, unless the user has chosen another start, such as a bookmark (INF-3, from Phase 4).
+* Chain: a bookmark list measured in its order, from the first bookmark to the last through every one between (USR-4). Each stretch from one bookmark to the next is a leg.
 * Focus point: in the web version, the small invisible element at the map centre that has the keyboard focus when the map does, so a magnifier that follows the focus looks there (ACC-8).
 
 ## Planning

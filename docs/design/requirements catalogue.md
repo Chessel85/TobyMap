@@ -1,6 +1,16 @@
 # Requirements Catalogue
 
-Version 0.18, 17 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+Version 0.19, 20 November 2026. Derived from "high level requirements.md" (HLR) and the product owner's responses in "Discussion points.csv" (DP).
+
+## Changes in version 0.19
+
+These changes come from your answer to DP203, 17 November 2026, and your comments on section 8 of the Phase 3 desktop checklist, where you suggested markers M1 and M2 (task P3-T27). They are for you to approve before Phase 4 starts. The questions they raise are DP209 to DP217, each with a suggestion.
+
+* Pins, markers, bookmarks and collections become one thing: bookmarks, kept in bookmark lists you name. A bookmark is a feature or a position.
+* INF-3 now says what Shift+M does today, and adds a measure start: from Phase 4 you can measure from a bookmark, or any item, instead of from where you are.
+* USR-1 is now Bookmarks (it was Pins). USR-2 keeps feature bookmarks working when packs change. USR-3 is now Bookmark lists (they were collections). USR-4 measures between any two bookmarks, and along a list as a chain. USR-5 shares bookmark lists by file, which is also how they move between the desktop and web versions.
+* INF-8, INF-12, PLT-5, SON-10 and USR-6 say bookmarks in place of pins and collections.
+* In INF-3, INF-8 and USR-1 to USR-5, each acceptance criterion ends with "Met today" or with the phase that brings it, and a "Built" line says which task built it or will build it.
 
 ## Changes in version 0.18
 
@@ -325,6 +335,7 @@ The high level requirements document stays the product owner's own statement of 
 * Acceptance criteria:
   * After restarting, the location, heading, zoom, step size, orientation, movement mode, active layers and all settings are restored.
   * The settings file can be exported and imported.
+  * From Phase 4, bookmarks and bookmark lists are kept too (USR-1, USR-3). Reset all settings does not remove them (DP209).
 
 ---
 
@@ -765,12 +776,21 @@ The high level requirements document stays the product owner's own statement of 
   * The neighbours of Switzerland are listed as 5 countries: France, Germany, Austria, Liechtenstein and Italy, each with its shared border length.
 
 ### INF-3 Distance and bearing between things
-* Outcome: A user can get the distance and bearing from the location, or from the current feature, to any other feature. The measurement goes to the nearest point of that feature, or to its centre if the user prefers.
-* Source: HLR
-* Priority: Must. Status: Agreed.
+* Outcome: A user can get the distance and bearing to any feature or point, without moving. Shift+M measures from the measure start, which is where the user is, unless they have chosen another start, such as a bookmark. The measurement goes to the nearest point of a feature, or to its centre if the user prefers.
+* Source: HLR, DP187, DP203, Phase 3 desktop checklist section 8
+* Priority: Must. Status: Agreed for measuring from where you are. Open for the measure start (DP214, DP215).
+* Built: measuring from where you are, in Phase 3 (P3-T7). The measure start comes in Phase 4 (P4-T9).
 * Acceptance criteria:
-  * The distance from central London (51.507, -0.128) to central Paris (48.857, 2.352) is given as 344 km ± 1 km, bearing 148° ± 1°. Distances are measured along the Earth's surface (geodesic).
-  * When the location is inside an area, "distance to its border" gives the nearest point on that area's own boundary.
+  * The distance from central London (51.507, -0.128) to central Paris (48.857, 2.352) is given as 344 km ± 1 km, bearing 148° ± 1°. Distances are measured along the Earth's surface (geodesic). Met today.
+  * Shift+M on an item in the Information panel says the distance and direction from where you are to the item's nearest point, such as "São Paulo, nearest point 9,070 kilometres south-west". On the map, it measures to the current feature. You do not move. Met today.
+  * When you are inside the area measured to, it measures to that area's own border: "Obwalden, its border 3.4 kilometres south". Met today.
+  * With "Measure to" set to "The centre of the feature" in Settings, Units, it measures to the centre: "Lake Lucerne, centre", then the distance and direction. Met today.
+  * On an item that is one point, such as an end of a shared border, it measures to that point. Met today.
+  * The distance is in the user's units, and the direction in their chosen format, from north or from the way they face (ANN-5). Met today.
+  * "Measure from this" on an item or a bookmark makes it the measure start, and says so: "Measuring from Winchester". Shift+M on another item then says the distance and direction from the start to it, without moving: "Winchester to Southampton, 17 kilometres south-west" (DP214). Phase 4.
+  * "Measure from this" on the map puts the measure start back to where you are: "Measuring from where you are". The measure start is also where you are each time TobyMap starts. Phase 4.
+  * Between two features, the distance is the shortest gap between them, from the nearest point of one to the nearest point of the other; or from centre to centre, if "Measure to" says the centre. Two features that touch or overlap give "touching" in place of a distance (DP215). Phase 4.
+  * The bearing between two places is the bearing at the start, as for any distance here (geodesic). Phase 4.
 
 ### INF-4 What is inside, and what is this inside
 * Outcome: A user can find out what a feature contains, grouped by type with counts, and then list the features of each type. They can also find out which areas contain a feature.
@@ -811,7 +831,10 @@ The high level requirements document stays the product owner's own statement of 
 * Outcome: A user can relate the location or current feature to a feature that is not nearby, found by search or bookmark.
 * Source: HLR
 * Priority: Must. Status: Agreed.
-* Acceptance criteria: Choosing "distance to…" and searching for "Tokyo" gives the distance and bearing from the location, without moving.
+* Built: from a search result, in Phase 3 (P3-T8b). From a bookmark, in Phase 4 (P4-T8).
+* Acceptance criteria:
+  * Searching for "Tokyo" and pressing Shift+M on the result gives the distance and bearing from the location, without moving. Met today.
+  * Shift+M on a bookmark, however far away, does the same (USR-1). Phase 4.
 
 ### INF-9 Friendly structured queries
 * Outcome: A user can ask compound questions through a guided form, without needing to know how the data is stored. For example: "rivers that flow through Germany", or "schools within 1 km of here".
@@ -856,11 +879,12 @@ The high level requirements document stays the product owner's own statement of 
 * Acceptance criteria: At the summit of Ben Nevis, the elevation is given within the accuracy of the dataset (proposed within 50 m).
 
 ### INF-12 Distance along a line or route
-* Outcome: A user can measure the distance along a single, unambiguous line between two points, and along a chain of their own pins. This uses no shortest-path routing.
-* Source: DP16, DP17
+* Outcome: A user can measure the distance along a single, unambiguous line between two points, such as two bookmarks on the same road or river. This uses no shortest-path routing. A chain of bookmarks is measured in straight legs (USR-4).
+* Source: DP16, DP17, DP203
 * Priority: Must. Status: Agreed.
+* Built: Phase 5 (P5-T5).
 * Acceptance criteria:
-  * Marking two points on the same road and asking "distance along road" gives the length along that road.
+  * Two bookmarks on the same road, and asking "distance along road", give the length along that road.
   * If the two points are not on one continuous line, the user is told so.
 
 ---
@@ -998,9 +1022,9 @@ The high level requirements document stays the product owner's own statement of 
   * One key switches the beacon on and off.
   * Facing east, the beacon is heard to the left. Facing south, it is heard behind.
   * Within 100 km of the place it comes from the beacon fades out, and the user is told why.
-  * Until pins come, it can come from the North Pole, the South Pole, or the equator at 0 degrees east, 90 degrees east, 180 degrees or 90 degrees west (P2-T18g).
-  * The beacon can point at any pin instead, such as "home". The North Pole is the default. The target is chosen in settings or from a pin's actions.
-  * Proposed: when the beacon points at a pin, it fades out within one step of the pin and says "Arrived at home".
+  * Until bookmarks come, it can come from the North Pole, the South Pole, or the equator at 0 degrees east, 90 degrees east, 180 degrees or 90 degrees west (P2-T18g).
+  * The beacon can point at any bookmark instead, such as "home". The North Pole is the default. The target is chosen in settings or from a bookmark.
+  * Proposed: when the beacon points at a bookmark, it fades out within one step of it and says "Arrived at home".
 
 ---
 
@@ -1084,43 +1108,80 @@ The high level requirements document stays the product owner's own statement of 
 
 ## 12. Personal content
 
-### USR-1 Pins
-* Outcome: A user can drop named pins at locations and add notes to them.
-* Source: DP16
-* Priority: Must. Status: Agreed.
-* Acceptance criteria: Pins persist between sessions and appear on the visual map.
+Bookmarks replace the pins, markers and collections of earlier versions (DP203). A bookmark is a feature or a position, and bookmarks are kept in bookmark lists. The words are in the glossary.
 
-### USR-2 Feature bookmarks
-* Outcome: A user can bookmark any feature, such as a country, river or bus stop, not just a location.
-* Source: DP16
-* Priority: Must. Status: Agreed.
-* Acceptance criteria: A bookmarked feature can be jumped to and its details shown even after the data packs are updated, matched by its stable identifier.
-
-### USR-3 Collections
-* Outcome: A user can group pins and bookmarks into named, ordered collections, such as "countries I have visited" or "walk to the station".
-* Source: DP16
-* Priority: Must. Status: Agreed.
+### USR-1 Bookmarks
+* Outcome: A user can bookmark a feature, such as a country, river or railway station, or a position, such as where they are standing. A bookmark can then be gone to, heard and measured like any item in the Information panel, from wherever the user is. Bookmarks are kept between sessions.
+* Source: DP16, DP203, Phase 3 desktop checklist section 8
+* Priority: Must. Status: Open (DP209, DP210, DP211, DP213).
+* Built: Phase 4 (P4-T8). Today, Ctrl+Enter on an item says "Bookmarks come in Phase 4."
 * Acceptance criteria:
-  * Collections can be created, renamed, reordered and deleted.
-  * Each collection can be browsed as a group in the Information panel.
+  * Ctrl+Enter on an item in the Information panel bookmarks its feature at once, with no box to fill in, and says where it went: "Lake Lucerne, bookmarked in Bookmarks". On an item that is one point, such as an end of a shared border, it bookmarks that position. Phase 4.
+  * Ctrl+Enter on the map bookmarks your position, named as Space names it, such as "Near Winchester" (DP210, DP211). Phase 4.
+  * A feature bookmark is named after its feature at first. Any bookmark can be renamed, and can have a note, which Details shows. Phase 4.
+  * Bookmarking a feature that is already in the same bookmark list makes no copy, and says "Lake Lucerne is already in Bookmarks". Phase 4.
+  * Enter on a bookmark goes there, as Enter on any item does: an area is zoomed to fit, and a position keeps the zoom (NAV-8). The location history gets a place (NAV-10). Phase 4.
+  * Space on a bookmark hears its direction (SON-3), Shift+M measures to it (INF-3), and its details show in Details (INF-1). Phase 4.
+  * A bookmark can be deleted. TobyMap asks first, in a box with a Cancel button (ACC-7). Phase 4.
+  * Bookmarks are kept when TobyMap is closed, and Reset all settings does not remove them (PLT-5, DP209). Phase 4.
+  * Bookmarks are a layer, "Bookmarks", in the layers list: drawn on the visual map with their names, and switched off like any layer (SCP-6, DP213). Phase 4.
+  * The beacon can come from any bookmark (SON-10). Phase 4.
 
-### USR-4 Measure a chain of pins
-* Outcome: A user can get the distance between the first and last pin of a collection, and the total length of the path through all of them in order.
-* Source: DP16
+### USR-2 Feature bookmarks keep working
+* Outcome: A feature bookmark is kept as the feature itself, not where it was, so it keeps working when packs are rebuilt, updated or added.
+* Source: DP16, architecture 6.8
 * Priority: Must. Status: Agreed.
-* Acceptance criteria: For three pins A, B and C, both the A to C straight-line distance and the A to B to C total are reported.
+* Built: Phase 4 (P4-T8). The identifiers it relies on are in every pack today, such as osm:r62149 for the United Kingdom.
+* Acceptance criteria:
+  * A feature bookmark keeps the feature's identifier, its name, and the centre of its bounding box when it was made. Phase 4.
+  * After the world pack is rebuilt, a bookmark of Hampshire goes to Hampshire, and Details shows Hampshire, matched by its identifier. Phase 4.
+  * With a regional pack installed as well as the world pack, a bookmark made with either goes to the same feature (PCK-2). Phase 4.
+  * If no pack installed has the feature, Enter on the bookmark goes to the centre it kept, and says so: "Hampshire is not in the packs installed. Going to where it was." The bookmark is kept. Phase 4.
+
+### USR-3 Bookmark lists
+* Outcome: A user keeps bookmarks in named, ordered bookmark lists, such as "Places I've been on holiday" or "My favourite castles". A list's own order is the order a chain is measured in (USR-4). Bookmark lists replace collections.
+* Source: DP16, DP203, Phase 3 desktop checklist section 8
+* Priority: Must. Status: Open (DP212, DP213).
+* Built: Phase 4 (P4-T8).
+* Acceptance criteria:
+  * At first there is one bookmark list, called "Bookmarks". A new bookmark goes into the list used last. Phase 4.
+  * Bookmark lists can be made, renamed, moved up and down, and deleted. Deleting a list asks first, and says how many bookmarks it holds. Phase 4.
+  * A bookmark can be moved up or down its list, or to another list. Phase 4.
+  * The Information panel has a Bookmarks group, on Shift+8. Each bookmark list is a heading in it, with its count, and its bookmarks below it (INF-10, DP213). Phase 4.
+  * Each bookmark in the group says its distance and direction from where you are, as other items do. Ctrl+S sorts a list by name, distance or bearing, and also offers "list order", the list's own order, which is where it starts. Sorting never changes the list's own order. Phase 4.
+  * One dialog, from the Map menu, does everything to the lists that the panel does not, and has a Close button (ACC-7). Phase 4.
+
+### USR-4 Measuring between bookmarks
+* Outcome: A user can get the distance and bearing between any two bookmarks, and the length of a bookmark list as a chain: the total through every bookmark in order, and the straight line from the first to the last. This is your idea of markers M1 and M2, and of measuring a whole range of them.
+* Source: DP16, DP203, Phase 3 desktop checklist section 8
+* Priority: Must. Status: Open (DP214, DP215, DP216).
+* Built: Phase 4 (P4-T9).
+* Acceptance criteria:
+  * "Measure from this" on bookmark A, then Shift+M on bookmark B, says the distance and bearing from A to B, without moving (INF-3). Phase 4.
+  * For three position bookmarks A, B and C in a list, Shift+M on the list's heading says the total from A through B to C, and the straight line from A to C: "Walk to the station, 3 bookmarks, 2.4 kilometres in all, 1.9 kilometres first to last" (DP216). Phase 4.
+  * Details on a list's heading gives each leg, in list order, with its distance and bearing: "Home to the church, 800 metres north-east". Phase 4.
+  * Each leg is the shortest line over the Earth's surface (geodesic), between positions, or to and from a feature's centre (DP216). The figures agree with GeographicLib to within 1 metre. Phase 4.
+  * Distances and directions are in the user's units and chosen format (ANN-5). There is no separate setting for measuring. Phase 4.
+  * A list with fewer than two bookmarks says so: "Castles has 1 bookmark. A chain needs two." Phase 4.
+  * The length along a road or river between two bookmarks is INF-12, in Phase 5.
 
 ### USR-5 Share by file
-* Outcome: A user can export collections to a file and import a file from someone else.
-* Source: DP16
-* Priority: Should. Status: Agreed.
-* Acceptance criteria: The export is a standard GeoJSON file that opens in QGIS. Importing it back produces the same collection.
+* Outcome: A user can save bookmark lists to a file, and open a file from someone else, or from the other version. This is also how bookmarks move between the desktop and web versions, as a key file moves your keys.
+* Source: DP16, DP203
+* Priority: Should. Status: Open (DP209, DP217).
+* Built: Phase 4 (P4-T9).
+* Acceptance criteria:
+  * One bookmark list, or all of them, can be saved as a file, in a standard GeoJSON file that opens in QGIS with each bookmark at its place, under its name. Phase 4.
+  * Saving lists on the desktop and opening the file in the web version, or the other way round, gives the same lists, names, notes and order, and feature bookmarks still go to their features. Phase 4.
+  * Opening a list whose name is already used keeps both: the one opened is called "My favourite castles 2" (DP217). Phase 4.
+  * A file that is not a bookmark file is said to be so, and nothing changes. Phase 4.
+  * The desktop uses the standard Save and Open boxes. The web version saves with a download and opens with the browser's file chooser. Phase 4.
 
 ### USR-6 Tours
-* Outcome: A user can play a collection as a tour. The application drives (NAV-14) from one item to the next, pausing at each to announce it.
+* Outcome: A user can play a bookmark list as a tour. The application drives (NAV-14) from one bookmark to the next, pausing at each to announce it.
 * Source: UXReview
 * Priority: Later. Status: Proposed.
-* Acceptance criteria: Playing a collection of three pins drives to each in order and announces each one on arrival.
+* Acceptance criteria: Playing a list of three bookmarks drives to each in order and announces each one on arrival.
 
 ---
 

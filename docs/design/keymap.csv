@@ -77,6 +77,9 @@ Turn the globe by dragging,the map,No key,No key,No key,No key,None known,No pro
 Describe the point under the mouse,the map,No key,No key,No key,No key,None known,No problem known.
 Select an item in the Information panel,anywhere,No key,No key,No key,No key,None known,No problem known.
 Change the key of a command,anywhere,No key,No key,No key,No key,None known,No problem known.
+Choose a key map,anywhere,No key,No key,No key,No key,None known,No problem known.
+Reset your keys to the key map's own,anywhere,No key,No key,No key,No key,None known,No problem known.
+Use the keys of a key file,anywhere,No key,No key,No key,No key,None known,No problem known.
 Play a sound from the list of sounds,anywhere,No key,No key,No key,No key,None known,No problem known.
 Change a setting,anywhere,No key,No key,No key,No key,None known,No problem known.
 Change a layer,anywhere,No key,No key,No key,No key,None known,No problem known.

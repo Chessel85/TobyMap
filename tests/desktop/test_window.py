@@ -454,7 +454,7 @@ def test_tab_from_the_tabs_goes_straight_to_the_first_setting(window, qtbot):
     dialog = click_dialog(window, SettingsDialog)
     schema = window.session.settings_schema()
     firsts = [dialog.earcons.list if tab.get("earcons") else dialog.controls[tab["fields"][0]["id"]]
-              for tab in schema["tabs"]] + [dialog.key_list]   # the Earcons tab starts with its list (P2-T17p)
+              for tab in schema["tabs"]] + [dialog.keymap_box]   # the Earcons tab starts with its list (P2-T17p); Keys with its key map box (P3-T31b)
     assert len(firsts) == dialog.tabs.count()
     for index, first in enumerate(firsts):
         dialog.tabs.setCurrentIndex(index)

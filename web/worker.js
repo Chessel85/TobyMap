@@ -151,6 +151,7 @@ self.onmessage = async (event) => {
     else if (type === "hold") out = { result: bridge.hold(), transfer: [] };
     else if (type === "panel") out = { result: bridge.panel_open(JSON.stringify(open || [])), transfer: [] };
     else if (type === "schema") out = { result: bridge.settings_schema(), transfer: [] };
+    else if (type === "key_file") out = { result: bridge.key_file(), transfer: [] };
     else if (type === "key_text") out = { result: bridge.key_text(key), transfer: [] };
     else if (type === "earcon_failed") out = finish(bridge.earcon_failed(earcon, width, height));
     else if (type === "voice_problem") out = finish(bridge.voice_problem(problem, width, height));

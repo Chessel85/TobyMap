@@ -43,6 +43,13 @@ ui:
   no_key: no key
   export: Export settings
   import: Import settings
+  # Keys tab of Settings: key maps and key files (P3-T31b)
+  keymap_label: Key map
+  keys_save: Save keys as
+  keys_open: Open key file
+  keys_reset: Reset keys
+  key_files: "Key files (*.json)"
+  key_file_name: tobymap-keys.json
   # Your own sound file for an earcon, in the Earcons tab of Settings (P2-T8, SON-8)
   choose_file: Browse
   use_default: Use the default
@@ -228,6 +235,10 @@ keys:
   invalid: "{key} is not a key TobyMap can use."
   changed: "{label} is now {key}."
   cleared: "{label} has no key now."
+  keymap_chosen: "Key map: {name}."
+  reset_done: "Your keys are reset. The keys are those of the {name} key map."
+  opened: "Key file opened. The key map is {name}."
+  bad_file: "That is not a key file TobyMap can read, so your keys are not changed."
 
 # Keys that are a symbol are said as a word, because a screen reader may not
 # say punctuation (PO feedback on checklist 2, second pass): "Ctrl+Comma". A

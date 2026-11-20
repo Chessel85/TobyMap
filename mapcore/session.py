@@ -368,6 +368,9 @@ class MapSession:
             "layers.check": self._layers_check,
             "layers.set": self._layers_set,
             "keys.remap": self._remap,
+            "keys.keymap": self._choose_keymap,
+            "keys.reset": self._reset_your_keys,
+            "keys.open": self._open_keys,
             "help.keys": self._help_keys,
             "help.describer": self._describer,
             "help.about": self._about,
@@ -2254,7 +2257,7 @@ class MapSession:
     def settings_schema(self) -> dict:
         """The settings dialog: its tabs and fields, with the current values (P1-T10)."""
         return {"tabs": settings_mod.schema()["tabs"], "values": dict(self.settings.values),
-                "keys": self.key_table()}
+                "keys": self.key_table(), "keymaps": self.keymap_choices()}
 
     def key_table(self) -> list[dict]:
         """Every command with its key now and its default, for the Keys tab (ACC-3)."""
@@ -3684,6 +3687,28 @@ class MapSession:
         label = registry.by_name(command).label
         return Response(settings_changed=True).speak(
             say("keys.changed", label=label, key=self.key_text(key)) if key else say("keys.cleared", label=label), ASSERTIVE)
+
+    def _keymap_name(self) -> str:
+        return templates()["keymaps"][self.settings.keymap]
+
+    def _choose_keymap(self, keymap: str = "", **_a) -> Response:
+        """Settings, Keys: another key map (P3-T31b). Your keys stay on top of it."""
+        if not self.choose_keymap(keymap):
+            return Response().speak(say("settings.bad_value"), ASSERTIVE)
+        return Response(settings_changed=True).speak(say("keys.keymap_chosen", name=self._keymap_name()), ASSERTIVE)
+
+    def _reset_your_keys(self, **_a) -> Response:
+        """Settings, Keys, Reset keys: the chosen key map's own keys (P3-T31b)."""
+        self.reset_keys()
+        return Response(settings_changed=True).speak(say("keys.reset_done", name=self._keymap_name()), ASSERTIVE)
+
+    def _open_keys(self, text: str = "", **_a) -> Response:
+        """Settings, Keys, Open key file: a bad file says why and changes nothing (P3-T31b)."""
+        try:
+            self.open_key_file(text)
+        except ValueError:
+            return Response().speak(say("keys.bad_file"), ASSERTIVE)
+        return Response(settings_changed=True).speak(say("keys.opened", name=self._keymap_name()), ASSERTIVE)
 
     def _help_keys(self, region: str = "map", **_a) -> Response:
         """F1: the commands for the focused region, each with its key (ACC-3)."""

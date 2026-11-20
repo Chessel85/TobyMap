@@ -614,3 +614,16 @@ def test_the_start_option_overrides_the_saved_place_but_keeps_the_zoom(test_pack
     assert s.world.zoom_m == 25000
     ignored = MapSession(packs=[test_pack], saved_state=saved, start_at="nowhere")
     assert (ignored.world.lat, ignored.world.lon) == pytest.approx((51.2, 1.2))
+
+
+def test_the_key_map_and_key_file_wording_is_approved():
+    """The approved wording of Settings, Keys: key maps and key files (P3-T31b)."""
+    from mapcore.describe import say
+    words = say("ui")
+    assert (words["keymap_label"], words["keys_save"], words["keys_open"], words["keys_reset"]) \
+        == ("Key map", "Save keys as", "Open key file", "Reset keys")
+    assert words["key_files"] == "Key files (*.json)"
+    assert say("keys.keymap_chosen", name="Alternative") == "Key map: Alternative."
+    assert say("keys.reset_done", name="Alternative") == "Your keys are reset. The keys are those of the Alternative key map."
+    assert say("keys.opened", name="Alternative") == "Key file opened. The key map is Alternative."
+    assert say("keys.bad_file") == "That is not a key file TobyMap can read, so your keys are not changed."

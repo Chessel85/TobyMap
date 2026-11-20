@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
                                QDoubleSpinBox, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox, QTabWidget,
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
@@ -1071,12 +1071,33 @@ class SettingsDialog(QDialog):
             self.tabs.addTab(scroll, tab["label"])
         self.keys_page = QWidget()
         key_layout = QVBoxLayout(self.keys_page)
+        self.keymap_box = QComboBox()   # a key map applies at once, as a changed key does (P3-T31b)
+        self.keymap_box.setAccessibleName(words["keymap_label"])
+        for k in session.keymap_choices():
+            self.keymap_box.addItem(k["label"], k["id"])
+            if k["chosen"]:
+                self.keymap_box.setCurrentIndex(self.keymap_box.count() - 1)
+        self.keymap_box.currentIndexChanged.connect(self._choose_keymap)
+        key_layout.addWidget(QLabel(words["keymap_label"]))
+        key_layout.addWidget(self.keymap_box)
         self.key_list = QListWidget()
         self.key_list.setAccessibleName(words["keys_tab"])
         key_layout.addWidget(self.key_list)
         self.change_key = QPushButton(words["key_change"])
         self.change_key.clicked.connect(self._change_key)
         key_layout.addWidget(self.change_key)
+        self.save_keys = QPushButton(words["keys_save"])
+        self.save_keys.clicked.connect(self._save_keys)
+        self.open_keys = QPushButton(words["keys_open"])
+        self.open_keys.clicked.connect(self._open_keys)
+        self.reset_keys = QPushButton(words["keys_reset"])
+        self.reset_keys.clicked.connect(self._reset_keys)
+        for b in (self.save_keys, self.open_keys, self.reset_keys):
+            key_layout.addWidget(b)
+        self.keys_message = QLabel("")
+        self.keys_message.setAccessibleName(words["key_message"])
+        self.keys_message.setWordWrap(True)
+        key_layout.addWidget(self.keys_message)
         self._commands: list[dict] = []
         self._fill_keys()
         self.tabs.addTab(self.keys_page, words["keys_tab"])
@@ -1148,6 +1169,49 @@ class SettingsDialog(QDialog):
             key = c["key_text"] or self.words["no_key"]
             self.key_list.addItem(f"{c['label']}: {key}")
         self.key_list.setCurrentRow(keep if keep is not None else 0)
+
+    def _keys_ran(self, response) -> None:
+        """A key map, key file or reset command ran: its words are shown and spoken, the list is made again."""
+        self.responses.append(response)
+        text = " ".join(a["text"] for a in response.announcements)
+        self.keys_message.setText(text)
+        self.keys_message.setAccessibleDescription(text)
+        announcer = getattr(self.parent(), "announcer", None)
+        if text and announcer is not None:
+            announcer.speak(text, "assertive")
+        self._fill_keys(self.key_list.currentRow())
+
+    def _show_chosen_keymap(self) -> None:
+        self.keymap_box.blockSignals(True)
+        for k in self.session.keymap_choices():
+            if k["chosen"]:
+                self.keymap_box.setCurrentIndex(self.keymap_box.findData(k["id"]))
+        self.keymap_box.blockSignals(False)
+
+    def _choose_keymap(self, _index=None):
+        self._keys_ran(self.session.run("keys.keymap", keymap=self.keymap_box.currentData()))
+
+    def _reset_keys(self):
+        self._keys_ran(self.session.run("keys.reset"))
+
+    def _save_keys(self):
+        name, _ = QFileDialog.getSaveFileName(self, self.words["keys_save"], self.words["key_file_name"],
+                                              self.words["key_files"])
+        if name:
+            with open(name, "w", encoding="utf-8") as f:
+                f.write(self.session.key_file())
+
+    def _open_keys(self):
+        name, _ = QFileDialog.getOpenFileName(self, self.words["keys_open"], "", self.words["key_files"])
+        if not name:
+            return
+        try:
+            with open(name, encoding="utf-8") as f:
+                text = f.read()
+        except (OSError, UnicodeDecodeError):
+            text = ""   # not readable: the core says it is not a key file
+        self._keys_ran(self.session.run("keys.open", text=text))
+        self._show_chosen_keymap()
 
     def _change_key(self):
         row = self.key_list.currentRow()

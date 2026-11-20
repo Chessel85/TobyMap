@@ -409,6 +409,30 @@ def test_changing_a_key_warns_when_it_is_taken(app):
     app.wait_for_function("!document.getElementById('settings').open")
 
 
+def test_settings_keys_choose_a_key_map_open_a_key_file_and_reset(app):
+    """P3-T31b: the Keys tab has a key map box, Save keys as, Open key file and Reset keys. Written without
+    being run on the laptop (a world build had the memory); continuous integration runs it."""
+    app.keyboard.press("Control+,")
+    app.wait_for_function("document.getElementById('settings').open")
+    app.click("#settings-tab-keys")
+    assert app.locator("#settings-keymap option:checked").text_content() == "Windows browser"
+    app.select_option("#settings-keymap", value="alternative")
+    app.wait_for_function("document.getElementById('settings-keys-message').textContent.length > 0")
+    assert app.text_content("#settings-keys-message") == "Key map: Alternative."
+    app.click("#settings-keys-reset")
+    app.wait_for_function("document.getElementById('settings-keys-message').textContent.startsWith('Your keys are reset.')")
+    app.set_input_files("#settings-keys-open", files=[{"name": "bad.json", "mimeType": "application/json",
+                                                       "buffer": b"not a key file"}])
+    app.wait_for_function("document.getElementById('settings-keys-message').textContent.startsWith('That is not a key file')")
+    assert app.text_content("#settings-keys-message") ==         "That is not a key file TobyMap can read, so your keys are not changed."
+    assert app.locator("#settings-keymap option:checked").text_content() == "Alternative"
+    with app.expect_download() as download:
+        app.click("#settings-keys-save")
+    assert download.value.suggested_filename == "tobymap-keys.json"
+    app.click("#settings-cancel")
+    app.wait_for_function("!document.getElementById('settings').open")
+
+
 def test_the_sounds_in_help_can_be_played(app):
     """DP134: Help, The sounds is one list; Enter, Space or Play plays the chosen sound (web checklist 9)."""
     app.evaluate("window.tobymap.earcons.length = 0")

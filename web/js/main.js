@@ -1326,7 +1326,64 @@ async function openSettings() {
     keyList.focus();
   };
   keyList.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); changeKey(); } });
-  keys.append(keyList, document.createElement("br"), button(words.key_change, changeKey, "settings-change-key"));
+  // Key maps and key files (P3-T31b). A key map applies at once, as a changed key does; the core says
+  // what happened, and a bad key file changes nothing. The list is made again from the core's.
+  const keymapLabel = document.createElement("label");
+  const keymapBox = document.createElement("select");
+  keymapBox.id = "settings-keymap";
+  const showKeymaps = () => {
+    keymapBox.textContent = "";
+    for (const k of schema.keymaps) {
+      const o = document.createElement("option");
+      o.value = k.id;
+      o.textContent = k.label;
+      o.selected = k.chosen;
+      keymapBox.appendChild(o);
+    }
+  };
+  showKeymaps();
+  keymapLabel.append(words.keymap_label + " ", keymapBox);
+  const keysMessage = document.createElement("p");
+  keysMessage.id = "settings-keys-message";
+  keysMessage.setAttribute("role", "status");
+  const keysRan = async (name, args) => {
+    const { width, height } = mapSize();
+    const r = await client.send({ type: "run", commands: [[name, args]], width, height });
+    handle(r);
+    const said = r.response.announcements.map((a) => a.text).join(" ");
+    keysMessage.textContent = said;   // shown, and spoken by handle
+    const fresh = await client.send({ type: "schema" });
+    schema.keys = fresh.keys;
+    schema.keymaps = fresh.keymaps;
+    showKeymaps();
+    fillKeys();
+  };
+  keymapBox.addEventListener("change", () => keysRan("keys.keymap", { keymap: keymapBox.value }));
+  const saveKeys = async () => {
+    const text = await client.send({ type: "key_file" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    a.download = words.key_file_name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const keyFile = document.createElement("input");
+  keyFile.type = "file";
+  keyFile.id = "settings-keys-open";
+  keyFile.accept = "application/json,.json";
+  keyFile.setAttribute("aria-label", words.keys_open);
+  keyFile.addEventListener("change", async () => {
+    const f = keyFile.files[0];
+    if (!f) return;
+    let text = "";
+    try { text = await f.text(); } catch (e) { /* unreadable: the core says it is not a key file */ }
+    keyFile.value = "";
+    await keysRan("keys.open", { text });
+  });
+  keys.append(keymapLabel, document.createElement("br"), keyList, document.createElement("br"),
+    button(words.key_change, changeKey, "settings-change-key"),
+    button(words.keys_save, saveKeys, "settings-keys-save"), keyFile,
+    button(words.keys_reset, () => keysRan("keys.reset", {}), "settings-keys-reset"), keysMessage);
   choose(0);
   const bar = document.createElement("div");
   bar.appendChild(button(words.ok, async () => {

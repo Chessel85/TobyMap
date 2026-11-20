@@ -282,3 +282,43 @@ def test_a_file_that_is_not_a_key_file_changes_nothing(make, text):
 def test_read_key_file_round_trip():
     text = keymaps.key_file_text("mac-browser", {"zoom.in": "Z", "where.heading": ""})
     assert keymaps.read_key_file(text) == ("mac-browser", {"where.heading": "", "zoom.in": "Z"})
+
+
+# Settings, Keys: the commands the shells use (P3-T31b) ---------------------------------------------
+
+def test_the_settings_schema_lists_the_key_maps_with_the_chosen_one(make):
+    s = make()
+    choices = s.settings_schema()["keymaps"]
+    assert choices == s.keymap_choices()
+    assert [k["id"] for k in choices if k["chosen"]] == ["windows-desktop"]
+
+
+def test_choosing_a_key_map_is_a_command_that_says_its_name(make):
+    s = make()
+    s.run("keys.remap", command="where.heading", key="G")
+    r = s.run("keys.keymap", keymap="alternative")
+    assert r.settings_changed and r.announcements[0]["text"] == "Key map: Alternative."
+    assert s.settings.keymap == "alternative" and s.settings.keys == {"where.heading": "G"}
+    bad = s.run("keys.keymap", keymap="nonsense")
+    assert not bad.settings_changed and s.settings.keymap == "alternative"
+
+
+def test_reset_keys_gives_back_the_key_maps_own_keys(make):
+    s = make()
+    s.run("keys.remap", command="where.heading", key="G")
+    r = s.run("keys.reset")
+    assert r.settings_changed and s.settings.keys == {}
+    assert r.announcements[0]["text"] == "Your keys are reset. The keys are those of the Windows desktop key map."
+
+
+def test_opening_a_key_file_is_a_command_and_a_bad_one_says_why(make):
+    s = make()
+    s.run("keys.remap", command="where.heading", key="G")
+    other = make()
+    other.run("keys.remap", command="zoom.in", key="Z")
+    r = s.run("keys.open", text=other.key_file())
+    assert r.settings_changed and s.settings.keys == {"zoom.in": "Z"}
+    assert r.announcements[0]["text"] == "Key file opened. The key map is Windows desktop."
+    bad = s.run("keys.open", text="not json")
+    assert not bad.settings_changed and s.settings.keys == {"zoom.in": "Z"}
+    assert bad.announcements[0]["text"] == "That is not a key file TobyMap can read, so your keys are not changed."

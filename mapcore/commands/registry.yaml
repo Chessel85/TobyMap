@@ -151,6 +151,9 @@ commands:
   - {name: map.hover, label: Describe the point under the mouse, region: map, menu: "", pointer: true}
   - {name: panel.select, label: Select an item in the Information panel, region: global, menu: "", pointer: true}
   - {name: keys.remap, label: Change the key of a command, region: global, menu: "", pointer: true}
+  - {name: keys.keymap, label: Choose a key map, region: global, menu: "", pointer: true}
+  - {name: keys.reset, label: Reset your keys to the key map's own, region: global, menu: "", pointer: true}
+  - {name: keys.open, label: Use the keys of a key file, region: global, menu: "", pointer: true}
   - {name: sound.preview, label: Play a sound from the list of sounds, region: global, menu: "", pointer: true}
   - {name: settings.set, label: Change a setting, region: global, menu: "", pointer: true}
   - {name: layers.set, label: Change a layer, region: global, menu: "", pointer: true}

@@ -236,6 +236,11 @@ def key_text(key: str) -> str:
     return _session.key_text(key)
 
 
+def key_file() -> str:
+    """Your keys as a key file's text, for Save keys as (P3-T31b)."""
+    return _session.key_file()
+
+
 def voice_problem(problem: str, width: int, height: int):
     """The page's spatial voice is "loading", "missing" or "failed" (P2-T7b)."""
     return _js(_extras(_session.voice_problem(problem), {}, width, height))

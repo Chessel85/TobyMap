@@ -54,4 +54,6 @@ stages:
     match: [oceans, seas]
   # What each feature is inside, beside, overlapping and crossing (P3-T3, AD-8).
   - stage: relationships
+  # Each area's coast in stretches between its neighbours, with their ends (P3-T30b, INF-2). Settings: see configuration.md.
+  - stage: coast-stretches
   - stage: write

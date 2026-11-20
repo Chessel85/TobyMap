@@ -654,3 +654,25 @@ def test_bordering_says_an_area_that_touches_at_a_point():
     assert say("bordering.touches", name="Belgium", where=where) == "Belgium, 12 kilometres north-west, touches at a point"
     assert say("hierarchy.across_touches", name="Belgium", direction="north-west") \
         == "Belgium, north-west, touches at a point"
+
+
+def test_the_stretches_of_coast_wording_is_approved():
+    """The approved wording of Bordering's stretches of coast (P3-T30b, the PO's answers to P3-T30a of 20 November
+    2026), each said at its nearest point (P3-T32m), from Winchester."""
+    from mapcore.describe import say
+    name = say("bordering.stretch_sea", sea="English Channel",
+               name=say("bordering.stretch_from_to", west="Bournemouth, Christchurch and Poole", east="Southampton"))
+    where = say("overlapping.where", distance="21 kilometres", direction="south")
+    assert say("bordering.stretch", name=name, where=where, length="83 kilometres", share="44 percent") \
+        == "Coast from Bournemouth, Christchurch and Poole to Southampton, English Channel, 21 kilometres south, " \
+           "83 kilometres, 44 percent"
+    assert say("bordering.stretch_both", west="Hampshire") == "Coast with Hampshire at both ends"
+    assert say("bordering.stretch_end_meets", other="Southampton", distance="21 kilometres", direction="south") \
+        == "End of the coast, where Southampton meets it, 21 kilometres south"
+    assert say("bordering.stretch_end", distance="21 kilometres", direction="south") \
+        == "End of the coast, 21 kilometres south"
+    assert say("bordering.islands", length="46 kilometres", share="25 percent") == "Coast of islands, 46 kilometres, 25 percent"
+    assert say("bordering.island", name="Hayling Island", where=say("overlapping.where", distance="36 kilometres",
+                                                                    direction="south-east"), length="35 kilometres") \
+        == "Hayling Island, 36 kilometres south-east, 35 kilometres round"
+    assert say("bordering.islands_none", length="1 kilometre") == "No island here with 1 kilometre of coast or more."

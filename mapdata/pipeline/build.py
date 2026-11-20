@@ -75,6 +75,10 @@ STAGES = {
                           ("mapdata.stages.enclaves",)),
     "relationships": StageKind("working out what each feature is inside, beside and crossing",
                                "mapdata.stages.relationships", ("mapdata.stages.relationships", "mapdata.stages.geodesy")),
+    "coast-stretches": StageKind("finding each area's stretches of coast, with their ends",
+                                 "mapdata.stages.coast_stretches",
+                                 ("mapdata.stages.coast_stretches", "mapdata.stages.relationships", "mapdata.stages.geodesy",
+                                  "mapcore.packs.coords")),
     "wikidata": StageKind("taking the facts of each feature from Wikidata", "mapdata.stages.wikidata",
                           ("mapdata.stages.wikidata",)),
     "checks": StageKind("looking up the check places in the pack", "mapdata.stages.checks",
@@ -83,7 +87,7 @@ STAGES = {
                        ("mapdata.stages.write", "mapdata.stages.pack_write", "mapdata.stages.relationships", "mapdata.stages.drawing_levels", "mapdata.stages.antimeridian",
                         "mapdata.stages.geodesy", "mapcore.geo.geodesy", "mapcore.packs.pack",
                         "mapcore.packs.coords", "mapcore.packs.tiles", "mapdata.stages.search_index",
-                        "mapcore.search", "mapcore.store.contents")),
+                        "mapcore.search", "mapcore.store.contents", "mapdata.stages.coast_stretches")),
 }
 
 

@@ -165,6 +165,15 @@ From format 4 (P3-T3e, architecture 6.5): the relationships of group G's feature
 * lake_shore: from 20 November 2026 (P3-T32g), for an island, the lakes it lies in, each as [id, km of shore], counting its outline within 150 metres of the lake, as the two outlines are simplified separately. The island is also added to the lake's "shores". An island is in an ocean, sea or lake when at least half its outline is shore on it (`mapcore/store/contents.py`, `waters_round`), as an island is a hole in the water and never inside it whole.
 * outline_km: for an area, its whole outline in km, land border and coast together, leaving out the cut along the 180 degree line (P3-T24f, DP201).
 * crossed_at: for a country, region or county, each line that crosses its border, as [line id, [[lat, lon], ...]], the points where it crosses, to 5 decimal places (P3-T24f, DP201).
+* coast_stretches: from 20 November 2026 (P3-T30b, INF-2), made by the coast-stretches stage, for a country, region, county or island with at least one stretch of coast of 1 km or more: an object with stretches and islands_km. Optional, so the format number did not change; a pack without it says Bordering's Coast heading as before, its waters.
+  * stretches: the stretches of coast of 1 km or more, west to east by their west end. A stretch of coast is a length of the coast between two neighbours, with an end at each; a neighbour's sliver on the shore, under 0.05 square kilometres, counts as sea, and a break under 100 metres is joined over. Each is an object:
+    * km: its length over the Earth.
+    * ends: its west end, then its east end, each [lon, lat, the id of the area of its layer that meets it there, or null], to 5 decimal places.
+    * half: [lon, lat], its point half way along. Enter on its item goes there.
+    * water: the id of the sea it lies on, the most detailed water of the area's "coast" along most of it, or null.
+    * line: the stretch simplified to 200 metres, for the application to find its nearest point to you: a flat list of whole numbers, the first point's longitude and latitude, then the step to each next point, all in 1/10,000 degree (about 11 metres). `mapcore.packs.coords.decode_stretch` reads it.
+  * islands_km: the length of its coast round islands, with no ends. Stretches under 1 km are not stored, but count in the Coast heading's whole length, which is its "coast".
+  The Western Europe trial of 20 November 2026 stores 1,585 stretches for 1,029 areas: 1.5 MB as JSON, 0.57 MB compressed; the world should be about 6 to 10 MB compressed.
 * partly_by: for an area with crossed_by or crossed_at, the lines partly inside it: those crossing it, less those wholly inside it. An empty list where every crossing line is wholly inside. A pack without it is read the old way (item 4b of the plan 2 ledger, INF-5).
 
 `Pack.relationships(identifier)` returns the object, or an empty one for a feature with none or a pack written before format 4.

@@ -655,6 +655,22 @@ bordering:
   # The heading gives the whole coast's length, and its items only the most detailed water (P3-T28b).
   coast_heading: "Coast, {length}"
   coast: "{name}, {where}, {length} of coast"
+  # A pack that stores the stretches of coast (P3-T30b) lists them under Coast in place of the waters, west to east,
+  # each said like a neighbour: its name, its sea, where its nearest point is, its length and its share of the coast.
+  stretch: "{name}, {where}, {length}, {share}"
+  stretch_from_to: "Coast from {west} to {east}"
+  stretch_both: "Coast with {west} at both ends"
+  stretch_from: "Coast from {west}"
+  stretch_to: "Coast to {east}"
+  stretch_none: "Coast"
+  stretch_sea: "{name}, {sea}"
+  # A stretch opens to its two ends, west then east.
+  stretch_end_meets: "End of the coast, where {other} meets it, {distance} {direction}"
+  stretch_end: "End of the coast, {distance} {direction}"
+  # The rest of the coast, round islands, with no ends; it opens to the islands with 1 kilometre of coast or more.
+  islands: "Coast of islands, {length}, {share}"
+  island: "{name}, {where}, {length} round"
+  islands_none: "No island here with {length} of coast or more."
   # The ends of a shared border, listed when its item is opened (P3-T24f, DP201).
   end_coast: "End of the border with {name}, at the coast, {sea}, {distance} {direction}"
   end_meets: "End of the border with {name}, where {other} meets it, {distance} {direction}"

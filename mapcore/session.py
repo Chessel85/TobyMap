@@ -56,6 +56,7 @@ QUERY_RELATIONS = ("inside", "crossing", "bordering", "near")   # the query buil
 QUERY_SEARCH = "search"   # the Of entry that opens search for the feature (P3-T28q)
 END_PROBE_M = 300.0   # how far round the end of a shared border is looked at, for what is there (P3-T24f)
 SAME_END_M = 100.0   # ends of a shared border closer than this are one end, said once (P3-T32c)
+ISLAND_LEAST_KM = 1.0   # Coast of islands opens to the islands with at least this much coast (P3-T30b)
 DRAW_LIMIT = 15000   # features a drawing holds at most; the smallest are left out (P3-T24a, DP202)
 SCAN_LIMIT = 12    # items look around plays (P3-T11a, SON-4)
 HALF_WORLD_M = geodesy.A_M * math.pi   # no point on the Earth is further than this: Overlapping measures to it (P3-T29e)
@@ -158,6 +159,16 @@ def box_centre(bbox) -> tuple[float, float]:
     if west > east:
         east += 360.0
     return (south + north) / 2.0, geodesy.wrap_lon((west + east) / 2.0)
+
+
+def stored_line(values):
+    """A stretch of coast's stored line (P3-T30b) as a line; a single point as a point."""
+    import shapely
+
+    from mapcore.packs.coords import decode_stretch
+
+    pts = decode_stretch(values)
+    return shapely.LineString(pts) if len(pts) >= 2 else shapely.Point(pts[0])
 
 
 def _touches(km: float) -> bool:
@@ -1175,7 +1186,7 @@ class MapSession:
                     item["children"] = [dict(c, level=2) for c in self._border_ends(current, area, heading)]
             items.append(item)
         items = self._sorted("bordering", items)
-        return items + self._shores_and_coast(shores, kept, coast_km, nears, heading), \
+        return items + self._shores_and_coast(shores, kept, coast_km, nears, heading, current, rel), \
             say("bordering.none", name=current.name)
 
     def _neighbours(self, rel: dict) -> list[tuple[str, object, float]]:
@@ -1276,11 +1287,13 @@ class MapSession:
         whole = max(sum(km for _a, km in kept), max((km for _a, km in listed), default=0.0))   # the outer water holds it all
         return listed, kept, whole
 
-    def _shores_and_coast(self, shores: list, kept: list, whole: float, nears: dict, heading) -> list[dict]:
+    def _shores_and_coast(self, shores: list, kept: list, whole: float, nears: dict, heading, current=None,
+                          rel: dict | None = None) -> list[dict]:
         """Bordering's two headings for land and water (P3-T24e, DP200): for a lake or sea, "Shores", the land
         round it, a heading for each layer, with its length of shore; for land, "Coast", the oceans and seas it
         touches (_coast_of's kept, and its whole length), with its length of coast. Longest first. Each is said at
-        its nearest point in nears, as the neighbours are (P3-T32m)."""
+        its nearest point in nears, as the neighbours are (P3-T32m). For an area whose pack stores its stretches of
+        coast (P3-T30b), Coast lists those instead, west to east, then the coast of its islands."""
         units = self._units()
         out = []
         by_layer: dict[str, list] = {}
@@ -1293,12 +1306,111 @@ class MapSession:
             if children:
                 out.append(panel_table.heading("shores:" + layer.id, say("bordering.shores_heading", layer=layer.name,
                                                                          count=len(children)), children))
-        coast = [self._measured_item(a, nears.get(a.id), "bordering.coast", heading, gid="bordering",
-                                     length=words.distance_text(km * 1000.0, units)) for a, km in kept]
+        stretches = (rel or {}).get("coast_stretches") or {}
+        if stretches.get("stretches") and current is not None and whole > 0:
+            coast = self._coast_stretch_items(current, stretches, whole, heading)
+        else:
+            coast = [self._measured_item(a, nears.get(a.id), "bordering.coast", heading, gid="bordering",
+                                         length=words.distance_text(km * 1000.0, units)) for a, km in kept]
         if coast:
             out.append(panel_table.heading("coast", say("bordering.coast_heading",
                                                         length=words.distance_text(whole * 1000.0, units)), coast))
         return out
+
+    def _coast_stretch_items(self, current, stored: dict, whole: float, heading) -> list[dict]:
+        """The Coast heading's items from the stored stretches of coast (P3-T30b, INF-2): each stretch, west to east,
+        said like a neighbour, at its nearest point from where you are, with its length and its share of the whole
+        coast: "Coast from Southampton to Portsmouth, English Channel, 33 kilometres south, 53 kilometres, 28
+        percent". It opens to its two ends, as a shared border does. Space and Shift+M use its nearest point; Enter
+        goes to its point half way along, its own point, as Enter on a neighbour goes to the neighbour's own point.
+        Then "Coast of islands", the rest of the coast with no ends, which opens to the islands."""
+        units = self._units()
+        out = []
+        for k, s in enumerate(stored["stretches"]):
+            item_id = f"stretch:{current.id}:{k}"
+            west, east = (self._name_of(e[2]) for e in s["ends"])
+            water = self.store.feature(s["water"]) if s.get("water") else None
+            water = water if water is not None and self._layer_on(water) else None
+            if west and east:
+                key = "bordering.stretch_both" if west == east else "bordering.stretch_from_to"
+            else:
+                key = "bordering.stretch_from" if west else "bordering.stretch_to" if east else "bordering.stretch_none"
+            name = say(key, west=west, east=east)
+            if water is not None:
+                name = say("bordering.stretch_sea", name=name, sea=water.name)
+            lat, lon, distance, bearing = self._nearest_on(stored_line(s["line"]))
+            where = (say("overlapping.where_here") if distance < HERE_M else
+                     say("overlapping.where", distance=words.distance_text(distance, units),
+                         direction=words.direction_text(bearing, self.settings["bearing"], heading)))
+            label = say("bordering.stretch", name=name, where=where,
+                        length=words.distance_text(s["km"] * 1000.0, units), share=self._percent(s["km"] / whole))
+            ahead = describer.facing(self.world) or 0.0
+            item = panel_table.item(item_id, label, name, distance, bearing - ahead)
+            half_lon, half_lat = s["half"]
+            # Heard from its nearest point, gone to half way along; heard with its water's sound, else the area's.
+            self._spots[("bordering", item_id)] = (water or current, lat, lon, True, half_lat, half_lon)
+            item["expandable"] = True
+            if item_id in self.panel_open:
+                item["children"] = [dict(c, level=3) for c in self._stretch_ends(item_id, water or current, s, heading)]
+            out.append(item)
+        islands = float(stored.get("islands_km") or 0.0)
+        if islands > 0:
+            item_id = f"coast-islands:{current.id}"
+            label = say("bordering.islands", length=words.distance_text(islands * 1000.0, units),
+                        share=self._percent(islands / whole))
+            item = panel_table.item(item_id, label, label, 0.0, 0.0)
+            item["expandable"] = True
+            if item_id in self.panel_open:
+                item["children"] = [dict(c, level=3) for c in self._coast_islands(current, heading)]
+            out.append(item)
+        return out
+
+    def _name_of(self, identifier: str | None) -> str | None:
+        area = self.store.feature(identifier) if identifier else None
+        return area.name if area is not None else None
+
+    def _stretch_ends(self, item_id: str, area, stretch: dict, heading) -> list[dict]:
+        """The two ends of a stretch of coast, west then east, each with what meets it there (P3-T30b)."""
+        out = []
+        for e, (lon, lat, other) in enumerate(stretch["ends"]):
+            name = self._name_of(other)
+            key, extra = ("bordering.stretch_end_meets", {"other": name}) if name else ("bordering.stretch_end", {})
+            out.append(self._point_item("bordering", area, f"{item_id}:end:{e}", key, float(lat), float(lon), heading,
+                                        **extra))
+        return out
+
+    def _coast_islands(self, current, heading) -> list[dict]:
+        """Coast of islands, opened (P3-T30b): the islands in the current area, fully or partly, with at least
+        ISLAND_LEAST_KM of coast, longest first, each said at its nearest point with its length round."""
+        units = self._units()
+        found = []
+        for f in self.store.browse("islands", current.id):
+            area = self.store.feature(f.id)
+            if area is None or not self._layer_on(area):
+                continue
+            km = max((km for _w, km in self.store.relationships(area.id).get("coast", ())), default=0.0)
+            if km >= ISLAND_LEAST_KM:
+                found.append((area, km))
+        if not found:
+            return [panel_table.item(f"heading:no-islands:{current.id}",
+                                     say("bordering.islands_none",
+                                         length=words.distance_text(ISLAND_LEAST_KM * 1000.0, units)), "", 0.0, 0.0)]
+        found.sort(key=lambda x: (-x[1], x[0].name))
+        nears = self._measured([a for a, _km in found])
+        return [self._measured_item(a, nears.get(a.id), "bordering.island", heading, gid="bordering",
+                                    length=words.distance_text(km * 1000.0, units)) for a, km in found]
+
+    def _nearest_on(self, line) -> tuple[float, float, float, float]:
+        """A line's nearest point to where you are, (lat, lon, distance, bearing), found in a flat view round you."""
+        import shapely
+
+        from mapcore.store.projection import Flat
+
+        flat = Flat(self.world.lat, self.world.lon)
+        x, y = shapely.get_coordinates(shapely.shortest_line(flat.transform(line), shapely.Point(0.0, 0.0)))[0]
+        lat, lon = (float(v) for v in flat.inverse(x, y))
+        distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, lat, lon)
+        return lat, lon, distance, bearing
 
     def _contained(self, current) -> dict[str, list]:
         """What Contains lists and hierarchy mode's Down counts (P3-T29c, INF-4, the PO's answer R2): the visible
@@ -3297,6 +3409,8 @@ class MapSession:
         if found is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
         group, (area, lat, lon, *point) = found
+        if len(point) == 3:   # heard from one point, gone to another: a stretch of coast's half way (P3-T30b)
+            lat, lon = point[1], point[2]
         r = self._jump_to_point(area, lat, lon) if point else self._go_to_item(area, lat, lon)
         r.focus = {"region": "panel", "group": group, "item": None}
         return r

@@ -177,6 +177,8 @@ stages:
     match: [oceans, seas, lakes, mountain-ranges, physical-regions]
   # What each feature is inside, beside, overlapping and crossing (P3-T3, AD-8). Settings: see configuration.md.
   - stage: relationships
+  # Each area's coast in stretches between its neighbours, with their ends (P3-T30b, INF-2). Settings: see configuration.md.
+  - stage: coast-stretches
   - stage: write
     drawing_levels:
       # As the world pack's, so the sizes compare.

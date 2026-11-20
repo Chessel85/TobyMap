@@ -474,6 +474,10 @@ def run(ctx) -> None:
         ctx.progress.line(f"Ids used twice, written with an ending so every id is different: {changed}. "
                           "The log lists them.")
     rel_by_id = relmod.by_id(rel, [r["id"] for r in records]) if rel else None
+    if rel_by_id is not None:   # P3-T30b: the stretches of coast name their neighbours and waters by identifier
+        from mapdata.stages import coast_stretches
+
+        coast_stretches.with_ids(rel_by_id, [r["id"] for r in records])
     if rel_by_id is not None:   # P3-T32g: the islands' shores on the lakes, for the islands in each lake
         import time
 

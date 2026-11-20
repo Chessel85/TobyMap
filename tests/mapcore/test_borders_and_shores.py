@@ -32,8 +32,21 @@ def test_each_neighbour_says_its_share_of_the_whole_border(test_pack):
     s.store.close()
 
 
-def test_a_country_on_the_sea_lists_its_coast_under_a_heading_after_its_neighbours(test_pack):
+def _without_stretches(s, monkeypatch):
+    """The session's pack as one written before the stretches of coast (P3-T30b): Coast lists the waters."""
+    plain = s.store.relationships
+
+    def without(identifier):
+        rel = dict(plain(identifier))
+        rel.pop("coast_stretches", None)
+        return rel
+
+    monkeypatch.setattr(s.store, "relationships", without)
+
+
+def test_a_country_on_the_sea_lists_its_coast_under_a_heading_after_its_neighbours(test_pack, monkeypatch):
     s = _session(test_pack, FRANCE)
+    _without_stretches(s, monkeypatch)
     items = _group(s, "bordering")["items"]
     coast = items[-1]
     assert panel_table.is_heading(coast["id"]) and coast["label"].startswith("Coast, ")
@@ -324,7 +337,9 @@ def test_every_bordering_item_is_measured_to_its_nearest_point_and_sorted_by_tha
     s = _session(test_pack, WINCHESTER)
     items = _group(s, "bordering")["items"]
     plain = [i for i in items if not panel_table.is_heading(i["id"])]
-    for i in plain + [c for h in items if panel_table.is_heading(h["id"]) for c in h["children"]]:
+    # The stretches of coast are not features; tests/mapcore/test_coast_stretches.py measures them (P3-T30b).
+    for i in plain + [c for h in items if panel_table.is_heading(h["id"]) for c in h["children"]
+                      if s.store.feature(c["id"]) is not None]:
         near = _measured(s, i["id"])
         assert abs(i["distance_m"] - near.distance_m) < max(1000.0, 0.02 * near.distance_m), i["label"]
     coast = items[-1]["children"]

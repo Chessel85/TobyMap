@@ -330,3 +330,22 @@ def to_shape(buf: bytes):
     geom = shapely.from_ragged_array(shapely.GeometryType.MULTIPOLYGON, pts,
                                      (ring_offsets, poly_offsets, np.array([0, npoly], dtype=np.intp)))[0]
     return geom.geoms[0] if npoly == 1 else geom
+
+
+# A stretch of coast's line (P3-T30b), in the relationships' JSON: its first point, then the step to each next point,
+# each as longitude and latitude in whole numbers of STRETCH_UNIT of a degree (1/10,000, about 11 metres).
+STRETCH_UNIT = 10_000
+
+
+def encode_stretch(points: np.ndarray) -> list[int]:
+    """Points (lon, lat) as a stored stretch line, repeated points dropped."""
+    q = np.round(np.asarray(points, dtype=np.float64) * STRETCH_UNIT).astype(np.int64)
+    keep = np.concatenate([[True], np.any(q[1:] != q[:-1], axis=1)])
+    q = q[keep]
+    steps = np.concatenate([q[:1], q[1:] - q[:-1]])
+    return [int(v) for v in steps.ravel()]
+
+
+def decode_stretch(values) -> np.ndarray:
+    """A stored stretch line's points, (lon, lat) in degrees."""
+    return np.cumsum(np.asarray(values, dtype=np.float64).reshape(-1, 2), axis=0) / STRETCH_UNIT

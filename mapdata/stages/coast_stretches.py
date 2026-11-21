@@ -84,7 +84,9 @@ def coast_pieces(outline, sea_edges: list, sliver_edges: list) -> tuple[list[np.
             kms.append(0.0)
             continue
         # One shape of all the lines, not their union: the overlay nodes them itself, and a union costs as much again.
-        near = shapely.multilinestrings(np.array(edges, dtype=object))
+        # Each edge split into single lines first: a sliver with a hole has a boundary of several lines, which
+        # multilinestrings refuses (the world build of 21 November 2026 stopped on one).
+        near = shapely.multilinestrings(_lines(np.array(edges, dtype=object)))
         try:
             got = shapely.intersection(outline, near)
         except shapely.errors.GEOSException:

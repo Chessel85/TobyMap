@@ -214,3 +214,16 @@ def test_in_the_stage_a_short_stretch_with_one_neighbour_at_both_ends_is_joined(
     [s] = rel[1]["coast_stretches"]["stretches"]
     assert [e[2] for e in s["ends"]] == [0, 2]
     assert s["km"] == pytest.approx(111.2, abs=0.5)
+
+
+def test_a_sliver_with_a_hole_is_counted_along_its_whole_boundary():
+    """A sliver's edge is its polygon's boundary, which for a sliver with a hole is several lines. The world build of
+    21 November 2026 stopped on one ("One of the Geometry inputs is of incorrect geometry type")."""
+    outline = shapely.Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
+    sea = shapely.LineString([(1, 0), (1, 0.5)])
+    holed = shapely.Polygon([(1, 0.5), (2, 0.5), (2, 1), (1, 1)], [[(1.4, 0.6), (1.6, 0.6), (1.6, 0.8), (1.4, 0.8)]])
+    edge = shapely.boundary(holed)
+    assert edge.geom_type == "MultiLineString"
+    pieces, sea_km, sliver_km = cs.coast_pieces(outline, [sea], [edge])
+    assert sea_km > 0 and sliver_km > 0
+    assert len(pieces) == 1   # the sea's half and the sliver's half of the east side, joined

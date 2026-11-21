@@ -552,6 +552,8 @@ class MapSession:
             merged.bookmark_lists = r.bookmark_lists or merged.bookmark_lists
             merged.bookmark_manager = r.bookmark_manager or merged.bookmark_manager
             merged.bookmark_list = r.bookmark_list or merged.bookmark_list
+            merged.save_file = r.save_file or merged.save_file   # the web version runs every command this way (P4-T9d)
+            merged.open_file = r.open_file or merged.open_file
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 

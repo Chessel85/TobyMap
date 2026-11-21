@@ -921,6 +921,34 @@ class ViewsDialog(QDialog):
         self.list.setFocus()
 
 
+def save_text_file(parent, spec: dict) -> str | None:
+    """The standard Save box for the core's Response.save_file (P4-T9d): the text is written as UTF-8 with LF line
+    ends. Returns what the core says (saved, or could not be saved), or None on Cancel."""
+    path, _ = QFileDialog.getSaveFileName(parent, spec["title"], spec["name"], spec["filter"])
+    if not path:
+        return None
+    try:
+        with open(path, "w", encoding="utf-8", newline=chr(10)) as f:
+            f.write(spec["text"])
+    except OSError:
+        return spec["failed"]
+    return spec["saved"]
+
+
+def ask_text_file(parent, spec: dict) -> tuple[str, str] | None:
+    """The standard Open box for the core's Response.open_file: (text, file name), the text "" if the file cannot be
+    read (the core says why it is not a bookmark file), or None on Cancel."""
+    path, _ = QFileDialog.getOpenFileName(parent, spec["title"], "", spec["filter"])
+    if not path:
+        return None
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace", newline=None) as f:
+            text = f.read()
+    except OSError:
+        text = ""
+    return text, Path(path).name
+
+
 class _BookmarkListsDialog(QDialog):
     """What the bookmark manager and the bookmark list dialog share (P4-T8e; USR-3, ACC-7). Neither has OK: each
     change is run in the core at once, and `handle` (the window's) writes the bookmarks file, fills the panel again
@@ -950,9 +978,19 @@ class _BookmarkListsDialog(QDialog):
 
     def _apply(self, response) -> None:
         self._handle(response)
+        if response.open_file:   # Open a file (P4-T9d): the standard Open box; the core takes the text
+            self._open_file(response.open_file)
         listing = response.bookmark_manager if response.bookmark_manager is not None else response.bookmark_list
         if listing is not None:
             self.fill(listing)
+
+    def _open_file(self, spec: dict) -> None:
+        """The standard Open box; the file is read as UTF-8 and its text and name go to the core's command. Cancel
+        does nothing. The focus comes back to the list."""
+        chosen = ask_text_file(self, spec)
+        if chosen is not None:
+            self._apply(self._run(spec["submit"], text=chosen[0], file=chosen[1]))
+        self.list.setFocus()
 
     def _ask(self, dialog: dict) -> None:
         box = ConfirmBox(self, dialog)
@@ -1014,7 +1052,7 @@ class BookmarkManagerDialog(_BookmarkListsDialog):
         self.down_button.on_press(lambda: self.move(1))
         self.delete_button.on_press(lambda: self._do(commands["delete"], index=self.row))
         self.zoom_button.on_press(self.zoom)
-        self.save_button.on_press(lambda: self._do(commands["save_file"]))
+        self.save_button.on_press(lambda: self._do(commands["save_file"], index=self.row))
         self.open_file_button.on_press(lambda: self._do(commands["open_file"]))
         self.close_button.clicked.connect(self.accept)
         chain = [self.list, self.open_button, self.new_button, self.rename_button, self.up_button, self.down_button,

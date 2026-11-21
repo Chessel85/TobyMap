@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QHBoxLayout, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import BookmarkDialog, BookmarkListDialog, BookmarkManagerDialog, ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, ViewsDialog, WorldTreeDialog
+from desktop.dialogs import BookmarkDialog, BookmarkListDialog, BookmarkManagerDialog, ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, save_text_file, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, ViewsDialog, WorldTreeDialog
 from desktop.keys import key_name, system
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
@@ -560,6 +560,8 @@ class MainWindow(QMainWindow):
             self._apply_focus(response.focus)
         if response.dialog:
             self._open_dialog(response.dialog)
+        if response.save_file:
+            self._save_file(response.save_file)
         if response.open_url:
             self.open_url(response.open_url)
         if response.action == "exit":
@@ -773,6 +775,16 @@ class MainWindow(QMainWindow):
             return
         self.map.name_on_return(" ".join(said) or None)
         self.map.setFocus()
+
+    def _save_file(self, spec: dict) -> None:
+        """The core's file to save (P4-T9d): the standard Save box, then the core's words, with the focus back on the
+        bookmark manager's list when it is open. Cancel says nothing."""
+        manager = next((b for b in self._dialogs if isinstance(b, BookmarkManagerDialog)), None)
+        said = save_text_file(manager or self, spec)
+        if manager is not None:
+            manager.list.setFocus()
+        if said:
+            self.announcer.speak(said, "assertive")
 
     def _export_settings(self):
         path, _ = QFileDialog.getSaveFileName(self, self.words["export"], "tobymap-settings.json", "JSON (*.json)")

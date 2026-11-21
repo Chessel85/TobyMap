@@ -39,7 +39,7 @@ Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP22
 ## Bookmarks
 
 * [x] P4-T8 Bookmarks, P4-T8a to P4-T8g, 21 November 2026.
-* [ ] P4-T9 Measuring from a bookmark, and bookmark files: P4-T9a, b, c done 21 November; P4-T9d (the shells' Save and Open boxes) in progress.
+* [x] P4-T9 Measuring from a bookmark, and bookmark files, P4-T9a to P4-T9d, 21 November 2026.
 
 ## The world pack
 

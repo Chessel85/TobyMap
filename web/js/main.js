@@ -188,10 +188,45 @@ function handle(result, keyAt, held = false, named = false) {
   if (result.map_label !== undefined) { if (named) mapLabel = result.map_label; else setMapLabel(result.map_label); }
   if (r.focus && !focusFirst) applyFocus(r.focus);
   if (r.dialog) openDialog(r.dialog);
+  if (r.save_file) saveFile(r.save_file);
   if (r.background) {   // the Crossed and passed search, when the worker is free (P2-T5)
     const { width, height } = mapSize();
     client.idle({ type: "crossed", width, height }).then((b) => handle(b)).catch(showError);
   }
+}
+
+// A file for the browser to save (P4-T9d): downloaded as the core's name and type, then the core's words. Tests read
+// window.tobymap.saved too, as a download needs no box here.
+function saveFile(f) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([f.text], { type: f.mime }));
+  a.download = f.name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  speak(f.saved, "assertive");
+}
+
+// A file the core asked for (P4-T9d): the browser's file chooser, the file read as text ("" if it cannot be), then
+// the core's command run with text and file. Cancel runs nothing. `back` puts the focus on the list.
+function askFile(f, apply, back) {
+  const picker = document.createElement("input");
+  picker.type = "file";
+  picker.accept = f.accept;
+  picker.hidden = true;
+  picker.id = "bm-file-picker";
+  document.body.append(picker);
+  const done = () => picker.remove();
+  picker.addEventListener("cancel", () => { done(); back(); });
+  picker.addEventListener("change", async () => {
+    const file = picker.files[0];
+    if (!file) { done(); back(); return; }
+    let text = "";
+    try { text = await file.text(); } catch (e) { /* unreadable: the core says it is not a bookmark file */ }
+    done();
+    await bookmarkCommand(f.submit, { text, file: file.name }, apply, back);
+    back();
+  });
+  picker.click();
 }
 
 // The address the core asked for (P3-T5b), in a new tab. Tests read window.tobymap.opened, and no tab opens.
@@ -954,6 +989,7 @@ function bookmarkCommand(command, args, apply, back) {
     if (r.error) { speak(r.error, "assertive"); return result; }
     handle(result);
     apply(r);
+    if (r.open_file) askFile(r.open_file, apply, back);
     return result;
   }).catch(showError);
 }
@@ -1092,7 +1128,10 @@ function openBookmarkManager(d) {
     down = unavailableButton(words.down, () => command(commands.move, { index: current, by: 1 }), "bm-down");
     const del = unavailableButton(words.delete, () => command(commands.delete, { index: current }), "bm-delete");
     const zoom = unavailableButton(words.zoom, () => showZoom(), "bm-zoom");
-    const save = unavailableButton(words.save_file, () => command(commands.save_file, {}), "bm-save");
+    const save = unavailableButton(words.save_file, () => {
+      afterCloseFocus = back;   // the four lines close back onto the list
+      command(commands.save_file, { index: current }).then((r) => { if (!r || !r.response.dialog) afterCloseFocus = null; });
+    }, "bm-save");
     const openFile = unavailableButton(words.open_file, () => command(commands.open_file, {}), "bm-open-file");
     const close = button(words.close, () => box.close(), "bm-close");
     body.append(title, help, lines.el, open, add, rename, up, down, del, zoom, save, openFile, close);
@@ -1644,10 +1683,12 @@ function returnTarget() {
   // Menu commands return focus to the map, as on the desktop.
   return returnFocus && document.contains(returnFocus) && !menubar.contains(returnFocus) ? returnFocus : mapEl;
 }
+let afterCloseFocus = null;
 function afterClose(e) {
   // The close event comes after the answer is handled: if the answer opened the box again, as Down's
   // second list does (P3-T6b), the focus stays in it.
   if (e && e.target.open) return;
+  if (afterCloseFocus) { const f = afterCloseFocus; afterCloseFocus = null; f(); return; }
   returnTarget().focus();
 }
 dialog.addEventListener("close", afterClose);

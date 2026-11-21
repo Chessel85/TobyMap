@@ -66,6 +66,7 @@ Not started tonight, as they need the PO: P4-T14f's change (the PO sees the list
 * P4-T8g done, checked (88 beacon, registry and key map tests; key list up to date; the agent ran 499): the Sound tab's beacon source lists every bookmark ("Castles: Rome"); Shift+B (new command beacon.bookmark, Map menu) makes the current bookmark the source and switches the beacon on; it follows renames and moves; deleted, or its list or the layer off, it falls back to the North Pole and says so once. Saved as "bookmark:" with the list and name. User experience description 0.35.
 * P4-T9a done, checked (47 measure start and key map tests; the web test fixed by the orchestrator and run: 2 of 2 in Chromium and Firefox, so the page gets Ctrl+Shift+M before the browser): Ctrl+Shift+M on an item or bookmark (measure.start) says "Measuring from Winchester."; on the map (measure.start_here) "Measuring from where you are."; Shift+M then adds ", from Winchester"; a deleted bookmark start says so once and falls back; not saved between sessions. Mac browser Ctrl+Shift+Y. GeographicLib agrees within 1 metre. User experience description 0.36.
 * P4-T9b, P4-T9c done in the core (the tests below; the agent ran all 1,544 core tests): mapcore/bookmark_files.py, standard library only: save one list or all as GeoJSON (the bookmarks file's format) or GPX 1.1 (waypoints, note in desc, list and feature in TobyMap extensions); open either, told apart by the text; TobyMap files reopen as their lists, other programs' point GeoJSON and GPX waypoints open into a new list; routes and tracks left out and counted; opened lists added with free names (Castles 2), never merged. Save to a file offers four lines (this list or all, GeoJSON or GPX); Response.save_file and Response.open_file carry the request to the shells. Until P4-T9d the two buttons do nothing in the shells. Glossary: bookmark file, waypoint. User experience description 0.37.
+* P4-T9d done, checked (60 core and desktop file tests; the agent ran the web tests: 19 of 19 in Chromium and in Firefox): Save to a file offers four lines, then the desktop's Save box or the web's download writes the core's text; Open a file uses the desktop's Open box or the web's file chooser and passes the text to the core. A file saved on one shell opens on the other with the same names, notes and order (GeoJSON and GPX). Core fix: run_many kept save_file and open_file. Cancel in the web file chooser is not tested.
 
 ## Overnight choices for the PO
 
@@ -93,9 +94,9 @@ Last updated 21 November 2026, 09:15, before the PO cleared the session. Read th
 
 ### Where things stand
 
-* Everything listed under Progress is committed and pushed, except P4-T9d (see below). The tick list is docs/plan/phase-4.md.
+* Everything listed under Progress is committed and pushed. The tick list is docs/plan/phase-4.md.
 * The world pack of 21 November 07:17 (552.46 MB) is at E:\osmdata\tobymap\output\world\world.pack and fits the code, apart from the core-only work since. The Western Europe trial (55.19 MB) was built 21 November 01:20.
-* P4-T9d (the shells' Save and Open boxes for bookmark files) was being done by a subagent when the PO cleared. If desktop/dialogs.py, desktop/window.py, web/js/main.js, mapcore/session.py and the bookmark tests show uncommitted changes, they are its work: run tests/desktop/test_bookmark_dialogs_desktop.py, tests/mapcore/test_bookmark_files.py and tests/web/test_bookmarks_page.py (Chromium and Firefox) and commit as "P4-T9d" if they pass; otherwise finish it.
+* P4-T9d is done and committed (21 November, 09:40): bookmark files save and open on the desktop and the web; a core gap fixed (run_many dropped save_file and open_file). P4-T9 is complete.
 * Continuous integration: the last failures were the macOS held-key timing test (allowance widened, c4d25ef) and two bookmark browser tests (fixed, 84c93d1). Check the latest runs first.
 
 ### The PO's decisions, 21 November 2026, morning
@@ -123,7 +124,7 @@ Then P4-T13b builds the stage (after physical, as territorial-waters is, so the 
 
 ### Suggested order for the next session
 
-1. Finish and commit P4-T9d; check continuous integration.
+1. Check continuous integration.
 2. P3-T15 Help (Sonnet), as the application has changed a lot.
 3. P4-T13a research (Opus), then P4-T13b on the Western Europe trial.
 4. P4-T0e test samples (Sonnet: Winchester, the New Forest, Lymington), needed by P4-T1.

@@ -302,3 +302,10 @@ def test_a_file_that_is_not_a_bookmark_file_says_so_and_nothing_changes(s, text,
     assert said(r) == words
     assert r.bookmarks is None and r.bookmark_manager is None
     assert [(l.name, points(l)) for l in s.bookmarks.lists] == before
+
+
+def test_run_many_keeps_the_file_to_save_and_the_file_to_ask_for(s):
+    """The web version runs every command through run_many (P4-T9d)."""
+    s.run("bookmark.manager_save_file", index=1)
+    assert s.run_many([("bookmark.manager_save_chosen", {"index": 0})]).save_file["name"] == "Holidays.geojson"
+    assert s.run_many([("bookmark.manager_open_file", {})]).open_file["submit"] == "bookmark.manager_file_opened"

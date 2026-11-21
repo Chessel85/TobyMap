@@ -4,9 +4,9 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
-from desktop import storage
+from desktop import dialogs, storage
 from desktop.announcer import RecordingAnnouncer
-from desktop.dialogs import BookmarkListDialog, BookmarkManagerDialog, BookmarkZoomDialog, ConfirmBox, InputDialog
+from desktop.dialogs import HistoryDialog, BookmarkListDialog, BookmarkManagerDialog, BookmarkZoomDialog, ConfirmBox, InputDialog
 from desktop.sounds import RecordingSounds
 from desktop.window import MainWindow
 from mapcore.session import MapSession
@@ -187,17 +187,6 @@ def test_zoom_range_uses_the_layers_choices_and_refuses_a_minimum_over_the_maxim
     dialog.close_button.click()
 
 
-def test_save_and_open_a_file_change_nothing_until_the_shell_shows_the_boxes(window):
-    """The core asks for the Save and Open boxes from P4-T9b (Response.save_file and open_file); the desktop shows
-    them from P4-T9d. Until then the buttons change nothing."""
-    dialog = manager(window)
-    before = window.session.bookmarks.to_text()
-    dialog.save_button.click()
-    dialog.open_file_button.click()
-    assert window.session.bookmarks.to_text() == before
-    dialog.close_button.click()
-
-
 def test_ctrl_shift_b_opens_the_manager_from_the_map(window):
     assert window.dispatch_key("Ctrl+Shift+B", "map")
     shown(window, BookmarkManagerDialog).close_button.click()
@@ -320,3 +309,58 @@ def test_enter_in_the_bookmarks_list_does_nothing_and_enter_on_close_closes(wind
     QApplication.processEvents()
     assert not box.isVisible()
     _manager.close_button.click()
+
+
+# Bookmark files (P4-T9d; USR-5, DP217, DP219): the standard Save and Open boxes ----------------------
+
+def choose_line(window, dialog, row):
+    """Save to a file, then the core's four lines: the line chosen with Enter."""
+    dialog.save_button.click()
+    QApplication.processEvents()
+    (box,) = [d for d in window.findChildren(HistoryDialog) if d.isVisible()]
+    box.list.setCurrentRow(row)
+    box.go_to_selected()
+    QApplication.processEvents()
+
+
+def save_as(window, monkeypatch, path, row):
+    monkeypatch.setattr(dialogs.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(path), "")))
+    dialog = manager(window)
+    choose_line(window, dialog, row)
+    return dialog
+
+
+@pytest.mark.parametrize("row, name, start", [(0, "castles.geojson", '{'), (1, "castles.gpx", "<?xml")])
+def test_a_list_saved_as_geojson_or_gpx_is_written_as_the_cores_text_and_opens_back_as_castles_2(
+        window, monkeypatch, tmp_path, row, name, start):
+    path = tmp_path / name
+    dialog = save_as(window, monkeypatch, path, row)
+    text = path.read_bytes().decode("utf-8")
+    assert text.lstrip().startswith(start) and "\r" not in text
+    assert "Winchester" in text and "Corfe" in text
+    assert has_focus(dialog.list)
+    assert "Castles" in window.announcer.spoken[-1][0]
+    monkeypatch.setattr(dialogs.QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: (str(path), "")))
+    dialog.open_file_button.click()
+    QApplication.processEvents()
+    assert lines(dialog)[-1].startswith("Castles 2, 3 bookmarks")
+    b = window.session.bookmarks
+    mine, copy = b.lists[0], b.lists[-1]
+    assert [m.name for m in copy.bookmarks] == [m.name for m in mine.bookmarks]
+    assert has_focus(dialog.list)
+
+
+def test_cancel_in_the_save_or_open_box_does_nothing(window, monkeypatch):
+    spoken = len(window.announcer.spoken)
+    dialog = save_as(window, monkeypatch, "", 0)
+    assert len(window.announcer.spoken) == spoken and has_focus(dialog.list)
+    monkeypatch.setattr(dialogs.QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: ("", "")))
+    dialog.open_file_button.click()
+    QApplication.processEvents()
+    assert lines(dialog) == ["Castles, 3 bookmarks", "Holidays, 1 bookmark"]
+    assert len(window.announcer.spoken) == spoken and has_focus(dialog.list)
+
+
+def test_a_file_that_cannot_be_written_says_so(window, monkeypatch, tmp_path):
+    save_as(window, monkeypatch, tmp_path / "no folder" / "x.geojson", 0)
+    assert "could not" in window.announcer.spoken[-1][0].lower()

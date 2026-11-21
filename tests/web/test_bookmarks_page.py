@@ -293,3 +293,80 @@ def test_ctrl_shift_m_on_the_map_is_taken_and_says_measuring_from_where_you_are(
     app.keyboard.press("Control+Shift+M")
     assert app.evaluate("window.lastKeyTaken") is True
     app.wait_for_function("window.tobymap.announcements.some(a => a.text === 'Measuring from where you are.')")
+
+
+# Bookmark files (P4-T9d; USR-5, DP217, DP219): the browser's download and file chooser ---------------------
+
+def marks(b, li):
+    return [(m.name, m.note, round(m.lat, 6), round(m.lon, 6)) for m in b.lists[li].bookmarks]
+
+
+def save_chosen(app, row, expect):
+    """Save to a file, the core's four lines, the line chosen with Enter: the download."""
+    app.click("#bm-save")
+    app.wait_for_selector("#history-list")
+    for _ in range(row):
+        app.keyboard.press("ArrowDown")
+    with app.expect_download() as download:
+        app.keyboard.press("Enter")
+    app.wait_for_function("!document.getElementById('dialog').open")
+    return download.value
+
+
+@pytest.mark.parametrize("row, name, kind", [(0, "Castles.geojson", "geojson"), (1, "Castles.gpx", "gpx")])
+def test_a_list_downloaded_on_the_web_is_the_cores_text_and_opens_through_the_core_the_same(
+        page, site_url, row, name, kind, tmp_path):
+    from mapcore import bookmark_files, bookmarks as bm
+
+    text = bookmarks_text()
+    app = open_with(page, site_url, text)
+    open_manager(app)
+    download = save_chosen(app, row, kind)
+    assert download.suggested_filename == name
+    path = tmp_path / name
+    download.save_as(str(path))
+    saved = path.read_bytes().decode("utf-8")
+    b = bm.Bookmarks.from_text(text)
+    assert saved == bookmark_files.file_text(b, 1, kind)
+    assert app.evaluate("document.activeElement.closest('#bm-list') !== null")   # the focus is back on the list
+    opened = bookmark_files.read(saved, name)
+    assert marks(b, 1) == [(m.name, m.note, round(m.lat, 6), round(m.lon, 6)) for m in opened.lists[0].bookmarks]
+    app.click("#bm-close")
+
+
+def test_a_file_saved_by_the_desktop_path_opens_on_the_web_with_the_same_names_notes_and_order(
+        page, site_url, tmp_path):
+    from mapcore import bookmark_files, bookmarks as bm
+
+    text = bookmarks_text()
+    b = bm.Bookmarks.from_text(text)
+    for kind, name in (("geojson", "Bookmarks.geojson"), ("gpx", "Bookmarks.gpx")):
+        path = tmp_path / name
+        path.write_bytes(bookmark_files.file_text(b, 0, kind).encode("utf-8"))   # as the desktop writes it
+        app = open_with(page, site_url, text)
+        open_manager(app)
+        with app.expect_file_chooser() as chooser:
+            app.click("#bm-open-file")
+        chooser.value.set_files(str(path))
+        app.wait_for_function("document.querySelectorAll('#bm-list [role=option]').length === 3")
+        assert app.evaluate("document.activeElement.closest('#bm-list') !== null")
+        after = bm.Bookmarks.from_text(stored(app, "tobymap-bookmarks"))
+        assert after.lists[-1].name == "Bookmarks 2"
+        assert marks(after, len(after.lists) - 1) == marks(b, 0)
+        app.click("#bm-close")
+        app.wait_for_function("!document.getElementById('bookmarkmanagerdialog').open")
+        page.evaluate("sessionStorage.clear()")
+
+
+def test_a_file_that_is_not_a_bookmark_file_changes_nothing(page, site_url, tmp_path):
+    text = bookmarks_text()
+    app = open_with(page, site_url, text)
+    open_manager(app)
+    path = tmp_path / "x.gpx"
+    path.write_text("not a bookmark file", encoding="utf-8")
+    with app.expect_file_chooser() as chooser:
+        app.click("#bm-open-file")
+    chooser.value.set_files(str(path))
+    app.wait_for_function("document.activeElement.closest('#bm-list') !== null")
+    assert stored(app, "tobymap-bookmarks") == text
+    assert app.evaluate("document.querySelectorAll('#bm-list [role=option]').length") == 2

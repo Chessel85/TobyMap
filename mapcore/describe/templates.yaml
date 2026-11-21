@@ -87,9 +87,7 @@ panel:
   # The Search group's first order (P3-T32k): a search's results as it ranked them; a query "within a distance of",
   # nearest first. A line's areas are "from its start" (overlapping.order_from_start); browsing is "by name".
   order_natural_search: "best match first"
-  order_natural_nearest: "nearest first"
-  empty_later: "Nothing yet. This group is filled from Phase 2."
-  # Enter on an item, or on the map while look around plays one: its name, then the place there, as it
+  order_natural_nearest: "nearest first"  # Enter on an item, or on the map while look around plays one: its name, then the place there, as it
   # becomes the current feature (P3-T19a). Where the place starts with the item, only the place is said.
   gone: "{name}. {place}"
 
@@ -196,7 +194,7 @@ map:
 display:
   theme: "{theme} theme."
   colour_refused: "{what}: that colour is too close to the colours around it for the 7 to 1 contrast of a high contrast theme, so the theme's own colour is used."
-  isolated: "Isolated: {name}. Only it is on the map. Press Ctrl+I again to show everything."
+  isolated: "Isolated: {name}. Only it is on the map. Press {key} again to show everything."
   isolate_off: "Showing everything."
   isolate_none: "No area here to isolate."
 
@@ -242,6 +240,7 @@ keys:
   keymap_chosen: "Key map: {name}."
   reset_done: "Your keys are reset. The keys are those of the {name} key map."
   opened: "Key file opened. The key map is {name}."
+  menu_item: "its menu item"   # said in place of a key that has been taken away, as in "Press its menu item again"
   bad_file: "That is not a key file TobyMap can read, so your keys are not changed."
 
 # Keys that are a symbol are said as a word, because a screen reader may not
@@ -283,7 +282,7 @@ keymaps:
   alternative: Alternative
 
 describer:
-  started: "Key describer on. Press a key to hear what it does. Nothing is carried out. Press Shift+F1 again to leave."
+  started: "Key describer on. Press a key to hear what it does. Nothing is carried out. Press {key} again to leave."
   stopped: "Key describer off."
   key: "{key}: {label}"
   unassigned: "{key}: no command."
@@ -637,12 +636,6 @@ crossed:
   passed_here: "Passed nearby to {name}, here"
   none: "Nothing crossed or passed on the last move."
 
-# Ctrl+S in the Information panel says the order it chose (P3-T4d); Ctrl+Enter on an item (P3-T4e, DP170).
-sort:
-  natural: "Sorted in its natural order"
-  name: "Sorted by name"
-  distance: "Sorted by distance"
-  bearing: "Sorted by direction"
 bookmark:
   later: "Bookmarks come in Phase 4."
 

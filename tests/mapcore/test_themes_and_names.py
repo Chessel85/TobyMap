@@ -141,6 +141,16 @@ def test_a_refused_colour_is_said(session):
 
 # P2-T12c Isolate --------------------------------------------------------------------
 
+def test_the_isolated_and_describer_messages_name_the_keys_as_they_are_now(test_pack):
+    s = MapSession(packs=[test_pack], saved_state=dict(FIJI))
+    s.start()
+    s.run("keys.remap", command="isolate.toggle", key="Ctrl+J")
+    s.run("keys.remap", command="help.describer", key="Ctrl+K")
+    assert "Press Ctrl+J again" in spoken(s.press("Ctrl+J"))[0]
+    assert "Press Ctrl+K again to leave" in spoken(s.press("Ctrl+K"))[0]
+    s.store.close()
+
+
 def test_isolating_fiji_shows_one_compact_shape_across_the_180_degree_line(test_pack):
     s = MapSession(packs=[test_pack], saved_state=dict(FIJI))
     s.start()

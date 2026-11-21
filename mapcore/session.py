@@ -3902,7 +3902,7 @@ class MapSession:
             return Response().speak(say("display.isolate_none"), ASSERTIVE)
         smallest = self._first_said_here()
         self.isolated = smallest.id
-        return Response(redraw=True).speak(say("display.isolated", name=smallest.name), ASSERTIVE)
+        return Response(redraw=True).speak(say("display.isolated", name=smallest.name, key=self._key_said("isolate.toggle")), ASSERTIVE)
 
     def _isolate_off(self, **_a) -> Response:
         if self.isolated is None:
@@ -4069,7 +4069,13 @@ class MapSession:
 
     def _describer(self, **_a) -> Response:
         self.describing = not self.describing
-        return Response().speak(say("describer.started" if self.describing else "describer.stopped"), ASSERTIVE)
+        return Response().speak(say("describer.started", key=self._key_said("help.describer")) if self.describing
+                                 else say("describer.stopped"), ASSERTIVE)
+
+    def _key_said(self, command: str) -> str:
+        """A command's key as it is now, for words that name it; its menu item when it has no key."""
+        key = registry.key_of(registry.by_name(command), self.keys())
+        return self.key_text(key) if key else say("keys.menu_item")
 
     def _about(self, **_a) -> Response:
         return Response(dialog={"kind": "text", "title": say("dialogs.about_title"),

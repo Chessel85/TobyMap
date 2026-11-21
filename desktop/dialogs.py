@@ -1186,14 +1186,21 @@ class SettingsDialog(QDialog):
 
     def _keys_ran(self, response) -> None:
         """A key map, key file or reset command ran: its words are shown and spoken, the list is made again."""
-        self.responses.append(response)
-        text = " ".join(a["text"] for a in response.announcements)
+        text = self._said_now(response)
         self.keys_message.setText(text)
         self.keys_message.setAccessibleDescription(text)
+        self._fill_keys(self.key_list.currentRow())
+
+    def _said_now(self, response) -> str:
+        """Speak a response's words now and keep the response for Settings closing, without its words, so
+        they are not said again then. Everything else it carries is still handled on close."""
+        text = " ".join(a["text"] for a in response.announcements)
         announcer = getattr(self.parent(), "announcer", None)
         if text and announcer is not None:
             announcer.speak(text, "assertive")
-        self._fill_keys(self.key_list.currentRow())
+        response.announcements = []
+        self.responses.append(response)
+        return text
 
     def _show_chosen_keymap(self) -> None:
         self.keymap_box.blockSignals(True)
@@ -1235,8 +1242,13 @@ class SettingsDialog(QDialog):
         dialog = KeyCaptureDialog(self, self.session, self._commands[row], self.words,
                                   speak=announcer.speak if announcer is not None else None)
         dialog.exec()
-        if getattr(dialog, "result_response", None) is not None:
-            self.responses.append(dialog.result_response)
+        response = getattr(dialog, "result_response", None)
+        if response is not None:
+            if response.settings_changed:
+                self._said_now(response)   # the new key is said now, not when Settings closes
+            else:
+                response.announcements = []   # a refusal: the capture dialog has already said it
+                self.responses.append(response)
         self._fill_keys(row)
         self.key_list.setFocus()
 

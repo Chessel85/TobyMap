@@ -57,6 +57,30 @@ def test_reset_keys_gives_back_the_key_maps_own_keys(window):
     dialog.reject()
 
 
+def test_a_key_reset_is_said_once_even_after_settings_closes(window):
+    window.session.run("keys.remap", command="where.heading", key="G")
+    dialog = open_settings(window)
+    dialog.reset_keys.click()
+    QApplication.processEvents()
+    dialog.accept()
+    QApplication.processEvents()
+    said = [t for t in window.announcer.texts if t.startswith("Your keys are reset.")]
+    assert len(said) == 1
+
+
+def test_a_changed_key_is_said_when_it_changes_not_when_settings_closes(window, monkeypatch):
+    from desktop.dialogs import KeyCaptureDialog
+    dialog = open_settings(window)
+    dialog.key_list.setCurrentRow([c["name"] for c in dialog._commands].index("where.heading"))
+    monkeypatch.setattr(KeyCaptureDialog, "exec", lambda self: (setattr(self, "key", "G"), self.apply()))
+    dialog.change_key.click()
+    changed = [t for t in window.announcer.texts if t.endswith(" is now G.")]
+    assert len(changed) == 1
+    dialog.accept()
+    QApplication.processEvents()
+    assert len([t for t in window.announcer.texts if t.endswith(" is now G.")]) == 1
+
+
 def test_save_then_open_a_key_file(window, tmp_path, monkeypatch):
     window.session.run("keys.remap", command="where.heading", key="G")
     path = tmp_path / "mine.json"

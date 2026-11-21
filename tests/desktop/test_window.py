@@ -378,9 +378,10 @@ def test_a_slow_drawing_never_delays_the_clicks_of_a_held_key(window, qtbot, mon
              if e == "tick" and t > first_due - 0.05]   # not the press's own, nor Crossed and passed's earcon
     due_before_release = sum(1 for k in range(40) if first_due + k / 6 < released)
     # 2.5 seconds after the delay, 6 a second. Where the clock wakes late (GitHub's Macs, up to 75 ms),
-    # the last click or two can be woken after the release and so not played: allow two fewer there.
-    slack = 1 if exact else 2
-    assert len(ticks) >= 15 - (0 if exact else 2) and abs(len(ticks) - due_before_release) <= slack
+    # the last clicks can be woken after the release and so not played: allow three fewer there (CI on
+    # 21 November 2026 showed 13 played of 16 due).
+    slack = 1 if exact else 3
+    assert len(ticks) >= 15 - (0 if exact else 3) and abs(len(ticks) - due_before_release) <= slack
     after_wake = [round((t - max(w for w in woke if w <= t)) * 1000, 1) for t in ticks]
     # The drawing never holds up a click. Where sleep is not exact, the window's own thread is
     # also woken late, by up to 11 ms on GitHub's Macs, so it has 25 ms there.

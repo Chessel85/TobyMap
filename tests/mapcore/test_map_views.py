@@ -30,7 +30,7 @@ def session(test_pack):
 def _open(session):
     r = session.run("views.open")
     assert r.dialog["kind"] == "views" and r.dialog["words"]["cancel"] == "Cancel"   # Escape is never needed (ACC-7)
-    assert [r.dialog["words"][k] for k in ("add", "rename", "delete", "ok")] == ["Add", "Rename", "Delete", "OK"]
+    assert [r.dialog["words"][k] for k in ("add", "save", "rename", "delete", "ok")] ==         ["Add", "Save changes", "Rename", "Delete", "OK"]
     return [i["label"] for i in r.dialog["views"]["items"]]
 
 
@@ -296,10 +296,11 @@ def test_your_own_views_can_be_renamed_and_deleted_but_not_the_built_in_ones(ses
     session.run("views.open")
     session.run("views.add", text="Mine")
     session.run("views.apply", index=2)
-    own = "Only your own views can be renamed or deleted."
     session.run("views.open")
-    assert session.run("views.rename", index=0, text="X").error == own   # Political
-    assert session.run("views.delete", index=1).error == own            # Physical
+    for r in (session.run("views.rename", index=0, text="X"), session.run("views.delete", index=1)):
+        assert not r.error and spoken(r) == [] and r.views is None   # the buttons are unavailable there (P4-T14g)
+    assert _listing(session)["items"][0]["label"] == "Political"
+    session.run("views.open")
     assert spoken(session.run("views.rename", index=2, text="Ours")) == ["Mine is now called Ours."]
     assert session.settings.view == "Mine"   # kept only by OK
     r = session.run("views.delete", index=2)
@@ -352,3 +353,60 @@ def test_the_web_version_gets_the_list_back_after_each_change(session):
     assert [i["label"] for i in r.to_dict()["views"]["items"]] == ["Political, in use", "Physical", "Mine"]
     r = session.run_many([("views.delete", {"index": 2})])
     assert [i["label"] for i in r.to_dict()["views"]["items"]] == ["Political, in use", "Physical"]
+
+
+# Unavailable buttons and Save changes (P4-T14g) -------------------------------------------------------
+
+def test_rename_is_unavailable_on_political_and_save_changes_saves_the_layers_into_a_view_of_your_own(session):
+    session.run("views.open")
+    session.run("views.add", text="Mine")
+    session.run("views.apply", index=2)
+    items = _listing(session)["items"]
+    assert [(i["label"], i["own"], i["save"]) for i in items] ==         [("Political", False, False), ("Physical", False, False), ("Mine, in use", True, False)]
+    r = session.run("views.rename", index=0, text="X")   # Political: unavailable, so nothing and no message
+    assert not r.error and spoken(r) == [] and r.views is None
+    assert session.run("views.save", index=0).views is None
+    assert session.run("views.save", index=2).views is None   # Mine holds the layers as they are: nothing to save
+
+    session.run("layers.set", layer="regions", values={"outline": False})
+    assert session.view_name() == "Custom"
+    items = _listing(session)["items"]
+    assert items[0]["label"] == "Custom: your changes to the Mine view, in use"
+    assert [(i["id"], i["save"]) for i in items] == [("custom", False), ("political", False), ("physical", False),
+                                                     ("Mine", True)]
+    r = session.run("views.save", index=3)
+    assert spoken(r) == ["The layers are saved into the Mine view. OK keeps it."]
+    assert [i["label"] for i in r.views["items"]] == ["Political", "Physical", "Mine, in use"]   # Custom is Mine now
+    assert r.views["current"] == 2 and not r.views["items"][2]["save"]
+    assert session.settings.views["Mine"]["layers"]["regions"]["outline"] is not False   # kept only by OK
+    session.run("views.apply", index=r.views["current"])
+    assert session.settings.views["Mine"]["layers"]["regions"]["outline"] is False
+    assert session.view_name() == "Mine" and not session.settings.layers
+    assert session.layers.get("regions").outline is False
+
+
+def test_add_stores_the_layers_of_that_moment_and_save_changes_puts_later_ones_into_another_view(session):
+    session.run("views.open")
+    session.run("views.add", text="Mine")
+    session.run("views.apply", index=0)   # Political stays in use; Mine is kept as it was added
+    session.run("layers.set", layer="regions", values={"outline": False})
+    assert session.settings.views["Mine"]["layers"]["regions"]["outline"] is True   # Add does not follow later changes
+    items = _listing(session)["items"]
+    assert [i["label"] for i in items] == ["Custom: your changes to the Political view, in use", "Political", "Physical", "Mine"]
+    assert items[3]["save"]
+    r = session.run("views.save", index=3)
+    assert [i["label"] for i in r.views["items"]][0].startswith("Custom")   # not the view in use: Custom stays
+    assert r.views["current"] == 3 and not r.views["items"][3]["save"]
+    session.run("views.apply", index=0)   # OK on Custom keeps the saved view and your changes
+    assert session.settings.views["Mine"]["layers"]["regions"]["outline"] is False and session.view_name() == "Custom"
+
+
+def test_cancel_after_save_changes_leaves_the_view_as_it_was(session):
+    session.run("views.open")
+    session.run("views.add", text="Mine")
+    session.run("views.apply", index=2)
+    session.run("layers.set", layer="regions", values={"outline": False})
+    session.run("views.open")
+    session.run("views.save", index=3)
+    session.run("views.open")   # Cancel ran nothing
+    assert session.settings.views["Mine"]["layers"]["regions"]["outline"] is True

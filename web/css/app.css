@@ -75,5 +75,7 @@ dialog button { margin-top: 8px; font: inherit; padding: 4px 16px; }
 :focus-visible { outline: 3px solid #ffd200; outline-offset: 1px; }
 
 #viewsdialog input, #viewsdialog select { width: 100%; box-sizing: border-box; font: inherit; }
+/* A button that cannot be pressed now but stays in the Tab order (P4-T14g): greyed, as a disabled one is. */
+button[aria-disabled="true"] { color: GrayText; cursor: default; }
 #inputdialog input { width: 100%; box-sizing: border-box; font: inherit; }
 #history-list { width: 100%; font: inherit; }

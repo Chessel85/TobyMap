@@ -709,9 +709,9 @@ function openLayers(d) {
   focusLayer();
 }
 
-// The map views (P3-T23, P3-T28h; ACC-7): a list open on the view in use, Add, Rename and Delete buttons, OK
-// and Cancel. The core keeps the changes in a copy; OK sends views.apply with the chosen line, which keeps
-// them, and Cancel, or Escape, sends nothing. Add and Rename swap the box's body for a name field and back.
+// The map views (P3-T23, P3-T28h, P4-T14g; ACC-7): a list open on the view in use, Add, Save changes, Rename and
+// Delete buttons, OK and Cancel. The core keeps the changes in a copy; OK sends views.apply with the chosen
+// line, which keeps them, and Cancel, or Escape, sends nothing. Add and Rename swap the box's body for a name field and back.
 // Every word comes from the core.
 function openViews(d) {
   const box = viewsDialog;
@@ -743,7 +743,6 @@ function openViews(d) {
       list.appendChild(markWhole(o, item.label));
     }
     list.selectedIndex = current;
-    list.addEventListener("change", () => { current = list.selectedIndex; });
     const message = document.createElement("p");
     message.id = "views-message";
     const tell = (text) => { message.textContent = text; speak(text, "assertive"); };
@@ -755,15 +754,31 @@ function openViews(d) {
       for (const a of r.response.announcements) if (a.channel !== "braille") speak(a.text, "assertive");
     };
     const add = button(words.add, () => showName(words.add_title, "", (text) => run(d.add, { text })), "views-add");
+    // Save changes, Rename and Delete (P4-T14g): where the core's line says they cannot be pressed, they stay in
+    // the Tab order with aria-disabled, so a screen reader says "unavailable", and a press does nothing.
+    const usable = (b) => b.getAttribute("aria-disabled") !== "true";
+    const save = button(words.save, () => {
+      if (usable(save)) run(d.save, { index: current }).then(after).catch(showError);
+    }, "views-save");
     const rename = button(words.rename, () => {
+      if (!usable(rename)) return;
       const item = items[current];
-      if (!item || !item.own) return run(d.rename, { index: current, text: "" }).then(after).catch(showError);
       showName(words.rename_title.replace("{name}", item.id), item.id, (text) => run(d.rename, { index: current, text }));
     }, "views-rename");
-    const del = button(words.delete, () => run(d.delete, { index: current }).then(after).catch(showError), "views-delete");
+    const del = button(words.delete, () => {
+      if (usable(del)) run(d.delete, { index: current }).then(after).catch(showError);
+    }, "views-delete");
+    const mark = () => {
+      const item = items[current] || {};
+      save.setAttribute("aria-disabled", String(!item.save));
+      rename.setAttribute("aria-disabled", String(!item.own));
+      del.setAttribute("aria-disabled", String(!item.own));
+    };
+    list.addEventListener("change", () => { current = list.selectedIndex; mark(); });
+    mark();
     const ok = button(words.ok, apply, "views-ok");
     const cancel = button(words.cancel, () => box.close(), "views-cancel");
-    body.append(title, help, list, message, add, rename, del, ok, cancel);
+    body.append(title, help, list, message, add, save, rename, del, ok, cancel);
     list.focus();   // on the view in use, or the one just chosen
   };
 

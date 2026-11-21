@@ -868,7 +868,7 @@ def test_the_map_views_dialog_opens_on_the_view_in_use_with_buttons_and_ok_the_d
     dialog = views_dialog(window)
     assert [dialog.list.item(i).text() for i in range(dialog.list.count())] == ["Political", "Physical, in use"]
     assert dialog.list.currentRow() == 1
-    assert [b.text() for b in (dialog.add_button, dialog.rename_button, dialog.delete_button)] == ["Add", "Rename", "Delete"]
+    assert [b.text() for b in (dialog.add_button, dialog.save_button, dialog.rename_button, dialog.delete_button)] ==         ["Add", "Save changes", "Rename", "Delete"]
     assert dialog.ok_button.text() == "OK" and dialog.cancel_button.text() == "Cancel"
     assert dialog.ok_button.isDefault() and not dialog.add_button.isDefault()
     dialog.cancel_button.click()
@@ -886,8 +886,9 @@ def test_enter_in_the_map_views_list_presses_ok_and_uses_the_chosen_view(window,
 def test_escape_and_cancel_in_the_map_views_dialog_leave_everything_as_it_was(window, qtbot):
     dialog = views_dialog(window)
     dialog.list.setCurrentRow(1)
-    dialog.delete_button.click()   # a built-in view: refused, aloud
-    assert window.announcer.texts[-1] == "Only your own views can be renamed or deleted."
+    said = list(window.announcer.texts)
+    dialog.delete_button.click()   # a built-in view: unavailable, so nothing happens and nothing is said
+    assert window.announcer.texts == said and dialog.list.count() == 2
     qtbot.keyClick(dialog, Qt.Key.Key_Escape)
     QApplication.processEvents()
     assert not dialog.isVisible() and window.session.settings.view in (None, "political")
@@ -924,6 +925,58 @@ def test_add_rename_and_delete_in_the_map_views_dialog_change_a_copy_until_ok(wi
     dialog.cancel_button.click()
     QApplication.processEvents()
     assert "Ours" in window.session.settings.views
+
+
+def test_rename_is_unavailable_on_political_yet_tab_reaches_it_and_nvda_is_told(window, qtbot):
+    """P4-T14g: Qt skips a disabled button when tabbing, so the button stays enabled for Qt and tells screen
+    readers it is disabled, which NVDA says as "unavailable"."""
+    from PySide6.QtGui import QAccessible, QAccessibleActionInterface
+    dialog = views_dialog(window)
+    assert dialog.row == 0   # Political, in use
+    for b in (dialog.save_button, dialog.rename_button, dialog.delete_button):
+        assert b.isEnabled() and b.focusPolicy() & Qt.FocusPolicy.TabFocus and not b.available
+        iface = QAccessible.queryAccessibleInterface(b)
+        assert iface.state().disabled and iface.state().focusable and iface.text(QAccessible.Text.Name) == b.text()
+        assert QAccessibleActionInterface.pressAction() not in iface.actionNames()
+    assert dialog.add_button.available
+    dialog.add_button.setFocus()
+    qtbot.keyClick(dialog.add_button, Qt.Key.Key_Tab)
+    assert QApplication.focusWidget() is dialog.save_button
+    qtbot.keyClick(dialog.save_button, Qt.Key.Key_Tab)
+    assert QApplication.focusWidget() is dialog.rename_button
+    said = list(window.announcer.texts)
+    qtbot.keyClick(dialog.rename_button, Qt.Key.Key_Space)
+    QApplication.processEvents()
+    assert dialog.input_box is None and window.announcer.texts == said
+    dialog.cancel_button.click()
+
+
+def test_save_changes_saves_the_layers_into_a_view_of_your_own(window, qtbot):
+    from PySide6.QtGui import QAccessible
+    dialog = views_dialog(window)
+    dialog.add_button.click()
+    QApplication.processEvents()
+    dialog.input_box.field.setText("Mine")
+    dialog.input_box.ok_button.click()
+    QApplication.processEvents()
+    assert dialog.row == 2 and dialog.rename_button.available and dialog.delete_button.available
+    assert not dialog.save_button.available   # Mine holds the layers as they are
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    window.session.run("layers.set", layer="regions", values={"outline": False})
+    dialog = views_dialog(window)
+    assert dialog.list.item(0).text().startswith("Custom") and not dialog.save_button.available
+    dialog.list.setCurrentRow(3)   # Mine
+    assert dialog.save_button.available
+    assert not QAccessible.queryAccessibleInterface(dialog.save_button).state().disabled
+    dialog.save_button.click()
+    assert window.announcer.texts[-1] == "The layers are saved into the Mine view. OK keeps it."
+    assert [dialog.list.item(i).text() for i in range(dialog.list.count())] == ["Political", "Physical", "Mine, in use"]
+    assert dialog.row == 2 and not dialog.save_button.available
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    assert window.session.settings.views["Mine"]["layers"]["regions"]["outline"] is False
+    assert window.session.view_name() == "Mine"
 
 
 def test_settings_on_a_group_heading_says_to_choose_a_layer(window, qtbot):

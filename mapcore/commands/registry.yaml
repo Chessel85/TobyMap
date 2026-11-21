@@ -176,4 +176,5 @@ commands:
   - {name: views.add, label: Add the layers as a view with the typed name, region: global, menu: "", pointer: true}
   - {name: views.rename, label: Rename the chosen view to the typed name, region: global, menu: "", pointer: true}
   - {name: views.delete, label: Delete the chosen view, region: global, menu: "", pointer: true}
+  - {name: views.save, label: Save the layers as they are now into the chosen view of your own, region: global, menu: "", pointer: true}
   - {name: views.apply, label: Keep the map views changes and use the chosen view, region: global, menu: "", pointer: true}

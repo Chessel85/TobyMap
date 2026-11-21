@@ -391,6 +391,7 @@ class MapSession:
             "views.apply": self._views_apply,
             "views.rename": self._views_rename,
             "views.delete": self._views_delete,
+            "views.save": self._views_save,
             "layers.check": self._layers_check,
             "layers.set": self._layers_set,
             "keys.remap": self._remap,
@@ -702,34 +703,39 @@ class MapSession:
         return out
 
     def _views_open(self, **_a) -> Response:
-        """The view manager (P3-T23, P3-T28h; ACC-7): a list of the views with Add, Rename and Delete buttons, and
-        OK and Cancel. The list opens on the view in use. The changes are made in a copy (the draft): OK keeps
-        them and uses the view chosen in the list (views.apply); Cancel runs nothing, so nothing has changed.
-        The two built-in views cannot be renamed or deleted."""
+        """The view manager (P3-T23, P3-T28h, P4-T14g; ACC-7): a list of the views with Add, Save changes, Rename
+        and Delete buttons, and OK and Cancel. The list opens on the view in use. The changes are made in a copy
+        (the draft): OK keeps them and uses the view chosen in the list (views.apply); Cancel runs nothing, so
+        nothing has changed. Rename, Delete and Save changes are for your own views only: each line of the list
+        says whether they can be pressed on it, and the shells mark them unavailable on any other line."""
         custom = bool(self.settings.layers)
         self._views_draft: dict | None = {"views": copy.deepcopy(self.settings.views), "in_use": self.view()["id"],
                              "custom": custom, "chosen": "custom" if custom else self.view()["id"]}
-        words = {k: say(f"views.{k}") for k in ("add", "rename", "delete", "name_label", "name_help", "add_title",
-                                                 "rename_title", "list")}
+        words = {k: say(f"views.{k}") for k in ("add", "save", "rename", "delete", "name_label", "name_help",
+                                                 "add_title", "rename_title", "list")}
         words |= {"ok": say("ui.ok"), "cancel": say("ui.cancel")}
         return Response(dialog={"kind": "views", "title": say("views.title"), "help": say("views.help"),
                                 "words": words, "add": "views.add", "rename": "views.rename",
-                                "delete": "views.delete", "apply": "views.apply",
+                                "delete": "views.delete", "save": "views.save", "apply": "views.apply",
                                 "views": self._views_listing()})
 
     def _views_listing(self, d: dict | None = None) -> dict:
-        """The draft's views as the dialog lists them, and the one chosen: {"items": [{"id", "label", "own"}],
-        "current"}. Each label says the view in use, or Custom, as it did."""
+        """The draft's views as the dialog lists them, and the one chosen: {"items": [{"id", "label", "own",
+        "save"}], "current"}. Each label says the view in use, or Custom, as it did. "own" is a view of your own,
+        which Rename and Delete can be pressed on; "save" is one whose layers differ from the layers as they are
+        now, which Save changes can be pressed on (P4-T14g)."""
         d = d or self._views_draft
+        now = self._layers_now()
         items = []
         if d["custom"]:
-            items.append({"id": "custom", "own": False,
+            items.append({"id": "custom", "own": False, "save": False,
                           "label": say("views.custom_line", name=views_mod.find(d["in_use"], d["views"])["name"])})
         every = [(v["id"], v["name"], False) for v in views_mod.built_in()] + [(n, n, True) for n in sorted(d["views"])]
         for identifier, name, own in every:
             in_use = identifier == d["in_use"] and not d["custom"]
-            items.append({"id": identifier, "own": own, "label": say("views.item_in_use" if in_use else "views.item",
-                                                                      name=name)})
+            items.append({"id": identifier, "own": own,
+                          "save": own and (d["views"][identifier].get("layers") or {}) != now,
+                          "label": say("views.item_in_use" if in_use else "views.item", name=name)})
         current = next((i for i, item in enumerate(items) if item["id"] == d["chosen"]), 0)
         return {"items": items, "current": current}
 
@@ -750,6 +756,12 @@ class MapSession:
             return say("views.name_taken", name=name)
         return None
 
+    def _layers_now(self) -> dict:
+        """The layers as they are now, as a view of your own holds them: {layer id: {field: value}}."""
+        fields = ("on", "min_zoom_m", "max_zoom_m", "outline", "fill", "names")
+        return {layer.id: {f: getattr(layer, f) for f in fields if getattr(layer, f) is not None}
+                for layer in self.layers.layers()}
+
     def _views_add(self, text: str = "", **_a) -> Response:
         """Add: the layers as they are now, the view's with your changes, as a view of your own in the draft, which
         is then the one chosen."""
@@ -759,19 +771,17 @@ class MapSession:
         problem = self._view_name_problem(name)
         if problem:
             return Response(error=problem)
-        fields = ("on", "min_zoom_m", "max_zoom_m", "outline", "fill", "names")
         d = self._views_draft
-        d["views"][name] = {"base": self.view()["base"],
-                            "layers": {layer.id: {f: getattr(layer, f) for f in fields if getattr(layer, f) is not None}
-                                       for layer in self.layers.layers()}}
+        d["views"][name] = {"base": self.view()["base"], "layers": self._layers_now()}
         d["chosen"] = name
         return Response(views=self._views_listing()).speak(say("views.added", name=name), ASSERTIVE)
 
     def _views_rename(self, index: int = -1, text: str = "", **_a) -> Response:
-        """Rename: your own view at this place in the list, in the draft."""
+        """Rename: your own view at this place in the list, in the draft. On any other line the button is
+        unavailable, so this does nothing and says nothing (P4-T14g)."""
         old = self._draft_own(index)
         if old is None:
-            return Response(error=say("views.own_only"))
+            return Response()
         name = " ".join(str(text).split())
         problem = self._view_name_problem(name, allowed=old)
         if problem:
@@ -785,10 +795,10 @@ class MapSession:
 
     def _views_delete(self, index: int = -1, **_a) -> Response:
         """Delete: your own view at this place in the list, from the draft. Cancel brings it back. The list then
-        stands on the next view, or the one before the last."""
+        stands on the next view, or the one before the last. On any other line, nothing (P4-T14g)."""
         name = self._draft_own(index)
         if name is None:
-            return Response(error=say("views.own_only"))
+            return Response()
         d = self._views_draft
         del d["views"][name]
         if d["in_use"] == name:
@@ -796,6 +806,26 @@ class MapSession:
         after = self._views_listing()["items"]
         d["chosen"] = after[min(index, len(after) - 1)]["id"]
         return Response(views=self._views_listing()).speak(say("views.deleted", name=name), ASSERTIVE)
+
+    def _views_save(self, index: int = -1, **_a) -> Response:
+        """Save changes (P4-T14g): the layers as they are now go into your own view at this place in the list, in
+        the draft; OK keeps it. Only while the view's layers differ from them; otherwise the button is unavailable,
+        and this does nothing and says nothing. Saved into the view in use, your changes are that view now, so the
+        Custom line goes and the list stays on the view."""
+        name = self._draft_own(index)
+        if name is None:
+            return Response()
+        d = self._views_draft
+        now = self._layers_now()
+        mine = d["views"][name]
+        if (mine.get("layers") or {}) == now:
+            return Response()
+        mine["layers"] = now
+        mine["base"] = self.view()["base"]   # what is said in it follows the view the layers came from
+        d["chosen"] = name
+        if d["in_use"] == name:
+            d["custom"] = False
+        return Response(views=self._views_listing()).speak(say("views.saved", name=name), ASSERTIVE)
 
     def _views_apply(self, index: int = -1, **_a) -> Response:
         """OK: the draft's views are kept and the view at this place in the list is used. Custom keeps your changes

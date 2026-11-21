@@ -15,19 +15,21 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QDial
 
 from desktop.keys import key_name
 from desktop.panel_tree import PanelTree
+from desktop.unavailable_button import UnavailableButton
 
 
-def button_row(parent_layout, labels: list[str], default: bool = True) -> list[QPushButton]:
+def button_row(parent_layout, labels: list[str], default: bool = True, cls=QPushButton) -> list[QPushButton]:
     """Buttons in a row, in the order given, which is also their Tab order. A
     button with the focus takes Enter, as Space does: Cancel cancels (P2-T17b,
     ACC-7). Anywhere else in the dialog, Enter presses the first button, OK,
     unless `default` is False, as for a row with no OK. (QDialogButtonBox put
-    Cancel before OK in the Tab order: PO feedback on checklist 11, second pass.)"""
+    Cancel before OK in the Tab order: PO feedback on checklist 11, second pass.) `cls` is the kind of
+    button, such as UnavailableButton."""
     row = QHBoxLayout()
     row.addStretch(1)
     buttons = []
     for label in labels:
-        b = QPushButton(label)
+        b = cls(label)
         b.setAutoDefault(True)   # Qt's word for "takes Enter while it has the focus"
         row.addWidget(b)
         buttons.append(b)
@@ -715,10 +717,14 @@ class LayerSettingsDialog(QDialog):
 
 
 class ViewsDialog(QDialog):
-    """The map views (P3-T23, P3-T28h; ACC-7): the list of views, open on the one in use, with Add, Rename and
-    Delete buttons, and OK and Cancel. Enter is OK and Escape is Cancel. The core keeps the changes in a copy:
-    Add, Rename and Delete only change that, and OK (views.apply, run by the window) keeps them and uses the
-    view chosen, which is `row`; Cancel runs nothing. `run` is session.run."""
+    """The map views (P3-T23, P3-T28h, P4-T14g; ACC-7): the list of views, open on the one in use, with Add,
+    Save changes, Rename and Delete buttons, and OK and Cancel. Enter is OK and Escape is Cancel. The core keeps
+    the changes in a copy: the four buttons only change that, and OK (views.apply, run by the window) keeps them
+    and uses the view chosen, which is `row`; Cancel runs nothing. `run` is session.run.
+
+    Save changes, Rename and Delete are unavailable on a line the core marks so (a built-in view, Custom, or for
+    Save changes a view holding the layers as they are): they stay in the Tab order and NVDA says "unavailable"
+    (desktop/unavailable_button.py), and pressing one does nothing."""
 
     def __init__(self, parent, dialog: dict, run, speak=None):
         super().__init__(parent)
@@ -735,11 +741,14 @@ class ViewsDialog(QDialog):
         self.list.setAccessibleName(words["list"])
         self.list.setAccessibleDescription(dialog["help"])
         layout.addWidget(self.list)
-        self.add_button, self.rename_button, self.delete_button = button_row(
-            layout, [words["add"], words["rename"], words["delete"]], default=False)
-        self.add_button.clicked.connect(self.add)
-        self.rename_button.clicked.connect(self.rename)
-        self.delete_button.clicked.connect(self.delete)
+        self.add_button, self.save_button, self.rename_button, self.delete_button = button_row(
+            layout, [words["add"], words["save"], words["rename"], words["delete"]], default=False,
+            cls=UnavailableButton)
+        self.add_button.on_press(self.add)
+        self.save_button.on_press(self.save)
+        self.rename_button.on_press(self.rename)
+        self.delete_button.on_press(self.delete)
+        self.list.currentRowChanged.connect(lambda _row: self._mark_buttons())
         self.ok_button, self.cancel_button = button_row(layout, [words["ok"], words["cancel"]])
         self.ok_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
@@ -756,6 +765,15 @@ class ViewsDialog(QDialog):
         self.list.clear()
         self.list.addItems([i["label"] for i in self.items])
         self.list.setCurrentRow(listing["current"])
+        self._mark_buttons()
+
+    def _mark_buttons(self) -> None:
+        """Save changes, Rename and Delete can be pressed only where the core's line says so."""
+        row = self.row
+        item = self.items[row] if 0 <= row < len(self.items) else {}
+        self.save_button.set_available(item.get("save", False))
+        self.rename_button.set_available(item.get("own", False))
+        self.delete_button.set_available(item.get("own", False))
 
     def _input(self, title: str, name: str, submit) -> None:
         words = self._dialog["words"]
@@ -785,28 +803,24 @@ class ViewsDialog(QDialog):
 
     def rename(self) -> None:
         row = self.row
-        if not 0 <= row < len(self.items):
-            return
-        if not self.items[row]["own"]:   # the core says why, in its words
-            self._refuse(self._run(self._dialog["rename"], index=row, text=""))
+        if not 0 <= row < len(self.items) or not self.items[row]["own"]:
             return
         name = self.items[row]["id"]
         self._input(self._dialog["words"]["rename_title"].replace("{name}", name), name,
                     lambda text: self._run(self._dialog["rename"], index=row, text=text))
 
     def delete(self) -> None:
-        row = self.row
-        response = self._run(self._dialog["delete"], index=row)
-        if response.error:
-            self._refuse(response)
+        self._change(self._run(self._dialog["delete"], index=self.row))
+
+    def save(self) -> None:
+        self._change(self._run(self._dialog["save"], index=self.row))
+
+    def _change(self, response) -> None:
+        """The list as the core now has it, what it says, and the focus back on the list."""
+        if response.views is None:   # nothing changed
             return
         self.fill(response.views)
         self._say(response)
-        self.list.setFocus()
-
-    def _refuse(self, response) -> None:
-        if response.error and self._speak is not None:
-            self._speak(response.error)
         self.list.setFocus()
 
 

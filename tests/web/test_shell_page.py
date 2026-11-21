@@ -1112,6 +1112,68 @@ def test_information_panel_items_are_on_one_line(app):
         .every(e => getComputedStyle(e).whiteSpace === 'nowrap')""")
 
 
+# The map views dialog (P4-T14g; ACC-7) ---------------------------------------------------------
+
+def open_views(app):
+    go_to_menu_bar(app)
+    app.keyboard.press("Enter")
+    app.locator(".menu:not([hidden]) [role=menuitem]", has_text="Map views").click()
+    app.wait_for_function("document.getElementById('viewsdialog').open && document.activeElement.id === 'views-list'")
+
+
+def views_disabled(app):
+    return {b: app.get_attribute(f"#views-{b}", "aria-disabled") for b in ("save", "rename", "delete")}
+
+
+def test_rename_is_unavailable_on_political_but_tab_still_reaches_it(app):
+    open_views(app)
+    assert app.evaluate("document.getElementById('views-list').selectedIndex") == 0   # Political, in use
+    assert views_disabled(app) == {"save": "true", "rename": "true", "delete": "true"}
+    assert app.get_attribute("#views-add", "aria-disabled") is None
+    for expected in ("views-add", "views-save", "views-rename"):
+        app.keyboard.press("Tab")
+        assert app.evaluate("document.activeElement.id") == expected
+    before = len(said(app))
+    app.keyboard.press("Space")
+    app.keyboard.press("Enter")
+    app.wait_for_timeout(300)
+    assert app.locator("#views-name").count() == 0 and len(said(app)) == before   # nothing happens, nothing said
+    assert app.evaluate("document.getElementById('viewsdialog').open")
+    app.click("#views-cancel")
+    app.wait_for_function("!document.getElementById('viewsdialog').open")
+
+
+def test_save_changes_saves_the_layers_into_a_view_of_your_own(app):
+    open_views(app)
+    app.click("#views-add")
+    app.fill("#views-name", "Mine")
+    app.click("#views-name-ok")
+    app.wait_for_function("document.activeElement.id === 'views-list'")
+    assert views_disabled(app) == {"save": "true", "rename": "false", "delete": "false"}   # Mine holds the layers as they are
+    app.click("#views-ok")
+    app.wait_for_function("!document.getElementById('viewsdialog').open")
+    app.keyboard.press("Control+Shift+L")
+    app.wait_for_function("document.getElementById('layersdialog').open")
+    app.uncheck("[data-layer=regions]")
+    app.click("#layers-ok")
+    app.wait_for_function("!document.getElementById('layersdialog').open")
+    open_views(app)
+    options = lambda: app.eval_on_selector_all("#views-list option", "els => els.map(e => e.textContent)")
+    assert options()[0].startswith("Custom") and views_disabled(app)["save"] == "true"
+    app.select_option("#views-list", index=3)   # Mine
+    assert views_disabled(app)["save"] == "false"
+    before = len(said(app))
+    app.click("#views-save")
+    wait_said(app, before + 1)
+    assert said(app)[-1] == "The layers are saved into the Mine view. OK keeps it."
+    assert options() == ["Political", "Physical", "Mine, in use"] and views_disabled(app)["save"] == "true"
+    app.click("#views-ok")
+    app.wait_for_function("!document.getElementById('viewsdialog').open")
+    open_views(app)
+    assert options() == ["Political", "Physical", "Mine, in use"]   # no Custom: Mine holds the changes now
+    app.click("#views-cancel")
+
+
 # Reset all settings (P2-T18h) ------------------------------------------------------------------
 
 def open_reset(app):

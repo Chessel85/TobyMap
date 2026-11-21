@@ -563,7 +563,7 @@ current_layer:
 # Map views (P3-T23, DP198): the political and physical views, and your own, chosen in the view manager.
 views:
   title: "Map views"
-  help: "Choose a view in the list, then OK to use it. Add keeps the layers as they are now as a view of your own, and Rename and Delete change your own views. Cancel leaves everything as it was."
+  help: "Choose a view in the list, then OK to use it. Add keeps the layers as they are now as a view of your own. Save changes puts the layers as they are now into the view of your own chosen in the list, and Rename and Delete change your own views. Cancel leaves everything as it was."
   list: "Views"
   item: "{name}"
   item_in_use: "{name}, in use"
@@ -572,6 +572,7 @@ views:
   add: "Add"
   rename: "Rename"
   delete: "Delete"
+  save: "Save changes"
   add_title: "Add the layers as a view"
   rename_title: "Rename {name}"
   name_label: "Name of the view"
@@ -579,7 +580,8 @@ views:
   added: "Added the {name} view. OK uses it."
   renamed: "{old} is now called {name}."
   deleted: "The {name} view is deleted. Cancel brings it back."
-  own_only: "Only your own views can be renamed or deleted."
+  # Save changes (P4-T14g): the focus does not move, so this is the only word that the layers went into the view.
+  saved: "The layers are saved into the {name} view. OK keeps it."
   chosen: "{name} view."
   name_empty: "Type a name for the view."
   name_taken: "There is already a view called {name}. Type another name."

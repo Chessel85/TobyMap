@@ -513,6 +513,21 @@ def run(ctx) -> None:
                    rel_by_id, search)
 
 
+def coverage_member(ctx, present: list[str]) -> dict:
+    """The manifest's coverage (pack-format.md): a world pack's as its settings give it; a regional pack's from its
+    coverage stage, with the layers it holds features of, checked: its pack tiles in the grid and sorted, its layers
+    all in the pack (P4-T1a). A pack with no coverage stage, such as a trial, keeps its settings' coverage as before.
+    A feature's partial and aliases fields pass through to its record as they are."""
+    from mapdata.stages import coverage
+
+    cov = ctx.pack.data["coverage"]
+    if (cov or {}).get("kind") != "region":
+        return cov
+    folder = (getattr(ctx, "earlier", None) or {}).get("coverage")
+    order = [k for k in ctx.pack.layers if k in present]
+    return coverage.manifest_coverage(cov, coverage.load(folder) if folder is not None else None, order)
+
+
 def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None = None,
                relationships: dict | None = None, search: dict | None = None) -> None:
     """The rest of the writing stage, with the pool of workers open for all of it (P3-T1k)."""
@@ -543,6 +558,7 @@ def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None =
     # so its areas are simplified one by one, not as a coverage (P3-T1e).
     apart = frozenset(k for k, layer in ctx.pack.layers.items() if dict(layer.shown).get("fill") == "none")
     present = list(dict.fromkeys(r["layer"] for r in records))
+    coverage = coverage_member(ctx, present)   # checked before the long steps, so a fault stops the stage at once
     tops = {k: (None if dict(ctx.pack.layers[k].shown).get("max_zoom_m") is None
                 else dict(ctx.pack.layers[k].shown)["max_zoom_m"] / 1000.0) for k in present}
     held = held_layers(levels, tops)
@@ -555,7 +571,7 @@ def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None =
     drawing_geoms = (drawing_shapes(records, geoms, levels, ctx.progress.line, apart, held, executor, ctx.workers)
                      if levels else None)
     manifest = {"name": data["name"], "title": data["title"], "version": str(data["version"]),
-                "coverage": data["coverage"], "app_versions": data["app_versions"],
+                "coverage": coverage, "app_versions": data["app_versions"],
                 "drawing_levels": levels, "sources": sources}
     if tiers:   # the order of the tiers, highest first, for the order of the areas at a point (P3-T17)
         manifest["tiers"] = list(tiers)

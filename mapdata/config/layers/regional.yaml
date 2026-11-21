@@ -1,0 +1,35 @@
+# The regional layers (P4-T1, design docs/plan/p4-t1-design.md section 4): what a regional pack, such as Great
+# Britain, adds to the base layers: districts, parishes, national parks, streams, main roads, streets, paths, land
+# use, parks, school grounds, four layers of points of interest, and villages. The reference for each setting is
+# docs/data-manager/configuration.md.
+#
+# P4-T1a gives each layer its build fields only (id, name, rank, kind, made_by, geometry, group), so every stage can
+# build. P4-T1i adds the fields the application uses to show and sound it (switched_on, min_zoom_m, max_zoom_m,
+# min_size, fill, crossing_earcon, sound, say_type, shown_name).
+#
+# Ranks: changing a world layer's rank would build the world's areas again, so the new area layers share rank 7 with
+# the lakes, or rank 8, and are ordered by size, smallest first (LOC-2). Every layer has made_by, so adding it never
+# makes the grid squares and the join run again (architecture 6.11b).
+
+layers:
+  # Boundaries: every administrative level below the counties (P4-T1b), and the national parks (P4-T1e).
+  - {id: districts, name: Districts, rank: 7, kind: land, made_by: local-areas, group: Boundaries, geometry: area}
+  - {id: parishes, name: Parishes, rank: 7, kind: land, made_by: local-areas, group: Boundaries, geometry: area}
+  # The same id as the test pack's sample layer (mapdata/config/layers/samples.yaml), so its tests keep working.
+  - {id: national_parks, name: National parks, rank: 6, kind: land, made_by: osm-land, group: Boundaries, geometry: area}
+  # Water: streams, ditches and drains (P4-T1g). Every lake and river is in the base layers lakes and rivers.
+  - {id: streams, name: Streams and ditches, rank: 8, kind: land, made_by: osm-waterways, group: Water, geometry: line}
+  # Transport (P4-T1d). Motorways and trunk roads stay in the base layer roads.
+  - {id: main-roads, name: Main roads, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line}
+  - {id: streets, name: Streets and minor roads, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line}
+  - {id: paths, name: Paths and tracks, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line}
+  # Land use and parks (P4-T1e).
+  - {id: land-use, name: Land use, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area}
+  - {id: parks, name: Parks and public spaces, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area}
+  - {id: school-grounds, name: Schools and colleges, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area}
+  # Places: points of interest in four layers (P4-T1f), and villages, from the existing osm-places stage.
+  - {id: stops, name: Stops and crossings, rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point}
+  - {id: shops-food, name: "Shops, cafes and pubs", rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point}
+  - {id: services, name: Services and amenities, rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point}
+  - {id: street-furniture, name: "Post boxes, benches and bins", rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point}
+  - {id: villages, name: "Villages, suburbs and hamlets", rank: 8, kind: land, made_by: osm-places, group: Places, geometry: point}

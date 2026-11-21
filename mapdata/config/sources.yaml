@@ -171,3 +171,42 @@ sources:
     date: 2026-11-21
     licence: GPL-3.0, the repository's own, as it holds no outside data
     attribution: Made by TobyMap from its own sample boxes
+
+  # Region outlines for the regional packs (P4-T1a, design section 2.2). Geofabrik's clipping boundaries, a buffer
+  # round each region: they only choose which pack tiles a regional pack covers. No shape of them goes into a pack.
+  great-britain-outline:
+    name: Geofabrik's outline of Great Britain, a .poly file
+    about: "The clipping boundary Geofabrik uses for its Great Britain extract: England, Scotland and Wales with their islands, a buffer round the land, not a border (DP223). It chooses the pack tiles the Great Britain pack covers."
+    url: https://download.geofabrik.de/europe/great-britain.poly
+    file: geofabrik-outlines/great-britain.poly
+    licence: ODbL 1.0
+    attribution: Data processed by Geofabrik GmbH and created by OpenStreetMap contributors
+    refresh_days: 365
+
+  hampshire-outline:
+    name: Geofabrik's outline of Hampshire, a .poly file
+    about: The clipping boundary Geofabrik uses for its Hampshire extract, for the rehearsal pack (P4-T1j).
+    url: https://download.geofabrik.de/europe/united-kingdom/england/hampshire/hampshire.poly
+    file: geofabrik-outlines/hampshire.poly
+    licence: ODbL 1.0
+    attribution: Data processed by Geofabrik GmbH and created by OpenStreetMap contributors
+    refresh_days: 365
+
+  isle-of-wight-outline:
+    name: Geofabrik's outline of the Isle of Wight, a .poly file
+    about: The clipping boundary Geofabrik uses for its Isle of Wight extract, for the rehearsal pack (P4-T1j).
+    url: https://download.geofabrik.de/europe/united-kingdom/england/isle-of-wight/isle-of-wight.poly
+    file: geofabrik-outlines/isle-of-wight.poly
+    licence: ODbL 1.0
+    attribution: Data processed by Geofabrik GmbH and created by OpenStreetMap contributors
+    refresh_days: 365
+
+  # The world pack, as the register of identifiers that the regional packs' match stage reads (P4-T1h, design
+  # section 3.11). Built by mapdata itself.
+  world-pack:
+    name: The world pack built by mapdata, as the register of identifiers
+    about: "The match stage of a regional pack gives each feature the world pack's identifier where both packs hold it (P4-T1h). Nothing of its shapes goes into the regional pack."
+    find:
+      - tobymap/output/world/world.pack
+    licence: ODbL 1.0
+    attribution: © OpenStreetMap contributors

@@ -1,0 +1,65 @@
+# The rehearsal of the Great Britain pack (P4-T1j, design docs/plan/p4-t1-design.md): Hampshire and the Isle of
+# Wight, as Geofabrik's two outlines draw them, joined into one. Its coverage, the pack tiles of tile level 12 that
+# hold land inside the outline, runs a few kilometres into Dorset, Wiltshire, Berkshire, Surrey and West Sussex.
+# The reference for each setting is docs/data-manager/configuration.md.
+#
+# This file must stay the same as great-britain.yaml apart from the lines marked "region:" at their end (name,
+# title, the outline, the box, space_needed_mb): a test compares the two.
+
+name: hampshire-isle-of-wight   # region: the pack's name
+title: "Hampshire and the Isle of Wight, the rehearsal of the Great Britain pack: streets, paths, land use, parks, school grounds, points of interest and every administrative level."   # region:
+version: 0.1.0
+# app_versions: P4-T3a sets the first version of the application that opens a regional pack (design 2.4).
+app_versions: {from: 0.0.1}
+coverage: {kind: region, draw_below_km: 250}
+layer_groups: [base, regional]
+space_needed_mb: 10000   # region: until the rehearsal gives a better figure (design 7.2)
+
+stages:
+  # The countries, regions, counties and islands, as the world reads them, within the outline's box widened by 0.1
+  # degrees (design 3.2).
+  - stage: osm-areas
+    source: planet
+    levels: [3, 4, 5]
+    counties: true
+    islands: true
+    box: [-2.06, 50.41, -0.63, 51.49]   # region:
+  # The grid squares at 10 metres instead of the world's 100, so the coast under the streets is the coast they meet.
+  - stage: squares
+    sources: [land-polygons, vliz-oceans]
+    seas: naturalearth-marine-areas
+    box: [-2.06, 50.41, -0.63, 51.49]   # region:
+    tolerance_m: 10
+    counties: true
+  - stage: join
+  # The coverage: the pack tiles at tile level 12 that hold land inside the outline, and everything cut to them.
+  - stage: coverage
+    sources: [hampshire-outline, isle-of-wight-outline]   # region:
+    tile_level: 12
+    merge_from_level: 6
+  # local-areas: added by P4-T1b
+  # small-islands: added by P4-T1c
+  # osm-layer (lakes): added by P4-T1c
+  # osm-water: added by P4-T1c
+  # osm-rivers: added by P4-T1g
+  # osm-waterways: added by P4-T1g
+  # osm-lines: added by P4-T1d
+  # osm-streets: added by P4-T1d
+  # osm-land: added by P4-T1e
+  # osm-pois: added by P4-T1f
+  # osm-places (villages): added by P4-T1f
+  # match: added by P4-T1h
+  # Facts from Wikidata, read from the data folder where the world build already fetched them (same refresh label).
+  - stage: wikidata
+    source: wikidata
+    refresh: 2026-11
+    match: [lakes]
+    # wikidata layers: set by P4-T1k
+  - stage: relationships
+    # relationships light_layers and crossing_areas: set by P4-T1k
+  - stage: coast-stretches
+  - stage: corrections
+  - stage: write
+    # write drawing_levels: set by P4-T1i
+  - stage: checks
+    # checks places: added by P4-T1j

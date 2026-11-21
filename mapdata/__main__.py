@@ -64,6 +64,9 @@ def build_parser() -> argparse.ArgumentParser:
     rip = sub.add_parser("read-in-process", help="used by build: a stage's reading in its own process")
     rip.add_argument("module", choices=["osm_layer", "osm_rivers", "osm_lines"], help="the stage module in mapdata/stages")
     rip.add_argument("folder", help="the stage's folder, holding its request")
+    ro = sub.add_parser("read-osm", help="used by build: a regional stage's reading of OpenStreetMap in its own "
+                                          "process (mapdata/stages/osm_source.py)")
+    ro.add_argument("folder", help="the stage's folder, holding its request")
     wx = sub.add_parser("spike-s2-water", help="used by spike-s2: read the inland water in its own process")
     wx.add_argument("stage", choices=["1", "2", "3", "4", "belgium"])
     tn = sub.add_parser("tier-names", help="name each country's tiers from Wikidata's kinds, into the tiers record "
@@ -345,6 +348,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "read-in-process":
         from importlib import import_module
         return import_module(f"mapdata.stages.{args.module}").main(Path(args.folder))
+    if args.command == "read-osm":
+        from mapdata.stages import osm_source
+        return osm_source.main(Path(args.folder))
     if args.command == "inspect":
         return cmd_inspect(args)
     if args.command == "tier-names":

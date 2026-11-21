@@ -61,7 +61,15 @@ JSON. The builder gives:
 
 * name: the pack's name, such as base-lite.
 * version: the pack's own version, a string.
-* coverage: where the pack covers in detail. For a world pack, `{"kind": "world"}`. The form for regional packs is settled in Phase 4 (AD-14).
+* coverage: where the pack covers in detail (AD-14). For a world pack, `{"kind": "world"}`. For a regional pack, such as Great Britain, its coverage: the covered pack tiles, where it answers for its layers instead of the world pack (P4-T1a, design docs/plan/p4-t1-design.md 2.3). The regional form, given by the build's coverage stage and checked by the writer:
+  * kind: "region".
+  * region: the region's name, such as "great-britain".
+  * tile_level: the tile level of the covered pack tiles, such as 12 (about 6 by 5 kilometres in Great Britain).
+  * tiles: each covered pack tile as "level/x/y", in the grid of the tile/L/X/Y records, sorted by level, then x, then y. Four covered pack tiles that make one at the level above are written as that one, up to tile level 6, so a tile's level is from 6 (or the tile level, if lower) to tile_level, and no tile is inside another. A point is covered when the pack tile holding it, at one of those levels, is listed: at most seven lookups.
+  * layers: the layers the regional pack answers for inside its coverage, every layer it holds features of. For any other layer, such as the continents, the world pack answers everywhere.
+  * draw_below_km: the regional pack draws only views narrower than this many kilometres; at wider views the world pack draws alone.
+
+  For example: `{"kind": "region", "region": "great-britain", "tile_level": 12, "tiles": ["8/127/203", "12/2034/3271"], "layers": ["countries", "regions", "counties", "streets"], "draw_below_km": 250}`. A trial pack built from a box with no coverage stage, such as trial-western-europe, keeps `{"kind": "region"}` with nothing else: it is not a regional pack, and has no covered pack tiles.
 * app_versions: `{"from": "0.1.0"}`, and optionally `"before": "0.3.0"`. The application opens the pack if its own version is at least "from" and less than "before". Versions are dotted numbers, compared number by number, with missing numbers counted as 0.
 * sources: a list, at least one, each with name, licence and date (YYYY-MM-DD), and anything else useful, such as a web address.
 * drawing_levels: a list, each with id (a whole number), tile_level (the tile level of its drawing tiles), and anything else the drawing code needs, such as the zooms it serves.
@@ -139,6 +147,8 @@ Optional fields:
 * dispute: from format 4, for an area inside one of Natural Earth's disputed areas: name, Natural Earth's name for that area; source, "Natural Earth"; and view, its note in full words, such as "Administered by Russia. Claimed by Ukraine." (ANN-6, DAT-8).
 * local_lang: the language of the local name, as a code such as "de", where the build can tell it from OpenStreetMap's tags (P3-T12b, mapcore.names.language_of_name). The web version marks the name with it. A record with none is not marked. Optional, so the format number did not change.
 * tier_name: from format 4, what the area's tier is called in its country, such as "state", from the tiers record's names (DP181). Details says it in place of the tier's word.
+* partial: true when the pack holds only part of the feature, because a regional pack's coverage cut it, such as the United Kingdom in the Great Britain pack (without Northern Ireland), the North Atlantic Ocean, or a street leaving the coverage. A feature is partial when the cut leaves less than 99.9 percent of its area, or of its length (P4-T1a). A feature the pack holds whole has no field. Optional, so the format number did not change.
+* aliases: the feature's own identifiers in the regional pack's sources, when the build's match stage gave it the world pack's identifier, such as a lake read under a different way (P4-T1h). A list of identifiers. A feature with none has no field. Optional, so the format number did not change.
 
 The manifest may also have:
 
@@ -291,3 +301,4 @@ The same calls in the same order always give the same bytes (DMT-1). Cutting sha
 * Format 2, 3 November 2026: P1-T2. The directory's place and check number in the header, a check number for every record, the checksum file, version checks, feature records in groups with feature numbers, attribution, licence and layer definitions, drawing tiles, compact coordinates only, and the writer's limits.
 * Format 3, 5 November 2026: P2-T10a. Tile entry kinds 3 (lines) and 4 (points), the layer definitions' geometry and the other fields from P2-T3, and the reader still reads format 2.
 * Format 4, 13 November 2026: P3-T2b, P3-T2c, P3-T3e. Facts and the Wikipedia article, claimants, the source's view of a dispute and tier names in feature records; the relations records; and the reader still reads formats 2 and 3. The search records were added on 13 November 2026 (P3-T8a), optional, so the number did not change: no pack in format 4 had been published.
+* Format 4, 21 November 2026: P4-T1a. The manifest's coverage member has its regional form (tile_level, tiles, layers, draw_below_km), and feature records may have partial and aliases. All optional, so the number did not change: no regional pack had been published. An older application would read a regional pack as a world pack, so a regional pack's app_versions keeps older applications from opening it (P4-T3a).

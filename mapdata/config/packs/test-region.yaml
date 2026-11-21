@@ -1,0 +1,51 @@
+# The regional test pack (P4-T1, design docs/plan/p4-t1-design.md sections 3.3 and 5.4): a small regional pack,
+# built from the samples in the repository, so the tests never need the data folder. Its coverage is the three
+# sample boxes of tests/samples/osm-raw (Winchester, Brockenhurst and Lymington), each a whole number of pack tiles
+# at tile level 14. Its stages are great-britain.yaml's, in the same order, with the samples stage in place of
+# osm-areas, squares and join, and the raw samples (sample-osm-raw) in place of the planet file. The stages
+# osm-layer, osm-rivers and osm-lines cannot read the raw samples, so they are left out. The tests open it with the
+# test pack (tests/conftest.py, test_region_pack). The reference for each setting is
+# docs/data-manager/configuration.md.
+
+name: test-region
+title: The regional test pack, three small areas of Hampshire from the samples in the repository.
+version: 0.1.0
+app_versions: {from: 0.0.1}
+coverage: {kind: region, draw_below_km: 250}
+layer_groups: [base, regional]
+space_needed_mb: 50
+
+stages:
+  # The test pack's own area samples, least detailed first, and the land of the Lymington box at about 1 metre.
+  - stage: samples
+    samples:
+      - {source: sample-world}
+      - {source: sample-oceans}
+      - {source: sample-osm, file: england-france-channel.geojson}
+      - {source: sample-osm, file: hampshire-wiltshire.geojson}
+      - {source: sample-osm, file: isle-of-wight-solent.geojson}
+      - {source: sample-osm, file: lymington-coast.geojson}
+  - stage: water
+    land_layer: countries
+  # The coverage: the pack tiles at tile level 14 that hold land inside the test region's outline, which are exactly
+  # the sample boxes' pack tiles.
+  - stage: coverage
+    sources: [sample-outline]
+    tile_level: 14
+    merge_from_level: 6
+  # local-areas: added by P4-T1b
+  # small-islands: added by P4-T1c
+  # osm-water: added by P4-T1c
+  # osm-waterways: added by P4-T1g
+  # osm-streets: added by P4-T1d
+  # osm-land: added by P4-T1e
+  # osm-pois: added by P4-T1f
+  # osm-places (villages): added by P4-T1f
+  # match: added by P4-T1h
+  - stage: relationships
+    # relationships light_layers and crossing_areas: set by P4-T1k
+  - stage: coast-stretches
+  - stage: corrections
+    file: tests/samples/corrections.yaml
+  - stage: write
+    # write drawing_levels: set by P4-T1i

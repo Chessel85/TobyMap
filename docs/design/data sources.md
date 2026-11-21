@@ -217,6 +217,8 @@ HydroLAKES, with 1.4 million lakes, is far too large for the base pack. Only lak
 
 * Regional packs aim to be 1 GB or less (DP50). This is a soft limit.
 * Proposed: regions follow Geofabrik's extract boundaries, which are countries, with large countries split into sub-regions. That matches where the OSM data comes from. A region that would still exceed 1 GB is split further.
+* Region outlines (P4-T1a): Geofabrik's boundary files (.poly) for its extracts, fetched by `mapdata fetch` into the data folder: great-britain.poly (Great Britain, DP223), and hampshire.poly and isle-of-wight.poly for the rehearsal. Each is the clipping boundary Geofabrik uses for its extract, a buffer round the region drawn from OpenStreetMap or by hand, not a border (download.geofabrik.de/technical.html). Licence: Geofabrik's download service gives its data under ODbL 1.0 ("Data: ODbL 1.0", "Data processed by Geofabrik GmbH and created by OpenStreetMap Contributors", read 21 November 2026 on download.geofabrik.de and its technical page); it names no other terms for the .poly files. The outline only chooses which pack tiles a regional pack covers; no shape of it goes into a pack, and the pack is ODbL in any case. Credit: "Data processed by Geofabrik GmbH and created by OpenStreetMap contributors".
+* The world pack as the register of identifiers (P4-T1h): a regional pack's build reads the world pack mapdata built, to give its features the world pack's identifiers. ODbL 1.0, as the world pack; nothing of its shapes goes into the regional pack.
 
 ## Hosting the packs (no budget)
 
@@ -286,6 +288,7 @@ What this means:
 * geoBoundaries: mostly CC-BY 4.0, with licences varying by country. To verify for each country if it is used.
 * Marine Regions EEZ: CC-BY 4.0 for some versions. To verify for the version used.
 * Ordnance Survey OpenData and NaPTAN: Open Government Licence. Confirmed. Used only for UK validation.
+* Geofabrik's region outlines (.poly files): ODbL 1.0, as the rest of Geofabrik's download service. Confirmed from download.geofabrik.de, 21 November 2026. Used only to choose a regional pack's covered pack tiles.
 
 ### Tools and assets checked in Phase 0
 

@@ -41,6 +41,9 @@ class StageKind:
     areas_only: bool = False   # it makes or reads only the area layers, so only they are in its fingerprint
 
 
+# The modules every regional reading stage reads OpenStreetMap and the coverage through (P4-T1a).
+_READING = ("mapdata.stages.osm_source", "mapdata.stages.coverage", "mapdata.stages.clip")
+
 STAGES = {
     "samples": StageKind("reading the samples", "mapdata.stages.samples",
                          ("mapdata.stages.samples",)),
@@ -93,7 +96,31 @@ STAGES = {
                        ("mapdata.stages.write", "mapdata.stages.pack_write", "mapdata.stages.relationships", "mapdata.stages.drawing_levels", "mapdata.stages.antimeridian",
                         "mapdata.stages.geodesy", "mapcore.geo.geodesy", "mapcore.packs.pack",
                         "mapcore.packs.coords", "mapcore.packs.tiles", "mapdata.stages.search_index",
-                        "mapcore.search", "mapcore.store.contents", "mapdata.stages.coast_stretches")),
+                        "mapcore.search", "mapcore.store.contents", "mapdata.stages.coast_stretches",
+                        "mapdata.stages.coverage")),
+    # The regional pack's stages (P4-T1, design docs/plan/p4-t1-design.md section 3.2). Each names its module even
+    # before the module exists: a stage's module is imported only when a pack uses the stage. Every reading stage
+    # reads OpenStreetMap through osm_source and cuts its shapes to the coverage.
+    "coverage": StageKind("working out the regional pack's coverage and cutting the features to it",
+                          "mapdata.stages.coverage", ("mapdata.stages.coverage", "mapdata.stages.clip",
+                                                      "mapcore.packs.tiles")),
+    "local-areas": StageKind("reading every administrative level below the counties", "mapdata.stages.local_areas",
+                             ("mapdata.stages.local_areas", *_READING)),
+    "small-islands": StageKind("adding every island under 1 km2", "mapdata.stages.small_islands",
+                               ("mapdata.stages.small_islands", "mapdata.stages.coverage", "mapdata.stages.clip")),
+    "osm-water": StageKind("reading every other lake, pond and reservoir", "mapdata.stages.osm_water",
+                           ("mapdata.stages.osm_water", *_READING)),
+    "osm-waterways": StageKind("reading every other river, canal and stream", "mapdata.stages.osm_waterways",
+                               ("mapdata.stages.osm_waterways", "mapdata.stages.osm_rivers", *_READING)),
+    "osm-streets": StageKind("reading the main roads, streets and paths", "mapdata.stages.osm_streets",
+                             ("mapdata.stages.osm_streets", "mapdata.stages.osm_lines", "mapdata.stages.osm_rivers",
+                              *_READING)),
+    "osm-land": StageKind("reading the land use, parks, school grounds and national parks", "mapdata.stages.osm_land",
+                          ("mapdata.stages.osm_land", *_READING)),
+    "osm-pois": StageKind("reading the points of interest", "mapdata.stages.osm_pois",
+                          ("mapdata.stages.osm_pois", "mapdata.stages.osm_places", *_READING)),
+    "match": StageKind("giving features the world pack's identifiers", "mapdata.stages.match",
+                       ("mapdata.stages.match", "mapcore.packs.pack", "mapcore.store.store", "mapcore.search")),
 }
 
 

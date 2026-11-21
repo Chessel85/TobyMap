@@ -697,6 +697,70 @@ bookmark_current:
   paste_where: "To paste, go to a bookmark list in the Bookmarks group, {key}."
   paste_nothing: "Nothing to paste. Copy or cut a bookmark first."
 
+# The bookmark manager, on Ctrl+Shift+B and in the Map menu (P4-T8e; USR-3, DP219 point 7): the bookmark lists
+# themselves. Every change takes effect and is kept at once; Close is the only way out (ACC-7). A line is said with
+# its bookmark count and zoom range; whether it is on is the check box. A message is said only where the focus does not
+# tell it.
+bookmark_manager:
+  title: "Bookmark manager"
+  help: "Your bookmark lists. Space switches a list on or off. Open list shows the list's bookmarks. Every change takes effect at once. Close when you have finished."
+  list: "Bookmark lists"
+  new: "New list"
+  rename: "Rename"
+  open_list: "Open list"
+  up: "Move up"
+  down: "Move down"
+  delete: "Delete list"
+  zoom: "Zoom range"
+  save_file: "Save to a file"
+  open_file: "Open a file"
+  # Saving and opening files are the next work item (P4-T9): the buttons say so until then.
+  file_later: "Saving and opening bookmark files come with the next work item."
+  new_title: "New bookmark list"
+  rename_title: "Rename the bookmark list {name}"
+  name_label: "Name of the list"
+  name_help: "A name for the list, such as Castles."
+  zoom_title: "Zoom range of {name}"
+  min_zoom: "Show from"
+  max_zoom: "Show up to"
+  every_zoom: "No limit"
+  # A line: the name, how many bookmarks, and the zoom range when it has one.
+  contents_none: "no bookmarks"
+  contents_one: "1 bookmark"
+  contents: "{count} bookmarks"
+  item: "{name}, {contents}"
+  item_zoom: "{name}, {contents}, zoom {range}"
+  range_from: "from {low}"
+  range_to: "up to {high}"
+  range_between: "from {low} to {high}"
+  range_every: "every zoom"
+  renamed: "Renamed {old} to {name}."
+  zoom_set: "Zoom range of {name}: {range}."
+  deleted: "Deleted {name}."
+  delete_title: "Delete bookmark list"
+  delete_question_none: "Delete the list {name}?"
+  delete_question_one: "Delete the list {name} and its 1 bookmark?"
+  delete_question: "Delete the list {name} and its {count} bookmarks?"
+  delete_last: "It is the only list, so you will then have a new empty list, Bookmarks."
+  delete_ok: "Delete"
+
+# The bookmark list dialog, opened by Open list in the bookmark manager and from the Map menu (P4-T8e; USR-3, DP219
+# point 7): one list's bookmarks. Changes take effect at once; Close is the only way out (ACC-7).
+bookmark_list_dialog:
+  title: "Bookmarks in {name}"
+  help: "The bookmarks of this list, in order. Move up and Move down change the order. Choose another list, then Copy to list keeps the bookmark in both, and Move to list takes it out of this one. Delete asks first. Every change takes effect at once. Close when you have finished."
+  list: "Bookmarks"
+  empty: "This list has no bookmarks."
+  up: "Move up"
+  down: "Move down"
+  target_label: "Other list"
+  no_target: "There is no other bookmark list"
+  copy: "Copy to list"
+  move: "Move to list"
+  delete: "Delete"
+  copied: "Copied {name} to {list} as {copy}."  # a copy is numbered, as the original keeps its name (Rome_1)
+  moved: "Moved {name} to {list}."
+
 # The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists in one GeoJSON file.
 bookmarks:
   # At start, after the place: the file could not be read. The shell has renamed it, so it is kept.

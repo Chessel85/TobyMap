@@ -26,6 +26,8 @@ World tree,the map,W,W,W,W,None known,No problem known.
 List every feature of a kind in the current feature,anywhere,Ctrl+Shift+F,Shift+Cmd+F,Ctrl+Shift+F,Shift+Cmd+F,None known,No problem known.
 Layers,anywhere,Ctrl+Shift+L,Shift+Cmd+L,Ctrl+Shift+L,Shift+Cmd+L,None known,No problem known.
 Map views,anywhere,Ctrl+Shift+V,Shift+Cmd+V,Ctrl+Shift+V,Shift+Cmd+V,None known,No problem known.
+Bookmark manager,anywhere,Ctrl+Shift+B,Shift+Cmd+B,Ctrl+Shift+B,Shift+Cmd+B,None known,No problem known.
+Bookmark list,anywhere,No key,No key,No key,No key,None known,No problem known.
 Next theme,the map,T,T,T,T,None known,No problem known.
 Previous theme,the map,Shift+T,Shift+T,Shift+T,Shift+T,None known,No problem known.
 Isolate the current area,the map,Ctrl+I,Cmd+I,Ctrl+I,Cmd+I,None known,No problem known.
@@ -117,3 +119,18 @@ New bookmark list,anywhere,No key,No key,No key,No key,None known,No problem kno
 Add the bookmark,anywhere,No key,No key,No key,No key,None known,No problem known.
 Rename the bookmark,anywhere,No key,No key,No key,No key,None known,No problem known.
 Delete the bookmark,anywhere,No key,No key,No key,No key,None known,No problem known.
+The bookmark lists again,anywhere,No key,No key,No key,No key,None known,No problem known.
+Make a bookmark list with the typed name,anywhere,No key,No key,No key,No key,None known,No problem known.
+Rename the chosen bookmark list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Move the chosen bookmark list up or down,anywhere,No key,No key,No key,No key,None known,No problem known.
+Switch the chosen bookmark list on or off,anywhere,No key,No key,No key,No key,None known,No problem known.
+Set the chosen bookmark list's zoom range,anywhere,No key,No key,No key,No key,None known,No problem known.
+Ask to delete the chosen bookmark list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Delete the bookmark list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Save the bookmark lists to a file,anywhere,No key,No key,No key,No key,None known,No problem known.
+Open a bookmark file,anywhere,No key,No key,No key,No key,None known,No problem known.
+Move the chosen bookmark up or down in its list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Copy the chosen bookmark to another list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Move the chosen bookmark to another list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Ask to delete the chosen bookmark,anywhere,No key,No key,No key,No key,None known,No problem known.
+Delete the bookmark from its list,anywhere,No key,No key,No key,No key,None known,No problem known.

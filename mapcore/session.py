@@ -25,6 +25,7 @@ import yaml
 
 import mapcore
 from mapcore import bookmarks as bookmarks_mod
+from mapcore.bookmark_dialogs import BookmarkDialogs
 from mapcore import memory
 from mapcore import views as views_mod
 from mapcore import names as names_mod
@@ -145,6 +146,9 @@ class Response:
     bookmarks_damaged: bool = False
     # The bookmark dialog's list box after New list (P4-T8b): {"items": [name], "current"}.
     bookmark_lists: dict | None = None
+    # The bookmark manager's and the bookmark list dialog's lines after a change (P4-T8e): {"items", "current", ...}.
+    bookmark_manager: dict | None = None
+    bookmark_list: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -249,6 +253,7 @@ class MapSession:
         self.clock = clock
         # Every bookmark list (P4-T8a, USR-1, USR-3). A damaged file gives one empty list, and start() says so.
         self.bookmarks, self.bookmarks_damaged = bookmarks_mod.load(bookmarks)
+        self._bookmark_dialogs = BookmarkDialogs(self, Response)   # the bookmark manager and list dialog (P4-T8e)
         self.areas: list = []          # the areas at the last described place, smallest first
         self.last_spoken: str | None = None
         # The location history (NAV-10, DP142, DP158): the places before each step or jump, newest
@@ -420,6 +425,7 @@ class MapSession:
             "settings.reset": self._reset_ask,
             "settings.reset_confirm": self._reset_all,
             "layers.open": self._layers_open,
+            **self._bookmark_dialogs.handlers(),
             "views.open": self._views_open,
             "views.add": self._views_add,
             "views.apply": self._views_apply,
@@ -527,6 +533,8 @@ class MapSession:
             merged.bookmarks = r.bookmarks if r.bookmarks is not None else merged.bookmarks   # the newest file (P4-T8a)
             merged.bookmarks_damaged |= r.bookmarks_damaged
             merged.bookmark_lists = r.bookmark_lists or merged.bookmark_lists
+            merged.bookmark_manager = r.bookmark_manager or merged.bookmark_manager
+            merged.bookmark_list = r.bookmark_list or merged.bookmark_list
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 

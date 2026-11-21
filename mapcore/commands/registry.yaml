@@ -77,6 +77,10 @@ commands:
   - {name: layers.open, label: Layers, region: global, menu: Map}
   # Map views (P3-T23, DP198): the political and physical views and your own.
   - {name: views.open, label: Map views, region: global, menu: Map}
+  # The bookmark manager and the bookmark list dialog (P4-T8e; USR-3, DP219 point 7). The list dialog has no key: it opens
+  # from the manager's Open list button and from the Map menu, on the list used last.
+  - {name: bookmark.manager_open, label: Bookmark manager, region: global, menu: Map}
+  - {name: bookmark.list_open, label: Bookmark list, region: global, menu: Map}
   # Themes and isolate (VIS-2): your keys, from the key list. Escape is kept for the screen reader and the browser.
   - {name: theme.next, label: Next theme, region: map, menu: Map}
   - {name: theme.previous, label: Previous theme, region: map, menu: Map}
@@ -198,3 +202,19 @@ commands:
   # The bookmark dialog's OK when it renames the current bookmark, and Delete in the question after Delete (P4-T8d).
   - {name: bookmark.rename, label: Rename the bookmark, region: global, menu: "", pointer: true}
   - {name: bookmark.delete_confirm, label: Delete the bookmark, region: global, menu: "", pointer: true}
+  # The bookmark manager's and the bookmark list dialog's buttons (P4-T8e): each change takes effect and is kept at once.
+  - {name: bookmark.manager_listing, label: The bookmark lists again, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_new, label: Make a bookmark list with the typed name, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_rename, label: Rename the chosen bookmark list, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_move, label: Move the chosen bookmark list up or down, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_on, label: Switch the chosen bookmark list on or off, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_zoom, label: Set the chosen bookmark list's zoom range, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_delete, label: Ask to delete the chosen bookmark list, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_delete_confirm, label: Delete the bookmark list, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_save_file, label: Save the bookmark lists to a file, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_open_file, label: Open a bookmark file, region: global, menu: "", pointer: true}
+  - {name: bookmark.list_move, label: Move the chosen bookmark up or down in its list, region: global, menu: "", pointer: true}
+  - {name: bookmark.list_copy, label: Copy the chosen bookmark to another list, region: global, menu: "", pointer: true}
+  - {name: bookmark.list_move_to, label: Move the chosen bookmark to another list, region: global, menu: "", pointer: true}
+  - {name: bookmark.list_delete, label: Ask to delete the chosen bookmark, region: global, menu: "", pointer: true}
+  - {name: bookmark.list_delete_confirm, label: Delete the bookmark from its list, region: global, menu: "", pointer: true}

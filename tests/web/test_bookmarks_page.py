@@ -204,3 +204,74 @@ def test_ctrl_c_in_the_search_box_and_in_details_is_left_to_the_browser(page, si
     app.focus("#map")
     app.keyboard.press("Control+c")
     assert app.evaluate("window.lastKeyTaken") is True   # on the map, Ctrl+C copies the bookmark
+
+
+# The bookmark manager and the bookmark list dialog (P4-T8e; USR-3, ACC-7, DP219 point 7). Written, not yet run: a
+# world build was using the memory.
+
+def open_manager(app, text=None):
+    app.focus("#map")
+    app.keyboard.press("Control+Shift+B")
+    app.wait_for_function("document.getElementById('bookmarkmanagerdialog').open "
+                          "&& document.activeElement.closest('#bm-list')")
+
+
+def test_ctrl_shift_b_opens_the_manager_with_its_buttons_in_tab_order(page, site_url):
+    app = open_with(page, site_url, bookmarks_text())
+    open_manager(app)
+    order = []
+    for _ in range(11):
+        order.append(app.evaluate("document.activeElement.closest('#bm-list') ? 'bm-list' : document.activeElement.id"))
+        app.keyboard.press("Tab")
+    assert order == ["bm-list", "bm-open", "bm-new", "bm-rename", "bm-up", "bm-down", "bm-delete", "bm-zoom", "bm-save",
+                     "bm-open-file", "bm-close"]
+    assert app.get_attribute("#bm-up", "aria-disabled") == "true"   # the first list cannot go up, and Tab still reaches it
+    app.click("#bm-close")
+    app.wait_for_function("!document.getElementById('bookmarkmanagerdialog').open")
+
+
+def test_space_switches_a_list_off_and_the_file_is_written_at_once(page, site_url):
+    app = open_with(page, site_url, bookmarks_text())
+    open_manager(app)
+    app.keyboard.press("ArrowDown")
+    app.keyboard.press("Space")
+    app.wait_for_function("document.querySelectorAll('#bm-list [aria-checked=false]').length === 1")
+    assert json.loads(stored(app, "tobymap-bookmarks"))["tobymap"]["lists"][1]["on"] is False
+    app.click("#bm-close")
+
+
+def test_new_list_and_delete_asks_first(page, site_url):
+    app = open_with(page, site_url, bookmarks_text())
+    open_manager(app)
+    app.click("#bm-new")
+    app.fill("#bm-name", "Forts")
+    app.click("#bm-name-ok")
+    app.wait_for_function("document.activeElement.closest('#bm-list')")
+    assert [l["name"] for l in json.loads(stored(app, "tobymap-bookmarks"))["tobymap"]["lists"]] == ["Bookmarks", "Castles", "Forts"]
+    app.click("#bm-delete")
+    app.wait_for_function("document.getElementById('messagebox').open")
+    assert "Delete the list Forts?" in app.inner_text("#messagebox-text")
+    assert app.evaluate("document.activeElement.id") == "messagebox-cancel"
+    app.click("#messagebox-cancel")
+    assert len(json.loads(stored(app, "tobymap-bookmarks"))["tobymap"]["lists"]) == 3
+    app.click("#bm-delete")
+    app.click("#messagebox-ok")
+    app.wait_for_function("!document.getElementById('messagebox').open")
+    assert len(json.loads(stored(app, "tobymap-bookmarks"))["tobymap"]["lists"]) == 2
+    app.click("#bm-close")
+
+
+def test_open_list_opens_the_list_dialog_and_move_down_is_kept(page, site_url):
+    app = open_with(page, site_url, bookmarks_text())
+    open_manager(app)
+    app.click("#bm-open")
+    app.wait_for_function("document.getElementById('bookmarklistdialog').open")
+    order = []
+    for _ in range(8):
+        order.append(app.evaluate("document.activeElement.closest('#bl-list') ? 'bl-list' : document.activeElement.id"))
+        app.keyboard.press("Tab")
+    assert order == ["bl-list", "bl-up", "bl-down", "bl-target", "bl-copy", "bl-move", "bl-delete", "bl-close"]
+    app.click("#bl-close")
+    app.wait_for_function("!document.getElementById('bookmarklistdialog').open "
+                          "&& document.getElementById('bookmarkmanagerdialog').open")
+    app.click("#bm-close")

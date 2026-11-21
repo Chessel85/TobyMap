@@ -70,11 +70,17 @@ dialog button { margin-top: 8px; font: inherit; padding: 4px 16px; }
 #settings .earcon-list [aria-selected="true"] { background: #0b57d0; color: #fff; }
 #settings-keys, #sounds-list { width: 100%; font: inherit; }
 #settings label { display: inline-block; margin: 2px 0; }
-#settings button, #keydialog button, #inputdialog button, #layersdialog button, #viewsdialog button, #bookmarkdialog button { margin: 4px 8px 4px 0; font: inherit; padding: 4px 16px; }
+#settings button, #keydialog button, #inputdialog button, #layersdialog button, #viewsdialog button, #bookmarkdialog button, #bookmarkmanagerdialog button, #bookmarklistdialog button { margin: 4px 8px 4px 0; font: inherit; padding: 4px 16px; }
 #key-message { min-height: 1.4em; color: #8a0000; }
 :focus-visible { outline: 3px solid #ffd200; outline-offset: 1px; }
 
-#viewsdialog input, #viewsdialog select, #bookmarkdialog input, #bookmarkdialog select { width: 100%; box-sizing: border-box; font: inherit; }
+#viewsdialog input, #viewsdialog select, #bookmarkdialog input, #bookmarkdialog select, #bookmarkmanagerdialog input, #bookmarklistdialog select { width: 100%; box-sizing: border-box; font: inherit; }
+/* The bookmark manager's and the bookmark list dialog's lines (P4-T8e): a list box with a line for each. */
+.bookmark-lines { list-style: none; margin: 0.25em 0 0.75em; padding: 0; border: 1px solid #888; max-height: 14em; overflow-y: auto; }
+.bookmark-lines [role="option"] { padding: 0.15em 0.4em; cursor: default; }
+.bookmark-lines [role="option"][aria-checked]::before { content: "\2610  "; }
+.bookmark-lines [role="option"][aria-checked="true"]::before { content: "\2611  "; }
+.bookmark-lines [aria-selected="true"] { background: #0b57d0; color: #fff; }
 /* A button that cannot be pressed now but stays in the Tab order (P4-T14g): greyed, as a disabled one is. */
 button[aria-disabled="true"] { color: GrayText; cursor: default; }
 #inputdialog input { width: 100%; box-sizing: border-box; font: inherit; }

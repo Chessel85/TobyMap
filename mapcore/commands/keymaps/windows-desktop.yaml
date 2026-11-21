@@ -48,6 +48,8 @@ keys:
   browse.open: Ctrl+Shift+F
   layers.open: Ctrl+Shift+L
   views.open: Ctrl+Shift+V
+  # The bookmark manager (P4-T8e); the bookmark list dialog has no key.
+  bookmark.manager_open: Ctrl+Shift+B
   # Themes and isolate (VIS-2).
   theme.next: T
   theme.previous: Shift+T

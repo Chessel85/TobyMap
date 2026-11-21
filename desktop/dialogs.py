@@ -921,6 +921,336 @@ class ViewsDialog(QDialog):
         self.list.setFocus()
 
 
+class _BookmarkListsDialog(QDialog):
+    """What the bookmark manager and the bookmark list dialog share (P4-T8e; USR-3, ACC-7). Neither has OK: each
+    change is run in the core at once, and `handle` (the window's) writes the bookmarks file, fills the panel again
+    and speaks what the core said. Delete in the core is a question, shown in a ConfirmBox with Cancel the default;
+    Delete runs the core's submit. Every word and every line comes from the core."""
+
+    def __init__(self, parent, dialog: dict, run, handle, speak=None):
+        super().__init__(parent)
+        self._dialog, self._run, self._handle, self._speak = dialog, run, handle, speak
+        self.items: list[dict] = []
+        self.child_box: QDialog | None = None
+        self.setWindowTitle(dialog["title"])
+
+    def _do(self, command: str, **args):
+        """Run a command; a question is asked here, and any other answer is handled. Returns the response, or None
+        when it was a question or was refused (a refusal is spoken)."""
+        response = self._run(command, **args)
+        if response.dialog and response.dialog.get("kind") == "confirm":
+            self._ask(response.dialog)
+            return None
+        if response.error:
+            if self._speak is not None:
+                self._speak(response.error)
+            return None
+        self._apply(response)
+        return response
+
+    def _apply(self, response) -> None:
+        self._handle(response)
+        listing = response.bookmark_manager if response.bookmark_manager is not None else response.bookmark_list
+        if listing is not None:
+            self.fill(listing)
+
+    def _ask(self, dialog: dict) -> None:
+        box = ConfirmBox(self, dialog)
+        self.child_box = box
+        box.finished.connect(lambda _r, b=box, d=dialog: self._asked(b, d))
+        box.open()
+
+    def _asked(self, box, dialog: dict) -> None:
+        self.child_box = None
+        if box.confirmed:
+            self._apply(self._run(dialog["submit"]))
+        self.list.setFocus()
+
+    @staticmethod
+    def _buttons(layout, labels: list[str]):
+        return button_row(layout, labels, default=False, cls=UnavailableButton)
+
+    def keyPressEvent(self, event):
+        """Enter anywhere but on a button does what the dialog's main action is (_enter), once: Qt would press
+        whichever button came first, which is not always the one that makes sense."""
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not isinstance(self.focusWidget(), QPushButton):
+            event.accept()
+            self._enter()
+            return
+        super().keyPressEvent(event)
+
+    def _enter(self) -> None:
+        pass
+
+
+class BookmarkManagerDialog(_BookmarkListsDialog):
+    """The bookmark manager (P4-T8e; USR-3, DP219 point 7), for the bookmark lists themselves. In Tab order: the lists
+    (a check box for each, Space switches it on or off, Enter is Open list), Open list, New list, Rename, Move up,
+    Move down, Delete list, Zoom range, Save to a file, Open a file and Close. Move up is unavailable on the first
+    list and Move down on the last: they stay in the Tab order and NVDA says "unavailable"."""
+
+    def __init__(self, parent, dialog: dict, run, handle, speak=None):
+        super().__init__(parent, dialog, run, handle, speak)
+        words, commands = dialog["words"], dialog["commands"]
+        self._words, self._commands = words, commands
+        self.input_box: InputDialog | None = None
+        layout = QVBoxLayout(self)
+        help_label = QLabel(dialog["help"])
+        help_label.setWordWrap(True)
+        layout.addWidget(help_label)
+        self.list = QListWidget()
+        self.list.setAccessibleName(words["list"])
+        self.list.setAccessibleDescription(dialog["help"])
+        layout.addWidget(self.list)
+        (self.open_button, self.new_button, self.rename_button, self.up_button, self.down_button, self.delete_button,
+         self.zoom_button) = self._buttons(layout, [words["open_list"], words["new"], words["rename"], words["up"],
+                                                    words["down"], words["delete"], words["zoom"]])
+        self.save_button, self.open_file_button = self._buttons(layout, [words["save_file"], words["open_file"]])
+        (self.close_button,) = button_row(layout, [words["close"]], default=False)
+        self.open_button.on_press(self.open_list)
+        self.new_button.on_press(self.new)
+        self.rename_button.on_press(self.rename)
+        self.up_button.on_press(lambda: self.move(-1))
+        self.down_button.on_press(lambda: self.move(1))
+        self.delete_button.on_press(lambda: self._do(commands["delete"], index=self.row))
+        self.zoom_button.on_press(self.zoom)
+        self.save_button.on_press(lambda: self._do(commands["save_file"]))
+        self.open_file_button.on_press(lambda: self._do(commands["open_file"]))
+        self.close_button.clicked.connect(self.accept)
+        chain = [self.list, self.open_button, self.new_button, self.rename_button, self.up_button, self.down_button,
+                 self.delete_button, self.zoom_button, self.save_button, self.open_file_button, self.close_button]
+        for a, b in zip(chain, chain[1:]):
+            QWidget.setTabOrder(a, b)
+        self.list.currentRowChanged.connect(lambda _row: self._mark_buttons())
+        self.list.itemChanged.connect(self._item_changed)
+        self.fill(dialog["lists"])
+        self.resize(560, 460)
+        self.list.setFocus()
+
+    @property
+    def row(self) -> int:
+        return self.list.currentRow()
+
+    def fill(self, listing: dict) -> None:
+        self.items = listing["items"]
+        self.list.blockSignals(True)
+        self.list.clear()
+        for item in self.items:
+            line = QListWidgetItem(item["label"])
+            line.setFlags(line.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            line.setCheckState(Qt.CheckState.Checked if item["on"] else Qt.CheckState.Unchecked)
+            self.list.addItem(line)
+        self.list.setCurrentRow(listing["current"])
+        self.list.blockSignals(False)
+        self._mark_buttons()
+
+    def _mark_buttons(self) -> None:
+        item = self.items[self.row] if 0 <= self.row < len(self.items) else {}
+        self.up_button.set_available(item.get("up", False))
+        self.down_button.set_available(item.get("down", False))
+
+    def _item_changed(self, line) -> None:
+        row = self.list.row(line)
+        on = line.checkState() == Qt.CheckState.Checked
+        if 0 <= row < len(self.items) and on != self.items[row]["on"]:
+            self._do(self._commands["on"], index=row, on=on)
+
+    def _enter(self) -> None:
+        self.open_list()
+
+    def move(self, by: int) -> None:
+        self._do(self._commands["move"], index=self.row, by=by)
+        self.list.setFocus()
+
+    def _input(self, title: str, name: str, submit) -> None:
+        words = self._words
+        box = InputDialog(self, {"title": title, "label": words["name_label"], "help": words["name_help"],
+                                 "ok": words["ok"], "cancel": words["cancel"]}, submit=submit)
+        self.input_box = box
+        box.finished.connect(lambda _r, b=box: self._input_closed(b))
+        box.open()
+        box.field.setText(name)
+        box.field.selectAll()
+
+    def _input_closed(self, box) -> None:
+        self.input_box = None
+        if box.response is not None:
+            self._apply(box.response)
+        self.list.setFocus()
+
+    def new(self) -> None:
+        self._input(self._words["new_title"], "", lambda text: self._run(self._commands["new"], text=text))
+
+    def rename(self) -> None:
+        row = self.row
+        if not 0 <= row < len(self.items):
+            return
+        name = self.items[row]["name"]
+        self._input(self._words["rename_title"].replace("{name}", name), name,
+                    lambda text: self._run(self._commands["rename"], index=row, text=text))
+
+    def zoom(self) -> None:
+        row = self.row
+        if not 0 <= row < len(self.items):
+            return
+        box = BookmarkZoomDialog(self, self._dialog, self.items[row], check=lambda low, high: self._run(
+            self._commands["zoom"], index=row, low=low, high=high), speak=self._speak)
+        self.child_box = box
+        box.finished.connect(lambda _r, b=box: self._zoom_closed(b))
+        box.open()
+
+    def _zoom_closed(self, box) -> None:
+        self.child_box = None
+        if box.response is not None:
+            self._apply(box.response)
+        self.list.setFocus()
+
+    def open_list(self) -> None:
+        """The bookmark list dialog for the chosen list; the lines are counted again when it closes."""
+        row = self.row
+        if not 0 <= row < len(self.items):
+            return
+        response = self._run(self._commands["open_list"], index=row)
+        box = BookmarkListDialog(self, response.dialog, self._run, self._handle, self._speak)
+        self.child_box = box
+        box.finished.connect(lambda _r, r=row: self._list_closed(r))
+        box.open()
+
+    def _list_closed(self, row: int) -> None:
+        self.child_box = None
+        self.fill(self._run(self._commands["listing"], index=row).bookmark_manager)
+        self.list.setFocus()
+
+
+class BookmarkZoomDialog(QDialog):
+    """The zoom range of one bookmark list (P4-T8e), as a layer's (LayerSettingsDialog): Show from and Show up to,
+    each a choice of the zoom list with "No limit", OK and Cancel. OK runs the core's command through `check`, which
+    changes it; a refusal stays here and is said. `response` is the core's answer after OK."""
+
+    def __init__(self, parent, dialog: dict, item: dict, check, speak=None):
+        super().__init__(parent)
+        words = dialog["words"]
+        self._check, self._speak = check, speak
+        self.response = None
+        self.setWindowTitle(words["zoom_title"].replace("{name}", item["name"]))
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        self.min_zoom = self._box(dialog, words["min_zoom"], item["min_zoom_m"] or 0.0, 0.0)
+        self.max_zoom = self._box(dialog, words["max_zoom"], item["max_zoom_m"], None)
+        form.addRow(words["min_zoom"], self.min_zoom)
+        form.addRow(words["max_zoom"], self.max_zoom)
+        layout.addLayout(form)
+        self.message = QLabel("")
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        self.ok_button, self.cancel_button = button_row(layout, [words["ok"], words["cancel"]])
+        self.ok_button.clicked.connect(self._ok)
+        self.cancel_button.clicked.connect(self.reject)
+        self.min_zoom.setFocus()
+
+    @staticmethod
+    def _box(dialog: dict, name: str, current, none_value) -> QComboBox:
+        box = QComboBox()
+        box.setAccessibleName(name)
+        box.addItem(dialog["every_zoom"], none_value)
+        for z in dialog["zooms"]:
+            box.addItem(z["label"], z["value"])
+        box.setCurrentIndex(max(0, box.findData(current)))
+        return box
+
+    def _ok(self) -> None:
+        response = self._check(self.min_zoom.currentData() or 0.0, self.max_zoom.currentData())
+        if response.error:
+            self.message.setText(response.error)
+            self.message.setAccessibleDescription(response.error)
+            if self._speak is not None:
+                self._speak(response.error)
+            self.min_zoom.setFocus()
+            return
+        self.response = response
+        self.accept()
+
+
+class BookmarkListDialog(_BookmarkListsDialog):
+    """The bookmark list dialog (P4-T8e; USR-3, DP219 point 7), for one list's bookmarks. In Tab order: the
+    bookmarks, Move up, Move down, Other list (the lists a bookmark can go to), Copy to list, Move to list, Delete
+    and Close. Move up, Move down, Copy to list, Move to list and Delete are unavailable where they cannot act: they
+    stay in the Tab order and NVDA says "unavailable"."""
+
+    def __init__(self, parent, dialog: dict, run, handle, speak=None):
+        super().__init__(parent, dialog, run, handle, speak)
+        words, commands = dialog["words"], dialog["commands"]
+        self._words, self._commands, self._li = words, commands, dialog["list"]
+        self.targets = dialog["lists"]["targets"]
+        layout = QVBoxLayout(self)
+        help_label = QLabel(dialog["help"])
+        help_label.setWordWrap(True)
+        layout.addWidget(help_label)
+        self.list = QListWidget()
+        self.list.setAccessibleName(words["list"])
+        layout.addWidget(self.list)
+        self.up_button, self.down_button = self._buttons(layout, [words["up"], words["down"]])
+        label = QLabel(words["target_label"])
+        self.target = QComboBox()
+        self.target.setAccessibleName(words["target_label"])
+        label.setBuddy(self.target)
+        for t in self.targets:
+            self.target.addItem(t["name"], t["index"])
+        if not self.targets:
+            self.target.addItem(words["no_target"], None)
+        layout.addWidget(label)
+        layout.addWidget(self.target)
+        self.copy_button, self.move_button, self.delete_button = self._buttons(
+            layout, [words["copy"], words["move"], words["delete"]])
+        (self.close_button,) = button_row(layout, [words["close"]], default=False)
+        self.up_button.on_press(lambda: self.move(-1))
+        self.down_button.on_press(lambda: self.move(1))
+        self.copy_button.on_press(lambda: self._to("copy"))
+        self.move_button.on_press(lambda: self._to("move_to"))
+        self.delete_button.on_press(lambda: self._do(commands["delete"], list=self._li, index=self.row))
+        self.close_button.clicked.connect(self.accept)
+        chain = [self.list, self.up_button, self.down_button, self.target, self.copy_button, self.move_button,
+                 self.delete_button, self.close_button]
+        for a, b in zip(chain, chain[1:]):
+            QWidget.setTabOrder(a, b)
+        self.list.currentRowChanged.connect(lambda _row: self._mark_buttons())
+        self.fill(dialog["lists"])
+        self.resize(520, 440)
+        self.list.setFocus()
+
+    @property
+    def row(self) -> int:
+        return self.list.currentRow()
+
+    def fill(self, listing: dict) -> None:
+        self.items = listing["items"]
+        self.list.blockSignals(True)
+        self.list.clear()
+        self.list.addItems([i["label"] for i in self.items])
+        self.list.setCurrentRow(listing["current"] if self.items else -1)
+        self.list.blockSignals(False)
+        self.list.setAccessibleDescription(listing["empty"])
+        self._mark_buttons()
+
+    def _mark_buttons(self) -> None:
+        item = self.items[self.row] if 0 <= self.row < len(self.items) else None
+        self.up_button.set_available(bool(item and item["up"]))
+        self.down_button.set_available(bool(item and item["down"]))
+        can_go = item is not None and bool(self.targets)
+        self.copy_button.set_available(can_go)
+        self.move_button.set_available(can_go)
+        self.delete_button.set_available(item is not None)
+
+    def move(self, by: int) -> None:
+        self._do(self._commands["move"], list=self._li, index=self.row, by=by)
+        self.list.setFocus()
+
+    def _to(self, which: str) -> None:
+        target = self.target.currentData()
+        if target is not None and 0 <= self.row < len(self.items):
+            self._do(self._commands[which], list=self._li, index=self.row, target=target)
+        self.list.setFocus()
+
 class LayersDialog(QDialog):
     """The layers list (SCP-6, SCP-7): a check box for each layer under its group, Space switches it,
     and a Settings button opens the selected layer's zoom range and crossing sound. OK keeps the changes,

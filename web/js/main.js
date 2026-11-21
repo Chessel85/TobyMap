@@ -17,7 +17,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), viewsDialog = $("viewsdialog"), bookmarkDialog = $("bookmarkdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), viewsDialog = $("viewsdialog"), bookmarkDialog = $("bookmarkdialog"), bookmarkManagerDialog = $("bookmarkmanagerdialog"), bookmarkListDialog = $("bookmarklistdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 // The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists, as the core's GeoJSON text, in the
@@ -339,7 +339,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || viewsDialog.open || bookmarkDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || viewsDialog.open || bookmarkDialog.open || bookmarkManagerDialog.open || bookmarkListDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -403,12 +403,12 @@ window.addEventListener("blur", () => { if (heldKey) release(); });
 // What Tab reaches in a dialog: not a hidden page of the settings, and only the
 // chosen tab of the tab list.
 function tabbable(container) {
-  return [...container.querySelectorAll("button, input, select, textarea, [role=option], [role=treeitem]")]
+  return [...container.querySelectorAll("button, input, select, textarea, [role=option], [role=treeitem], [role=listbox]")]
     .filter((el) => !el.disabled && el.tabIndex >= 0 && !el.closest("[hidden]"));
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [messageBox, settingsDialog, inputDialog, layersDialog, viewsDialog, bookmarkDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, viewsDialog, bookmarkListDialog, bookmarkManagerDialog, bookmarkDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -455,6 +455,8 @@ function openDialog(d) {
   if (d.kind === "layers") return openLayers(d);
   if (d.kind === "views") return openViews(d);
   if (d.kind === "bookmark") return openBookmark(d);
+  if (d.kind === "bookmark_manager") return openBookmarkManager(d);
+  if (d.kind === "bookmark_list") { bookmarkListAfter = null; return openBookmarkList(d); }
   if (d.kind === "search") return openSearch(d);
   if (d.kind === "tree") return openTree(d);
   if (d.kind === "query") return openQuery(d);
@@ -935,6 +937,350 @@ function openBookmark(d) {
   $("bookmark-name").focus();
 }
 
+// The bookmark manager and the bookmark list dialog (P4-T8e, USR-3, DP219 point 7; ACC-7). Neither has OK: each change
+// is run in the core at once, and handle() keeps the bookmarks file, fills the Information panel again and says what the
+// core said. Delete in the core is a question, shown in the message box with Cancel first; Delete runs the core's
+// submit. Buttons that cannot act now stay in the Tab order with aria-disabled, so a screen reader says "unavailable",
+// and a press does nothing. Every word and every line comes from the core.
+
+// Run a core command for one of these two dialogs. A question is asked; a refusal is said and returned for the
+// caller to show; any other answer is handled (file, panel, speech) and the listing in it given to `apply`.
+function bookmarkCommand(command, args, apply, back) {
+  const { width, height } = mapSize();
+  return client.send({ type: "run", commands: [[command, args || {}]], width, height }).then((result) => {
+    const r = result.response;
+    if (r.dialog && r.dialog.kind === "confirm") { bookmarkAsk(r.dialog, apply, back); return result; }
+    if (r.error) { speak(r.error, "assertive"); return result; }
+    handle(result);
+    apply(r);
+    return result;
+  }).catch(showError);
+}
+
+function bookmarkAsk(d, apply, back) {
+  $("messagebox-title").textContent = d.title;
+  $("messagebox-text").textContent = d.text;
+  messageBox.querySelectorAll("button").forEach((b) => b.remove());
+  let sending = false;
+  const ok = button(d.ok, () => {
+    if (sending) return;
+    sending = true;
+    const { width, height } = mapSize();
+    client.send({ type: "run", commands: [[d.submit, {}]], width, height }).then((result) => {
+      handle(result);
+      apply(result.response);
+      messageBox.close();
+    }).catch(showError);
+  }, "messagebox-ok");
+  const cancel = button(d.cancel, () => messageBox.close(), "messagebox-cancel");
+  messageBox.append(ok, cancel);
+  messageAfter = back;
+  messageBox.showModal();
+  cancel.focus();
+}
+
+// A list box of lines: Up, Down, Home and End move, each line takes real focus (a roving tabindex), and with `checks`
+// Space or a click switches a line on or off, as the layers list does. `onEnter` is Enter on a line.
+function bookmarkListBox(id, label, { checks, onChange, onCheck, onEnter }) {
+  const list = document.createElement("ul");
+  list.id = id;
+  list.setAttribute("role", "listbox");
+  list.setAttribute("aria-label", label);
+  list.className = "bookmark-lines";
+  const box = { el: list, items: [], current: 0 };
+  const options = () => [...list.children];
+  const select = (i, focus = true) => {
+    const all = options();
+    if (!all.length) return;
+    box.current = Math.max(0, Math.min(all.length - 1, i));
+    all.forEach((o, n) => { o.tabIndex = n === box.current ? 0 : -1; o.setAttribute("aria-selected", String(n === box.current)); });
+    if (focus) all[box.current].focus();
+    onChange(box.current);
+  };
+  box.fill = (items, current, focus) => {
+    box.items = items;
+    list.replaceChildren(...items.map((item) => {
+      const o = document.createElement("li");
+      o.setAttribute("role", "option");
+      o.textContent = item.label;
+      if (checks) o.setAttribute("aria-checked", String(!!item.on));
+      return o;
+    }));
+    list.tabIndex = items.length ? -1 : 0;   // an empty list is itself reached by Tab, so its description is read
+    if (items.length) select(current, focus);
+    else { onChange(-1); if (focus) list.focus(); }
+  };
+  const toggle = (i) => {
+    const o = options()[i];
+    if (!checks || !o) return;
+    onCheck(i, o.getAttribute("aria-checked") !== "true");
+  };
+  list.addEventListener("keydown", (e) => {
+    const i = box.current;
+    if (e.key === "ArrowDown") select(i + 1);
+    else if (e.key === "ArrowUp") select(i - 1);
+    else if (e.key === "Home") select(0);
+    else if (e.key === "End") select(options().length - 1);
+    else if (e.key === " ") toggle(i);
+    else if (e.key === "Enter" && onEnter) { onEnter(i); e.stopPropagation(); }
+    else return;
+    e.preventDefault();
+  });
+  list.addEventListener("click", (e) => {
+    const o = e.target.closest("li");
+    if (!o) return;
+    const i = options().indexOf(o);
+    select(i);
+    toggle(i);
+  });
+  return box;
+}
+
+// A button that can be unavailable and still be reached by Tab.
+function unavailableButton(label, onClick, id) {
+  const b = button(label, () => { if (b.getAttribute("aria-disabled") !== "true") onClick(); }, id);
+  b.setAttribute("aria-disabled", "false");
+  return b;
+}
+const setAvailable = (b, on) => b.setAttribute("aria-disabled", String(!on));
+
+// The bookmark manager (Ctrl+Shift+B), in Tab order: the lists (a check box on each; Space switches it, Enter is Open
+// list), Open list, New list, Rename, Move up, Move down, Delete list, Zoom range, Save to a file, Open a file, Close.
+function openBookmarkManager(d) {
+  const box = bookmarkManagerDialog;
+  const words = d.words, commands = d.commands;
+  let lines = null;
+  let items = d.lists.items;
+  let current = d.lists.current;
+  const nullable = (v) => (v === undefined ? null : v);
+
+  const apply = (r) => {
+    if (r.bookmark_manager) { items = r.bookmark_manager.items; current = r.bookmark_manager.current; }
+    if (lines && lines.el.isConnected) lines.fill(items, current, true);
+  };
+  const back = () => { if (lines && lines.el.isConnected) lines.el.children[lines.current]?.focus(); };
+  const command = (name, args) => bookmarkCommand(name, args, apply, back);
+
+  const showList = () => {
+    const body = focusModeBody(box);
+    box.setAttribute("aria-label", d.title);
+    const title = document.createElement("h2");
+    title.textContent = d.title;
+    const help = document.createElement("p");
+    help.id = "bm-help";
+    help.textContent = d.help;
+    let up, down;
+    const mark = (i) => {
+      current = i;
+      const item = items[i] || {};
+      if (up) { setAvailable(up, !!item.up); setAvailable(down, !!item.down); }
+    };
+    lines = bookmarkListBox("bm-list", words.list, {
+      checks: true, onChange: mark,
+      onCheck: (i, on) => command(commands.on, { index: i, on }),
+      onEnter: () => openList(),
+    });
+    lines.el.setAttribute("aria-describedby", "bm-help");
+    const open = unavailableButton(words.open_list, () => openList(), "bm-open");
+    const add = unavailableButton(words.new, () => showName(words.new_title, "", (text) => bookmarkRun(commands.new, { text })), "bm-new");
+    const rename = unavailableButton(words.rename, () => {
+      const item = items[current];
+      showName(words.rename_title.replace("{name}", item.name), item.name, (text) => bookmarkRun(commands.rename, { index: current, text }));
+    }, "bm-rename");
+    up = unavailableButton(words.up, () => command(commands.move, { index: current, by: -1 }), "bm-up");
+    down = unavailableButton(words.down, () => command(commands.move, { index: current, by: 1 }), "bm-down");
+    const del = unavailableButton(words.delete, () => command(commands.delete, { index: current }), "bm-delete");
+    const zoom = unavailableButton(words.zoom, () => showZoom(), "bm-zoom");
+    const save = unavailableButton(words.save_file, () => command(commands.save_file, {}), "bm-save");
+    const openFile = unavailableButton(words.open_file, () => command(commands.open_file, {}), "bm-open-file");
+    const close = button(words.close, () => box.close(), "bm-close");
+    body.append(title, help, lines.el, open, add, rename, up, down, del, zoom, save, openFile, close);
+    lines.fill(items, current, false);
+    lines.el.children[current]?.focus();
+  };
+
+  // A command from a form: the answer, or a refusal the form shows.
+  const bookmarkRun = (name, args) => {
+    const { width, height } = mapSize();
+    return client.send({ type: "run", commands: [[name, args]], width, height });
+  };
+  const finishForm = (result) => {
+    handle(result);
+    apply(result.response);
+    showList();
+  };
+
+  const openList = () => {
+    if (!items.length) return;
+    const row = current;
+    bookmarkRun(commands.open_list, { index: row }).then((result) => {
+      bookmarkListAfter = () => {
+        bookmarkRun(commands.listing, { index: row }).then((r) => {
+          apply(r.response);
+          lines.el.children[lines.current]?.focus();
+        }).catch(showError);
+      };
+      openBookmarkList(result.response.dialog);
+    }).catch(showError);
+  };
+
+  const formTitle = (text) => {
+    const body = focusModeBody(box);
+    box.setAttribute("aria-label", text);
+    const title = document.createElement("h2");
+    title.textContent = text;
+    body.append(title);
+    return body;
+  };
+
+  const showName = (heading, start, send) => {
+    const body = formTitle(heading);
+    const label = document.createElement("label");
+    label.textContent = words.name_label;
+    const field = document.createElement("input");
+    field.type = "text";
+    field.id = "bm-name";
+    field.autocomplete = "off";
+    field.spellcheck = false;
+    field.value = start;
+    label.htmlFor = field.id;
+    const help = document.createElement("p");
+    help.id = "bm-name-help";
+    help.textContent = words.name_help;
+    field.setAttribute("aria-describedby", help.id);
+    const message = document.createElement("p");
+    message.id = "bm-name-message";
+    const go = () => send(field.value).then((result) => {
+      const error = result.response.error;
+      if (error) { message.textContent = error; speak(error, "assertive"); return; }
+      finishForm(result);
+    }).catch(showError);
+    const ok = button(words.ok, go, "bm-name-ok");
+    const cancel = button(words.cancel, () => showList(), "bm-name-cancel");
+    body.append(label, field, help, message, ok, cancel);
+    field.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); go(); } });
+    field.focus();
+    field.select();
+  };
+
+  const zoomSelect = (name, value, none) => {
+    const sel = document.createElement("select");
+    sel.setAttribute("aria-label", name);
+    const add = (v, text) => {
+      const o = document.createElement("option");
+      o.value = JSON.stringify(v);
+      o.textContent = text;
+      sel.append(o);
+    };
+    add(none, d.every_zoom);
+    for (const z of d.zooms) add(z.value, z.label);
+    sel.value = JSON.stringify(value === undefined ? none : value);
+    return sel;
+  };
+
+  const showZoom = () => {
+    const item = items[current];
+    const row = current;
+    const body = formTitle(words.zoom_title.replace("{name}", item.name));
+    const label = (text, control) => {
+      const l = document.createElement("label");
+      l.append(text + " ", control);
+      return l;
+    };
+    const min = zoomSelect(words.min_zoom, item.min_zoom_m || 0, 0);
+    const max = zoomSelect(words.max_zoom, nullable(item.max_zoom_m), null);
+    min.id = "bm-zoom-min";
+    max.id = "bm-zoom-max";
+    const message = document.createElement("p");
+    message.id = "bm-zoom-message";
+    const ok = button(words.ok, () => {
+      bookmarkRun(commands.zoom, { index: row, low: JSON.parse(min.value), high: JSON.parse(max.value) }).then((result) => {
+        const error = result.response.error;
+        if (error) { message.textContent = error; speak(error, "assertive"); min.focus(); return; }
+        finishForm(result);
+      }).catch(showError);
+    }, "bm-zoom-ok");
+    const cancel = button(words.cancel, () => showList(), "bm-zoom-cancel");
+    body.append(label(words.min_zoom, min), document.createElement("br"), label(words.max_zoom, max), message, ok, cancel);
+    min.focus();
+  };
+
+  // Escape in a form goes back to the lists; in the lists it closes the box (Close does too).
+  box.oncancel = (e) => { if ($("bm-name") || $("bm-zoom-min")) { e.preventDefault(); showList(); } };
+  showList();
+  box.showModal();
+  back();
+}
+
+// The bookmark list dialog, from Open list in the manager or the Map menu: one list's bookmarks. In Tab order: the
+// bookmarks, Move up, Move down, Other list, Copy to list, Move to list, Delete, Close.
+let bookmarkListAfter = null;
+function openBookmarkList(d) {
+  const box = bookmarkListDialog;
+  const words = d.words, commands = d.commands, li = d.list;
+  const targets = d.lists.targets || [];
+  let items = d.lists.items;
+  let current = d.lists.current;
+  let lines, up, down, target, copy, move, del;
+
+  const mark = (i) => {
+    current = i;
+    const item = items[i];
+    setAvailable(up, !!(item && item.up));
+    setAvailable(down, !!(item && item.down));
+    const can = !!item && targets.length > 0;
+    setAvailable(copy, can);
+    setAvailable(move, can);
+    setAvailable(del, !!item);
+  };
+  const apply = (r) => {
+    if (!r.bookmark_list) return;
+    items = r.bookmark_list.items;
+    lines.el.setAttribute("aria-description", r.bookmark_list.empty || "");
+    lines.fill(items, r.bookmark_list.current, true);
+  };
+  const back = () => { (lines.el.children[lines.current] || lines.el).focus(); };
+  const command = (name, args) => bookmarkCommand(name, { list: li, ...args }, apply, back);
+
+  const body = focusModeBody(box);
+  box.setAttribute("aria-label", d.title);
+  const title = document.createElement("h2");
+  title.textContent = d.title;
+  const help = document.createElement("p");
+  help.id = "bl-help";
+  help.textContent = d.help;
+  lines = bookmarkListBox("bl-list", words.list, { checks: false, onChange: mark });
+  lines.el.setAttribute("aria-describedby", "bl-help");
+  up = unavailableButton(words.up, () => command(commands.move, { index: current, by: -1 }), "bl-up");
+  down = unavailableButton(words.down, () => command(commands.move, { index: current, by: 1 }), "bl-down");
+  const targetLabel = document.createElement("label");
+  targetLabel.textContent = words.target_label + " ";
+  target = document.createElement("select");
+  target.id = "bl-target";
+  for (const t of targets) {
+    const o = document.createElement("option");
+    o.value = String(t.index);
+    o.textContent = t.name;
+    target.append(o);
+  }
+  if (!targets.length) {
+    const o = document.createElement("option");
+    o.textContent = words.no_target;
+    target.append(o);
+  }
+  targetLabel.append(target);
+  const go = (name) => { if (targets.length && items[current]) command(commands[name], { index: current, target: Number(target.value) }); };
+  copy = unavailableButton(words.copy, () => go("copy"), "bl-copy");
+  move = unavailableButton(words.move, () => go("move_to"), "bl-move");
+  del = unavailableButton(words.delete, () => command(commands.delete, { index: current }), "bl-delete");
+  const close = button(words.close, () => box.close(), "bl-close");
+  body.append(title, help, lines.el, up, down, targetLabel, copy, move, del, close);
+  lines.el.setAttribute("aria-description", d.lists.empty || "");
+  lines.fill(items, current, false);
+  box.showModal();
+  back();
+}
+
 // Enter in the Name box or the list presses OK; on a button it presses that button; in the new list's box it is that form's OK.
 bookmarkDialog.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.target.tagName === "BUTTON" || e.target.id === "bookmark-new-name") return;
@@ -1309,6 +1655,15 @@ inputDialog.addEventListener("close", afterClose);
 layersDialog.addEventListener("close", afterClose);
 viewsDialog.addEventListener("close", afterClose);
 bookmarkDialog.addEventListener("close", afterClose);
+bookmarkManagerDialog.addEventListener("close", afterClose);
+// The bookmark list dialog opened from the manager returns to it, with the lines counted again; from the Map menu it
+// returns to the map (P4-T8e).
+bookmarkListDialog.addEventListener("close", (e) => {
+  const after = bookmarkListAfter;
+  bookmarkListAfter = null;
+  if (after) after();
+  else afterClose(e);
+});
 searchDialog.addEventListener("close", afterClose);
 treeDialog.addEventListener("close", afterClose);
 queryDialog.addEventListener("close", afterClose);

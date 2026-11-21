@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QHBoxLayout, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import BookmarkDialog, ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, ViewsDialog, WorldTreeDialog
+from desktop.dialogs import BookmarkDialog, BookmarkListDialog, BookmarkManagerDialog, ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, ViewsDialog, WorldTreeDialog
 from desktop.keys import key_name, system
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
@@ -722,6 +722,10 @@ class MainWindow(QMainWindow):
         elif kind == "bookmark":   # Ctrl+Enter (P4-T8b): the core fills it and carries out OK
             box = BookmarkDialog(self, dialog, run=self.session.run)
             box.accepted.connect(lambda b=box: self._carry_out_answer([b.response]))
+        elif kind in ("bookmark_manager", "bookmark_list"):   # P4-T8e: no OK, each change is kept at once
+            box = (BookmarkManagerDialog if kind == "bookmark_manager" else BookmarkListDialog)(
+                self, dialog, run=self.session.run, handle=self.handle,
+                speak=lambda text: self.announcer.speak(text, "assertive"))
         elif kind == "confirm":   # a question, such as Reset all settings (P2-T18h)
             box = ConfirmBox(self, dialog)
             box.finished.connect(lambda _r, b=box: b.confirmed and self._carry_out_answer(

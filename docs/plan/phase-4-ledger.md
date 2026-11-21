@@ -89,29 +89,54 @@ Not started tonight, as they need the PO: P4-T14f's change (the PO sees the list
 
 ## Current state
 
-Last updated 21 November 2026, 08:00. Read this first to resume.
+Last updated 21 November 2026, 09:15, before the PO cleared the session. Read this first to resume.
 
-### Done overnight, all committed and pushed
+### Where things stand
 
-* P4-T14 (your tidy-up 2 notes): a, b, c, d, e, g, h, i, j, k, l, m, and n (faults found on the way). P4-T14f is a proposal only, waiting for you.
-* P4-T0b, P4-T0d (bookmark documents), P4-T0f (as a key plan).
-* P4-T5 (pipeline safety), P4-T4 (correction rules, with DP221), P4-T11a (quality reports).
-* DP220 (ranges and regions cut to the coast as drawn), P4-T12 (territorial waters), DP224 added (your question on other kinds).
-* P4-T15b: the world pack rebuilt with all of these, 552.46 MB, 117 of 119 check places (Ceuta and Melilla, as before).
-* Bookmarks: P4-T8a to P4-T8f (file, dialog, group, current bookmark, manager and list dialog, on the map).
-* The unreliable tests (carried from Phase 3).
+* Everything listed under Progress is committed and pushed, except P4-T9d (see below). The tick list is docs/plan/phase-4.md.
+* The world pack of 21 November 07:17 (552.46 MB) is at E:\osmdata\tobymap\output\world\world.pack and fits the code, apart from the core-only work since. The Western Europe trial (55.19 MB) was built 21 November 01:20.
+* P4-T9d (the shells' Save and Open boxes for bookmark files) was being done by a subagent when the PO cleared. If desktop/dialogs.py, desktop/window.py, web/js/main.js, mapcore/session.py and the bookmark tests show uncommitted changes, they are its work: run tests/desktop/test_bookmark_dialogs_desktop.py, tests/mapcore/test_bookmark_files.py and tests/web/test_bookmarks_page.py (Chromium and Firefox) and commit as "P4-T9d" if they pass; otherwise finish it.
+* Continuous integration: the last failures were the macOS held-key timing test (allowance widened, c4d25ef) and two bookmark browser tests (fixed, 84c93d1). Check the latest runs first.
 
-### For you in the morning
+### The PO's decisions, 21 November 2026, morning
 
-1. The overnight choices above, and the two proposals to read: docs/plan/p4-t14f-messages.md and docs/plan/p4-t0f-keys.md. DP224 is open in the discussion points file.
-2. The reports: docs/plan/p4-t14i-coast-report.md (England's coast) and docs/plan/dp220-ranges-report.md (Exmoor).
-3. With NVDA: the unavailable buttons in Map views (P4-T14g) and in the bookmark dialogs; the bookmark dialogs as a whole.
-4. Your tidy-up 2 desktop checklist is updated for the new world pack; some steps were written without being heard on it (13.4, 13.5, 22.1, 22.2, 16.4, 12.8, 5.6's figures) and are checked next.
+* P4-T13 groups of islands: the orchestrator does the research and chooses the source without the PO's input, following the research approach below, and records the choice and its reasons in the ledger.
+* To do next, without waiting for the PO: P4-T13, the Great Britain work (P4-T1, P4-T2), combining packs (P4-T3), the pack manager (P4-T6), and memory with both packs (P4-T7, which needs the laptop idle: run it when nothing else runs, and say so in the ledger).
+* P4-T10, the NVDA language harness: not now; the PO wants to understand it better first. Do not start it.
+* Still waiting for the PO: P4-T14f's change (the proposal is docs/plan/p4-t14f-messages.md), the key plan (docs/plan/p4-t0f-keys.md), DP224, the overnight choices above, P4-T11b and P4-T6h (publishing: nothing is published without the PO's yes), and permission for the DMT-1 "built twice" run of the world's writing stage (about 1.5 hours).
 
-### Still to do, in order
+### The research approach for P4-T13a (groups of islands)
 
-* Browser tests: tonight's web tests were mostly not run locally (the world build used the memory); continuous integration found two bookmark tests failing, being fixed now.
-* P4-T15c: the checklist steps checked on the new world pack; built twice, identical (DMT-1), an hour and a half of writing: ask before running.
-* P4-T8g (beacon from a bookmark), P4-T9 (measure start, GeoJSON and GPX files), P3-T15 Help.
-* Then, with you: P4-T14f's change, P4-T13 (the source for groups of islands), P4-T1 and P4-T2 (Great Britain), P4-T3, P4-T6, P4-T7, P4-T10, P4-T11b.
-* The full Python suite and all browser tests at the end of the code work.
+The aim is a layer "Groups of islands" whose outlines are made from the islands layer's own islands (accurate to the coast), so the source need only say which islands belong to each group. The research, written up as docs/plan/p4-t13a-island-groups-report.md for the PO:
+
+1. The test set: the Channel Islands, the Isles of Scilly, the Inner and Outer Hebrides, Orkney, Shetland, the Balearic Islands, and a handful elsewhere (the Azores, the Canary Islands, the Faroe Islands, the Frisian Islands, the Cyclades).
+2. For each source, for each group in the test set: is the group there, under what name, and can its member islands be matched to our islands layer (by OpenStreetMap identifier, Wikidata identifier, or by lying inside an outline)?
+   * OpenStreetMap: place=archipelago and place=islands, as relations (with member islands) or as points; read from the planet file already on the data folder (osm-places-style query), or from the Western Europe trial's data. ODbL.
+   * Wikidata: items that are an instance of archipelago (Q33837) or island group, with "has part" (P527) and "part of" (P361) linking islands; the build already fetches Wikidata facts (the wikidata stage): see how, and whether a query by the islands' own Wikidata identifiers is enough. CC0.
+   * Natural Earth physical regions, class "Island group", already in the pack as "group of islands": which test groups it has, and how rough (the British Isles fault).
+   * GeoNames (feature code ISLS), only if the others leave gaps: CC BY 4.0 needs a credit line; check docs/design/data sources.md's rules before choosing it.
+   * A small record of our own in mapdata/config (like the counties record), for groups no source covers well.
+3. Decide the method: membership from the best source per group, in a set order (likely OpenStreetMap relations, then Wikidata "part of", then the record of our own); outline = the union of member islands' outlines, grown by a small buffer and simplified, or the convex hull cut to the sea round them: test both on the trial and pick the one whose "you are in the Channel Islands" is right at sea between the islands as well as on them. Natural Earth's rough island groups are dropped or kept only where nothing better exists: say which.
+4. Check the known faults against the choice: the British Isles' rough outline (Cornwall, Essex, the Isle of Wight said to overlap it at 99 percent), and Sark (an island in the Channel Islands as well as part of Guernsey, P4-T14k).
+5. Licences: every source used listed in docs/design/data sources.md with its licence, and tools/check_licences.py if any package is added.
+Then P4-T13b builds the stage (after physical, as territorial-waters is, so the world rerun is from there: about 5 hours), rehearsed on the Western Europe trial first.
+
+### Suggested order for the next session
+
+1. Finish and commit P4-T9d; check continuous integration.
+2. P3-T15 Help (Sonnet), as the application has changed a lot.
+3. P4-T13a research (Opus), then P4-T13b on the Western Europe trial.
+4. P4-T0e test samples (Sonnet: Winchester, the New Forest, Lymington), needed by P4-T1.
+5. P4-T1a to P4-T1i (the regional pipeline; P4-T1f's category table goes to the PO as a CSV but need not wait), then P4-T1j the Hampshire and Isle of Wight rehearsal (a heavy run: under an hour).
+6. P4-T2 the Great Britain build (heavy: estimated from the rehearsal; run with the run switch, a stall watch and a snapshot worktree as on 21 November). If over 1 GB, P4-T2b proposes a split to the PO and waits.
+7. P4-T3 combining packs; then P3-T20d (browser speed, DP222 yes).
+8. P4-T6 the pack manager, P4-T6a to g (h, the test release, waits for the PO's yes).
+9. A world rebuild for P4-T13 and P4-T1h's identifier register, then P4-T7 memory with both packs, with the laptop idle.
+10. The full Python suite and all browser tests at the end.
+
+### How the 20 to 21 November run went, for method
+
+* A world build runs from a detached git worktree (C:\Users\chess\github\Mapping-build) with paths.yaml copied in and MAPDATA_SWITCH pointing at the main folder's continue.txt, launched by a detached pwsh script (scratchpad world-build.ps1: Set-Location to the worktree, run .venv python -m mapdata build world --away, append to world console.txt, end with an EXIT line). Core work carries on in the main folder meanwhile. A fix to a stage is committed in the main folder and copied into the worktree alone (git checkout <commit> -- <file>), then the build restarted.
+* Adding any layer reruns every non-area stage from graticule; the world's relationships stage now takes 3 h 13 min; write 1 h 29 min.
+* The build log's 30-second heartbeat lines repeat "Stage N of M": a watch must match "^time Stage" only, or it fires every 30 seconds.
+* Ledger lines are added with a small script (scratchpad ledger_add.py: progress or choice, from a text file), as heredocs with quotes break in this environment.

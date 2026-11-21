@@ -35,7 +35,7 @@ STAGE_MB = {
     "osm-areas": (50, 6.0), "squares": (50, 0.2), "join": (50, 2.5),
     "osm-places": (50, 3.5), "graticule": (10, 2.5), "distant-parts": (50, 2.5),
     "continents": (50, 3.0), "osm-layer": (50, 3.2), "osm-rivers": (50, 3.2),
-    "osm-lines": (50, 3.6), "physical": (50, 3.3), "disputes": (20, 3.5),
+    "osm-lines": (50, 3.6), "physical": (50, 3.3), "territorial-waters": (50, 3.7), "disputes": (20, 3.5),
     "enclaves": (20, 3.5), "relationships": (50, 3.8), "coast-stretches": (50, 3.8),
     # The features record and relationships written again; the shapes are linked, not copied (P4-T4a).
     "corrections": (50, 1.0),

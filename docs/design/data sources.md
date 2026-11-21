@@ -165,7 +165,8 @@ These change what we can use, so please read them even if you skip the rest.
 * Natural Earth's breakaway and disputed areas, 1:10 million (public domain), ne_10m_admin_0_disputed_areas, in use from P3-T2c, 13 November 2026: each area's note of who holds and who claims it is the source's view said in Details (ANN-6, DAT-8). The source is "naturalearth-disputed" in mapdata/config/sources.yaml. The test pack has its Crimea only, in tests/samples/naturalearth-disputed-crimea.geojson.
 
 ### Maritime zones (optional political layer)
-* Marine Regions EEZ and territorial sea layers. Some versions are listed as CC-BY 4.0, but the licence must be confirmed for the version we use.
+* Territorial waters, in use from P4-T12a, 21 November 2026 (DAT-15): made from OpenStreetMap's own country areas, which reach 12 nautical miles out to sea, less the land as the pack draws it. No new source, so the licence is OpenStreetMap's ODbL, as for the countries.
+* Marine Regions EEZ and territorial sea layers, for wider zones such as exclusive economic zones only. Some versions are listed as CC-BY 4.0, but the licence must be confirmed for the version we use (DAT-15).
 * Could priority (DP29).
 
 ## How the sources are combined (outline only)

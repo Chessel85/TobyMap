@@ -24,7 +24,8 @@ from dataclasses import dataclass, replace
 
 GEOMETRIES = ("area", "line", "point")
 LINE_STYLES = ("plain", "special")   # how a line layer is drawn (P2-T17v, DAT-13)
-FILLS = ("land", "water", "none", "colours", "plain", "kind")   # how an area is painted (P3-T1e, P3-T23); land is colours
+FILLS = ("land", "water", "none", "colours", "plain", "kind", "light_water")   # how an area is painted (P3-T1e, P3-T23,
+# P4-T12b); land is colours
 DEFAULT_MIN_SIZE = 0.02   # an area must be at least 2% of the zoom distance across (DP80)
 
 # What a layer definition may hold, with the value used when a pack leaves it out.

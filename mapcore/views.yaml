@@ -19,7 +19,8 @@
 #   A layer not listed is said after the listed ones, in the order of the pack's ranks.
 # * layers: for each layer, how it is painted, and anything else it changes from the pack's own layer:
 #   - fill: colours (the land colours, so neighbours differ), plain (one plain land colour), kind (a colour for
-#     the layer's kind, from the theme's physical colours), water (the sea's colour), or none (not filled).
+#     the layer's kind, from the theme's physical colours), water (the sea's colour), light_water (the theme's
+#     lighter blue, for the territorial waters, P4-T12b), or none (not filled).
 #   - outline: true or false, whether its outline is drawn. Every layer's outline is drawn unless it says false.
 #   - names: true or false, whether its areas' names are drawn on the map. At first, a layer's names are
 #     drawn when it is filled.
@@ -29,6 +30,7 @@
 drawing_order:
   - oceans          # 1. Oceans and seas. Countries are cut to the coast, so they never overlap the sea.
   - seas
+  - territorial-waters   # Territorial waters, a lighter blue over the sea, under the land (P4-T12b, DAT-15).
   - countries       # 2. Countries.
   - regions         # 3. Regions.
   - counties        # 4. Counties.
@@ -47,11 +49,13 @@ political_layers: [countries, regions, counties]
 views:
   - id: political
     name: Political
-    said: [lakes, seas, oceans, counties, regions, countries, exclaves, islands, mountain-ranges, physical-regions,
-           continents]
+    said: [lakes, seas, oceans, territorial-waters, counties, regions, countries, exclaves, islands, mountain-ranges,
+           physical-regions, continents]
     layers:
       oceans: {fill: water, outline: false}
       seas: {fill: water, outline: false}
+      # Territorial waters: said after the sea you are on, painted a lighter blue, not named on the map (P4-T12b).
+      territorial-waters: {fill: light_water, outline: false, names: false}
       countries: {fill: colours}
       regions: {fill: colours}
       counties: {fill: colours}
@@ -66,11 +70,12 @@ views:
 
   - id: physical
     name: Physical
-    said: [lakes, seas, oceans, islands, mountain-ranges, physical-regions, counties, regions, countries, exclaves,
-           continents]
+    said: [lakes, seas, oceans, territorial-waters, islands, mountain-ranges, physical-regions, counties, regions,
+           countries, exclaves, continents]
     layers:
       oceans: {fill: water, outline: false}
       seas: {fill: water, outline: false}
+      territorial-waters: {fill: light_water, outline: false, names: false}
       # The land is one plain colour under the physical features; the borders are drawn as outlines.
       countries: {fill: plain, names: true}
       regions: {fill: none}

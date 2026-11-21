@@ -143,7 +143,7 @@ def test_every_drawn_layer_is_one_where_am_i_can_find(test_pack):
     layers = {s.store.feature(a).layer for a in set(f["shape_area"])}
     # Since P3-T23 the National parks, not filled, are outlined, so drawn too.
     findable = {a.layer for a in s.store.at(51.2, 1.2)} | {"countries", "regions", "counties", "oceans", "seas",
-                                                            "national_parks"}
+                                                            "national_parks", "territorial-waters"}
     assert layers <= findable
 
 

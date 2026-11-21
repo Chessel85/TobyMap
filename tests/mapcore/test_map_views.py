@@ -45,7 +45,7 @@ def _choose(session, label):
 # The views file ------------------------------------------------------------------------------------------
 
 def test_the_drawing_order_is_the_definitions():
-    assert views.drawing_order() == ["oceans", "seas", "countries", "regions", "counties", "physical-regions",
+    assert views.drawing_order() == ["oceans", "seas", "territorial-waters", "countries", "regions", "counties", "physical-regions",
                                      "islands", "mountain-ranges", "lakes", "rivers", "outlines", "roads", "railways"]
 
 
@@ -76,6 +76,56 @@ def test_the_current_feature_is_the_first_area_said_in_the_view(session):
     session.settings.view = "physical"
     session.areas = session._here()
     assert session.current_feature.name == "Kent" == session.areas[0].name
+
+
+# Territorial waters (P4-T12b, DAT-15, DAT-3) --------------------------------------------------------------------
+
+OFF_BRITTANY = {"lat": 48.2, "lon": -4.7, "zoom_m": 5000, "step_m": 1000}   # at sea, off the test pack's Brittany
+
+
+@pytest.mark.parametrize("view", ["political", "physical"])
+def test_at_sea_off_brittany_you_hear_the_sea_first_then_frances_territorial_waters(test_pack, view):
+    s = MapSession(packs=[test_pack], saved_state=dict(OFF_BRITTANY))
+    s.start()
+    s.settings.view = view
+    assert spoken(s.run("where.am_i"))[0].startswith("North Atlantic Ocean, Territorial waters of France")
+    assert "France" not in [a.name for a in s._here()]   # at sea, not in France (DAT-3)
+    s.store.close()
+
+
+def test_territorial_waters_are_off_by_their_switch(test_pack):
+    s = MapSession(packs=[test_pack], saved_state=dict(OFF_BRITTANY))
+    s.start()
+    s.run("layers.set", layer="territorial-waters", field="on", value=False)
+    assert "Territorial waters" not in spoken(s.run("where.am_i"))[0]
+    s.store.close()
+
+
+def test_territorial_waters_are_painted_a_lighter_blue_over_the_sea_under_the_land(test_pack):
+    s = MapSession(packs=[test_pack], saved_state=dict(OFF_BRITTANY))
+    s.start()
+    s.world.zoom_index = s.world.zoom_list.index(100000)
+    frame = s.scene(800, 600)
+    layer = [s.store.feature(a).layer for a in frame["shape_area"]]
+    tw = layer.index("territorial-waters")
+    style = frame["styles"][frame["shape_style"][tw]] if "styles" in frame else None
+    light = scene_mod.KIND_STYLE + len(s.theme()["physical"])
+    assert frame["shape_style"][tw] == light
+    assert style is None or style["fill"] == s.theme()["light_water"]
+    assert max(i for i, l in enumerate(layer) if l == "oceans") < tw < min(
+        i for i, l in enumerate(layer) if l in ("countries", "regions", "counties"))
+    assert tw not in frame["outline_shapes"].tolist()   # not outlined, as the seas are not
+    s.store.close()
+
+
+def test_every_theme_paints_territorial_waters_a_blue_apart_from_the_open_sea():
+    from mapcore.render import themes
+
+    for name in themes.names():
+        t = themes.theme(name)
+        assert themes.difference(t["light_water"], t["ocean"]) > 4, name
+        if name != "high_contrast_light":   # its sea is white: the waters are a pale blue on it
+            assert themes.luminance(t["light_water"]) > themes.luminance(t["ocean"]), name
 
 
 # The drawing --------------------------------------------------------------------------------------------

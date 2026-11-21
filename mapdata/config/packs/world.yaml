@@ -116,6 +116,10 @@ stages:
                 Basin: basin, Delta: delta, Valley: valley, Lowland: lowland, Tundra: tundra, Isthmus: isthmus,
                 Wetlands: wetland, Gorge: gorge, Foothills: foothills, Depression: depression, Geoarea: region,
                 Island group: group of islands}
+  # Each country's territorial waters: its area as OpenStreetMap has it, less the land as the countries draw it
+  # (P4-T12a, DAT-15). Settings: see configuration.md.
+  - stage: territorial-waters
+    tolerance_m: 100
   # Named peaks and volcanoes of 1,000 metres or more, as places, with their height (P3-T1f, DP169). Peaks only
   # with a Wikidata link, the notable ones, about 56,000 of the 207,477 (DP176, option 2).
   - stage: osm-places

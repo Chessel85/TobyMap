@@ -111,6 +111,7 @@ details:
     continents: continent
     seas: sea, bay or strait
     sea-places: sea, bay or strait
+    territorial-waters: territorial waters
     islands: island
     mountain-ranges: mountain range
     physical-regions: physical region

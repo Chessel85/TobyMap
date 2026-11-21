@@ -33,6 +33,8 @@ stages:
       - {source: sample-osm, file: distant-parts.geojson}
       # Places that share a name, for search (P3-T8): two Parises, two Portlands, two Newports, Sao Paulo.
       - {source: sample-osm, file: shared-names.geojson}
+      # France's territorial waters off the west of Brittany, as the territorial-waters stage makes them (P4-T12a).
+      - {source: sample-osm, file: territorial-waters.geojson}
   # A country's parts on another continent become areas of their own: French Guiana and Hawaii (DP191).
   - stage: distant-parts
   - stage: water

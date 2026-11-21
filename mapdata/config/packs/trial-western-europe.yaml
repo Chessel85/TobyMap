@@ -109,6 +109,11 @@ stages:
                 Wetlands: wetland, Gorge: gorge, Foothills: foothills, Depression: depression, Geoarea: region,
                 Island group: group of islands}
     box: [-11.0, 35.0, 17.0, 61.0]
+  # Each country's territorial waters: its area as OpenStreetMap has it, less the land as the countries draw it
+  # (P4-T12a, DAT-15). Settings: see configuration.md.
+  - stage: territorial-waters
+    tolerance_m: 100
+    box: [-11.0, 35.0, 17.0, 61.0]
   # Named peaks and volcanoes of 1,000 metres or more, as places, with their height (P3-T1f, DP169). Peaks only
   # with a Wikidata link, the notable ones (DP176, option 2).
   - stage: osm-places

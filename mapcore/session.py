@@ -183,7 +183,8 @@ def _touches(km: float) -> bool:
 # are below them. A record's type is set by the pack build.
 OCEAN_TYPES = frozenset({"ocean"})
 # Natural Earth's classes of named water (mapdata/stages/seas.py).
-SEA_TYPES = OCEAN_TYPES | {"sea", "gulf", "bay", "strait", "sound", "channel", "fjord", "lagoon", "inlet"}
+SEA_TYPES = OCEAN_TYPES | {"sea", "gulf", "bay", "strait", "sound", "channel", "fjord", "lagoon", "inlet",
+                           "territorial waters"}   # the territorial waters layer's type (P4-T12a)
 
 
 def outlined(record: dict, setting: str) -> bool:

@@ -45,6 +45,7 @@ CLEAR_STYLE = 9   # an area in a layer not painted, drawn only for the current a
 CLEAR = "clear"   # its fill
 PLAIN_STYLE = 10   # one plain land colour, as the physical view paints the countries (P3-T23)
 KIND_STYLE = 11    # the first of the physical colours, one for each kind of layer (P3-T23)
+# After the physical colours: the lighter blue of the territorial waters (P4-T12b), at KIND_STYLE + their number.
 THIN_OUTLINE, THICK_OUTLINE = 0, 1   # the outline styles: every area's, and the country borders (P3-T23)
 LINE_STYLE, HIGHLIGHT_LINE_STYLE, SPECIAL_LINE_STYLE = 0, 1, 2   # the line styles (P2-T17v)
 LINE_DRAW_ORDER = {LINE_STYLE: 0, SPECIAL_LINE_STYLE: 1, HIGHLIGHT_LINE_STYLE: 2}
@@ -127,6 +128,8 @@ def paint_plan(feats: list, paint: dict | None, fills: dict | None, theme: dict,
             fill = "colours"
         if fill == "water":
             style[k] = OCEAN_STYLE
+        elif fill == "light_water":
+            style[k] = KIND_STYLE + len(kinds)
         elif fill == "plain":
             style[k] = PLAIN_STYLE
         elif fill == "kind":
@@ -709,6 +712,7 @@ class SceneBuilder:
         physical = theme.get("physical") or {}
         styles.append({"fill": theme.get("plain_land", theme["land"][0]), "stroke": none, "width": 0})   # PLAIN_STYLE
         styles += [{"fill": physical[k], "stroke": none, "width": 0} for k in sorted(physical)]   # KIND_STYLE on
+        styles.append({"fill": theme.get("light_water", theme["ocean"]), "stroke": none, "width": 0})   # light water
         shape_area, shape_style, shape_name, line_style = [], [], [], []
         for j in kept_polys:
             k = tile_of_poly[j]

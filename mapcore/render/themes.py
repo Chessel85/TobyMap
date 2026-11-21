@@ -99,7 +99,7 @@ def _shown(colour: str) -> bool:
 
 def contrast_pairs(t: dict) -> list[tuple[str, str, str]]:
     """Every outline and text colour with each colour it is drawn on: (what, colour, under)."""
-    fills = [c for c in t["land"] if _shown(c)] + [t["ocean"]]
+    fills = [c for c in t["land"] if _shown(c)] + [t["ocean"]] + ([t["light_water"]] if t.get("light_water") else [])
     fills += [c for c in [t.get("plain_land"), *(t.get("physical") or {}).values()] if c and _shown(c)]   # P3-T23
     pairs = []
     if _shown(t["border"]):

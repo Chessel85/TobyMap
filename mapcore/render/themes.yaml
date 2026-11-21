@@ -11,6 +11,7 @@ standard:
   high_contrast: false
   background: "#1b1f24"      # around the globe
   ocean: "#a9cce3"
+  light_water: "#cfe3f0"    # territorial waters, a lighter blue than the open sea (P4-T12b, DAT-15)
   globe_edge: "#3c5a73"
   land:
     - "#e8d8a9"
@@ -52,6 +53,7 @@ high_contrast_dark:
   high_contrast: true
   background: "#000000"
   ocean: "#000000"
+  light_water: "#0a2540"    # territorial waters: lighter than the black sea, every outline still 7 to 1
   globe_edge: "#ffffff"
   land:
     - "#4d3300"
@@ -93,6 +95,7 @@ high_contrast_light:
   high_contrast: true
   background: "#ffffff"
   ocean: "#ffffff"
+  light_water: "#d6ebff"    # territorial waters: the sea is white, so a pale blue, every outline still 7 to 1
   globe_edge: "#000000"
   land:
     - "#fff3a0"
@@ -136,6 +139,7 @@ colour_blind_safe:
   high_contrast: false
   background: "#1b1f24"
   ocean: "#e8eef2"
+  light_water: "#f6f9fb"    # territorial waters, a lighter blue than the open sea
   globe_edge: "#000000"
   land:
     - "#f5c26b"

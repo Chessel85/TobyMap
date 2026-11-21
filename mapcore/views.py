@@ -15,7 +15,7 @@ from pathlib import Path
 import yaml
 
 VIEWS_FILE = Path(__file__).resolve().parent / "views.yaml"
-FILLS = ("colours", "plain", "kind", "water", "none")
+FILLS = ("colours", "plain", "kind", "water", "light_water", "none")
 OUTLINES = "outlines"   # the place in the drawing order where the outlines are drawn
 LAYER_FIELDS = ("on", "min_zoom_m", "max_zoom_m", "fill", "outline", "names")
 

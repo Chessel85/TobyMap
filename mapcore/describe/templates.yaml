@@ -83,7 +83,6 @@ panel:
   order_bearing: "clockwise from ahead"
   order_bearing_north: "clockwise from north"
   order_natural_within: "smallest first"
-  order_natural_crossed: "along the path"
   order_natural: "in its natural order"
   # The Search group's first order (P3-T32k): a search's results as it ranked them; a query "within a distance of",
   # nearest first. A line's areas are "from its start" (overlapping.order_from_start); browsing is "by name".

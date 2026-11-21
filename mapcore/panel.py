@@ -6,8 +6,8 @@ their Shift and number keys (DP156); this table gives how each behaves:
 * default_sort: the order its items start in. "natural" is the order the group makes them in,
   such as Within's smallest to largest; "name", "distance" and "bearing" (clockwise from ahead)
   are the orders Ctrl+S cycles through (P3-T4d). UX section 6.1: Within natural, Nearby by
-  distance, Bordering by bearing, the rest by name. Passed over (id "crossed") starts in its natural order,
-  along the move, and Ctrl+S then sorts it like the others (P3-T29f). The Crossing group went in P3-T29a (INF-10): its content,
+  distance, Bordering by bearing, the rest by name. Passed over (id "crossed") starts by distance, nearest first, as Nearby does, and
+  Ctrl+S offers by distance, by name and by bearing; "along the path" went in P4-T14h. The Crossing group went in P3-T29a (INF-10): its content,
   a line's areas in order from its start and an area's lines, is in Overlapping since P3-T29e. Overlapping about a
   line starts in that order, "from its start", and Ctrl+S then sorts it like the others (MapSession._first_order).
   Search starts in the order its results came (P3-T32k): a search's as it ranked them, "best match first"; a query
@@ -52,7 +52,7 @@ GROUPS: dict[str, Group] = {g.id: g for g in [
     Group("bordering", "bearing", zoom_limited=False, about_current=True, lazy=True),
     Group("contains", "name", zoom_limited=True, about_current=True, lazy=True),
     Group("overlapping", "name", zoom_limited=False, about_current=True, lazy=True),
-    Group("crossed", "natural", zoom_limited=True, about_current=False, lazy=False),   # "Passed over"
+    Group("crossed", "distance", zoom_limited=True, about_current=False, lazy=False),   # "Passed over"
     Group("search", "natural", zoom_limited=False, about_current=False, lazy=True),   # as found (P3-T32k)
 ]}
 

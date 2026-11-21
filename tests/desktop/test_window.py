@@ -1039,7 +1039,7 @@ def test_crossed_and_passed_is_filled_in_the_background_and_shift_3_goes_there(q
     qtbot.keyClick(w.map, Qt.Key.Key_6, Qt.KeyboardModifier.ShiftModifier)
     assert region(w) == "panel"
     # On the group's heading, so its count is heard first (P3-T19c).
-    assert w.tree.currentItem() is group and group.text(0) == "Passed over, 1 item, along the path"
+    assert w.tree.currentItem() is group and group.text(0) == "Passed over, 1 item, by distance"
 
 
 # Enter on a button presses that button (P2-T17b; desktop checklist 3.5, 5.3, 8.2, 8.6; ACC-7) -------------

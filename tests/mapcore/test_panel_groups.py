@@ -45,7 +45,7 @@ def test_each_groups_default_sort_and_zoom_limit():
     assert g["bordering"].default_sort == "bearing"
     assert all(g[x].default_sort == "name" for x in ("contains", "overlapping"))
     assert g["search"].default_sort == "natural"   # as the search ranked them, best match first (P3-T32k)
-    assert g["crossed"].default_sort == "natural"   # Passed over: along the move
+    assert g["crossed"].default_sort == "distance"   # Passed over: nearest first (P4-T14h)
     assert {x for x, v in g.items() if v.zoom_limited} == {"contains", "nearby", "crossed"}
     assert {x for x, v in g.items() if v.about_current} == {"contains", "bordering", "overlapping"}
 

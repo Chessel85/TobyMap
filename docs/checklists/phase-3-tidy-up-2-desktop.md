@@ -132,8 +132,8 @@ Zoom 25 kilometres, step 10 kilometres.
 Zoom 25 kilometres, step 10 kilometres.
 
 * 8.1 Go to 51.063,-1.20, east of Winchester. Press Left once, to step 10 kilometres west through Winchester.
-* 8.2 Press Shift+6. The heading is "Passed over, 6 items, along the path". The items come in the order the move met them, each with its distance and direction from where you are now: "A31, crossed, 8.3 kilometres east", "A272, Spitfire Link, crossed", "M3, crossed", "River Itchen, crossed", "Passed nearby to Winchester, closest 190 metres, 2.1 kilometres east", and "South West Main Line, crossed, 1.5 kilometres east".
-* 8.3 Press Ctrl+S. The focus moves to the heading, and you hear it once: "Passed over, 6 items, by name". Ctrl+Shift+S goes back.
+* 8.2 Press Shift+6. The heading is "Passed over, 6 items, by distance". The items come nearest first, each with its distance and direction from where you are now, among them: "A31, crossed, 8.3 kilometres east", "A272, Spitfire Link, crossed", "M3, crossed", "River Itchen, crossed", "Passed nearby to Winchester, closest 190 metres, 2.1 kilometres east", and "South West Main Line, crossed, 1.5 kilometres east".
+* 8.3 Press Ctrl+S. The focus moves to the heading, and you hear it once: "Passed over, 6 items, clockwise from north". Ctrl+S again says "by name", and once more "by distance". Ctrl+Shift+S goes back.
 * 8.4 Is "Passed nearby to Winchester" clear?
 
 ## 9. Sorting, and hearing the order (P3-T29g)

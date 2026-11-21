@@ -284,22 +284,25 @@ def test_a_place_passed_nearby_says_passed_nearby_to_its_name(session):
     assert any(l.startswith("Passed nearby to Southampton Central, closest 300 metres, ") for l in labels(session)), labels(session)
 
 
-def test_passed_over_is_along_the_path_then_ctrl_s_sorts_it_and_ctrl_shift_s_goes_back(session):
+def test_passed_over_has_no_along_the_path_it_opens_by_distance_and_ctrl_s_offers_three_orders(session):
+    """P4-T14h (PO, tidy-up 2 desktop 8.3): the order along the path is dropped."""
     lat, lon = STATION
     place(session, lat - 500 / M_PER_DEG_LAT, lon - 2500 / m_per_deg_lon(lat), 5000)
     step_east_and_search(session)
-    along = labels(session)
-    assert len(along) > 1, along
-    assert crossed_group(session)["label"].endswith(", along the path")
+    first = labels(session)
+    assert len(first) > 1, first
+    assert "along the path" not in crossed_group(session)["label"]
+    assert crossed_group(session)["label"].endswith(", by distance")
+    opening = [i["distance_m"] for i in crossed_group(session)["items"]]
+    assert opening == sorted(opening), opening
     session.panel_at_group = "crossed"
-    session.run("panel.sort")
-    assert crossed_group(session)["label"].endswith(", by name")
-    by_name = [i["name"] for i in crossed_group(session)["items"]]
-    assert by_name == sorted(by_name, key=str.casefold), by_name
-    assert labels(session) != along
-    session.run("panel.sort")
-    by_distance = [i["distance_m"] for i in crossed_group(session)["items"]]
-    assert by_distance == sorted(by_distance), by_distance
-    session.run("panel.sort_back")
-    session.run("panel.sort_back")
-    assert labels(session) == along
+    seen = []
+    for _ in range(3):
+        session.run("panel.sort")
+        label = crossed_group(session)["label"]
+        assert "along the path" not in label and "natural" not in label, label
+        seen.append(label.rsplit(", ", 1)[1])
+    assert len(set(seen)) == 3 and {"by name", "by distance"} <= set(seen), seen   # the third is by bearing
+    for _ in range(3):
+        session.run("panel.sort_back")
+    assert labels(session) == first

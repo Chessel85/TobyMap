@@ -1017,7 +1017,7 @@ class MapSession:
             if gid == "search":   # as the search ranked them, or nearest first (P3-T32k)
                 return say("panel.order_natural_nearest" if self.search_order == "nearest"
                            else "panel.order_natural_search")
-            return say(key) if gid in ("within", "crossed") else say("panel.order_natural")
+            return say(key) if gid == "within" else say("panel.order_natural")
         if how == "bearing" and describer.facing(self.world) is None:
             return say("panel.order_bearing_north")
         return say(f"panel.order_{how}")
@@ -2901,7 +2901,7 @@ class MapSession:
         return self.crossed_finish(job, self.crossed_search(job))
 
     def _crossed_items(self, heading: float | None) -> list[dict]:
-        """The list's items, in the order along the path, each with its distance and direction
+        """The list's items, nearest first (P4-T14h), each with its distance and direction
         from where you are now, relative to the way you face (ANN-2, NAV-12)."""
         units, style, w = self.settings["units"], self.settings["bearing"], self.world
         items = []
@@ -2915,7 +2915,7 @@ class MapSession:
                 kind += "_here"
             items.append(panel_table.item(c.area.id, say(f"crossed.{kind}", **fields), c.area.name, distance,
                                           bearing - (describer.facing(w) or 0.0)))
-        return items
+        return sorted(items, key=lambda i: (i["distance_m"], i["id"]))
 
     def _moved(self, **extra) -> Response:
         self.selected = None

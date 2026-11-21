@@ -3466,8 +3466,8 @@ class MapSession:
         """Enter on an item of the Information panel: go there, as a jump, so Alt+comma comes back
         (P2-T17k, INF-10, DP155). A point goes to the point; an area to its centre, the centre of
         its bounding box, as Within's distance is; a line to the place its item is about, the
-        nearest point or where it was crossed. The focus stays in the panel, on the first item of
-        the same group, as the group's items change with the place."""
+        nearest point or where it was crossed. The focus stays in the panel, on the heading of the
+        group the item was in, as the group's items change with the place (P4-T14e)."""
         self.panel()   # the items' places are kept as the panel is made
         if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
@@ -3485,7 +3485,7 @@ class MapSession:
             r = self._jump_to_point(area, lat, lon)
         else:
             r = self._go_to_item(area, lat, lon)
-        r.focus = {"region": "panel", "group": group, "item": None}
+        r.focus = {"region": "panel", "group": group, "heading": True}   # the group's heading (P4-T14e)
         return r
 
     def _jump_to_point(self, area, lat: float, lon: float) -> Response:

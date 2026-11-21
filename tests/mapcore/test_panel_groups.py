@@ -132,7 +132,7 @@ def test_enter_and_space_work_on_a_bordering_item(swiss):
     lat, lon = swiss._point_of(swiss.store.feature(france["id"]))   # its own point (P3-T19g)
     r = swiss.run("panel.go", item=france["id"], group="bordering")
     assert (swiss.world.lat, swiss.world.lon) == pytest.approx((lat, lon))
-    assert r.focus == {"region": "panel", "group": "bordering", "item": None}
+    assert r.focus == {"region": "panel", "group": "bordering", "heading": True}
 
 
 # The current feature (LOC-4) --------------------------------------------------------------------

@@ -1241,7 +1241,7 @@ def test_enter_on_a_within_item_goes_to_its_point_and_stays_in_the_panel(window,
     assert window.announcer.texts[before:] == ["England. " + window.session._place_text()]
     assert window.session.current_feature.name == "England"
     assert region(window) == "panel"
-    assert window.tree.currentItem() is window.tree.topLevelItem(0).child(0)
+    assert window.tree.currentItem() is window.tree.topLevelItem(0)   # the group's heading (P4-T14e)
 
 
 def test_enter_on_a_group_heading_says_and_does_nothing(window, qtbot):

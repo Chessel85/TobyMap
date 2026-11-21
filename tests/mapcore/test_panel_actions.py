@@ -79,7 +79,7 @@ def test_enter_on_a_within_item_goes_to_its_own_point_and_makes_it_current(sessi
     assert (session.world.lat, session.world.lon) == (round(lat, 6), round(lon, 6))
     assert spoken(r) == ["England. " + session._place_text()] and r.redraw and r.panel_stale
     assert session.current_feature.id == england.id
-    assert r.focus == {"region": "panel", "group": "within", "item": None}
+    assert r.focus == {"region": "panel", "group": "within", "heading": True}
 
 
 def test_enter_on_a_point_goes_to_the_point(test_pack):
@@ -90,7 +90,7 @@ def test_enter_on_a_point_goes_to_the_point(test_pack):
     s.run("panel.select", item=station, group="nearby")
     r = s.press("Enter", "panel")
     assert abs(s.world.lat - STATION[0]) < 1e-5 and abs(s.world.lon - STATION[1]) < 1e-5
-    assert r.focus == {"region": "panel", "group": "nearby", "item": None}
+    assert r.focus == {"region": "panel", "group": "nearby", "heading": True}   # P4-T14e
     assert s.press("Alt+,", "map").redraw   # a jump, so back comes back
     assert abs(s.world.lon - (STATION[1] - 0.03)) < 1e-5
     s.store.close()

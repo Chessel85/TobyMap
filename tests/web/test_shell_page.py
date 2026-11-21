@@ -1009,9 +1009,8 @@ def test_enter_on_a_within_item_goes_to_its_centre_and_stays_in_the_panel(app):
     assert "Kent" not in said(app)[-1]
     app.wait_for_function("JSON.parse(localStorage.getItem('tobymap')).state.lon < 0")
     assert region(app) == "panel"
-    # The first item of the same group, Within.
-    assert app.evaluate("document.activeElement.getAttribute('aria-posinset')") == "1"
-    assert app.evaluate("document.activeElement.parentElement.closest('[role=treeitem]').dataset.id") == "group:within"
+    # The heading of the group the item was in, Within, as its items have changed (P4-T14e).
+    assert app.evaluate("document.activeElement.dataset.id") == "group:within"
 
 
 def test_enter_and_space_on_a_group_heading_say_and_do_nothing(app):

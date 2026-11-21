@@ -61,6 +61,8 @@ commands:
   - {name: bearing.type, label: Type a bearing, region: global, menu: Map}
   # The orientation beacon (SON-10): your key, from the key list.
   - {name: beacon.toggle, label: Orientation beacon, region: map, menu: Map, toggle: true}
+  # The beacon comes from the current bookmark (P4-T8g, SON-10).
+  - {name: beacon.bookmark, label: Orientation beacon from the current bookmark, region: map, menu: Map}
   # Going to coordinates and back through the places you have been (NAV-8, NAV-10).
   - {name: goto.coordinates, label: Go to coordinates, region: global, menu: Map}
   - {name: history.back, label: Back to the previous place, region: map, menu: Map}

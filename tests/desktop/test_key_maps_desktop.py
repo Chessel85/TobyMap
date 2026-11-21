@@ -171,3 +171,17 @@ def test_control_m_mutes_on_a_mac(mac_window, qtbot):
     qtbot.keyClick(mac_window.map, Qt.Key.Key_M, CONTROL)
     QApplication.processEvents()
     assert mac_window.actions_by_name["sound.mute"].isChecked()
+
+
+def test_the_beacon_source_box_lists_the_bookmarks_and_applies_one(window):
+    """P4-T8g: the beacon's source list has each bookmark as "List: Name"; OK makes it the source."""
+    s = window.session
+    s.bookmarks.add(0, "Rome", 41.9, 12.5)
+    dialog = open_settings(window)
+    box = dialog.controls["beacon_target"]
+    labels = [box.itemText(i) for i in range(box.count())]
+    assert labels[0] == "The North Pole" and labels[-1] == "Bookmarks: Rome"
+    box.setCurrentIndex(box.count() - 1)
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    assert s.settings["beacon_target"].startswith("bookmark:") and "Rome" in s.settings["beacon_target"]

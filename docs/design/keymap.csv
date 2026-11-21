@@ -17,6 +17,7 @@ Fine turn left in free facing,the map,Ctrl+Left,Alt+Left,Ctrl+Left,Alt+Left,None
 Fine turn right in free facing,the map,Ctrl+Right,Alt+Right,Ctrl+Right,Alt+Right,None known,No problem known.
 Type a bearing,anywhere,Ctrl+B,Cmd+B,Ctrl+B,Cmd+B,None known,No problem known.
 Orientation beacon,the map,B,B,B,B,None known,No problem known.
+Orientation beacon from the current bookmark,the map,Shift+B,Shift+B,Shift+B,Shift+B,None known,No problem known.
 Go to coordinates,anywhere,Ctrl+G,Cmd+G,Ctrl+G,Cmd+G,None known,No problem known.
 Back to the previous place,the map,"Alt+,",Shift+Cmd+Left,"Alt+,",Shift+Cmd+Left,None known,No problem known.
 Forward to the next place,the map,Alt+.,Shift+Cmd+Right,Alt+.,Shift+Cmd+Right,French,"French: The full stop key needs Shift, so Alt+. is hard to press there. Use the Alternative key map, which has Windows desktop and Windows browser: Ctrl+Shift+Right."

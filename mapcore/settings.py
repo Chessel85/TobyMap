@@ -8,6 +8,7 @@ chosen, and the keys you changed on top of it, never a full copy (P3-T31a).
 """
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from pathlib import Path
 
@@ -19,6 +20,8 @@ SCHEMA_FILE = Path(__file__).resolve().parent / "settings.yaml"
 # Settings renamed since they were first saved: old id -> new id. A saved value
 # under the old id is kept under the new one.
 RENAMED = {"crossed_earcon": "earcon_on_crossed_added"}
+# The beacon's source can be a bookmark (P4-T8g, SON-10): "bookmark:" and a JSON pair [list name, name].
+BEACON_BOOKMARK = "bookmark:"
 # The switches a verbosity preset sets (P2-T11, DP144).
 PRESET_SWITCHES = ("say_area", "say_zoom_step", "say_heading", "say_heading_on_step")
 
@@ -87,6 +90,24 @@ def preset_matching(values: dict) -> str:
     return "custom"
 
 
+def beacon_bookmark_value(list_name: str, name: str) -> str:
+    """The beacon_target value that means this bookmark, by its list and its name."""
+    return BEACON_BOOKMARK + json.dumps([list_name, name], ensure_ascii=False)
+
+
+def beacon_bookmark(value: str) -> tuple[str, str] | None:
+    """(list name, name) from a beacon_target value that means a bookmark, else None."""
+    if not value.startswith(BEACON_BOOKMARK):
+        return None
+    try:
+        pair = json.loads(value[len(BEACON_BOOKMARK):])
+    except ValueError:
+        return None
+    if isinstance(pair, list) and len(pair) == 2 and all(isinstance(x, str) for x in pair):
+        return pair[0], pair[1]
+    return None
+
+
 def checked(field_id: str, value):
     """The value in the type the field wants, or ValueError."""
     f = fields().get(field_id)
@@ -98,6 +119,8 @@ def checked(field_id: str, value):
             raise ValueError(f"{field_id} must be yes or no")
         return value
     if kind == "choice":
+        if field_id == "beacon_target" and isinstance(value, str) and beacon_bookmark(value) is not None:
+            return value
         if value not in [c[0] for c in f["choices"]]:
             raise ValueError(f"{value!r} is not a choice for {field_id}")
         return value

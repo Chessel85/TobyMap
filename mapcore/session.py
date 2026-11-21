@@ -331,6 +331,7 @@ class MapSession:
         self.current_layer: str | None = None
         self._layer_here: tuple | None = None   # ((lat, lon, layer), the area or None), worked out once a place
         self.drawing_trimmed = False   # the last drawing left out its smallest features (P3-T24a)
+        self._beacon_mark: tuple | None = None  # (the setting's value, the bookmark it means), to follow a rename (P4-T8g)
         self._beacon_near: bool | None = None   # the beacon is on and silent near the North Pole (P2-T9)
         self.isolated: str | None = None        # the one feature shown, with Isolate (VIS-2)
         # Look around (P3-T11a): the items of the scan playing, (area, lat, lon, label), and the one the
@@ -394,6 +395,7 @@ class MapSession:
             "theme.previous": lambda **a: self._theme_step(-1),
             "isolate.toggle": self._isolate_toggle,
             "beacon.toggle": self._beacon_toggle,
+            "beacon.bookmark": self._beacon_from_bookmark,
             "orientation.cycle": lambda **a: self._orientation_step(+1),
             "orientation.previous": lambda **a: self._orientation_step(-1),
             "mode.toggle": self._mode_toggle,
@@ -2728,7 +2730,9 @@ class MapSession:
 
     def settings_schema(self) -> dict:
         """The settings dialog: its tabs and fields, with the current values (P1-T10)."""
-        return {"tabs": settings_mod.schema()["tabs"], "values": dict(self.settings.values),
+        tabs = [dict(t, fields=[dict(f, choices=f["choices"] + self.beacon_choices()) if f["id"] == "beacon_target" else f
+                                for f in t["fields"]]) for t in settings_mod.schema()["tabs"]]
+        return {"tabs": tabs, "values": dict(self.settings.values),
                 "keys": self.key_table(), "keymaps": self.keymap_choices()}
 
     def key_table(self) -> list[dict]:
@@ -2814,19 +2818,82 @@ class MapSession:
     BEACON_TARGETS = {"north_pole": (90.0, None), "south_pole": (-90.0, None), "equator_0e": (0.0, 0.0),
                       "equator_90e": (0.0, 90.0), "equator_180": (0.0, 180.0), "equator_90w": (0.0, -90.0)}
 
+    def _beacon_bookmark(self):
+        """(bookmark, list place) the beacon's source means, or None: the source is not a bookmark, or it is
+        gone, or its list or the Bookmarks layer is off (P4-T8g). The bookmark is kept, so a rename is followed."""
+        value = self.settings["beacon_target"]
+        pair = settings_mod.beacon_bookmark(value)
+        if pair is None or not self._bookmarks_layer_on():
+            return None
+        mark = self._beacon_mark[1] if self._beacon_mark and self._beacon_mark[0] == value else None
+        place = self._bookmark_place(mark) if mark is not None else None
+        if place is None:
+            li = self.bookmarks.index_of(pair[0])
+            mark = None
+            if li is not None:
+                mark = next((m for m in self.bookmarks.lists[li].bookmarks if m.name == pair[1]), None)
+            place = self._bookmark_place(mark) if mark is not None else None
+        if place is None or not self.bookmarks.lists[place[0]].on:
+            return None
+        self._beacon_mark = (value, mark)
+        return mark, place[0]
+
     def _beacon_target(self) -> tuple[float, float]:
-        """The distance and bearing from here to the beacon's target, the place chosen in Settings.
-        Pins join the choices in Phase 4."""
+        """The distance and bearing from here to the beacon's source, the place chosen in Settings or the
+        bookmark (P4-T8g). A bookmark that has gone gives the North Pole, until _beacon_told changes the setting."""
         w = self.world
-        lat, lon = self.BEACON_TARGETS.get(self.settings["beacon_target"], self.BEACON_TARGETS["north_pole"])
+        found = self._beacon_bookmark()
+        if found is not None:
+            lat, lon = found[0].lat, found[0].lon
+        else:
+            lat, lon = self.BEACON_TARGETS.get(self.settings["beacon_target"], self.BEACON_TARGETS["north_pole"])
         distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, w.lon if lon is None else lon)
         return distance, bearing
 
     def _beacon_target_name(self) -> str:
-        """The target's name, as Settings lists it, such as "the South Pole", for "silent near ..."."""
+        """The source's name, as Settings lists it, such as "the South Pole", for "silent near ..."."""
+        found = self._beacon_bookmark()
+        if found is not None:
+            return found[0].name
         field = next(f for t in settings_mod.schema()["tabs"] for f in t["fields"] if f["id"] == "beacon_target")
         name = dict(field["choices"]).get(self.settings["beacon_target"], "")
         return name[:1].lower() + name[1:] if name.startswith("The ") else name
+
+    def beacon_choices(self) -> list[list[str]]:
+        """Every bookmark as a choice for "Orientation beacon: comes from": [value, "List: Name"], in order (P4-T8g)."""
+        return [[settings_mod.beacon_bookmark_value(l.name, m.name), f"{l.name}: {m.name}"]
+                for l in self.bookmarks.lists for m in l.bookmarks]
+
+    def _beacon_from_bookmark(self, **_a) -> Response:
+        """Shift+B: the beacon comes from the current bookmark, and is switched on if it was off."""
+        mark = self.current_bookmark
+        if mark is None:
+            return self._no_current_bookmark()
+        li, _bi = self._bookmark_place(mark)
+        self.settings.set("beacon_target", settings_mod.beacon_bookmark_value(self.bookmarks.lists[li].name, mark.name))
+        self.settings.set("beacon_on", True)
+        self._beacon_near = None
+        return Response(settings_changed=True).speak(say("beacon.from_bookmark", name=mark.name), ASSERTIVE)
+
+    def _beacon_lost(self, response: Response) -> None:
+        """A bookmark source that is gone, or switched off with its list or the Bookmarks layer: the beacon
+        falls back to the North Pole and says so once (P4-T8g). A rename or a move to another list is followed."""
+        pair = settings_mod.beacon_bookmark(self.settings["beacon_target"])
+        if pair is None:
+            return
+        found = self._beacon_bookmark()
+        if found is not None:
+            kept = settings_mod.beacon_bookmark_value(self.bookmarks.lists[found[1]].name, found[0].name)
+            if kept != self.settings["beacon_target"]:
+                self.settings.set("beacon_target", kept)
+                self._beacon_mark = (kept, found[0])
+                response.settings_changed = True
+            return
+        self.settings.set("beacon_target", "north_pole")
+        self._beacon_mark = None
+        self._beacon_near = None
+        response.settings_changed = True
+        response.speak(say("beacon.bookmark_lost", name=pair[1]), POLITE)
 
     def _beacon_fade(self, distance_m: float) -> float:
         """1 away from the pole, falling evenly to 0 at the silent distance."""
@@ -2849,6 +2916,7 @@ class MapSession:
     def _beacon_told(self, name: str, response: Response) -> None:
         """Says once when the beacon goes silent near its target, and when it comes back
         further away (SON-10). Then gives the response the beacon as it is now."""
+        self._beacon_lost(response)
         if self.settings["beacon_on"]:
             near = self._beacon_fade(self._beacon_target()[0]) <= 0.0
             if name != "beacon.toggle" and self._beacon_near is not None and near != self._beacon_near:

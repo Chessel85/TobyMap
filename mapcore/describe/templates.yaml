@@ -188,6 +188,9 @@ beacon:
   on_muted: "Beacon on, but all sound is muted."
   near_pole: "Beacon off near {target}."
   back: "Beacon back on."
+  # The beacon's source can be a bookmark (P4-T8g, SON-10).
+  from_bookmark: "Beacon now comes from the bookmark {name}."
+  bookmark_lost: "The bookmark {name} is no longer shown, so the beacon now comes from the North Pole."
 # Themes, the map display setting and isolate (P2-T12; VIS-2, DP108).
 map:
   # A drawing that has taken more than 2 seconds, said once (P3-T24a, DP202).

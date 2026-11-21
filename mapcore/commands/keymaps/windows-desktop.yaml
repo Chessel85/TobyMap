@@ -37,6 +37,7 @@ keys:
   turn.fine_right: Ctrl+Right
   bearing.type: Ctrl+B
   beacon.toggle: B
+  beacon.bookmark: Shift+B
   # Going to coordinates and back through the places you have been (NAV-8, NAV-10).
   goto.coordinates: Ctrl+G
   history.back: "Alt+,"

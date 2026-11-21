@@ -68,6 +68,12 @@ Not started tonight, as they need the PO: P4-T14f's change (the PO sees the list
 * P4-T9b, P4-T9c done in the core (the tests below; the agent ran all 1,544 core tests): mapcore/bookmark_files.py, standard library only: save one list or all as GeoJSON (the bookmarks file's format) or GPX 1.1 (waypoints, note in desc, list and feature in TobyMap extensions); open either, told apart by the text; TobyMap files reopen as their lists, other programs' point GeoJSON and GPX waypoints open into a new list; routes and tracks left out and counted; opened lists added with free names (Castles 2), never merged. Save to a file offers four lines (this list or all, GeoJSON or GPX); Response.save_file and Response.open_file carry the request to the shells. Until P4-T9d the two buttons do nothing in the shells. Glossary: bookmark file, waypoint. User experience description 0.37.
 * P4-T9d done, checked (60 core and desktop file tests; the agent ran the web tests: 19 of 19 in Chromium and in Firefox): Save to a file offers four lines, then the desktop's Save box or the web's download writes the core's text; Open a file uses the desktop's Open box or the web's file chooser and passes the text to the core. A file saved on one shell opens on the other with the same names, notes and order (GeoJSON and GPX). Core fix: run_many kept save_file and open_file. Cancel in the web file chooser is not tested.
 
+## Session of 21 November 2026, from about 09:45 (the PO away)
+
+The PO's instructions (toOrchestrate.txt, pasted again): cover P4-T1, P4-T2, P4-T3, P4-T6, P4-T7 (laptop idle) and P4-T13 (source chosen by own research); one fresh subagent per work item; checked, committed and pushed one by one; full suite and browser tests at the end; a world build when the code changes are done. Nothing that needs the PO is started (P4-T10, P4-T14f, publishing P4-T6h and P4-T11b, DMT-1 rerun).
+
+Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to P4-T1j, P4-T2, P4-T3, P4-T6a to g, the world rebuild (P4-T13, P4-T1h), P4-T7, the full tests. Choices are listed under "Overnight choices for the PO" below, marked "21 Nov day".
+
 ## Overnight choices for the PO
 
 * P4-T14i: the plan said you would see the new coast list before it went into the world pack. As you asked for a world build tonight, it goes in; the list is in docs/plan/p4-t14i-coast-report.md. A change afterwards reruns only the coast stretches, writing and checks stages (about 1.5 hours on the world).

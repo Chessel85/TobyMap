@@ -238,6 +238,8 @@ Older documents written before this glossary, such as architecture section 6 and
 * Bookmark dialog: the dialog Ctrl+Enter opens to make a bookmark, or to rename one that is the current feature: a name, the current feature and coordinates read-only, a bookmark list, and OK and Cancel (USR-1, DP211).
 * Bookmark list dialog: the dialog for one bookmark list's bookmarks: move up and down, copy or move to another list, delete (USR-3, DP213).
 * Bookmark manager: the dialog for the bookmark lists themselves: new, rename, move up and down, delete, on or off, zoom range, save to a file and open a file (USR-3, USR-5, DP213).
+* Bookmark file: a file of one bookmark list or of all of them, saved from the bookmark manager and opened again there, as GeoJSON or as GPX (USR-5, P4-T9b). TobyMap's own bookmarks file, which keeps every list, is a bookmark file of all lists.
+* Waypoint: a named point in a GPX file, as GPS programs keep them. Each bookmark is saved as one waypoint, and a GPX file's waypoints open as bookmarks. Its routes and tracks, which are lines, are left out (USR-5, DP219).
 * Measure start: what Shift+M measures from. It is where you are, unless the user has made an item or a bookmark the measure start with Ctrl+Shift+M. Ctrl+Shift+M on the map puts it back to where you are (INF-3, USR-4, from Phase 4).
 * Focus point: in the web version, the small invisible element at the map centre that has the keyboard focus when the map does, so a magnifier that follows the focus looks there (ACC-8).
 

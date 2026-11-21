@@ -132,6 +132,8 @@ Ask to delete the chosen bookmark list,anywhere,No key,No key,No key,No key,None
 Delete the bookmark list,anywhere,No key,No key,No key,No key,None known,No problem known.
 Save the bookmark lists to a file,anywhere,No key,No key,No key,No key,None known,No problem known.
 Open a bookmark file,anywhere,No key,No key,No key,No key,None known,No problem known.
+Save the chosen lists as the chosen kind of file,anywhere,No key,No key,No key,No key,None known,No problem known.
+Add the lists in an opened bookmark file,anywhere,No key,No key,No key,No key,None known,No problem known.
 Move the chosen bookmark up or down in its list,anywhere,No key,No key,No key,No key,None known,No problem known.
 Copy the chosen bookmark to another list,anywhere,No key,No key,No key,No key,None known,No problem known.
 Move the chosen bookmark to another list,anywhere,No key,No key,No key,No key,None known,No problem known.

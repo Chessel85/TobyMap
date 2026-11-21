@@ -178,10 +178,12 @@ def test_deleting_the_only_list_says_a_new_empty_bookmarks_list_follows(s):
     assert written(r) == ["Bookmarks"] and r.bookmark_manager["items"][0]["label"] == "Bookmarks, no bookmarks"
 
 
-def test_save_and_open_file_say_they_come_with_the_next_work_item(s):
-    for name in ("bookmark.manager_save_file", "bookmark.manager_open_file"):
-        r = s.run(name)
-        assert said(r) == "Saving and opening bookmark files come with the next work item." and r.bookmarks is None
+def test_save_and_open_file_ask_the_shell_and_change_nothing_themselves(s):
+    """What they offer and say is in test_bookmark_files.py (P4-T9b, P4-T9c)."""
+    r = s.run("bookmark.manager_save_file", index=0)
+    assert r.dialog["kind"] == "choose" and r.bookmarks is None
+    r = s.run("bookmark.manager_open_file")
+    assert r.open_file["submit"] == "bookmark.manager_file_opened" and r.bookmarks is None and not said(r)
 
 
 def test_the_manager_listing_is_asked_for_again_after_the_list_dialog(s):

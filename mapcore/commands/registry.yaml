@@ -219,6 +219,9 @@ commands:
   - {name: bookmark.manager_delete_confirm, label: Delete the bookmark list, region: global, menu: "", pointer: true}
   - {name: bookmark.manager_save_file, label: Save the bookmark lists to a file, region: global, menu: "", pointer: true}
   - {name: bookmark.manager_open_file, label: Open a bookmark file, region: global, menu: "", pointer: true}
+  # Save to a file's choice, and the text of the file chosen in the shell's Open box (P4-T9b, P4-T9c; USR-5).
+  - {name: bookmark.manager_save_chosen, label: Save the chosen lists as the chosen kind of file, region: global, menu: "", pointer: true}
+  - {name: bookmark.manager_file_opened, label: Add the lists in an opened bookmark file, region: global, menu: "", pointer: true}
   - {name: bookmark.list_move, label: Move the chosen bookmark up or down in its list, region: global, menu: "", pointer: true}
   - {name: bookmark.list_copy, label: Copy the chosen bookmark to another list, region: global, menu: "", pointer: true}
   - {name: bookmark.list_move_to, label: Move the chosen bookmark to another list, region: global, menu: "", pointer: true}

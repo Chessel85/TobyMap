@@ -150,6 +150,15 @@ class Response:
     # The bookmark manager's and the bookmark list dialog's lines after a change (P4-T8e): {"items", "current", ...}.
     bookmark_manager: dict | None = None
     bookmark_list: dict | None = None
+    # A file for the shell to save (P4-T9b, P4-T9c; USR-5): {"title", "name", "filter", "extension", "mime", "text",
+    # "saved", "failed"}. The desktop shows the standard Save box with title, the suggested file name name and the one
+    # type filter, writes text to the file chosen as UTF-8, and says saved, or failed if it could not write; Cancel
+    # writes and says nothing. The web version downloads text as name, of type mime, and says saved.
+    save_file: dict | None = None
+    # A file for the shell to ask for (P4-T9b, P4-T9c): {"title", "filter", "accept", "submit"}. The desktop shows the
+    # standard Open box with title and filter, the web version the browser's file chooser with accept. The shell reads
+    # the file as UTF-8 text ("" if it cannot) and runs submit with text and file, the file's name; Cancel runs nothing.
+    open_file: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})

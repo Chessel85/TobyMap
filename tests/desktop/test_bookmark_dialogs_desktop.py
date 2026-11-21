@@ -187,11 +187,14 @@ def test_zoom_range_uses_the_layers_choices_and_refuses_a_minimum_over_the_maxim
     dialog.close_button.click()
 
 
-def test_save_and_open_a_file_say_they_come_later(window):
+def test_save_and_open_a_file_change_nothing_until_the_shell_shows_the_boxes(window):
+    """The core asks for the Save and Open boxes from P4-T9b (Response.save_file and open_file); the desktop shows
+    them from P4-T9d. Until then the buttons change nothing."""
     dialog = manager(window)
+    before = window.session.bookmarks.to_text()
     dialog.save_button.click()
     dialog.open_file_button.click()
-    assert window.announcer.texts.count("Saving and opening bookmark files come with the next work item.") == 2
+    assert window.session.bookmarks.to_text() == before
     dialog.close_button.click()
 
 

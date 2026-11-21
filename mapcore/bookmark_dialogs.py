@@ -10,6 +10,8 @@ A message is said only where the focus does not tell it: a move says nothing, as
 """
 from __future__ import annotations
 
+from mapcore import bookmark_files
+from mapcore.bookmarks import BookmarkFileError
 from mapcore.describe import say, words
 
 ASSERTIVE = "assertive"
@@ -22,6 +24,7 @@ class BookmarkDialogs:
         self.s = session
         self.Response = response_class
         self._deleting: tuple | None = None   # ("list", the list) or ("bookmark", the bookmark, its list), until answered
+        self._saving = None   # the list chosen when Save to a file was pressed, until a line is chosen (P4-T9b)
 
     def handlers(self) -> dict:
         return {
@@ -35,8 +38,10 @@ class BookmarkDialogs:
             "bookmark.manager_zoom": self.zoom,
             "bookmark.manager_delete": self.delete_ask,
             "bookmark.manager_delete_confirm": self.delete,
-            "bookmark.manager_save_file": self.file_later,
-            "bookmark.manager_open_file": self.file_later,
+            "bookmark.manager_save_file": self.save_ask,
+            "bookmark.manager_save_chosen": self.save_chosen,
+            "bookmark.manager_open_file": self.open_ask,
+            "bookmark.manager_file_opened": self.file_opened,
             "bookmark.list_move": self.list_move,
             "bookmark.list_copy": self.list_copy,
             "bookmark.list_move_to": self.list_move_to,
@@ -215,8 +220,74 @@ class BookmarkDialogs:
             say("bookmark_manager.deleted", name=lst.name), ASSERTIVE)
         return self._changed(r)
 
-    def file_later(self, **_a):
-        return self.Response().speak(say("bookmark_manager.file_later"), ASSERTIVE)
+    # Saving and opening files (P4-T9b, P4-T9c; USR-5, DP217, DP219) ---------------------------------------------
+
+    _SAVE_CHOICES = (("list", "geojson"), ("list", "gpx"), ("all", "geojson"), ("all", "gpx"))
+
+    def save_ask(self, index: int = -1, **_a):
+        """Save to a file: a list to choose from, with Cancel (the "choose" kind, as hierarchy mode's lists): the chosen
+        list or all lists, each as GeoJSON or as GPX. The file type is chosen here, not in the Save box, as the web
+        version's download has no type to choose."""
+        li = self._place(index)
+        if li is None:
+            return self.Response().earcon("blocked")
+        self._saving = self.lists[li]
+        names = {"list": self.lists[li].name, "all": say("bookmark_files.all_lists")}
+        lines = [say(f"bookmark_files.as_{kind}", what=names[what]) for what, kind in self._SAVE_CHOICES]
+        return self.Response(dialog={"kind": "choose", "title": say("bookmark_files.save_title"),
+                                     "help": say("bookmark_files.save_help"), "lines": lines, "text": "\n".join(lines),
+                                     "go": "bookmark.manager_save_chosen", "current": 0, "cancel": say("ui.cancel")})
+
+    def save_chosen(self, index: int = -1, **_a):
+        """A line chosen: the shell is asked to save the file's text, under a suggested name (Response.save_file).
+        Nothing of yours changes, so the bookmarks file is not written."""
+        chosen, self._saving = self._saving, None
+        li = next((i for i, l in enumerate(self.lists) if l is chosen), None)
+        try:
+            what, kind = self._SAVE_CHOICES[int(index)]
+        except (TypeError, ValueError, IndexError):
+            what = None
+        if li is None or what is None or int(index) < 0:
+            return self.Response().earcon("blocked")
+        b = self.s.bookmarks
+        part = li if what == "list" else None
+        said = self.lists[li].name if what == "list" else say("bookmark_files.all_saved")
+        extension = bookmark_files.TYPES[kind]["extension"]
+        return self.Response(save_file={
+            "title": say(f"bookmark_files.save_box_{kind}", what=said),
+            "name": bookmark_files.file_name(b, part, extension), "extension": extension,
+            "filter": say(f"bookmark_files.filter_{kind}"), "mime": bookmark_files.TYPES[kind]["mime"],
+            "text": bookmark_files.file_text(b, part, kind),
+            "saved": say(f"bookmark_files.saved_{kind}", what=said), "failed": say("bookmark_files.failed")})
+
+    def open_ask(self, **_a):
+        """Open a file: the shell is asked for a file (Response.open_file), and runs bookmark.manager_file_opened with its
+        text. GeoJSON or GPX is told from the text, so every bookmark file is offered together."""
+        return self.Response(open_file={"title": say("bookmark_files.open_title"),
+                                        "filter": say("bookmark_files.open_filter"),
+                                        "accept": ".geojson,.json,.gpx", "submit": "bookmark.manager_file_opened"})
+
+    def file_opened(self, text: str = "", file: str = "", **_a):
+        """The text of the file chosen in the Open box: its lists after yours, each under a free name, the focus on the
+        first of them; or why it is not a bookmark file, and nothing changes (DP217)."""
+        try:
+            opened = bookmark_files.read(text, file)
+        except BookmarkFileError as refused:
+            return self.Response().speak(refused.text, ASSERTIVE)
+        places = self.s.bookmarks.add_lists(opened.lists)
+        made = [self.lists[i] for i in places]
+        count = sum(len(l.bookmarks) for l in made)
+        if len(made) > 1:
+            text = say("bookmark_files.opened_lists", lists=len(made), count=count, names=", ".join(l.name for l in made))
+        elif count == 0:
+            text = say("bookmark_files.opened_empty", name=made[0].name)
+        else:
+            text = say("bookmark_files.opened_one" if count == 1 else "bookmark_files.opened", count=count,
+                       name=made[0].name)
+        if opened.left_out:
+            text += " " + (say("bookmark_files.left_out_one") if opened.left_out == 1 else
+                           say("bookmark_files.left_out", count=opened.left_out))
+        return self._changed(self.Response(bookmark_manager=self.manager_listing(places[0])).speak(text, ASSERTIVE))
 
     # The bookmark list dialog ---------------------------------------------------------------------
 

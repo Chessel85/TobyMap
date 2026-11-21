@@ -728,8 +728,6 @@ bookmark_manager:
   zoom: "Zoom range"
   save_file: "Save to a file"
   open_file: "Open a file"
-  # Saving and opening files are the next work item (P4-T9): the buttons say so until then.
-  file_later: "Saving and opening bookmark files come with the next work item."
   new_title: "New bookmark list"
   rename_title: "Rename the bookmark list {name}"
   name_label: "Name of the list"
@@ -776,6 +774,40 @@ bookmark_list_dialog:
   moved: "Moved {name} to {list}."
 
 # The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists in one GeoJSON file.
+# Saving and opening bookmark files from the bookmark manager (P4-T9b, P4-T9c; USR-5, DP217, DP219).
+bookmark_files:
+  # Save to a file: a list to choose from, the chosen list or all lists, as GeoJSON or as GPX; Cancel saves nothing.
+  save_title: "Save to a file"
+  save_help: "Choose what to save, and as what. GeoJSON opens in QGIS and other map programs, and in TobyMap. GPX gives a waypoint for each bookmark, for GPS programs."
+  all_lists: "All lists"
+  as_geojson: "{what}, as GeoJSON, for QGIS and other map programs"
+  as_gpx: "{what}, as GPX waypoints"
+  # The Save box: its title, and its one file type. The suggested file name is the list's name, or this for all lists.
+  all_name: "TobyMap bookmarks"
+  save_box_geojson: "Save {what} as GeoJSON"
+  save_box_gpx: "Save {what} as GPX"
+  filter_geojson: "GeoJSON (*.geojson)"
+  filter_gpx: "GPX (*.gpx)"
+  # Said by the shell once the file is written, or when it could not be.
+  saved_geojson: "Saved {what} as GeoJSON."
+  saved_gpx: "Saved {what} as GPX waypoints."
+  all_saved: "all lists"
+  failed: "The file could not be saved."
+  # The Open box.
+  open_title: "Open a bookmark file"
+  open_filter: "Bookmark files (*.geojson *.json *.gpx)"
+  # What opening a file did: every list in it is added after yours, a used name numbered (Castles 2).
+  opened: "Opened {count} bookmarks into {name}."
+  opened_one: "Opened 1 bookmark into {name}."
+  opened_empty: "Opened the list {name}, with no bookmarks."
+  opened_lists: "Opened {lists} lists with {count} bookmarks: {names}."
+  left_out: "{count} routes and tracks were left out, as TobyMap opens only waypoints."
+  left_out_one: "1 route or track was left out, as TobyMap opens only waypoints."
+  # A list's name when a GPX file has none and the shell gave no file name, and a point or waypoint with no name.
+  opened_waypoints: "Opened waypoints"
+  unnamed: "Bookmark {number}"
+  unnamed_waypoint: "Waypoint {number}"
+
 bookmarks:
   # At start, after the place: the file could not be read. The shell has renamed it, so it is kept.
   damaged: "Your bookmarks file could not be read. It is kept, renamed, and you start with one empty bookmark list, Bookmarks."
@@ -786,6 +818,9 @@ bookmarks:
     not_bookmarks: "This GeoJSON file is not a TobyMap bookmark file. Nothing is changed."
     newer: "This bookmark file was made by a newer TobyMap. Update TobyMap to open it. Nothing is changed."
     damaged: "This bookmark file is damaged, so it cannot be opened. Nothing is changed."
+    # Open a file in the bookmark manager (P4-T9b, P4-T9c): the file's content decides whether it is GeoJSON or GPX.
+    neither: "This is not a bookmark file: it is neither GeoJSON nor GPX. Nothing is changed."
+    no_waypoints: "This GPX file has no waypoints. TobyMap opens only a GPX file's waypoints, not its routes or tracks. Nothing is changed."
 
 # The groups about the current feature (P3-T4, LOC-4). {name} is the current feature.
 # Bordering (INF-2): each neighbour, its direction from where you are, and the length of the shared

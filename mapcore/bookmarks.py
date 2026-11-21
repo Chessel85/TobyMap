@@ -32,7 +32,9 @@ LAYER = "bookmarks"   # the Bookmarks layer, a layer of TobyMap's own, in no pac
 
 class BookmarkFileError(ValueError):
     """A file that is not a bookmark file, or a damaged one. reason is one of not_json, not_geojson,
-    not_bookmarks, newer and damaged; text is what TobyMap says about it, from the templates."""
+    not_bookmarks, newer and damaged, and, for a file opened in the bookmark manager (P4-T9b, P4-T9c), neither
+    (neither GeoJSON nor GPX) and no_waypoints (a GPX file without any); text is what TobyMap says about it,
+    from the templates."""
 
     def __init__(self, reason: str):
         self.reason = reason
@@ -187,6 +189,17 @@ class Bookmarks:
             raise ValueError("there is already a bookmark list with that name")
         self.lists.append(BookmarkList(name))
         return len(self.lists) - 1
+
+    def add_lists(self, lists: list[BookmarkList]) -> list[int]:
+        """Lists opened from a file, after yours, each under a free name: "Castles 2" beside your Castles. Nothing is
+        merged or replaced, and the list used last stays the same (USR-5, DP217). Returns their places."""
+        places = []
+        for lst in lists:
+            made = copy.deepcopy(lst)
+            made.name = self.free_list_name(lst.name)
+            self.lists.append(made)
+            places.append(len(self.lists) - 1)
+        return places
 
     def rename_list(self, li: int, name: str) -> None:
         name = _name(name)

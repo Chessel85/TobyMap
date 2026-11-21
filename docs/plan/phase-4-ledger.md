@@ -82,7 +82,29 @@ Not started tonight, as they need the PO: P4-T14f's change (the PO sees the list
 
 ## Current state
 
-Last updated 21 November 2026, 01:20.
+Last updated 21 November 2026, 08:00. Read this first to resume.
 
-* The world build (P4-T15b) started 01:18 from the snapshot C:\Users\chess\github\Mapping-build at ad46acf, detached (pwsh, scratchpad world-build.ps1), 6 workers (--away), MAPDATA_SWITCH pointing at the main folder's continue.txt. Console: E:\osmdata\tobymap\output\world\world console.txt (ends with an EXIT line); log: world build log.txt beside it. Expected about 5.5 hours: graticule onwards; relationships about 2.5 hours, write about 1.3 hours. Never edit the snapshot folder while it runs; remove it (git worktree remove) after.
-* Night plan item 1 is done. Item 3 (core and shells) starts now in the main folder: P4-T14a first. No mapdata change goes in until the build ends.
+### Done overnight, all committed and pushed
+
+* P4-T14 (your tidy-up 2 notes): a, b, c, d, e, g, h, i, j, k, l, m, and n (faults found on the way). P4-T14f is a proposal only, waiting for you.
+* P4-T0b, P4-T0d (bookmark documents), P4-T0f (as a key plan).
+* P4-T5 (pipeline safety), P4-T4 (correction rules, with DP221), P4-T11a (quality reports).
+* DP220 (ranges and regions cut to the coast as drawn), P4-T12 (territorial waters), DP224 added (your question on other kinds).
+* P4-T15b: the world pack rebuilt with all of these, 552.46 MB, 117 of 119 check places (Ceuta and Melilla, as before).
+* Bookmarks: P4-T8a to P4-T8f (file, dialog, group, current bookmark, manager and list dialog, on the map).
+* The unreliable tests (carried from Phase 3).
+
+### For you in the morning
+
+1. The overnight choices above, and the two proposals to read: docs/plan/p4-t14f-messages.md and docs/plan/p4-t0f-keys.md. DP224 is open in the discussion points file.
+2. The reports: docs/plan/p4-t14i-coast-report.md (England's coast) and docs/plan/dp220-ranges-report.md (Exmoor).
+3. With NVDA: the unavailable buttons in Map views (P4-T14g) and in the bookmark dialogs; the bookmark dialogs as a whole.
+4. Your tidy-up 2 desktop checklist is updated for the new world pack; some steps were written without being heard on it (13.4, 13.5, 22.1, 22.2, 16.4, 12.8, 5.6's figures) and are checked next.
+
+### Still to do, in order
+
+* Browser tests: tonight's web tests were mostly not run locally (the world build used the memory); continuous integration found two bookmark tests failing, being fixed now.
+* P4-T15c: the checklist steps checked on the new world pack; built twice, identical (DMT-1), an hour and a half of writing: ask before running.
+* P4-T8g (beacon from a bookmark), P4-T9 (measure start, GeoJSON and GPX files), P3-T15 Help.
+* Then, with you: P4-T14f's change, P4-T13 (the source for groups of islands), P4-T1 and P4-T2 (Great Britain), P4-T3, P4-T6, P4-T7, P4-T10, P4-T11b.
+* The full Python suite and all browser tests at the end of the code work.

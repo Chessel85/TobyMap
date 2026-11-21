@@ -126,3 +126,39 @@ def test_up_in_hierarchy_mode_from_a_line_goes_to_the_smallest_area_holding_all_
     else:
         assert [l.split(",")[0] for l in r.dialog["lines"]] == [p.name for p in holding]
     assert all(p.id in session.store.relationships(river.id).get("in", ()) for p in holding)   # holds all of it
+
+
+def spoken(response):
+    return [a["text"] for a in response.announcements if a["channel"] == "speech"]
+
+
+def test_space_starts_with_the_current_line_you_are_on_as_within_lists_it_first(session):
+    """P4-T14d, the PO's note on checklist step 3.3: Space says "River Itchen, here." before the place."""
+    place(session, 50.95, -1.40)
+    go_to(session, "River Itchen")
+    areas = session._place_text()
+    said = spoken(session.run("where.am_i"))
+    assert said == ["River Itchen, here. " + areas] or said[0].startswith("River Itchen, here. Near "), said
+    assert said[0].endswith(areas)
+
+
+def test_space_starts_with_the_current_place_and_does_not_name_it_again_as_a_town_near(session):
+    place(session, STATION[0] + 0.002, STATION[1])
+    go_to(session, "Southampton Central")
+    said = spoken(session.run("where.am_i"))[0]
+    assert said.startswith("Southampton Central, here. ")
+    assert said.count("Southampton Central") == 1
+
+
+def test_space_with_an_area_current_says_the_place_only(session):
+    place(session, 50.95, -1.40)
+    said = spoken(session.run("where.am_i"))[0]
+    assert ", here. " not in said and said.endswith(session._place_text())
+
+
+def test_one_step_from_the_line_space_no_longer_names_it(session):
+    place(session, 50.95, -1.40)
+    go_to(session, "River Itchen")
+    session.run("move.north")
+    session.release()
+    assert not spoken(session.run("where.am_i"))[0].startswith("River Itchen")

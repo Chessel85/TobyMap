@@ -347,6 +347,14 @@ def test_where_am_i_names_a_town_you_are_near():
         == "Near Winchester. Hampshire, England, United Kingdom"
 
 
+def test_where_am_i_starts_with_a_current_line_or_place_you_are_at():
+    """The approved wording of Space with a current line or place you are at (P4-T14d, checklist step 3.3)."""
+    from mapcore.describe import say
+    place = say("place.near", name="Winchester", place="Hampshire, England, United Kingdom")
+    assert say("place.current_here", name="River Itchen", place=place) \
+        == "River Itchen, here. Near Winchester. Hampshire, England, United Kingdom"
+
+
 def test_contains_says_an_area_you_are_in_and_a_line_or_place_where_you_are():
     """The approved wording of Contains' items without a distance (P3-T29c, INF-4)."""
     from mapcore.describe import say

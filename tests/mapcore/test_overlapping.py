@@ -336,3 +336,30 @@ def test_crossings_metres_apart_are_one_crossing(test_pack, monkeypatch):
     assert itchen["label"].startswith("River Itchen, crosses twice, nearest ")
     assert len(itchen["children"]) == 2
     s.store.close()
+
+
+def _within_labels(s):
+    return [i["label"] for i in next(g for g in s.panel() if g["id"] == "within")["items"]]
+
+
+def test_enter_on_a_crossing_point_makes_its_line_the_current_feature(test_pack):
+    """P4-T14d, the PO's notes on checklist steps 6.5 and 7.4: Enter on a crossing point goes there and makes its
+    line the current feature, so Within says "M3, here" first, as Enter on an area makes it current."""
+    s = _session(test_pack, IN_SOUTHAMPTON, SOUTHAMPTON)
+    itchen = _heading(_group(s, ITCHEN), "Lines crossing its border ")["children"][0]
+    r = s.run("panel.go", item=itchen["children"][1]["id"], group="overlapping")
+    assert s.current_feature.id == ITCHEN
+    assert _within_labels(s)[0] == "River Itchen, here"
+    spoken = [a["text"] for a in r.announcements if a["channel"] == "speech"]
+    assert spoken[0].startswith("River Itchen. ")
+    s.store.close()
+
+
+def test_enter_on_a_line_item_of_overlapping_makes_it_the_current_feature(test_pack):
+    """P4-T14d: Enter on a line's own item, which goes to its nearest crossing, makes the line current too."""
+    s = _session(test_pack, IN_HAMPSHIRE, HAMPSHIRE)
+    itchen = _heading(_group(s), "Lines crossing its border ")["children"][0]
+    s.run("panel.go", item=itchen["id"], group="overlapping")
+    assert s.current_feature.id == ITCHEN
+    assert _within_labels(s)[0] == "River Itchen, here"
+    s.store.close()

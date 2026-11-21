@@ -63,14 +63,49 @@ def test_where_the_current_layer_has_nothing_the_smallest_area_is_current_and_th
 
 
 def test_shift_enter_on_the_smallest_area_goes_back_to_the_usual_rule(session):
+    """P4-T14d, the PO's note on checklist step 6.3: the first time, even with another layer current."""
     _within(session, "England")
     session.run("panel.current_layer")
     _within(session, "Kent")
     r = session.run("panel.current_layer")
-    assert spoken(r) == ["Current layer: Counties. Kent is the current feature."]
-    r = session.run("panel.current_layer")   # Kent again, now the smallest and in the current layer
+    assert spoken(r) == ["No current layer. The current feature is the smallest area here, Kent."]
+    assert session.current_layer is None and session.current_feature.name == "Kent"
+    r = session.run("panel.current_layer")   # Kent again: still the usual rule
     assert spoken(r) == ["No current layer. The current feature is the smallest area here, Kent."]
     assert session.current_layer is None
+
+
+def test_shift_enter_on_a_larger_area_still_makes_its_layer_current(session):
+    _within(session, "Kent")
+    session.run("panel.current_layer")
+    _within(session, "England")
+    r = session.run("panel.current_layer")
+    assert spoken(r) == ["Current layer: Regions and constituent countries. England is the current feature."]
+
+
+def test_a_zoom_that_changes_what_space_says_moves_the_current_feature_with_it(session):
+    """P4-T14d, the PO's note on checklist step 14.1: a feature made current here at 25 kilometres is let go when
+    a zoom changes what Space says, so the current feature is the first area Space now says."""
+    kent = session.areas[0]
+    session.set_current_feature(kent.id)
+    while session.world.zoom_m < 2500000:
+        before = session._place_text()
+        session.run("zoom.out")
+        if session._place_text() == before:
+            continue
+        assert session.current_feature.id == session._first_said_here().id
+    assert session.current_feature.id != kent.id
+    heading = next(g for g in session.panel(open={"bordering"}) if g["id"] == "bordering")["label"]
+    assert heading.startswith("Bordering " + session._first_said_here().name)
+
+
+def test_a_zoom_that_leaves_what_space_says_alone_keeps_the_current_feature(session):
+    england = next(a for a in session.areas if a.name == "England")
+    session.set_current_feature(england.id)
+    before = session._place_text()
+    session.run("zoom.out")
+    if session._place_text() == before:
+        assert session.current_feature.id == england.id
 
 
 def test_the_current_layer_is_followed_at_any_zoom(session):

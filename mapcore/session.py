@@ -1046,7 +1046,8 @@ class MapSession:
     def _current_layer_set(self, item: str | None = None, group: str | None = None, **_a) -> Response:
         """Shift+Enter on an item of the Information panel (P3-T24b, DP202): its layer becomes the current
         layer, and it the current feature, so the groups, the outline and Details follow that layer as you
-        step. On the first area said here, the usual rule comes back. What "where am I" says does not change."""
+        step. On the first area said here, the usual rule comes back, the first time, whatever layer is current
+        (P4-T14d, the PO's note on checklist step 6.3). What "where am I" says does not change."""
         self.panel()
         if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
@@ -1058,7 +1059,7 @@ class MapSession:
         smallest = self._first_said_here()
         r = Response(panel_stale=True, details_stale=True, redraw=True)
         self._layer_here = None
-        if smallest is not None and area.id == smallest.id and self.current_layer in (None, area.layer):
+        if smallest is not None and area.id == smallest.id:
             self.current_layer = None
             self._current = None
             return r.speak(say("current_layer.back", name=smallest.name), ASSERTIVE)
@@ -3214,6 +3215,10 @@ class MapSession:
         old_areas, old_text = said_before
         if self._place_text() == old_text:   # what Space would say is unchanged: only the zoom is said, as before
             return self._sizes_said(r, before)
+        # What Space says has changed, so the current feature follows it: a feature chosen here by Enter, a search
+        # or hierarchy mode is let go, and the first area Space says is current (P4-T14d, the PO's note on
+        # checklist step 14.1). A current layer is kept, as it is followed at any zoom (DP202).
+        self._current = None
         place = describer.zoom_change_text(old_areas, self._said(self.areas), self.why_none_here)
         if not self.settings["say_zoom_step"]:
             return r.speak(place, ASSERTIVE)
@@ -3249,21 +3254,36 @@ class MapSession:
 
     def _place_with_town(self) -> str:
         """The place as Space says it: "Near Winchester. Hampshire, England, ..." when a town is near. Space and
-        Go to say it; a step never does (P3-T28p, P4-T14b)."""
+        Go to say it; a step never does (P3-T28p, P4-T14b). A current line or place you are at comes first, as
+        Within lists it first: "River Itchen, here. Near Winchester. Hampshire, ..." (P4-T14d, the PO's note on
+        checklist step 3.3). It is the most exact thing about where you are, and the PO asked that Space start
+        with it; a town it is itself is not named again as near."""
         place = self._place_text()
-        town = self._near_town()
+        here = self._current_here()
+        town = self._near_town([here.name] if here is not None else [])
         if town is not None:
             place = say("place.near", name=town.name, place=place)
+        if here is not None:
+            place = say("place.current_here", name=here.name, place=place)
         return place
 
-    def _near_town(self):
+    def _current_here(self):
+        """The current feature when it is a line or a place you are at, under HERE_M from its nearest point, as
+        Within says "River Itchen, here" (P3-T29h); otherwise None."""
+        current = self.current_feature
+        if current is None or self._geometry(current) == "area":
+            return None
+        distance, _bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, *self._nearest_point_of(current))
+        return current if distance < HERE_M else None
+
+    def _near_town(self, also_said=()):
         """The town Where am I names as near (P3-T28p, Q6, LOC-5), by describer.near_town's rule, or None. Only
         while the towns' layer is on and in its zoom range, as a place is said only where it is drawn (DP160)."""
         if describer.TOWN_LAYER not in self.visible.shown_layers(self.world.zoom_m):
             return None
         nears = self.store.points_near(self.world.lat, self.world.lon, describer.TOWN_REACH_MAX_M,
                                        describer.TOWN_LAYER)
-        return describer.near_town(nears, [a.name for a in self._said(self.areas)])
+        return describer.near_town(nears, [a.name for a in self._said(self.areas)] + list(also_said))
 
     def _coordinates(self, **_a) -> Response:
         return Response().speak(words.coordinates_text(self.world.lat, self.world.lon, self.settings["coordinates"],
@@ -3458,7 +3478,13 @@ class MapSession:
         group, (area, lat, lon, *point) = found
         if len(point) == 3:   # heard from one point, gone to another: a stretch of coast's half way (P3-T30b)
             lat, lon = point[1], point[2]
-        r = self._jump_to_point(area, lat, lon) if point else self._go_to_item(area, lat, lon)
+        # A point of a line, such as a crossing, makes its line the current feature, as Enter on any other item of
+        # a line does (P4-T14d, the PO's notes on checklist steps 6.5 and 7.4). A point about an area, such as an
+        # end of a shared border, leaves the current feature as it is there.
+        if point and self._geometry(area) == "area":
+            r = self._jump_to_point(area, lat, lon)
+        else:
+            r = self._go_to_item(area, lat, lon)
         r.focus = {"region": "panel", "group": group, "item": None}
         return r
 

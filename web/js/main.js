@@ -17,7 +17,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), viewsDialog = $("viewsdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), viewsDialog = $("viewsdialog"), bookmarkDialog = $("bookmarkdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 // The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists, as the core's GeoJSON text, in the
@@ -339,7 +339,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || viewsDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || viewsDialog.open || bookmarkDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -408,7 +408,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [messageBox, settingsDialog, inputDialog, layersDialog, viewsDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, viewsDialog, bookmarkDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -454,6 +454,7 @@ function openDialog(d) {
   if (d.kind === "input") return openInput(d);
   if (d.kind === "layers") return openLayers(d);
   if (d.kind === "views") return openViews(d);
+  if (d.kind === "bookmark") return openBookmark(d);
   if (d.kind === "search") return openSearch(d);
   if (d.kind === "tree") return openTree(d);
   if (d.kind === "query") return openQuery(d);
@@ -837,6 +838,111 @@ function openViews(d) {
   list.focus();
 }
 
+// The bookmark dialog (P4-T8b, USR-1, DP219; ACC-7), in Tab order: Name (filled and numbered), Feature and
+// Coordinates (read-only inputs, so Tab reaches them), the Bookmark list box on the list used last, New list, OK and
+// Cancel. OK sends the core's bookmark.add with the name and the chosen list; a refusal is shown and said and the box
+// stays. New list swaps the body for a name field and back, and the core adds the list to the box, chosen. Every word
+// and value comes from the core.
+function openBookmark(d) {
+  const box = bookmarkDialog;
+  const words = d.words;
+  let lists = d.lists;
+  let name = d.name;
+  const run = (command, args) => {
+    const { width, height } = mapSize();
+    return client.send({ type: "run", commands: [[command, args]], width, height });
+  };
+  const field = (id, label, value, readOnly) => {
+    const l = document.createElement("label");
+    l.textContent = label;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = id;
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.readOnly = readOnly;
+    input.value = value;
+    l.htmlFor = id;
+    return [l, input];
+  };
+
+  const showForm = () => {
+    const body = focusModeBody(box);
+    box.setAttribute("aria-label", d.title);
+    const title = document.createElement("h2");
+    title.textContent = d.title;
+    const help = document.createElement("p");
+    help.textContent = d.help;
+    const [nameLabel, nameInput] = field("bookmark-name", words.name_label, name, false);
+    const [featureLabel, featureInput] = field("bookmark-feature", words.feature_label, d.feature, true);
+    const [coordLabel, coordInput] = field("bookmark-coordinates", words.coordinates_label, d.coordinates, true);
+    const listLabel = document.createElement("label");
+    listLabel.textContent = words.list_label;
+    const list = document.createElement("select");
+    list.id = "bookmark-list";
+    list.size = Math.max(2, Math.min(lists.items.length, 6));
+    listLabel.htmlFor = list.id;
+    for (const item of lists.items) {
+      const o = document.createElement("option");
+      o.textContent = item;
+      list.appendChild(o);
+    }
+    list.selectedIndex = lists.current;
+    const message = document.createElement("p");
+    message.id = "bookmark-message";
+    const newList = button(words.new_list, () => { name = nameInput.value; lists = { ...lists, current: list.selectedIndex }; showNewList(); }, "bookmark-new-list");
+    const ok = button(words.ok, () => {
+      run(d.add, { text: nameInput.value, list: list.selectedIndex }).then((r) => {
+        if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
+        closeWithAnswer(box, [r]);
+      }).catch(showError);
+    }, "bookmark-ok");
+    const cancel = button(words.cancel, () => box.close(), "bookmark-cancel");
+    body.append(title, help, nameLabel, nameInput, featureLabel, featureInput, coordLabel, coordInput, listLabel, list, message, newList, ok, cancel);
+    nameInput.focus();
+    nameInput.select();
+  };
+
+  const showNewList = () => {
+    const body = focusModeBody(box);
+    box.setAttribute("aria-label", words.new_list_title);
+    const title = document.createElement("h2");
+    title.textContent = words.new_list_title;
+    const [label, input] = field("bookmark-new-name", words.new_list_label, "", false);
+    const help = document.createElement("p");
+    help.id = "bookmark-new-help";
+    help.textContent = words.new_list_help;
+    input.setAttribute("aria-describedby", help.id);
+    const message = document.createElement("p");
+    message.id = "bookmark-new-message";
+    const go = () => run(d.new_list, { text: input.value }).then((r) => {
+      if (r.response.error) { message.textContent = r.response.error; speak(r.response.error, "assertive"); return; }
+      lists = r.response.bookmark_lists;
+      showForm();
+      $("bookmark-list").focus();
+    }).catch(showError);
+    const ok = button(words.ok, go, "bookmark-new-ok");
+    const cancel = button(words.cancel, () => { showForm(); $("bookmark-list").focus(); }, "bookmark-new-cancel");
+    body.append(title, label, input, help, message, ok, cancel);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+    input.focus();
+  };
+
+  // Escape in the new list form goes back to the bookmark form; in the form it cancels the box, as the browser does.
+  box.oncancel = (e) => { if ($("bookmark-new-name")) { e.preventDefault(); showForm(); $("bookmark-list").focus(); } };
+  showForm();
+  box.showModal();
+  $("bookmark-name").focus();
+}
+
+// Enter in the Name box or the list presses OK; on a button it presses that button; in the new list's box it is that form's OK.
+bookmarkDialog.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.target.tagName === "BUTTON" || e.target.id === "bookmark-new-name") return;
+  e.preventDefault();
+  e.stopPropagation();   // the dialog may close at once; the document handler must not see this Enter as the map's
+  $("bookmark-ok").click();
+});
+
 // Enter in the views list presses OK; on a button it presses that button; in the name field it is that form's OK.
 viewsDialog.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.target.tagName === "BUTTON" || e.target.id === "views-name") return;
@@ -1202,6 +1308,7 @@ settingsDialog.addEventListener("close", afterClose);
 inputDialog.addEventListener("close", afterClose);
 layersDialog.addEventListener("close", afterClose);
 viewsDialog.addEventListener("close", afterClose);
+bookmarkDialog.addEventListener("close", afterClose);
 searchDialog.addEventListener("close", afterClose);
 treeDialog.addEventListener("close", afterClose);
 queryDialog.addEventListener("close", afterClose);

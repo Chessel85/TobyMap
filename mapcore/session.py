@@ -143,6 +143,8 @@ class Response:
     # At start: the bookmarks file the shell gave could not be read. The shell renames it aside, so it is kept,
     # before writing anything; the session has started one empty "Bookmarks" list (P4-T8a).
     bookmarks_damaged: bool = False
+    # The bookmark dialog's list box after New list (P4-T8b): {"items": [name], "current"}.
+    bookmark_lists: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -354,6 +356,9 @@ class MapSession:
             "panel.sort": lambda **a: self._sort(1, **a),
             "panel.sort_back": lambda **a: self._sort(-1, **a),
             "panel.bookmark": self._bookmark,
+            "bookmark.open": self._bookmark_here,
+            "bookmark.new_list": self._bookmark_new_list,
+            "bookmark.add": self._bookmark_add,
             "speech.repeat": self._repeat,
             "history.list": self._history,
             "speech.braille_test": self._braille_test,
@@ -502,6 +507,7 @@ class MapSession:
             merged.views = r.views or merged.views   # the view manager's list (P3-T28h), as the web version runs
             merged.bookmarks = r.bookmarks if r.bookmarks is not None else merged.bookmarks   # the newest file (P4-T8a)
             merged.bookmarks_damaged |= r.bookmarks_damaged
+            merged.bookmark_lists = r.bookmark_lists or merged.bookmark_lists
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 
@@ -3533,22 +3539,32 @@ class MapSession:
         area, lat, lon, _label = self._scan[self._scan_at]
         return self._go_to_item(area, lat, lon)
 
+    def _panel_spot(self, item: str | None, group: str | None):
+        """The item focused in the Information panel (or the one given), as (group, area, lat, lon, point): where
+        Enter goes for it, and whether that is one point the item is about, such as an end of a shared border. None
+        for a group heading."""
+        self.panel()   # the items' places are kept as the panel is made
+        if not item and self.panel_on_item:
+            item, group = self.panel_item, self.panel_group
+        groups = [group] if group else registry.panel_groups()
+        found = next(((g, self._spots[(g, item)]) for g in groups if (g, item) in self._spots), None)
+        if found is None:
+            return None
+        group, (area, lat, lon, *point) = found
+        if len(point) == 3:   # heard from one point, gone to another: a stretch of coast's half way (P3-T30b)
+            lat, lon = point[1], point[2]
+        return group, area, lat, lon, bool(point)
+
     def _panel_go(self, item: str | None = None, group: str | None = None, **_a) -> Response:
         """Enter on an item of the Information panel: go there, as a jump, so Alt+comma comes back
         (P2-T17k, INF-10, DP155). A point goes to the point; an area to its centre, the centre of
         its bounding box, as Within's distance is; a line to the place its item is about, the
         nearest point or where it was crossed. The focus stays in the panel, on the heading of the
         group the item was in, as the group's items change with the place (P4-T14e)."""
-        self.panel()   # the items' places are kept as the panel is made
-        if not item and self.panel_on_item:
-            item, group = self.panel_item, self.panel_group
-        groups = [group] if group else registry.panel_groups()
-        found = next(((g, self._spots[(g, item)]) for g in groups if (g, item) in self._spots), None)
+        found = self._panel_spot(item, group)
         if found is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
-        group, (area, lat, lon, *point) = found
-        if len(point) == 3:   # heard from one point, gone to another: a stretch of coast's half way (P3-T30b)
-            lat, lon = point[1], point[2]
+        group, area, lat, lon, point = found
         # A point of a line, such as a crossing, makes its line the current feature, as Enter on any other item of
         # a line does (P4-T14d, the PO's notes on checklist steps 6.5 and 7.4). A point about an area, such as an
         # end of a shared border, leaves the current feature as it is there.
@@ -3567,15 +3583,20 @@ class MapSession:
         r.panel_stale = r.details_stale = True
         return r.speak(self._place_text(), ASSERTIVE)
 
+    def _own_point(self, area, lat: float, lon: float) -> tuple[float, float]:
+        """The point Enter goes to for an item's feature: a point or line, the item's place; an area, its own point,
+        on its land, as search and hierarchy mode use: the centre of its bounding box can be outside it, as for the
+        Moselle condominium, a long strip of river (P3-T19g, checklist 13.2)."""
+        layer = self.layers.get(area.layer)
+        if (layer is None or layer.geometry == "area") and area.record.get("bbox"):
+            return self._point_of(area)
+        return lat, lon
+
     def _go_to_item(self, area, lat: float, lon: float) -> Response:
         """Go to an item's feature as a jump: a point or line to the item's place, an area to its own point. It
         becomes the current feature, as after search or hierarchy mode, and its name is said before the place
         there, so Enter on Winchester says "Winchester", not only "Hampshire" (P3-T19a, LOC-4)."""
-        layer = self.layers.get(area.layer)
-        if (layer is None or layer.geometry == "area") and area.record.get("bbox"):
-            # Its own point, on its land, as search and hierarchy mode use: the centre of its bounding box can
-            # be outside it, as for the Moselle condominium, a long strip of river (P3-T19g, checklist 13.2).
-            lat, lon = self._point_of(area)
+        lat, lon = self._own_point(area, lat, lon)
         r = self._jump(lat, lon)
         self.areas = self._here()
         self.set_current_feature(area.id)
@@ -3628,9 +3649,78 @@ class MapSession:
                    direction=words.direction_text(bearing, self.settings["bearing"], describer.words_facing(w, self.settings)))
         return Response().speak(text, ASSERTIVE)
 
-    def _bookmark(self, **_a) -> Response:
-        """Ctrl+Enter on an item: a bookmark. They come in Phase 4 (DP170, LOC-4, INF-10)."""
-        return Response().speak(say("bookmark.later"), ASSERTIVE)
+    # The bookmark dialog (P4-T8b; USR-1, DP219). Ctrl+Enter on the map bookmarks where you are, in the name of the
+    # current feature (the smallest area here until another is made current); on an item of the Information panel,
+    # the item's own point, the point Enter goes to, in the item's name. The dialog has a Name box, filled and
+    # numbered, the feature and coordinates read-only, a list box of bookmark lists on the list used last, New
+    # list, OK and Cancel. A new list is made only when OK is pressed, so Cancel leaves nothing behind.
+
+    def _bookmark(self, item: str | None = None, group: str | None = None, **_a) -> Response:
+        """Ctrl+Enter on an item: the dialog for the item's own point. On a group heading, nothing."""
+        found = self._panel_spot(item, group)
+        if found is None:
+            return Response()
+        _group, area, lat, lon, point = found
+        if not point:
+            lat, lon = self._own_point(area, lat, lon)
+        return self._bookmark_dialog(lat, lon, area.name)
+
+    def _bookmark_here(self, **_a) -> Response:
+        """Ctrl+Enter on the map: the dialog for where you are."""
+        area = self.current_feature
+        return self._bookmark_dialog(self.world.lat, self.world.lon, area.name if area else "")
+
+    def _bookmark_dialog(self, lat: float, lon: float, feature: str) -> Response:
+        self._bookmark_draft = {"lat": lat, "lon": lon, "feature": feature, "new": []}
+        keys = ("name_label", "feature_label", "coordinates_label", "list_label", "new_list", "new_list_title",
+                "new_list_label", "new_list_help")
+        words_ = {k: say(f"bookmark.{k}") for k in keys} | {"ok": say("ui.ok"), "cancel": say("ui.cancel")}
+        coordinates = words.coordinates_text(lat, lon, self.settings["coordinates"], self._coordinate_step())
+        return Response(dialog={
+            "kind": "bookmark", "title": say("bookmark.title"), "help": say("bookmark.help"), "words": words_,
+            "name": self.bookmarks.unique_name(feature) if feature else "",
+            "feature": feature or say("bookmark.feature_none"), "coordinates": coordinates,
+            "lists": self._bookmark_lists(self.bookmarks.last_used),
+            "new_list": "bookmark.new_list", "add": "bookmark.add"})
+
+    def _bookmark_lists(self, current: int) -> dict:
+        """The list box: every bookmark list, then the lists made in this dialog; one is chosen."""
+        names = [l.name for l in self.bookmarks.lists] + self._bookmark_draft["new"]
+        return {"items": names, "current": current}
+
+    def _bookmark_new_list(self, text: str = "", **_a) -> Response:
+        """New list: a name for it, added to the list box and chosen. Made for real only by OK."""
+        d = getattr(self, "_bookmark_draft", None)
+        if d is None:
+            return Response().earcon("blocked")
+        name = " ".join(str(text).split())
+        if not name:
+            return Response(error=say("bookmark.list_name_empty"))
+        taken = [l.name for l in self.bookmarks.lists] + d["new"]
+        if name.casefold() in {t.casefold() for t in taken}:
+            return Response(error=say("bookmark.list_name_taken", name=name))
+        d["new"].append(name)
+        return Response(bookmark_lists=self._bookmark_lists(len(taken)))
+
+    def _bookmark_add(self, text: str = "", list: int = -1, **_a) -> Response:
+        """OK: the bookmark at the end of the chosen list, which becomes the list used last. Said once, as the
+        focus goes back to the map or the item, which tell nothing of it."""
+        d = getattr(self, "_bookmark_draft", None)
+        if d is None:
+            return Response().earcon("blocked")
+        name = " ".join(str(text).split())
+        if not name:
+            return Response(error=say("bookmark.name_empty"))
+        have = len(self.bookmarks.lists)
+        li = int(list)
+        if not 0 <= li < have + len(d["new"]):
+            li = self.bookmarks.last_used
+        if li >= have:
+            li = self.bookmarks.new_list(d["new"][li - have])
+        self.bookmarks.add(li, name, d["lat"], d["lon"], d["feature"])
+        self._bookmark_draft = None
+        r = Response().speak(say("bookmark.added", name=name, list=self.bookmarks.lists[li].name), ASSERTIVE)
+        return self.bookmarks_changed(r)
 
     # Hierarchy mode (P3-T6a; NAV-4, NAV-11, LOC-4, DP77, architecture 7.6) ---------------------------
     # The arrow keys move between features: Up to the area that holds the current feature, Down into what

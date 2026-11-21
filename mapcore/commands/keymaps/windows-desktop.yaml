@@ -84,6 +84,8 @@ keys:
   panel.sort: Ctrl+S
   panel.sort_back: Ctrl+Shift+S
   panel.bookmark: Ctrl+Enter
+  # On the map: the same key, the bookmark dialog for where you are (P4-T8b, DP219).
+  bookmark.open: Ctrl+Enter
   # Speech (ANN-4, SON-7, ACC-5).
   speech.repeat: Shift+Space
   sound.mute: Ctrl+M

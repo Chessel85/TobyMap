@@ -320,8 +320,9 @@ def test_the_chosen_order_does_not_change_the_cached_items(swiss):
     assert [i["id"] for i in group(swiss.panel(), "bordering")["items"]] == first
 
 
-def test_ctrl_enter_says_bookmarks_come_later(swiss):
-    assert swiss.run("panel.bookmark").announcements[0]["text"] == "Bookmarks come in Phase 4."
+def test_ctrl_enter_on_an_item_opens_the_bookmark_dialog(swiss):
+    items = group(swiss.panel(open={"bordering"}), "bordering")["items"]
+    assert swiss.run("panel.bookmark", item=items[0]["id"], group="bordering").dialog["kind"] == "bookmark"
     assert registry.default_key("panel.bookmark") == "Ctrl+Enter"
 
 

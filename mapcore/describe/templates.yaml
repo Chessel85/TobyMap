@@ -636,8 +636,24 @@ crossed:
   passed_here: "Passed nearby to {name}, here"
   none: "Nothing crossed or passed on the last move."
 
+# The bookmark dialog, on Ctrl+Enter on the map or on an item of the Information panel (P4-T8b, USR-1, DP219).
 bookmark:
-  later: "Bookmarks come in Phase 4."
+  title: "Bookmark"
+  help: "The name is filled in from the feature and numbered if it is already used. Choose a bookmark list, or make a new one. OK adds the bookmark, and Cancel adds nothing."
+  name_label: "Name"
+  feature_label: "Feature"
+  feature_none: "None"
+  coordinates_label: "Coordinates"
+  list_label: "Bookmark list"
+  new_list: "New list"
+  new_list_title: "New bookmark list"
+  new_list_label: "Name of the list"
+  new_list_help: "A name for the list, such as Castles. The list is made when you press OK in the bookmark dialog."
+  name_empty: "Type a name for the bookmark."
+  list_name_empty: "Type a name for the list."
+  list_name_taken: "There is already a bookmark list called {name}. Type another name."
+  # Said once after OK: the focus goes back to the map or the item, which says nothing of it.
+  added: "Bookmarked {name} in {list}."
 
 # The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists in one GeoJSON file.
 bookmarks:

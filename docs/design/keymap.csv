@@ -56,6 +56,7 @@ Make its layer the current layer,the Information panel,Shift+Enter,Shift+Enter,S
 Sort the group,the Information panel,Ctrl+S,Cmd+S,Ctrl+S,Cmd+S,None known,No problem known.
 Sort the group the other way round,the Information panel,Ctrl+Shift+S,Shift+Cmd+S,Ctrl+Shift+S,Shift+Cmd+S,None known,No problem known.
 Bookmark the item,the Information panel,Ctrl+Enter,Cmd+Enter,Ctrl+Enter,Cmd+Enter,None known,No problem known.
+Bookmark here,the map,Ctrl+Enter,Cmd+Enter,Ctrl+Enter,Cmd+Enter,None known,No problem known.
 Exit,anywhere,No key,No key,Not in this version,Not in this version,None known,No problem known.
 Repeat the last announcement,anywhere,Shift+Space,Shift+Space,Shift+Space,Shift+Space,None known,No problem known.
 Mute all sound,anywhere,Ctrl+M,Ctrl+M,Ctrl+M,Ctrl+M,None known,No problem known.
@@ -103,3 +104,5 @@ Rename the chosen view to the typed name,anywhere,No key,No key,No key,No key,No
 Delete the chosen view,anywhere,No key,No key,No key,No key,None known,No problem known.
 Save the layers as they are now into the chosen view of your own,anywhere,No key,No key,No key,No key,None known,No problem known.
 Keep the map views changes and use the chosen view,anywhere,No key,No key,No key,No key,None known,No problem known.
+New bookmark list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Add the bookmark,anywhere,No key,No key,No key,No key,None known,No problem known.

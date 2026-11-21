@@ -108,3 +108,80 @@ def test_reset_all_settings_does_not_touch_the_bookmarks_file(qtbot, test_pack, 
     assert storage.load_bookmarks(tmp_path) == some_text()
     assert (tmp_path / "bookmarks.geojson").stat().st_mtime_ns == before
     assert w.session.bookmarks.to_text() == some_text()
+
+
+# The bookmark dialog (P4-T8b; USR-1, DP219, ACC-7) -------------------------------------------------
+
+def bookmark_dialog(window, command="bookmark.open", **args):
+    from desktop.dialogs import BookmarkDialog
+
+    window.dispatch(command, **args)
+    QApplication.processEvents()
+    (dialog,) = [d for d in window.findChildren(BookmarkDialog) if d.isVisible()]
+    return dialog
+
+
+@pytest.fixture
+def window(qtbot, test_pack, tmp_path):
+    session = MapSession(packs=[test_pack], saved_state=dict(KENT))
+    return make_window(qtbot, tmp_path, session)
+
+
+def test_the_bookmark_dialog_has_its_boxes_in_tab_order_and_ok_the_default(window):
+    dialog = bookmark_dialog(window)
+    name = window.session.current_feature.name
+    assert dialog.name.text() == name and not dialog.name.isReadOnly()
+    assert dialog.feature.text() == name and dialog.feature.isReadOnly()
+    assert dialog.coordinates.isReadOnly() and dialog.coordinates.text()
+    assert [dialog.list.item(i).text() for i in range(dialog.list.count())] == ["Bookmarks"]
+    assert [b.text() for b in (dialog.new_button, dialog.ok_button, dialog.cancel_button)] == ["New list", "OK", "Cancel"]
+    assert dialog.ok_button.isDefault()
+    assert [w.accessibleName() for w in (dialog.name, dialog.feature, dialog.coordinates, dialog.list)] == \
+        ["Name", "Feature", "Coordinates", "Bookmark list"]
+    dialog.cancel_button.click()
+
+
+def test_ok_adds_the_bookmark_writes_the_file_and_says_it_once(window, tmp_path):
+    name = window.session.current_feature.name
+    dialog = bookmark_dialog(window)
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    assert [m.name for m in window.session.bookmarks.lists[0].bookmarks] == [name]
+    assert name in storage.load_bookmarks(tmp_path)
+    assert f"Bookmarked {name} in Bookmarks." in window.map.accessibleName() or \
+        f"Bookmarked {name} in Bookmarks." in window.announcer.texts
+
+
+def test_cancel_makes_no_bookmark(window, tmp_path):
+    dialog = bookmark_dialog(window)
+    dialog.cancel_button.click()
+    QApplication.processEvents()
+    assert not window.session.bookmarks.lists[0].bookmarks and storage.load_bookmarks(tmp_path) is None
+
+
+def test_new_list_adds_a_chosen_list_to_the_box_and_ok_bookmarks_into_it(window):
+    from desktop.dialogs import InputDialog
+
+    dialog = bookmark_dialog(window)
+    dialog.new_button.click()
+    QApplication.processEvents()
+    (box,) = [d for d in dialog.findChildren(InputDialog) if d.isVisible()]
+    box.field.setText("Castles")
+    box.ok_button.click()
+    QApplication.processEvents()
+    assert [dialog.list.item(i).text() for i in range(dialog.list.count())] == ["Bookmarks", "Castles"]
+    assert dialog.list.currentRow() == 1
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    assert [l.name for l in window.session.bookmarks.lists] == ["Bookmarks", "Castles"]
+    assert len(window.session.bookmarks.lists[1].bookmarks) == 1
+
+
+def test_an_empty_name_is_refused_in_a_message_box_and_the_dialog_stays(window):
+    dialog = bookmark_dialog(window)
+    dialog.name.setText("")
+    dialog.ok_button.click()
+    QApplication.processEvents()
+    assert dialog.isVisible() and dialog.error_box is not None
+    dialog.error_box.close()
+    dialog.cancel_button.click()

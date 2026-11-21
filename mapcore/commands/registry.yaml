@@ -120,8 +120,10 @@ commands:
   # Sort the group the focus is in: next order, and the previous (P3-T4d, INF-10; the key list).
   - {name: panel.sort, label: Sort the group, region: panel, menu: ""}
   - {name: panel.sort_back, label: Sort the group the other way round, region: panel, menu: ""}
-  # Ctrl+Enter on an item: a bookmark. They come in Phase 4 (P3-T4e, DP170).
+  # Ctrl+Enter on an item: the bookmark dialog, for the item's own point (P3-T4e, P4-T8b, DP219).
   - {name: panel.bookmark, label: Bookmark the item, region: panel, menu: ""}
+  # Ctrl+Enter on the map: the bookmark dialog, for where you are (P4-T8b, DP219).
+  - {name: bookmark.open, label: Bookmark here, region: map, menu: Map}
   - {name: app.exit, label: Exit, region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
   - {name: speech.repeat, label: Repeat the last announcement, region: global, menu: Speech}
@@ -178,3 +180,6 @@ commands:
   - {name: views.delete, label: Delete the chosen view, region: global, menu: "", pointer: true}
   - {name: views.save, label: Save the layers as they are now into the chosen view of your own, region: global, menu: "", pointer: true}
   - {name: views.apply, label: Keep the map views changes and use the chosen view, region: global, menu: "", pointer: true}
+  # The bookmark dialog's New list and OK buttons (P4-T8b, DP219).
+  - {name: bookmark.new_list, label: New bookmark list, region: global, menu: "", pointer: true}
+  - {name: bookmark.add, label: Add the bookmark, region: global, menu: "", pointer: true}

@@ -525,6 +525,103 @@ class InputDialog(QDialog):
         self.field.selectAll()
 
 
+class BookmarkDialog(QDialog):
+    """The bookmark dialog (P4-T8b, USR-1, DP219), in Tab order: Name (filled and numbered), Feature and Coordinates
+    (read-only, but reached by Tab so the screen reader reads them), the Bookmark list box on the list used last,
+    New list, OK and Cancel (ACC-7). Every word and value comes from the core; OK runs its bookmark.add with the
+    name and the chosen list, and a refusal opens in a message box with an OK button, as InputDialog's does.
+    New list asks for a name in an InputDialog and the core adds it to the list box, chosen. `run` is session.run."""
+
+    def __init__(self, parent, dialog: dict, run):
+        super().__init__(parent)
+        self._dialog, self._run = dialog, run
+        words = dialog["words"]
+        self.response = None
+        self.input_box: InputDialog | None = None
+        self.error_box: QMessageBox | None = None
+        self.setWindowTitle(dialog["title"])
+        layout = QVBoxLayout(self)
+        self.help = QLabel(dialog["help"])
+        self.help.setWordWrap(True)
+        layout.addWidget(self.help)
+        self.name = self._field(layout, words["name_label"], dialog["name"], False)
+        self.feature = self._field(layout, words["feature_label"], dialog["feature"], True)
+        self.coordinates = self._field(layout, words["coordinates_label"], dialog["coordinates"], True)
+        label = QLabel(words["list_label"])
+        self.list = QListWidget()
+        self.list.setAccessibleName(words["list_label"])
+        label.setBuddy(self.list)
+        self.list.setMaximumHeight(120)
+        layout.addWidget(label)
+        layout.addWidget(self.list)
+        self.new_button, self.ok_button, self.cancel_button = button_row(
+            layout, [words["new_list"], words["ok"], words["cancel"]], default=False)
+        self.ok_button.setDefault(True)
+        self.new_button.setDefault(False)
+        self.new_button.clicked.connect(self.new_list)
+        self.ok_button.clicked.connect(self.apply)
+        self.cancel_button.clicked.connect(self.reject)
+        self.name.returnPressed.connect(self.apply)
+        self.fill(dialog["lists"])
+        self.resize(520, 420)
+        self.name.setFocus()
+        self.name.selectAll()
+
+    @staticmethod
+    def _field(layout, label_text: str, value: str, read_only: bool) -> QLineEdit:
+        label = QLabel(label_text)
+        field = QLineEdit(value)
+        field.setReadOnly(read_only)
+        field.setAccessibleName(label_text)
+        label.setBuddy(field)
+        layout.addWidget(label)
+        layout.addWidget(field)
+        return field
+
+    def fill(self, lists: dict) -> None:
+        self.list.clear()
+        self.list.addItems(lists["items"])
+        self.list.setCurrentRow(lists["current"])
+
+    def new_list(self) -> None:
+        words = self._dialog["words"]
+        box = InputDialog(self, {"title": words["new_list_title"], "label": words["new_list_label"],
+                                 "help": words["new_list_help"], "ok": words["ok"], "cancel": words["cancel"]},
+                          submit=lambda text: self._run(self._dialog["new_list"], text=text))
+        self.input_box = box
+        box.finished.connect(lambda _r, b=box: self._new_list_closed(b))
+        box.open()
+
+    def _new_list_closed(self, box) -> None:
+        self.input_box = None
+        if box.response is not None and box.response.bookmark_lists is not None:
+            self.fill(box.response.bookmark_lists)
+        self.list.setFocus()
+
+    def apply(self) -> None:
+        if self.response is not None or self.error_box is not None or self.input_box is not None:
+            return   # Enter can arrive twice: answer once
+        response = self._run(self._dialog["add"], text=self.name.text(), list=self.list.currentRow())
+        if response.error:
+            box = QMessageBox(QMessageBox.Icon.Warning, self.windowTitle(), response.error,
+                              QMessageBox.StandardButton.NoButton, self)
+            ok = box.addButton(self._dialog["words"]["ok"], QMessageBox.ButtonRole.AcceptRole)
+            box.setDefaultButton(ok)
+            box.setEscapeButton(ok)
+            box.finished.connect(self._error_closed)
+            self.error_box = box
+            box.open()
+            return
+        self.response = response
+        self.accept()
+
+    def _error_closed(self, _result) -> None:
+        self.error_box.deleteLater()
+        self.error_box = None
+        self.name.setFocus()
+        self.name.selectAll()
+
+
 class ConfirmBox(QMessageBox):
     """A question in a message box, such as Reset all settings (P2-T18h): the core's title and
     words, its button to go ahead and Cancel. Cancel has the focus first and is the default, so

@@ -73,3 +73,56 @@ def test_reset_all_settings_leaves_the_bookmarks(page, site_url):
     app.wait_for_function("!document.getElementById('messagebox').open")
     app.wait_for_function("document.getElementById('map').getAttribute('aria-label').startsWith('All settings are reset')")
     assert stored(app, "tobymap-bookmarks") == text
+
+
+# The bookmark dialog (P4-T8b; USR-1, DP219, ACC-7). Written, not yet run: a world build was using the memory.
+
+def open_dialog(app):
+    app.focus("#map")
+    app.keyboard.press("Control+Enter")
+    app.wait_for_function("document.getElementById('bookmarkdialog').open "
+                          "&& document.activeElement.id === 'bookmark-name'")
+
+
+def test_ctrl_enter_on_the_map_opens_the_bookmark_dialog_in_tab_order(page, site_url):
+    app = open_with(page, site_url, None)
+    open_dialog(app)
+    assert app.input_value("#bookmark-name")
+    assert app.get_attribute("#bookmark-feature", "readonly") is not None
+    assert app.get_attribute("#bookmark-coordinates", "readonly") is not None
+    order = []
+    for _ in range(7):
+        order.append(app.evaluate("document.activeElement.id"))
+        app.keyboard.press("Tab")
+    assert order == ["bookmark-name", "bookmark-feature", "bookmark-coordinates", "bookmark-list",
+                     "bookmark-new-list", "bookmark-ok", "bookmark-cancel"]
+    app.click("#bookmark-cancel")
+    assert stored(app, "tobymap-bookmarks") is None
+
+
+def test_ok_keeps_a_bookmark_and_a_second_is_numbered(page, site_url):
+    app = open_with(page, site_url, None)
+    open_dialog(app)
+    name = app.input_value("#bookmark-name")
+    app.click("#bookmark-ok")
+    app.wait_for_function("!document.getElementById('bookmarkdialog').open")
+    first = json.loads(stored(app, "tobymap-bookmarks"))
+    assert [f["properties"]["name"] for f in first["features"]] == [name]
+    open_dialog(app)
+    assert app.input_value("#bookmark-name") == f"{name}_1"
+    app.click("#bookmark-cancel")
+
+
+def test_new_list_is_chosen_and_ok_bookmarks_into_it(page, site_url):
+    app = open_with(page, site_url, None)
+    open_dialog(app)
+    app.click("#bookmark-new-list")
+    app.fill("#bookmark-new-name", "Castles")
+    app.click("#bookmark-new-ok")
+    app.wait_for_function("document.activeElement.id === 'bookmark-list'")
+    assert app.evaluate("document.getElementById('bookmark-list').selectedIndex") == 1
+    app.click("#bookmark-ok")
+    app.wait_for_function("!document.getElementById('bookmarkdialog').open")
+    file = json.loads(stored(app, "tobymap-bookmarks"))
+    assert [l["name"] for l in file["tobymap"]["lists"]] == ["Bookmarks", "Castles"]
+    assert file["features"][0]["properties"]["list"] == "Castles"

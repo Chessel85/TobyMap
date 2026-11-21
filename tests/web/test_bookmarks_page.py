@@ -198,10 +198,13 @@ def test_ctrl_c_in_the_search_box_and_in_details_is_left_to_the_browser(page, si
     assert not app.evaluate("document.getElementById('messagebox').open")
     app.click("#search-cancel")
     app.wait_for_function("!document.getElementById('searchdialog').open")
+    # Focus Details, and wait until it holds focus (a closing dialog may still be handing focus back), so the key goes there.
     app.focus("#details")
+    app.wait_for_function("document.activeElement.id === 'details'")
     app.keyboard.press("Control+c")
     assert app.evaluate("window.lastKeyTaken") is False
     app.focus("#map")
+    app.wait_for_function("document.getElementById('map').contains(document.activeElement)")
     app.keyboard.press("Control+c")
     assert app.evaluate("window.lastKeyTaken") is True   # on the map, Ctrl+C copies the bookmark
 
@@ -225,7 +228,10 @@ def test_ctrl_shift_b_opens_the_manager_with_its_buttons_in_tab_order(page, site
         app.keyboard.press("Tab")
     assert order == ["bm-list", "bm-open", "bm-new", "bm-rename", "bm-up", "bm-down", "bm-delete", "bm-zoom", "bm-save",
                      "bm-open-file", "bm-close"]
-    assert app.get_attribute("#bm-up", "aria-disabled") == "true"   # the first list cannot go up, and Tab still reaches it
+    # The manager opens on the list last used (Castles, the second and last), so it can go up but not down; Tab still
+    # reaches the unavailable button.
+    assert app.get_attribute("#bm-up", "aria-disabled") == "false"
+    assert app.get_attribute("#bm-down", "aria-disabled") == "true"
     app.click("#bm-close")
     app.wait_for_function("!document.getElementById('bookmarkmanagerdialog').open")
 

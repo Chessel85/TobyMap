@@ -193,7 +193,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Passed over: an area, such as a small lake, that a move's path entered and left, with neither the start nor the end of the move in it.
 * Passed nearby: a point, such as a railway station, that a move's path came within the passed nearby distance of, said as "passed nearby to" (P3-T29f). It was called passed.
 * Passed nearby distance: how near a move's path must come to a point for it to be listed as passed. A share of the step, 10% at first, or a fixed distance (DP58).
-* Beacon: a soft repeating sound from the direction of the place chosen in Settings, so you can feel which way you face (SON-10). The place is the North Pole at first, or the South Pole, or one of four places on the equator; pins come later.
+* Beacon: a soft repeating sound from the direction of the place chosen in Settings, so you can feel which way you face (SON-10). The place is the North Pole at first, or the South Pole, or one of four places on the equator; bookmarks come later (USR-1, SON-10).
 * Here: an item in the Information panel less than a metre away, such as a station you went to, is said with "here" in place of a distance and direction (P2-T18e).
 * Reset all settings: in the Map menu, puts every setting, key, layer choice and own sound file back as on a new installation, and clears your place and the location history, after a message box asks (P2-T18h).
 * Item's direction sound: the earcon played from an item's direction, before its name, when you press Space on an item in the Information panel (Hear its direction, SON-3). It is not the beacon.
@@ -233,12 +233,12 @@ Older documents written before this glossary, such as architecture section 6 and
 * Your keys: the keys you have changed, kept as changes on top of the key map you chose, so keys added in a new version still reach you. Reset gives the key map's own keys back. Save as writes them to a key file.
 * Key file: your keys saved as a file, with the name of the key map they are based on, so it can be shared and opened in Settings on another computer, in either version (P3-T31).
 * Keyboard layout: what each key types, set in Windows or macOS, such as UK, US, German or French. Not the same as a key map.
-* Bookmark: something the user has kept, to go back to, hear and measure: a feature or a position (USR-1, from Phase 4). Bookmarks replace the pins, markers and collections of earlier documents (DP203).
-* Feature bookmark: a bookmark of a feature, such as Hampshire or the River Itchen, kept by its identifier so it still works after the packs are rebuilt (USR-2).
-* Position bookmark: a bookmark of one position on the Earth, such as where you are standing, named after the place there.
-* Bookmark list: a named, ordered list of bookmarks, such as "Places I've been on holiday" (USR-3). Called a list, not a group, because a group is a part of the Information panel. It was called a collection.
-* Measure start: what Shift+M measures from. It is where you are, unless the user has chosen another start, such as a bookmark (INF-3, from Phase 4).
-* Chain: a bookmark list measured in its order, from the first bookmark to the last through every one between (USR-4). Each stretch from one bookmark to the next is a leg.
+* Bookmark: a point the user has kept, with a name, to go back to, hear and measure (USR-1, from Phase 4). It is always a point, never a feature: it keeps the name of the current feature it was made at only as words to read (DP210, DP219). Bookmarks replace the pins, markers and collections of earlier documents (DP203).
+* Bookmark list: a named, ordered list of bookmarks, such as "Places I've been on holiday" (USR-3). One list, "Bookmarks", exists at first. Each list can be switched on and off, and has its own zoom range (DP213). Called a list, not a group, because a group is a part of the Information panel. It was called a collection.
+* Bookmark dialog: the dialog Ctrl+Enter opens to make a bookmark, or to rename one that is the current feature: a name, the current feature and coordinates read-only, a bookmark list, and OK and Cancel (USR-1, DP211).
+* Bookmark list dialog: the dialog for one bookmark list's bookmarks: move up and down, copy or move to another list, delete (USR-3, DP213).
+* Bookmark manager: the dialog for the bookmark lists themselves: new, rename, move up and down, delete, on or off, zoom range, save to a file and open a file (USR-3, USR-5, DP213).
+* Measure start: what Shift+M measures from. It is where you are, unless the user has made an item or a bookmark the measure start with Ctrl+Shift+M. Ctrl+Shift+M on the map puts it back to where you are (INF-3, USR-4, from Phase 4).
 * Focus point: in the web version, the small invisible element at the map centre that has the keyboard focus when the map does, so a magnifier that follows the focus looks there (ACC-8).
 
 ## Planning

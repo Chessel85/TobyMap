@@ -388,7 +388,7 @@ NAV-5, NAV-6, NAV-14, INF-12.
 * P5-T2 Network mode: entering and snapping, cycling the network type, choosing links with Left and Right, travelling, stopping rules, and the heading on arrival in each orientation (NAV-5).
 * P5-T3 Stopping at points of interest, with chosen categories (NAV-6).
 * P5-T4 Rivers described as upstream and downstream, and following the Thames to the sea.
-* P5-T5 Distance along a line between two points or pins (INF-12).
+* P5-T5 Distance along a line between two points or bookmarks (INF-12).
 * P5-T6 Driving in network and stepping modes: speed in steps per second, the ding for points passed, the beacon swinging on bends, and speech that never falls behind (NAV-14).
 
 ### Automatic exit checks

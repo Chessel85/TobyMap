@@ -1,6 +1,11 @@
 # Architecture and High Level Design
 
-Version 0.11, 13 November 2026. Updated for DP191: a country's distant parts are areas of their own.
+Version 0.12, 21 November 2026. Updated for DP219: bookmarks are points kept in one GeoJSON file.
+
+## Changes in version 0.12
+
+* Sections 6.7 and 6.11: bookmarks are always points (DP210, DP219), so they no longer store canonical identifiers, and USR-2 is withdrawn. There are no pins or collections. All bookmark lists are kept in one GeoJSON file of TobyMap's own, in the settings folder on the desktop and in the browser's private storage on the web, written safely, and Reset all settings does not touch it. Bookmarks are a layer, and each bookmark list is on or off with its own zoom range. Lists are saved and opened as GeoJSON and as GPX (USR-1, USR-3, USR-5).
+* Sections 2.2 and 5.2 (the privacy list and the core modules): one line each brought into line.
 
 ## Changes in version 0.11
 
@@ -184,7 +189,7 @@ Lines of latitude and longitude at every 1 degree, plus the special lines, are w
 The data manager tool, called mapdata, runs in stages. Each stage writes its results to drive E: and is skipped next time if its inputs have not changed. All sources, layers, categories, regions and corrections are configuration files. Output is plain lines suited to a screen reader (DMT-2).
 
 ### AD-13 Canonical feature identifiers across packs
-Every feature has one stable identifier, such as "osm:r62149" for the United Kingdom, used by every pack that mentions it. Where the base pack and a regional pack both describe the same feature, the pipeline matches them, mainly through Wikidata, so a bookmark (USR-2) and a relation always mean the same thing whichever packs are installed.
+Every feature has one stable identifier, such as "osm:r62149" for the United Kingdom, used by every pack that mentions it. Where the base pack and a regional pack both describe the same feature, the pipeline matches them, mainly through Wikidata, so a relation always means the same thing whichever packs are installed.
 
 ### AD-14 The most detailed installed pack wins, tile by tile
 Each pack declares which tiles of the world it covers in detail. For any place, the application uses the shapes from the most detailed installed pack covering that tile. For example, with the Great Britain pack installed, the United Kingdom's coastline near Southampton comes from OpenStreetMap, not from Natural Earth (DAT-3, PLT-4).
@@ -234,7 +239,7 @@ A Windows installer is built from Phase 0 onwards, using PyInstaller and NSIS as
 1. The pipeline reads the sources from its data folder (drive E: on your laptop) and the internet, and writes packs and a catalogue file.
 2. The data manager publishes the packs and catalogue to GitHub Releases.
 3. The application downloads the catalogue, then whole packs to install them, or pieces of packs on demand.
-4. The user's settings, pins, bookmarks and collections stay on their own computer or in their browser. Nothing is sent anywhere, and the application never asks for the device's location (SCP-1).
+4. The user's settings and bookmarks stay on their own computer or in their browser. Nothing is sent anywhere, and the application never asks for the device's location (SCP-1).
 
 ---
 
@@ -391,7 +396,7 @@ The core Python package is called mapcore. Its modules are:
 * sound: the sound scene. It works out, for each sound, its direction relative to "ahead", its loudness, its muffling and its spoken label (SON-1 to SON-10). It never touches an audio device.
 * render: the map scene. It applies the globe projection (VIS-5), chooses the drawing detail for the zoom, and produces the list of shapes and labels with their styles and themes (VIS-1 to VIS-3).
 * touch: the touch tracing scene (TCH-1 to TCH-3), using the same projection.
-* user: pins, bookmarks, collections, settings, and GeoJSON import and export (USR-1 to USR-5, PLT-5).
+* user: bookmarks and bookmark lists, settings, and GeoJSON and GPX saving and opening (USR-1 to USR-5, PLT-5).
 * commands: the command registry (AD-3).
 * session: the map session, the one object the shells talk to.
 
@@ -528,7 +533,7 @@ Each feature record holds:
 ### 6.7 Canonical identifiers
 * Features keep their source identifier as their canonical identifier: "osm:r62149" for an OpenStreetMap relation, "ne:admin0:FRA" for Natural Earth, "vliz:…" for seas.
 * The base pack publishes an identifier register. When a regional pack is built, its features are matched to base features by Wikidata identifier, and failing that by name, type and overlap. A matched feature keeps the base identifier, with the regional identifier recorded as an alias.
-* Bookmarks store the canonical identifier and the aliases, so they keep working when packs are updated (USR-2).
+* Bookmarks do not use identifiers. A bookmark is a point with a name, so it needs no matching when packs are rebuilt, updated or added (DP210, DP219). USR-2, which kept feature bookmarks working, is withdrawn. A bookmark keeps only the name of the current feature it was made at, as words.
 
 ### 6.8 Combining installed packs
 * Each pack lists the tiles it covers in detail.
@@ -554,8 +559,11 @@ Each feature record holds:
 * The pack manager reads it to offer installs and updates (PCK-2).
 
 ### 6.11 Personal data
-* Settings, key bindings, layer choices, pins, bookmarks, collections and position history are stored as JSON, separately from packs (PLT-5, USR-1 to USR-3).
-* Collections export to and import from GeoJSON (USR-5).
+* Settings, key bindings, layer choices and position history are stored as JSON, separately from packs (PLT-5).
+* Bookmarks are kept separately from the settings, in one GeoJSON file of all the bookmark lists (USR-1, USR-3, DP217, DP219). On the desktop it is in the settings folder. In the web version it is in the browser's private storage. It is written safely: the new file is written beside the old and then put in its place, so a crash never loses the bookmarks. Reset all settings does not touch it (DP209).
+  * Each bookmark list is a feature collection, in the order the user set. A bookmark is a point feature with its name, its note and the name of the current feature it was made at. A list's name, whether it is on and its zoom range are properties of the list.
+  * Bookmarks are a layer of the map, "Bookmarks", with each bookmark list on or off and with its own zoom range (SCP-6, DP213). A list that is off, or outside its zoom range, is gone from the map and from every announcement, as any layer is. Each bookmark is drawn as a mark of the same size at every zoom, with its name beside it (DP219).
+  * A bookmark list is saved to a file, or all of them, as GeoJSON, which opens in QGIS, or as GPX, with one waypoint for each bookmark. A GeoJSON file or a GPX file can be opened: GPX waypoints go into a new bookmark list, and a list whose name is already used is kept beside the existing one, with a number added (USR-5, DP217). The desktop uses the standard Save and Open boxes, and the web version a download and the browser's file chooser. The format code is in the core, so both versions read and write the same files (AD-1).
 * The folder where packs are installed is a setting (AD-18). Packs can be large, so the pack manager says how much space is free in that folder and lets the user move it, for example to another drive.
 
 ### 6.11a Islands (P3-T1d)

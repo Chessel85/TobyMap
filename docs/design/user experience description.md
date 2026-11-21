@@ -1,12 +1,22 @@
 # User Experience Description
 
-Version 0.29, 21 November 2026. Passed over has no order "along the path": it opens by distance, nearest first, and Ctrl+S offers by distance, by name and by bearing (section 6; P4-T14h). Version 0.28, 21 November 2026. The map views dialog: Save changes, Rename and Delete stay in the Tab order but are unavailable where they cannot be used, and Save changes puts the layers as they are now into a view of your own (section 7.2; P4-T14g). Version 0.27, 21 November 2026. After Enter on an item in the Information panel, the focus goes to the heading of the group the item was in (section 6; P4-T14e). Version 0.26, 21 November 2026. The current feature: Space starts with a line or place you are at, Enter on a line or a crossing point makes the line current, Shift+Enter on the smallest area goes back to the usual rule, and a zoom that changes the place moves the current feature with it (sections 3.3, 4.1 and 6; P4-T14d). Version 0.25, 21 November 2026. Space and Go to name a town you are near; a step never does (section 3.3; P4-T14b). Version 0.24, 21 November 2026. A zoom says only what changed in the place (section 4.1; P4-T14a). Version 0.23, 13 November 2026. Hierarchy mode as built in the core (section 5.4; P3-T6a): M switches it on and off, a move says the feature and its zoom, and Left and Right go round the neighbours of the feature you started from. Version 0.22, 10 November 2026. The special lines are drawn thicker and in a colour of their own, and a setting in the Display tab chooses when the current area is outlined (section 11.2; P2-T17v). Version 0.21, 10 November 2026. A switch in the Speech tab says the place after every step, even when it has not changed, instead of the tick (section 3.1; P2-T17q, DP162). Version 0.20, 10 November 2026. Your notes on the Phase 2 sweep (P2-T18): Space and Enter on a group heading in the Information panel say and do nothing (section 6.3); the layers list is a tree whose groups close and open, and the maximum zoom is the closest (section 7.1); an item under a metre away is "here", and a line you are on is not nearby (section 6); the beacon can come from either pole or the equator (section 8.4); and Reset all settings is in the Map menu (section 13). Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
+Version 0.30, 21 November 2026. Bookmarks as you described them in DP209 to DP217 and agreed in DP219: a bookmark is always a point, made with Ctrl+Enter in a bookmark dialog; a Bookmarks group on Shift+8; a measure start on Ctrl+Shift+M; two dialogs for the lists; files as GeoJSON and GPX (sections 5.7, 6.1 to 6.3, 7.1, 8.4, 9 and 12; P4-T0d). Version 0.29, 21 November 2026. Passed over has no order "along the path": it opens by distance, nearest first, and Ctrl+S offers by distance, by name and by bearing (section 6; P4-T14h). Version 0.28, 21 November 2026. The map views dialog: Save changes, Rename and Delete stay in the Tab order but are unavailable where they cannot be used, and Save changes puts the layers as they are now into a view of your own (section 7.2; P4-T14g). Version 0.27, 21 November 2026. After Enter on an item in the Information panel, the focus goes to the heading of the group the item was in (section 6; P4-T14e). Version 0.26, 21 November 2026. The current feature: Space starts with a line or place you are at, Enter on a line or a crossing point makes the line current, Shift+Enter on the smallest area goes back to the usual rule, and a zoom that changes the place moves the current feature with it (sections 3.3, 4.1 and 6; P4-T14d). Version 0.25, 21 November 2026. Space and Go to name a town you are near; a step never does (section 3.3; P4-T14b). Version 0.24, 21 November 2026. A zoom says only what changed in the place (section 4.1; P4-T14a). Version 0.23, 13 November 2026. Hierarchy mode as built in the core (section 5.4; P3-T6a): M switches it on and off, a move says the feature and its zoom, and Left and Right go round the neighbours of the feature you started from. Version 0.22, 10 November 2026. The special lines are drawn thicker and in a colour of their own, and a setting in the Display tab chooses when the current area is outlined (section 11.2; P2-T17v). Version 0.21, 10 November 2026. A switch in the Speech tab says the place after every step, even when it has not changed, instead of the tick (section 3.1; P2-T17q, DP162). Version 0.20, 10 November 2026. Your notes on the Phase 2 sweep (P2-T18): Space and Enter on a group heading in the Information panel say and do nothing (section 6.3); the layers list is a tree whose groups close and open, and the maximum zoom is the closest (section 7.1); an item under a metre away is "here", and a line you are on is not nearby (section 6); the beacon can come from either pole or the equator (section 8.4); and Reset all settings is in the Map menu (section 13). Version 0.19, 10 November 2026. The announcement history is now the location history: the places you stopped at, which Alt+Comma and Alt+Full stop go through, as a list (sections 2, 8.5 and 12; P2-T17t, DP158). Version 0.18: section 5.1 now says that directions are compass directions in every orientation unless you ask for them from the way you face, said with "at your" (P2-T17s, DP159). Section 5.7 has forward and back in Go to (P2-T17r, DP161). Version 0.17: section 8.6 now describes the simpler Earcons tab: one list with a check box for each earcon, and below it the chosen earcon's own volume and file. There is no volume for all the earcons together, and the beacon's own file is in the Sound tab (P2-T17p, DP163). Version 0.16: section 2 now says that a wrong entry in Type a bearing or Go to opens a message box, and that the bearing box has only its label (P2-T17o). Version 0.15: section 12 has the rule that Shift goes the other way round a list, with Shift+O and Shift+A (P2-T17l). Version 0.14: section 6 says what the Information panel does in Phase 2: counts on the group headings, Within's distances, Enter to go to an item, and Go to and Type a bearing from the panel and Details (P2-T17k).
 
 This document describes what using the application is like: what the user does, what they hear, what they see, and why. It does not cover how the application is built. Requirement IDs, such as NAV-3, refer to "requirements catalogue.md". Points that need a decision from you are marked "Decision needed" and cross-referenced to the discussion points file.
 
 Examples of what the user hears are written as quoted speech. "(tick)" and other words in brackets are earcons, which are short sounds rather than speech. Street names, distances and other figures in the examples are made up for illustration.
 
 Note: "user experience description.html" is now out of date. This Markdown file is the current version.
+
+## Changes in version 0.30
+
+These changes come from your answer to DP219, 20 November 2026 ("Yes, go with this design"), which put your answers to DP209 to DP217 together (task P4-T0d). Pins, collections and Ctrl+B and Ctrl+K as bookmark keys are gone.
+
+* Section 6.1: a Bookmarks group, the eighth, on Shift+8. Each bookmark list is a heading with its count, and its bookmarks are below it.
+* Section 6.3 (the keys on an item): Ctrl+Enter opens the bookmark dialog; Ctrl+Shift+M makes the item the measure start. Section 6.3 is the keys on an item, not a Bookmarks group: the group is described in 6.1 and 6.2, and everything else about bookmarks is in section 9.
+* Section 9 is now "Bookmarks": the bookmark dialog, a bookmark as the current feature (Delete, Ctrl+Enter, Ctrl+X, Ctrl+C, Ctrl+V), the bookmark list dialog, the bookmark manager, the layer, measuring from a bookmark, and files.
+* Section 12 (draft keys), Personal: the keys above in place of K, Ctrl+B and Ctrl+K.
+* Sections 5.7, 7.1 and 8.4: bookmarks in place of pins.
 
 ## Changes in version 0.29
 
@@ -494,7 +504,7 @@ Driving moves the user continuously instead of in steps (NAV-14).
 
 * Ctrl+F searches. Choosing a result jumps there (NAV-8). There is no "focus only" option.
 * Ctrl+G goes to typed coordinates, in any common format. In cardinal and free facing, it also takes "f" or "forward", or "b" or "back", and a distance, to move along the way you face, as Up and Down do: "f 24" is 24 of your own unit, kilometres or miles, and units can be typed, such as "F24mi240yds" or "b 2km 500m" (P2-T17r, DP161). In north-fixed, a message box says "Forward and back work in cardinal and free facing."
-* Bookmarks and pins (section 9) can be jumped to.
+* Bookmarks (section 9) can be jumped to: Enter on one in the Bookmarks group goes there.
 * "Jump" on any item in the Information panel goes there.
 * A mouse click on the visual map moves the location and gives the normal announcement. This is the sighted user's equivalent of a step of any size.
 * Backspace goes back to the previous position and Shift+Backspace goes forward again (NAV-10). Going back also restores the zoom you had there.
@@ -516,10 +526,11 @@ The panel is a tree. Its top level holds these groups:
 * Overlapping: areas that overlap the current feature, with how much of it each covers (INF-5). The lines that cross an area, and for a line the areas it passes through in order, are to come here (INF-6, P3-T29e); there is no Crossing group.
 * Passed over: what the last move crossed or passed close to (section 3.2). It was called Crossed and passed.
 * Search: the last search results.
+* Bookmarks: your bookmark lists. Each list is a heading, with its count, and its bookmarks are below it, each with its distance and direction from where you are (USR-3, DP213). A list that is switched off is not here.
 
-The groups are in this order, on Shift+1 to Shift+7 (the PO, R6, 19 November 2026).
+The groups are in this order, on Shift+1 to Shift+8 (the PO, R6, 19 November 2026; Bookmarks added, DP219).
 
-Every list can be sorted three ways: by name, by distance, or by bearing clockwise from ahead. Ctrl+S, in the panel, cycles the sort and announces it: "Sorted by distance". Within also has its natural order, smallest to largest, which is its default. Nearby and Passed over start sorted by distance, Bordering by bearing, and the rest by name, except Search, which starts in the order its results came: a search's best match first, a query within a distance nearest first, and the areas a line passes through from its start (P3-T32k). Typing the start of a name jumps to it, as in any Windows tree.
+Every list can be sorted three ways: by name, by distance, or by bearing clockwise from ahead. Ctrl+S, in the panel, cycles the sort and announces it: "Sorted by distance". Within also has its natural order, smallest to largest, which is its default. Nearby and Passed over start sorted by distance, Bordering by bearing, and the rest by name, except Bookmarks, which starts in each list's own order, the order you set, and also offers "list order" as a fourth sort; and Search, which starts in the order its results came: a search's best match first, a query within a distance nearest first, and the areas a line passes through from its start (P3-T32k). Typing the start of a name jumps to it, as in any Windows tree.
 
 Each group heading says how many items it holds: "Nearby, 5 items", "Within, 1 item", or "Passed over, no items".
 
@@ -533,7 +544,7 @@ F3 goes to the Information panel from any region, back to the item you were last
 
 A key in the map region opens some groups directly and speaks their first item. Whether these stay is DP109:
 
-* Shift+1 to Shift+7: Within, Nearby, Bordering, Contains, Overlapping, Passed over, Search (P3-T29a).
+* Shift+1 to Shift+8: Within, Nearby, Bordering, Contains, Overlapping, Passed over, Search, Bookmarks (P3-T29a, USR-3).
 
 From there, arrow keys move through the tree. Tab returns to the map.
 
@@ -553,14 +564,15 @@ There is no menu of actions on an item (INF-10, DP170). The keys on any item are
 * Enter: jump there, and make it the current feature. This is so for a line in any group, such as the A27 under "Lines crossing its border" in Overlapping. Enter on a crossing point goes to that point and makes its line the current feature, so Within then says "M3, here" (P4-T14d). Enter on an end of a shared border goes there but leaves the current feature as it is there.
 * Shift+Enter: make its layer the current layer, and it the current feature, so the groups follow that layer as you step (DP202). On the smallest area here it says "No current layer. The current feature is the smallest area here, Hampshire." and the usual rule comes back, the first time, whatever layer was current (P4-T14d).
 * Space: hear its direction
-* Ctrl+Enter: bookmark it. Bookmarks come in Phase 4, so until then it says "Bookmarks come in Phase 4."
+* Ctrl+Enter: bookmark it. It opens the bookmark dialog for the item's own point, the point Enter goes to (section 9). Bookmarks come in Phase 4, so until then it says "Bookmarks come in Phase 4."
+* Ctrl+Shift+M: make it the measure start, so Shift+M measures from it (section 9). Phase 4.
 * Ctrl+S and Ctrl+Shift+S: sort the group by name, distance or bearing, and say which
 
 Its details show in Details as it is selected. The groups of the current feature, Bordering, Contains and the rest, are reached with Shift and a number.
 
 D speaks and shows the details of the current feature (INF-1). Facts give their source and date, for example "Population 67 million (Wikidata, 2024)".
 
-M measures from the location to the selected item, a search result or a bookmark (INF-3, INF-8).
+M measures from the location to the selected item, a search result or a bookmark (INF-3, INF-8). From Phase 4, it measures from the measure start if you have made one with Ctrl+Shift+M (section 9).
 
 ### 6.4 The query builder
 
@@ -585,6 +597,8 @@ Every distance is measured along the Earth's surface. Every bearing uses the use
 ### 7.1 Layers
 
 Shift+L opens the layers list (SCP-6). Each layer, such as roads, railway stations, national parks or postcode areas, can be switched on or off. A layer that is off is gone both visually and sonically: it disappears from the visual map, and from announcements, hierarchy "up", Nearby, look around, network types, crossing earcons and the crossed and passed list. Sighted and blind users therefore always work with the same set of features.
+
+From Phase 4, your bookmarks are a layer too, "Bookmarks". Each bookmark list can also be switched on and off on its own, and has its own zoom range, in the bookmark manager (section 9).
 
 Everything about a layer is defined in one place (SCP-7, DP74):
 
@@ -656,7 +670,7 @@ B switches on the orientation beacon (SON-10). It is a soft repeating sound that
 * Near the place it comes from, its direction is unstable. The beacon fades from 200 km and is silent within 100 km of it. Going inside, you hear "Beacon off near the North Pole." once, or the place chosen; coming back out, "Beacon back on." Switched on near it, it says "Beacon on, but silent near the North Pole."
 * It plays about once a second; the time between each sound is a setting. Behind you it has the lower pitch and slight muffling, like every sound placed in space. Its loudness does not change with distance.
 * The Sound tab of Settings has the beacon on or off, its volume, the seconds between each sound, your own file for it, and where it comes from. Ctrl+M silences it with everything else. Its sound is a placeholder until you choose one.
-* The beacon can point at any pin instead, such as "home" (DP72). It then works as a homing sound. Choose the target in settings, or with "Beacon to this pin" in a pin's actions.
+* The beacon can point at any bookmark instead, such as "Home" (DP72, SON-10). It then works as a homing sound. Choose the target in settings. Phase 4.
 
 ### 8.5 Hearing where things are
 
@@ -697,17 +711,64 @@ On the desktop, your own file is kept where it is, by its path. In the web versi
 
 * With a grid layer switched on, such as elevation, each move plays the value at the new position as pitch: higher pitch means a higher value (SON-5).
 * Z speaks the value with units, for example: "Elevation 1,345 metres" (DP99).
-* S sweeps, playing values as a quick run of tones along a line. The default sweep runs from the user's left to their right across the view. In north-fixed that means west to east. The sweep dialog allows other directions, lengths, and "between two pins".
+* S sweeps, playing values as a quick run of tones along a line. The default sweep runs from the user's left to their right across the view. In north-fixed that means west to east. The sweep dialog allows other directions, lengths, and "between two bookmarks".
 
-## 9. Pins, bookmarks, collections and tours
+## 9. Bookmarks and tours
 
-* K drops a pin at the location. The user is asked for a name (optional) and a note.
-* Ctrl+B bookmarks the current feature, whether it is a country, a river or a bus stop (USR-2).
-* Ctrl+K opens Collections: named, ordered lists of pins and bookmarks, such as "Walk to the station" or "Countries in the Andes". A collection opens in the Information panel like any other group.
-* Measure on a collection gives the straight-line distance from the first item to the last, and the total length through every item in order (USR-4).
-* "Distance along" between two pins on the same road or river gives the length along that line, or explains why it cannot (INF-12).
-* Collections can be exported to and imported from GeoJSON for sharing (USR-5).
-* Later (USR-6, DP72): a collection can be played as a tour. The application drives from one item to the next, along the network where the two are on the same line and straight across otherwise, pausing at each item to announce it.
+A bookmark is a point with a name, and nothing more: never a feature (DP210, DP219). It keeps the name of the current feature it was made at, as words for you to read. Bookmarks are kept in bookmark lists. Bookmarks come in Phase 4 (USR-1, USR-3).
+
+### Making a bookmark
+
+* Ctrl+Enter opens the bookmark dialog. On the map, it is for where you are. On an item in the Information panel, it is for the item's own point, the point Enter goes to.
+* The dialog has, in Tab order: a Name box; the current feature and the coordinates, read-only; a Bookmark list box; a New list button; and OK and Cancel buttons.
+* The name is filled in with the current feature's name. If a bookmark already has it, a number is added: Rome, Rome_1, Rome_2. You can change the name. Two bookmarks may have the same name, and the same place.
+* The Bookmark list box is set to the list you used last. At first there is one list, "Bookmarks". New list makes another and selects it.
+* OK keeps the bookmark and says "Rome, bookmarked in Bookmarks". Cancel closes the box and makes nothing.
+
+### A bookmark as the current feature
+
+Enter on a bookmark, in the Bookmarks group, goes there and makes it the current feature, as Enter does on any item. Then:
+
+* Delete deletes it, after asking, in a box with a Cancel button.
+* Ctrl+Enter opens the bookmark dialog, to rename it, or to move it to another list.
+* Ctrl+X cuts it, Ctrl+C copies it and Ctrl+V pastes it, so a bookmark can be cut or copied from one bookmark list and pasted into another.
+
+### The Bookmarks group
+
+* Shift+8 goes to the Bookmarks group in the Information panel (section 6.1). Each bookmark list is a heading with its count, and its bookmarks are below it, each with its distance and direction.
+* On a bookmark: Enter goes there, Space hears its direction, Shift+M measures to it, and its details, with its note, show in Details.
+* Ctrl+S sorts a list by list order, name, distance or bearing. List order is where it starts. Sorting never changes the list's own order.
+
+### The two dialogs
+
+Both are in the Map menu, and both have a Close button.
+
+* The bookmark list dialog works on one list's bookmarks: move up and down, copy or move to another list, and delete.
+* The bookmark manager works on the lists themselves: new, rename, move up and down, delete, on or off, zoom range, save to a file, and open a file. Deleting a list asks first, and says how many bookmarks it holds.
+
+### On the map
+
+* Bookmarks are a layer, "Bookmarks", in the layers list (section 7.1), and each bookmark list can be on or off, with its own zoom range, because a list of countries you have visited and a list of cafes in London need very different ranges (DP213).
+* A bookmark is drawn as a mark about 12 pixels across, the same at every zoom, with its name beside it, as a town is. Its size follows "Label size" in the Display tab, so there is no setting of its own (DP219).
+* A list that is off, or outside its zoom range, is gone from the map and from every announcement, as any layer is.
+
+### Measuring from a bookmark
+
+* Ctrl+Shift+M on any item or bookmark makes it the measure start: "Measuring from Winchester". Shift+M on another item then says the distance and direction from the start to it, without moving.
+* Ctrl+Shift+M on the map puts the start back to where you are.
+* There is no measuring between two features, and no measuring a list as a chain. A bookmark is a point (DP215, DP216).
+* "Distance along" between two bookmarks on the same road or river gives the length along that line, or explains why it cannot (INF-12, Phase 5).
+
+### Files
+
+* TobyMap keeps all your bookmarks in one GeoJSON file of its own: in the settings folder on the desktop, and in the browser's private storage in the web version. Reset all settings does not touch it.
+* In the bookmark manager, Save writes one bookmark list, or all of them, to a file you choose, as GeoJSON, which opens in QGIS, or as GPX, one waypoint for each bookmark. Open reads a GeoJSON file, or the waypoints of a GPX file, which go into a new bookmark list (USR-5, DP209, DP217).
+* A list whose name is already used is kept beside the existing one: "My favourite castles 2". A file that is not a bookmark file is said to be so, and nothing changes.
+* This is also how bookmarks move between the desktop and the web version. The desktop uses the standard Save and Open boxes; the web version saves with a download and opens with the browser's file chooser.
+
+### Tours
+
+* Later (USR-6, DP72): a bookmark list can be played as a tour. The application drives from one bookmark to the next, along the network where the two are on the same line and straight across otherwise, pausing at each to announce it.
 
 ## 10. Touch exploration
 
@@ -809,9 +870,10 @@ Keys changed since version 0.3 (agreed, DP79):
 * Ctrl+M: mute or unmute all application sound.
 
 ### Personal
-* K: drop a pin.
-* Ctrl+B: bookmark the current feature.
-* Ctrl+K: collections.
+* Ctrl+Enter: the bookmark dialog, on the map or on an item. On a bookmark that is the current feature, it renames it.
+* Shift+8: the Bookmarks group.
+* Ctrl+Shift+M: make the item, or the bookmark, the measure start. On the map, back to where you are.
+* Delete, Ctrl+X, Ctrl+C and Ctrl+V, on a bookmark that is the current feature: delete, cut, copy and paste it.
 
 ### Other
 * A: the next verbosity preset (DP144). Shift+A: the previous one.

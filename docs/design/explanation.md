@@ -574,6 +574,7 @@ Where the code does something different today, a line starting "Today" says so. 
 5. Overlapping, Shift+5.
 6. Passed over, Shift+6.
 7. Search, Shift+7.
+8. Bookmarks, Shift+8, from Phase 4 (P4-T8).
 
 Today there are eight groups, in another order: Within, Nearby, Crossed and passed, Contains, Bordering, Overlapping, Crossing, Search. Crossing is gone: what it held is now in Overlapping. Crossed and passed is renamed Passed over.
 

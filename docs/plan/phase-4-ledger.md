@@ -52,4 +52,7 @@ Not started tonight, as they need the PO: P4-T14f's change (the PO sees the list
 
 ## Current state
 
-Last updated 20 November 2026, 22:15. Starting the night plan at item 1.
+Last updated 21 November 2026, 01:20.
+
+* The world build (P4-T15b) started 01:18 from the snapshot C:\Users\chess\github\Mapping-build at ad46acf, detached (pwsh, scratchpad world-build.ps1), 6 workers (--away), MAPDATA_SWITCH pointing at the main folder's continue.txt. Console: E:\osmdata\tobymap\output\world\world console.txt (ends with an EXIT line); log: world build log.txt beside it. Expected about 5.5 hours: graticule onwards; relationships about 2.5 hours, write about 1.3 hours. Never edit the snapshot folder while it runs; remove it (git worktree remove) after.
+* Night plan item 1 is done. Item 3 (core and shells) starts now in the main folder: P4-T14a first. No mapdata change goes in until the build ends.

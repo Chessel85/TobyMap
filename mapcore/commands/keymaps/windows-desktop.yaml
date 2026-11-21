@@ -83,6 +83,9 @@ keys:
   panel.bookmarks: Shift+8
   panel.hear: Space
   measure.to: Shift+M
+  # The measure start (P4-T9a, DP214): on an item, or on the map to put it back to where you are.
+  measure.start: Ctrl+Shift+M
+  measure.start_here: Ctrl+Shift+M
   panel.go: Enter
   panel.current_layer: Shift+Enter
   panel.sort: Ctrl+S

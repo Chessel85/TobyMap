@@ -44,7 +44,7 @@ def test_other_key_maps_list_only_the_keys_that_differ():
     full = keymaps.own_keys("windows-desktop")
     assert len(full) > 60
     for name in ("windows-browser", "mac-desktop", "mac-browser", "alternative"):
-        assert len(keymaps.own_keys(name)) <= 10, name
+        assert len(keymaps.own_keys(name)) <= 12, name
 
 
 def test_the_windows_keys_are_as_they_were():

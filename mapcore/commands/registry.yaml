@@ -119,6 +119,10 @@ commands:
   - {name: panel.hear, label: Hear its direction, region: panel, menu: ""}
   # Measure from where you are to the focused item, or the current feature (INF-3, P3-T7a). DP187: Shift+M.
   - {name: measure.to, label: Measure to the item, region: global, menu: Map}
+  # The measure start (P4-T9a; USR-4, DP214): Ctrl+Shift+M on an item or bookmark makes it the place Shift+M measures
+  # from; on the map, back to where you are. Not saved between sessions.
+  - {name: measure.start, label: Measure from the item, region: panel, menu: ""}
+  - {name: measure.start_here, label: Measure from where you are, region: map, menu: Map}
   # Enter on an item goes there: to a point, or to an area's centre (P2-T17k, INF-10, DP155).
   - {name: panel.go, label: Go there, region: panel, menu: ""}
   # The current layer (P3-T24b, DP202): the item's layer, followed as you step; on the smallest area, back to it.

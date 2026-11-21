@@ -281,3 +281,15 @@ def test_open_list_opens_the_list_dialog_and_move_down_is_kept(page, site_url):
     app.wait_for_function("!document.getElementById('bookmarklistdialog').open "
                           "&& document.getElementById('bookmarkmanagerdialog').open")
     app.click("#bm-close")
+
+
+# The measure start (P4-T9a; USR-4). Written, not yet run.
+
+def test_ctrl_shift_m_on_the_map_is_taken_and_says_measuring_from_where_you_are(page, site_url):
+    app = open_with(page, site_url, bookmarks_text())
+    app.evaluate("document.addEventListener('keydown', (e) => { window.lastKeyTaken = e.defaultPrevented; })")
+    app.focus("#map")
+    app.wait_for_function("document.getElementById('map').contains(document.activeElement)")
+    app.keyboard.press("Control+Shift+M")
+    assert app.evaluate("window.lastKeyTaken") is True
+    app.wait_for_function("window.tobymap.announcements.some(a => a.text === 'Measuring from where you are.')")

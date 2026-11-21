@@ -23,3 +23,6 @@ keys:
   settings.open: "Ctrl+,"
   # Cmd+Option+M minimises every window, and Option+M types a character.
   focus.menu: Ctrl+Shift+M
+  # The measure start (P4-T9a): Cmd+Shift+M is the browser's profile menu, and Ctrl+Shift+M is the menu here.
+  measure.start: Ctrl+Shift+Y
+  measure.start_here: Ctrl+Shift+Y

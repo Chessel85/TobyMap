@@ -284,6 +284,9 @@ class MapSession:
         # itself, lat, lon). It is not a feature, so current_feature keeps the usual rule; current_bookmark says it.
         # Any move away from its place, or another feature made current, ends it.
         self._current_bookmark: tuple | None = None
+        # The measure start (P4-T9a, USR-4, DP214): {"name", "lat", "lon", "mark"} where Shift+M measures from, or None
+        # for where you are. "mark" is the Bookmark itself when it is one. Moving does not change it; it is not saved.
+        self._measure_start: dict | None = None
         # Ctrl+C or Ctrl+X: ("copy", a copy of the bookmark) or ("cut", the bookmark itself), until pasted. Kept
         # in TobyMap, not on the system clipboard. Then the bookmark Delete asks about, until the answer.
         self._bookmark_clip: tuple | None = None
@@ -367,6 +370,8 @@ class MapSession:
             "look.around": self._look_around,
             "look.go": self._look_go,
             "measure.to": self._measure,
+            "measure.start": self._measure_start_set,
+            "measure.start_here": self._measure_start_clear,
             "panel.go": self._panel_go,
             "panel.current_layer": self._current_layer_set,
             "panel.sort": lambda **a: self._sort(1, **a),
@@ -3839,33 +3844,88 @@ class MapSession:
         text = place if self.areas and self.areas[0].id == area.id else say("panel.gone", name=area.name, place=place)
         return r.speak(text, ASSERTIVE)
 
+    def _measure_start_set(self, item: str | None = None, group: str | None = None, **_a) -> Response:
+        """Ctrl+Shift+M on an item or bookmark of the Information panel: its own point, the one Enter goes to,
+        becomes where Shift+M measures from (USR-4, DP214). On a group heading, nothing."""
+        found = self._panel_spot(item, group)
+        if found is None:
+            return Response()
+        _group, area, lat, lon, point = found
+        mark = None
+        if isinstance(area, bookmarks_mod.Spot):
+            mark = self._bookmark_of_id(area.id)
+        elif not point:
+            lat, lon = self._own_point(area, lat, lon)
+        self._measure_start = {"name": area.name, "lat": lat, "lon": lon, "mark": mark}
+        return Response().speak(say("measure.start", name=area.name), ASSERTIVE)
+
+    def _measure_start_clear(self, **_a) -> Response:
+        """Ctrl+Shift+M on the map: Shift+M measures from where you are again (USR-4)."""
+        self._measure_start = None
+        return Response().speak(say("measure.start_here"), ASSERTIVE)
+
+    def _measure_origin(self) -> tuple[float, float, str | None]:
+        """Where Shift+M measures from: (lat, lon, the start's name, or None for where you are). A start that is
+        a bookmark since deleted is dropped, and _measure_lost keeps its name to be said once."""
+        st = self._measure_start
+        if st is not None and st["mark"] is not None and self._bookmark_place(st["mark"]) is None:
+            self._measure_start, self._measure_lost = None, st["name"]
+            st = None
+        if st is None:
+            return self.world.lat, self.world.lon, None
+        return st["lat"], st["lon"], st["name"]
+
+    def _with_start(self, text: str, start: str | None) -> str:
+        return say("measure.from_start", text=text, name=start) if start else text
+
     def _measure(self, item: str | None = None, group: str | None = None, **_a) -> Response:
-        """Shift+M: the distance and bearing from where you are to the item focused in the Information
-        panel, else to the current feature (INF-3, P3-T7a). To its nearest point, or to its centre if the
-        Units tab says so; inside an area, to its border. It never moves you."""
+        """Shift+M, and when the start was a bookmark since deleted, said once first (P4-T9a)."""
+        self._measure_lost = None
+        self._measure_origin()
+        lost, self._measure_lost = self._measure_lost, None
+        r = self._measure_from(item, group)
+        if lost:
+            r.announcements.insert(0, {"text": say("measure.start_gone", name=lost), "channel": SPEECH,
+                                       "priority": ASSERTIVE})
+        return r
+
+    def _measure_from(self, item: str | None, group: str | None) -> Response:
+        """Shift+M: the distance and bearing from where you are (or from the measure start, USR-4) to the item
+        focused in the Information panel, else to the current feature (INF-3, P3-T7a). To its nearest point, or to
+        its centre if the Units tab says so; inside an area, to its border. It never moves you."""
         self.panel()
         if not item and self.panel_on_item:
             item, group = self.panel_item, self.panel_group
         groups = [group] if group else registry.panel_groups()
         spot = next((self._spots[(g, item)] for g in groups if (g, item) in self._spots), None)
+        w = self.world
+        olat, olon, start = self._measure_origin()
         if spot is not None and len(spot) > 3:   # one point, such as an end of a shared border (P3-T24f)
-            w = self.world
-            distance, bearing, _ = geodesy.inverse(w.lat, w.lon, spot[1], spot[2])
+            distance, bearing, _ = geodesy.inverse(olat, olon, spot[1], spot[2])
             if isinstance(spot[0], bookmarks_mod.Spot):   # a bookmark, said with its name (P4-T8c)
                 if distance < HERE_M:
-                    return Response().speak(say("measure.bookmark_here", name=spot[0].name), ASSERTIVE)
-                text = say("measure.bookmark", name=spot[0].name,
-                           distance=words.distance_text(distance, self._units()),
-                           direction=words.direction_text(bearing, self.settings["bearing"],
-                                                          describer.words_facing(w, self.settings)))
-                return Response().speak(text, ASSERTIVE)
+                    text = say("measure.bookmark_here", name=spot[0].name)
+                else:
+                    text = say("measure.bookmark", name=spot[0].name,
+                               distance=words.distance_text(distance, self._units()),
+                               direction=words.direction_text(bearing, self.settings["bearing"],
+                                                              describer.words_facing(w, self.settings)))
+                return Response().speak(self._with_start(text, start), ASSERTIVE)
             text = say("measure.point", distance=words.distance_text(distance, self._units()),
                        direction=words.direction_text(bearing, self.settings["bearing"],
                                                       describer.words_facing(w, self.settings)))
-            return Response().speak(text, ASSERTIVE)
+            return Response().speak(self._with_start(text, start), ASSERTIVE)
         area = spot[0] if spot else (self.store.feature(item) if item and not panel_table.is_heading(item) else None)
         if area is None and self.current_bookmark is not None:   # you are at it (P4-T8d)
-            return Response().speak(say("measure.bookmark_here", name=self.current_bookmark.name), ASSERTIVE)
+            mark = self.current_bookmark
+            if start is None:
+                return Response().speak(say("measure.bookmark_here", name=mark.name), ASSERTIVE)
+            distance, bearing, _ = geodesy.inverse(olat, olon, mark.lat, mark.lon)
+            text = say("measure.bookmark_here", name=mark.name) if distance < HERE_M else say(
+                "measure.bookmark", name=mark.name, distance=words.distance_text(distance, self._units()),
+                direction=words.direction_text(bearing, self.settings["bearing"],
+                                               describer.words_facing(w, self.settings)))
+            return Response().speak(self._with_start(text, start), ASSERTIVE)
         if area is None:
             area = self.current_feature
         if area is None:
@@ -3876,13 +3936,14 @@ class MapSession:
         """Say the distance and bearing from here to a feature, without moving (INF-3, INF-8). Search
         results use this too (P3-T8b)."""
         w = self.world
+        olat, olon, start = self._measure_origin()
         if self.settings["measure_to"] == "centre":
             lat, lon = self._spot_of(area)
-            distance, bearing, _ = geodesy.inverse(w.lat, w.lon, lat, lon)
+            distance, bearing, _ = geodesy.inverse(olat, olon, lat, lon)
             key = "measure.centre"
         else:
             border = self._geometry(area) == "area"
-            found = self.store.measure(area, w.lat, w.lon, border=border)
+            found = self.store.measure(area, olat, olon, border=border)
             if found is None:
                 return Response().earcon("blocked").speak(say("measure.none", name=area.name), ASSERTIVE)
             distance, bearing = found.distance_m, found.bearing_deg
@@ -3891,7 +3952,7 @@ class MapSession:
                 key = "measure.here"
         text = say(key, name=area.name, distance=words.distance_text(distance, self._units()),
                    direction=words.direction_text(bearing, self.settings["bearing"], describer.words_facing(w, self.settings)))
-        return Response().speak(text, ASSERTIVE)
+        return Response().speak(self._with_start(text, start), ASSERTIVE)
 
     # The bookmark dialog (P4-T8b; USR-1, DP219). Ctrl+Enter on the map bookmarks where you are, in the name of the
     # current feature (the smallest area here until another is made current); on an item of the Information panel,

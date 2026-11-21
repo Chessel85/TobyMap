@@ -620,6 +620,11 @@ measure:
   # A bookmark in the Bookmarks group (P4-T8c).
   bookmark: "{name}, {distance} {direction}"
   bookmark_here: "{name}, here"
+  # The measure start (P4-T9a, USR-4, DP214): Ctrl+Shift+M on an item, then on the map; Shift+M then adds where from.
+  start: "Measuring from {name}."
+  start_here: "Measuring from where you are."
+  from_start: "{text}, from {name}"
+  start_gone: "The bookmark {name} is gone, so measuring from where you are."
 
 nearby:
   item: "{name}, {distance} {direction}"

@@ -55,6 +55,8 @@ Go to Search,anywhere,Shift+7,Shift+7,Shift+7,Shift+7,None known,No problem know
 Go to Bookmarks,anywhere,Shift+8,Shift+8,Shift+8,Shift+8,None known,No problem known.
 Hear its direction,the Information panel,Space,Space,Space,Space,None known,No problem known.
 Measure to the item,anywhere,Shift+M,Shift+M,Shift+M,Shift+M,None known,No problem known.
+Measure from the item,the Information panel,Ctrl+Shift+M,Shift+Cmd+M,Ctrl+Shift+M,Ctrl+Shift+Y,None known,No problem known.
+Measure from where you are,the map,Ctrl+Shift+M,Shift+Cmd+M,Ctrl+Shift+M,Ctrl+Shift+Y,None known,No problem known.
 Go there,the Information panel,Enter,Enter,Enter,Enter,None known,No problem known.
 Make its layer the current layer,the Information panel,Shift+Enter,Shift+Enter,Shift+Enter,Shift+Enter,None known,No problem known.
 Sort the group,the Information panel,Ctrl+S,Cmd+S,Ctrl+S,Cmd+S,None known,No problem known.

@@ -552,6 +552,9 @@ layers:
   item_on: "{layer}, on"
   # Whether the layer's areas have their outlines drawn on the map (P3-T23, DP198).
   outline: "Draw the outlines of its areas"
+  # The Bookmarks layer, a layer of TobyMap's own in no pack, in a group of its own (P4-T8f, DP219 point 4).
+  bookmarks: "Bookmarks"
+  bookmarks_group: "Bookmarks"
 
 # The current layer (P3-T24b, DP202): Shift+Enter on an item of the Information panel.
 current_layer:
@@ -648,6 +651,9 @@ bookmarks_group:
   here: "{name}, here"
   gone: "{name}. {place}"   # Enter: the bookmark's name, then the place there; it is now the current feature (P4-T8d)
   none: "No bookmarks. Press {key} to make one."
+  # The Bookmarks layer switched off in Layers, or every list with bookmarks outside its zoom range (P4-T8f, SCP-6).
+  layer_off: "The Bookmarks layer is switched off. Switch it on in Layers, in the Map menu."
+  out_of_zoom: "No bookmarks at this zoom level."
 
 # The bookmark dialog, on Ctrl+Enter on the map or on an item of the Information panel (P4-T8b, USR-1, DP219).
 bookmark:

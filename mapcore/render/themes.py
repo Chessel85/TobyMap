@@ -108,6 +108,9 @@ def contrast_pairs(t: dict) -> list[tuple[str, str, str]]:
     pairs += [("line", t["line"], f) for f in fills]
     pairs += [("special line", t["special_line"], f) for f in fills]
     pairs += [("marker", t["marker"], f) for f in fills]
+    if t.get("bookmark"):   # a bookmark's mark, on land and sea, and its outline on it (P4-T8f)
+        pairs += [("bookmark", t["bookmark"], f) for f in fills]
+        pairs.append(("bookmark outline", t["bookmark_outline"], t["bookmark"]))
     pairs += [("marker outline", t["marker_outline"], t["marker"]),
               ("highlight outline", t["highlight_outline"], t["highlight_fill"]),
               ("cross", t["cross"], t["cross_halo"]),

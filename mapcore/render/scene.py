@@ -20,6 +20,11 @@ of the globe, "line_runs" where each run starts, and "line_style" and
 "line_area" its style and feature; "marker_coords", "marker_style" and
 "marker_area" the same for points. Lines are never filled.
 
+Bookmarks are drawn on top of everything (P4-T8f, DP219 point 5): "bookmarks" holds, for each bookmark
+on the near side of the globe and on the map, its point in screen pixels, the half-width of its diamond, a
+fixed size on screen scaled by the Label size setting, whether it is the item selected, and its name, to
+be drawn left-aligned beside it; "bookmark_style" the theme's colours for them.
+
 Artificial edges, the cuts along pack tile boundaries (which include the
 180 degree line and the South Pole), are marked as seams: filled, never
 outlined (AD-17), so Fiji and Russia draw whole across the line.
@@ -51,6 +56,9 @@ LINE_STYLE, HIGHLIGHT_LINE_STYLE, SPECIAL_LINE_STYLE = 0, 1, 2   # the line styl
 LINE_DRAW_ORDER = {LINE_STYLE: 0, SPECIAL_LINE_STYLE: 1, HIGHLIGHT_LINE_STYLE: 2}
 MIN_RING = 3
 WATER_LAST = 100   # added to a land layer's order, so all water is painted first
+BOOKMARK_PX = 12.0        # a bookmark's diamond, corner to corner, at a Label size of 100% (DP219 point 5)
+BOOKMARK_NAME_PX = 12.0   # its name's size at 100%
+BOOKMARK_GAP_PX = 4.0     # between the diamond and its name
 CLIP_CHUNK = 2000   # shapes cut to the view in one step of a drawing (P3-T24a)
 NAMES_PER_STEP = 15   # names placed in one step
 LINE_CHUNK = 3000   # lines turned into screen points in one step
@@ -368,7 +376,7 @@ class SceneBuilder:
               centre_cross: bool = True, layers=None, min_widths=None, interval=None, theme: dict | None = None,
               isolate: str | None = None, names: bool = False, label_scale: float = 1.0,
               heading_up: bool = False, special_layers=frozenset(), fills: dict | None = None, limit=None,
-              paint: dict | None = None):
+              paint: dict | None = None, bookmarks=()):
         """One frame, made in steps: a generator that yields between them, so that the drawing never holds
         up what is said (P3-T24a, DP202), and returns the frame. limit is the drawing's limit, the features
         to draw by pack (see _collect_steps). theme is the theme to draw with (themes.effective), the builder's own when
@@ -379,7 +387,8 @@ class SceneBuilder:
         the ocean's colour, under the land; none is not painted, for a layer whose areas lie over
         the others, such as continents or mountain ranges (P3-T1e). A layer it leaves out is land,
         except the oceans. paint, when given, is the map view's plan for each layer, which replaces fills
-        (P3-T23, see paint_plan): the drawing order, the fill, the outline and the names."""
+        (P3-T23, see paint_plan): the drawing order, the fill, the outline and the names.
+        bookmarks are the bookmarks shown, (id, name, lat, lon) each, drawn as marks on top (P4-T8f)."""
         import shapely
 
         if theme is not None:
@@ -453,6 +462,7 @@ class SceneBuilder:
             frame.update((yield from place_names_steps(frame, self.theme, label_scale)))
         else:
             frame.update(no_names(self.theme))
+        frame.update(self._bookmarks(view, width, height, cx, cy, r, bookmarks, highlight, names, label_scale))
         frame["choose_ms"] = (chosen - start) * 1000            # finding and cutting the shapes in view (P2-T14b)
         frame["projecting_ms"] = (time.perf_counter() - chosen) * 1000   # turning them into screen pixels
         if centre_cross:
@@ -564,6 +574,33 @@ class SceneBuilder:
         area = [feats[idx[k]][0] for k in np.asarray(which, np.intp)[keep].tolist()]
         return {"marker_coords": coords, "marker_area": area, "marker_styles": styles,
                 "marker_style": np.array([1 if highlight and a == highlight else 0 for a in area], np.int32)}
+
+    def _bookmarks(self, view, width, height, cx, cy, r, bookmarks, highlight, names, scale) -> dict:
+        """The bookmarks' marks (P4-T8f, DP219 point 5): a diamond the same size on screen at every zoom, so it
+        never covers the map at a wide zoom or vanishes at a close one, scaled by the Label size setting, with
+        the bookmark's name to its right, when names are drawn. A mark is left out on the far side of the globe
+        or off the map. No name is moved for another: they are drawn where they fall, as the places' markers."""
+        theme = self.theme
+        style = {"fill": theme.get("bookmark", theme["marker"]),
+                 "stroke": theme.get("bookmark_outline", theme["marker_outline"]),
+                 "selected_fill": theme["highlight_fill"], "selected_stroke": theme["highlight_outline"],
+                 "colour": theme["name_text"], "halo": theme["name_halo"]}
+        out = []
+        if bookmarks:
+            lats = np.array([b[2] for b in bookmarks], float)
+            lons = np.array([b[3] for b in bookmarks], float)
+            px, py, depth = globe.project_points(view, lats, lons)
+            sx, sy = cx + r * px, cy - r * py
+            half = BOOKMARK_PX / 2 * scale
+            size = BOOKMARK_NAME_PX * scale
+            for k, (ident, name, _lat, _lon) in enumerate(bookmarks):
+                x, y = float(sx[k]), float(sy[k])
+                if depth[k] < 0 or not (-half <= x <= width + half and -half <= y <= height + half):
+                    continue
+                out.append({"x": round(x, 1), "y": round(y, 1), "half": half, "selected": bool(highlight and ident == highlight),
+                            "text": name if names else "", "text_x": round(x + half + BOOKMARK_GAP_PX * scale, 1),
+                            "text_y": round(y, 1), "text_size": size})
+        return {"bookmarks": out, "bookmark_style": style}
 
     def _frame(self, view, width, height, cx, cy, r, xy, ring_off, poly_off, idx, feats, boxes, current, highlight,
                plan=None):

@@ -100,6 +100,33 @@ def _paint_names(painter: QPainter, scene: dict) -> None:
         painter.fillPath(path, brush)
 
 
+def _paint_bookmarks(painter: QPainter, scene: dict) -> None:
+    """Each bookmark as a diamond, with its name to its right on a halo, on top of everything (P4-T8f). The core
+    has placed and sized each one."""
+    marks = scene.get("bookmarks")
+    if not marks:
+        return
+    st = scene["bookmark_style"]
+    halo = QPen(QColor(st["halo"]), 3)
+    halo.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    text_brush = QBrush(QColor(st["colour"]))
+    font = QFont()
+    font.setStyleHint(QFont.StyleHint.SansSerif)
+    for m in marks:
+        x, y, h = m["x"], m["y"], m["half"]
+        fill, stroke = (st["selected_fill"], st["selected_stroke"]) if m["selected"] else (st["fill"], st["stroke"])
+        painter.setPen(QPen(QColor(stroke), 1.5))
+        painter.setBrush(QBrush(QColor(fill)))
+        painter.drawPolygon(QPolygonF([QPointF(x, y - h), QPointF(x + h, y), QPointF(x, y + h), QPointF(x - h, y)]))
+        if m["text"]:
+            font.setPixelSize(max(1, round(m["text_size"])))
+            metrics = QFontMetricsF(font)
+            path = QPainterPath()
+            path.addText(QPointF(m["text_x"], m["text_y"] + (metrics.ascent() - metrics.descent()) / 2), font, m["text"])
+            painter.strokePath(path, halo)
+            painter.fillPath(path, text_brush)
+
+
 def paint_scene(painter: QPainter, scene: dict) -> None:
     """Paint one scene. Used by the widget and by the tests on an image."""
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -166,6 +193,7 @@ def paint_scene(painter: QPainter, scene: dict) -> None:
     for si in scene["current"]:
         painter.drawPath(outlines[si])
     _paint_names(painter, scene)
+    _paint_bookmarks(painter, scene)   # bookmarks on top of everything (P4-T8f)
     painter.setClipping(False)
 
     c = scene.get("cross")

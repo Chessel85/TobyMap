@@ -72,6 +72,7 @@ export function paintScene(canvas, scene) {
   ctx.strokeStyle = cs.stroke;
   for (const s of scene.current) ctx.stroke(outlines[s]);
   paintNames(ctx, scene);
+  paintBookmarks(ctx, scene);   // bookmarks on top of everything (P4-T8f)
   ctx.restore();
 
   const c = scene.cross;
@@ -137,6 +138,38 @@ function paintNames(ctx, scene) {
     ctx.font = `${n.size}px sans-serif`;
     ctx.strokeText(n.text, n.x, n.y);
     ctx.fillText(n.text, n.x, n.y);
+  }
+}
+
+// Each bookmark as a diamond, with its name to its right on a halo (P4-T8f). The core has placed and sized each one.
+function paintBookmarks(ctx, scene) {
+  const marks = scene.bookmarks;
+  if (!marks || !marks.length) return;
+  const st = scene.bookmark_style;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  for (const m of marks) {
+    const h = m.half;
+    ctx.beginPath();
+    ctx.moveTo(m.x, m.y - h);
+    ctx.lineTo(m.x + h, m.y);
+    ctx.lineTo(m.x, m.y + h);
+    ctx.lineTo(m.x - h, m.y);
+    ctx.closePath();
+    ctx.fillStyle = m.selected ? st.selected_fill : st.fill;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = m.selected ? st.selected_stroke : st.stroke;
+    ctx.stroke();
+    if (m.text) {
+      ctx.font = `${m.text_size}px sans-serif`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = st.halo;
+      ctx.strokeText(m.text, m.text_x, m.text_y);
+      ctx.fillStyle = st.colour;
+      ctx.fillText(m.text, m.text_x, m.text_y);
+    }
   }
 }
 

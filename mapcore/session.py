@@ -37,6 +37,7 @@ from mapcore.describe.describer import HERE_M
 from mapcore.geo import formats, geodesy, parse
 from mapcore import panel as panel_table
 from mapcore.layers import LayerCatalogue
+from mapcore.layers.catalogue import own_layers
 from mapcore.layers.visible import VisibleRule
 from mapcore.store import contents
 from mapcore.store.store import Found, join_parts, special_kind
@@ -230,7 +231,7 @@ class MapSession:
         # The layers, with the user's changes from the settings in use (SCP-6, SCP-7).
         # The layers as the map view in use has them, with the user's changes on top (P3-T23, DP198).
         self.layers = LayerCatalogue(self.store.packs, lambda: self.settings.layers,
-                                     lambda: views_mod.layer_values(self.view()))
+                                     lambda: views_mod.layer_values(self.view()), own=own_layers())
         # Which features are visible: layer, zoom range, size and view (NAV-13, P2-T4a).
         self.visible = VisibleRule(self.store, self.layers)
         # Why nothing is said here although there are areas: "layers_off" or "out_of_zoom" (LOC-6, DP160).
@@ -707,12 +708,30 @@ class MapSession:
                                   label_scale=v["label_size"] / 100.0, heading_up=v["heading_up"],
                                   special_layers=frozenset(layer.id for layer in self.layers.layers()
                                                            if layer.line_style == "special"),
-                                  fills=self._fills(), paint=self._paint(layers))
+                                  fills=self._fills(), paint=self._paint(layers),
+                                  bookmarks=() if self.isolated else self._bookmarks_drawn(world.zoom_m))
         frame["trimmed"] = trimmed
         self.drawing_trimmed = trimmed   # the status line says so (P3-T24a)
         memory.settle()   # what the drawing read is kept out of full garbage collections (P3-T24a)
         self.last_frame = {k: frame[k] for k in ("project_ms", "choose_ms", "projecting_ms", "points")}
         return frame
+
+    def _bookmarks_drawn(self, zoom_m: float) -> list[tuple]:
+        """The bookmarks the map shows at this zoom, (item id, name, lat, lon) each, the id the one the Bookmarks
+        group gives it, so the item selected there is drawn highlighted (P4-T8f)."""
+        return [(f"bookmark:{li}:{bi}", m.name, m.lat, m.lon)
+                for li, lst in self._bookmark_lists_shown(zoom_m) for bi, m in enumerate(lst.bookmarks)]
+
+    def _bookmark_lists_shown(self, zoom_m: float) -> list[tuple]:
+        """(place, list) of each bookmark list shown at this zoom, in order (P4-T8f, SCP-6, DP213): none while the
+        Bookmarks layer is off or outside its own zoom range; otherwise each list that is on and in its range."""
+        layer = self.layers.get(bookmarks_mod.LAYER)
+        if layer is not None and not (layer.on and layer.in_zoom(zoom_m)):
+            return []
+        return [(li, lst) for li, lst in enumerate(self.bookmarks.lists) if lst.on and lst.in_zoom(zoom_m)]
+
+    def _bookmarks_layer_on(self) -> bool:
+        return self.layers.is_on(bookmarks_mod.LAYER)
 
     def _fills(self) -> dict:
         """How each layer is painted, as the layers have it."""
@@ -1191,7 +1210,9 @@ class MapSession:
         if self._current_bookmark is None:
             return None
         mark, lat, lon = self._current_bookmark
-        if (lat, lon) != (self.world.lat, self.world.lon) or self._bookmark_place(mark) is None:
+        place = self._bookmark_place(mark)
+        # Switched off, with the Bookmarks layer or its list, it is gone from every announcement (P4-T8f, SCP-6).
+        if (lat, lon) != (self.world.lat, self.world.lon) or place is None or not self._bookmarks_layer_on()                 or not self.bookmarks.lists[place[0]].on:
             self._current_bookmark = None
             return None
         return mark
@@ -1918,13 +1939,18 @@ class MapSession:
         """Bookmarks (USR-3, DP219, P4-T8c): a heading for each bookmark list that is on, in the lists' order,
         "Castles, 3 items", with its bookmarks under it in the list's own order. Each is said with its distance
         and direction from where you are, "here" under a metre away. Enter goes to the bookmark's point
-        (_panel_go), Space hears it, Shift+M measures to it. A list switched off is not shown (SCP-6). With no
-        bookmark in any list that is on, the group is empty and says how to make one."""
+        (_panel_go), Space hears it, Shift+M measures to it. A list switched off is not shown (SCP-6), nor one
+        outside its zoom range, nor any while the Bookmarks layer is off or outside its range (P4-T8f), as on the
+        map. With no bookmark in any list that is on, the group is empty and says how to make one."""
         w = self.world
-        shown = [(li, lst) for li, lst in enumerate(self.bookmarks.lists) if lst.on]
-        if not any(lst.bookmarks for _li, lst in shown):
+        if not self._bookmarks_layer_on():
+            return [], say("bookmarks_group.layer_off")
+        if not any(lst.bookmarks for lst in self.bookmarks.lists if lst.on):
             key = registry.key_text(registry.key_of(registry.by_name("bookmark.open"), self.keys()), self.system)
             return [], say("bookmarks_group.none", key=key)
+        shown = self._bookmark_lists_shown(w.zoom_m)
+        if not any(lst.bookmarks for _li, lst in shown):
+            return [], say("bookmarks_group.out_of_zoom")
         units, bearing_setting = self._units(), self.settings["bearing"]
         ahead = describer.facing(w) or 0.0
         out = []
@@ -2203,7 +2229,7 @@ class MapSession:
             if area is not None:
                 of.append({"id": chosen, "label": say("query.of_found", description=area.name)})
         of.append({"id": QUERY_SEARCH, "label": say("query.of_search")})
-        layers = [{"id": layer.id, "label": layer.name} for layer in self.layers.layers() if layer.on]
+        layers = [{"id": layer.id, "label": layer.name} for layer in self.layers.layers() if layer.on and not layer.own]
         relations = [{"id": r, "label": say("query.relation_" + r), "distance": r == "near"} for r in QUERY_RELATIONS]
         unit = "mi" if self._units() == "imperial" else "km"
         return Response(dialog={
@@ -2881,6 +2907,7 @@ class MapSession:
         response.bookmarks = self.bookmarks.to_text()
         self._bookmarks_rev += 1
         response.panel_stale = True
+        response.redraw = True   # the bookmarks are on the map (P4-T8f)
         return response
 
     def save(self) -> dict:
@@ -4417,6 +4444,8 @@ class MapSession:
         self._panel_cache = None
         self.areas = self._here()
         if self.selected and self.store.feature(self.selected) is not None                 and not self.layers.is_on(self.store.feature(self.selected).layer):
+            self.selected = None
+        if self._bookmark_of_id(self.selected) is not None and not self._bookmarks_layer_on():   # P4-T8f, SCP-6
             self.selected = None
         return Response(settings_changed=True, redraw=True, panel_stale=True, details_stale=True)
 

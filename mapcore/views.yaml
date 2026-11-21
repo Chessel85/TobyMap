@@ -42,7 +42,8 @@ drawing_order:
   - outlines        # 9. Outlines, over everything painted so far, so a border is a line across a lake.
   - roads           # 10. Roads and railway lines, then places.
   - railways
-  # 11. The current feature, on top of everything, is not a layer: it is always drawn last.
+  # 11. The current feature, then the areas' names, are not layers: they are drawn after the places.
+  # 12. Bookmarks, on top of everything, each a diamond with its name: TobyMap's own layer, in no pack (P4-T8f).
 
 political_layers: [countries, regions, counties]
 

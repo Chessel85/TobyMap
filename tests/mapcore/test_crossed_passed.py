@@ -177,7 +177,8 @@ def test_shift_and_a_number_goes_to_that_group_for_as_many_groups_as_there_are(s
     so on, made from the list of groups, so a new group has its key without more code."""
     groups = [g["id"] for g in session.panel()]
     # The PO's order, 19 November 2026 (INF-10, P3-T29a): the Crossing group went, Passed over is the sixth.
-    assert groups == ["within", "nearby", "bordering", "contains", "overlapping", "crossed", "search"]
+    # P4-T8c (21 November 2026): Bookmarks is the eighth, on Shift+8.
+    assert groups == ["within", "nearby", "bordering", "contains", "overlapping", "crossed", "search", "bookmarks"]
     for number, group in enumerate(groups, start=1):
         for region in ("map", "panel"):
             assert session.press(f"Shift+{number}", region).focus == {"region": "panel", "group": group,

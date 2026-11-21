@@ -27,6 +27,7 @@ from mapcore.describe import say
 FORMAT = "TobyMap bookmarks"
 VERSION = 1
 FIRST_LIST = "Bookmarks"
+LAYER = "bookmarks"   # the Bookmarks layer, a layer of TobyMap's own, in no pack (P4-T8f, SCP-6)
 
 
 class BookmarkFileError(ValueError):
@@ -56,6 +57,10 @@ class BookmarkList:
     min_zoom_m: float = 0.0             # the closest zoom it is shown at, as a layer's (NAV-13, DP213)
     max_zoom_m: float | None = None     # the farthest; None for no limit
 
+    def in_zoom(self, zoom_m: float) -> bool:
+        """Whether a zoom distance is within the list's zoom range, as a layer's (P4-T8f)."""
+        return self.min_zoom_m <= zoom_m <= (math.inf if self.max_zoom_m is None else self.max_zoom_m)
+
 
 @dataclass(frozen=True)
 class Spot:
@@ -65,7 +70,7 @@ class Spot:
     name: str
     lat: float
     lon: float
-    layer: str = "bookmarks"
+    layer: str = LAYER
     record: dict = field(default_factory=dict)
 
 

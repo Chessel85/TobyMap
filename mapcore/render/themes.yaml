@@ -36,6 +36,8 @@ standard:
   marker: "#7a1f1f"            # point features, such as a railway station
   marker_outline: "#ffffff"
   marker_radius: 4
+  bookmark: "#283593"   # a bookmark's diamond, indigo, outlined in white (P4-T8f, DP219 point 5)
+  bookmark_outline: "#ffffff"
   name_text: "#1b1f24"
   name_halo: "#ffffff"
   country_border_width: 2.5   # the country borders, thicker than the others (P3-T23, DP198)
@@ -78,6 +80,8 @@ high_contrast_dark:
   marker: "#ffffff"
   marker_outline: "#000000"
   marker_radius: 5
+  bookmark: "#ffd0ff"   # pale pink, outlined in black
+  bookmark_outline: "#000000"
   name_text: "#ffffff"
   name_halo: "#000000"
   country_border_width: 3
@@ -120,6 +124,8 @@ high_contrast_light:
   marker: "#000000"
   marker_outline: "#ffffff"
   marker_radius: 5
+  bookmark: "#7a0060"   # dark magenta, outlined in white
+  bookmark_outline: "#ffffff"
   name_text: "#000000"
   name_halo: "#ffffff"
   country_border_width: 3
@@ -164,6 +170,8 @@ colour_blind_safe:
   marker: "#000000"
   marker_outline: "#ffffff"
   marker_radius: 4
+  bookmark: "#1a1a80"   # dark blue, outlined in white
+  bookmark_outline: "#ffffff"
   name_text: "#000000"
   name_halo: "#ffffff"
   country_border_width: 3

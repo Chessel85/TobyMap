@@ -90,6 +90,7 @@ function paint(scene) {
   placeFocusPoint(scene.focus);
   const ms = paintScene(canvas, scene);
   window.tobymap.paints += 1;
+  window.tobymap.bookmarkMarks = scene.bookmarks || [];   // for the browser tests (P4-T8f)
   client.send({ type: "painted", paintMs: ms }).catch(() => {});
 }
 

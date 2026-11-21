@@ -16,6 +16,10 @@ the defaults below: an area layer, on, at every zoom, with no sounds.
 Between the pack's definition and the user's changes is the map view in use (P3-T23, DP198,
 mapcore/views.py): it may change how a layer is filled, whether its outline and names are drawn,
 and whether it is shown and at which zooms. A change of the user's is a change from the view.
+
+TobyMap also has layers of its own, in no pack (own_layers()): the Bookmarks layer (P4-T8f, SCP-6). They come
+after the packs' layers, are switched on and off and given a zoom range in the same way, and are marked own,
+so a list of the packs' features, such as the query builder's, leaves them out.
 """
 from __future__ import annotations
 
@@ -67,6 +71,7 @@ class Layer:
     fill: str | None = None
     outline: bool = True
     names: bool | None = None
+    own: bool = False          # a layer of TobyMap's own, in no pack, such as Bookmarks (P4-T8f)
     changed: tuple = ()        # the fields the user has changed from the view's (or the pack's) layer
 
     def in_zoom(self, zoom_m: float) -> bool:
@@ -86,7 +91,7 @@ class Layer:
         return {"id": self.id, "name": self.name, "group": self.group, "geometry": self.geometry, "on": self.on,
                 "min_zoom_m": self.min_zoom_m, "max_zoom_m": self.max_zoom_m, "min_size": self.min_size,
                 "crossing_earcon": self.crossing_earcon, "sound": self.sound, "outline": self.outline,
-                "changed": list(self.changed)}
+                "own": self.own, "changed": list(self.changed)}
 
 
 def _number(value, field: str) -> float:
@@ -142,6 +147,16 @@ def from_definition(d: dict) -> Layer:
     return Layer(id=d["id"], name=d.get("name") or d["id"], **values)
 
 
+def own_layers() -> list[Layer]:
+    """TobyMap's own layers, in no pack, with their names from the templates (3.4): the Bookmarks layer, a
+    point layer on at every zoom, in a group of its own (P4-T8f, DP219 point 4)."""
+    from mapcore.bookmarks import LAYER
+    from mapcore.describe import say
+
+    return [replace(from_definition({"id": LAYER, "name": say("layers.bookmarks"), "group": say("layers.bookmarks_group"),
+                                     "geometry": "point", "switched_on": True}), own=True)]
+
+
 class LayerCatalogue:
     """The layers of the installed packs, in the packs' order, with the user's changes.
 
@@ -151,7 +166,7 @@ class LayerCatalogue:
     come back when a pack with that layer is installed.
     """
 
-    def __init__(self, packs, changes, view=None):
+    def __init__(self, packs, changes, view=None, own=()):
         self._changes = changes
         self._view = view or (lambda: {})   # {layer id: values} of the map view in use (P3-T23)
         self._defined: dict[str, Layer] = {}
@@ -159,6 +174,8 @@ class LayerCatalogue:
             for d in getattr(pack, "layers", None) or []:
                 if d.get("id") and d["id"] not in self._defined:   # the first pack's definition wins
                     self._defined[d["id"]] = from_definition(d)
+        for layer in own:   # TobyMap's own layers, after the packs' (own_layers())
+            self._defined.setdefault(layer.id, layer)
 
     def _viewed(self, layer: Layer) -> Layer:
         """The pack's layer as the map view in use has it (P3-T23)."""

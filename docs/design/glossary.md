@@ -61,6 +61,7 @@ Older documents written before this glossary, such as architecture section 6 and
 * Road: a feature in the Motorways and trunk roads layer: all the OpenStreetMap ways of one road number, such as the M3, in one country, joined into lines. A motorway is mapped as two carriageways, so it is often two lines side by side.
 * Railway line: a feature in the Main railway lines layer: all the OpenStreetMap ways of one main or high-speed railway, by its name, in one country, joined into lines. A line mapped one track at a time has a line for each track.
 * Unnamed link: a road or railway way with neither number nor name, such as a slip road. It joins the road or railway line it meets end to end.
+* Reach (of a town): how far from a town's point you can be and still be near it, from its population: 25 metres times the square root of it, at least 2 kilometres and at most 30. Space and Go to say "Near" and the town's name within it.
 * Town: a place in the Cities and towns layer: an OpenStreetMap city or town, with its population and the areas it is in.
 * Outlet point: the point HydroLAKES gives for each lake, where the lake flows out. It can be kilometres down the lake's river, so the lakes check also looks for the lake by its name.
 * Rehearsal: running one new stage on the world's data already on disk, such as the countries from the last world build's join, without a world build, to find its time and its problems before the world build does.

@@ -3056,7 +3056,7 @@ class MapSession:
             lat, lon = w.lat + a, w.lon + b
         else:
             lat, lon = (w.lat if a is None else a), (w.lon if b is None else b)
-        r = self._land(self._jump(lat, lon))
+        r = self._land(self._jump(lat, lon), near=True)
         r.focus = self._focus_back()
         return r
 
@@ -3076,7 +3076,7 @@ class MapSession:
         if result.pole:
             r.speak(say("movement.pole_crossed", pole=say(f"movement.poles.{result.pole}"),
                         heading=describer.facing_text(w)), ASSERTIVE)
-        r = self._land(r)
+        r = self._land(r, near=True)
         r.focus = self._focus_back()
         return r
 
@@ -3119,11 +3119,12 @@ class MapSession:
         self._settings_link_sync()
         self.selected = None
 
-    def _land(self, r: Response) -> Response:
-        """After a jump, say the whole place, as Where am I does."""
+    def _land(self, r: Response, near: bool = False) -> Response:
+        """After a jump, say the whole place, as Where am I does. near is for Go to, which names a town you are
+        near as Space does (P4-T14b, the PO's notes on checklist steps 1.1 and 1.2)."""
         self.areas = self._here()
         r.panel_stale = r.details_stale = True
-        return r.speak(self._place_text(), ASSERTIVE)
+        return r.speak(self._place_with_town() if near else self._place_text(), ASSERTIVE)
 
     def _history_words(self, place: dict) -> str | None:
         """What a place in the location history is called: the areas there in the layers shown at
@@ -3244,11 +3245,16 @@ class MapSession:
 
     def _where_am_i(self, **_a) -> Response:
         self.areas = self._here()
+        return Response(panel_stale=True).speak(self._place_with_town(), ASSERTIVE)
+
+    def _place_with_town(self) -> str:
+        """The place as Space says it: "Near Winchester. Hampshire, England, ..." when a town is near. Space and
+        Go to say it; a step never does (P3-T28p, P4-T14b)."""
         place = self._place_text()
         town = self._near_town()
         if town is not None:
             place = say("place.near", name=town.name, place=place)
-        return Response(panel_stale=True).speak(place, ASSERTIVE)
+        return place
 
     def _near_town(self):
         """The town Where am I names as near (P3-T28p, Q6, LOC-5), by describer.near_town's rule, or None. Only

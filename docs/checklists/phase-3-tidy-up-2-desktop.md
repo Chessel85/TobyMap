@@ -63,7 +63,7 @@ Zoom 25 kilometres, step 10 kilometres.
 * 1.3 Go to 50.97,-1.35. Space says "Near Eastleigh", not Southampton: the town nearest for its size wins.
 * 1.4 Go to 50.91,-1.40. Space says "Southampton, England, United Kingdom, ...", with no "Near", as the area you are in already has the town's name.
 * 1.5 Go to 51.15,-1.10, in the country between Winchester and Alton. Space says "Hampshire, England, ..." with no town: none is near enough.
-* 1.6 Only Space names the town. Go to 50.95,-1.40, in Southampton, and step once with Down, into Hampshire. You hear only "Hampshire", with no "Near".
+* 1.6 Space and Go to name the town; a step never does. Go to 50.95,-1.40, in Southampton. Then step once with Down, into Hampshire. You hear only "Hampshire", with no "Near". If you hear "Near" and a town after the step, tell me what you pressed.
 * 1.7 How near counts as near: a town's reach grows with its population, from 2 kilometres up to 30. Romsey reaches 3 kilometres, Winchester 4.7, Southampton 13, and London 30. Villages and suburbs are never named. Do these distances feel right?
 * 1.8 Go to 51.06,-1.31. Press Page Up twice, to 100 kilometres. You hear only the zoom, "Zoom 50 kilometres." then "Zoom 100 kilometres.", as the place is the same.
 * 1.9 Press Page Up once more, to 250 kilometres. You hear "Zoom 250 kilometres. England, United Kingdom, Great Britain, British Isles, Europe": counties are not said at this zoom, so what Space would say has changed. There is no "Near Winchester": only Space names the town.

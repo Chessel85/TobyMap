@@ -655,3 +655,43 @@ Worked examples of what you will notice, checked on the Western Europe trial pac
 
 * Obwalden is a canton, in the Regions layer, not a county. Its municipalities are in the Counties layer: at 1,000 kilometres zoom, only Kerns is big enough to show, of 7. The Alps hold Obwalden, so the Alps are found with Up, not Down.
 * Bournemouth's neighbours are Hampshire, Dorset, and a stand-in area "England" with 100 metres of border. P3-T28a removes it.
+
+## How TobyMap decides you are near a town
+
+When you press Space, or go to a place with Ctrl+G, TobyMap may begin with a town: "Near Winchester. Hampshire, England, United Kingdom". This section says when it does that. It is not the Nearby group in the Information panel, and it is not the passed nearby distance, which is about the path of a step. It is its own rule, made for this one sentence (P3-T28p, LOC-5). The code is `describe/describer.py`, and `_place_with_town` in `session.py`.
+
+### Words used in this section
+
+* Town: a place in the Cities and towns layer. Only places of type city or town count. Villages, hamlets and suburbs never do: there are many, and a suburb is inside its town already.
+* Reach: how far from a town's point you can be and still be near it. Each town has its own, from its population.
+
+### The short version
+
+Each town has a reach, from 2 to 30 kilometres. Of the towns whose reach you are within, the one you are nearest to, for its reach, is named.
+
+### A town's reach
+
+1. Its population is taken from Wikidata, or from OpenStreetMap when Wikidata has none.
+2. The reach is 25 metres times the square root of the population. A town's built-up area grows about with its population, so its width grows with the square root.
+3. The reach is never less than 2 kilometres, a walk from the centre of a small town, and never more than 30 kilometres, about the edge of London or Paris.
+4. When no population is known, the type decides: a city reaches 8 kilometres, as a city of about 100,000 people would, and a town reaches 3 kilometres, as a town of about 15,000 would.
+
+### Which town is named
+
+1. TobyMap looks at the towns within 30 kilometres of you, measured to each town's own point.
+2. It keeps those that are no further away than their own reach.
+3. Of those, it takes the one with the smallest share of its reach used up: distance divided by reach. So you are named Eastleigh, not Southampton, when you are close to Eastleigh and only at the edge of Southampton's much larger reach. When two are the same, the larger reach wins.
+4. When none is near enough, Space says only the place, with no town. In the country between Winchester and Alton, that is what you hear.
+
+### When "Near" is left out
+
+* When the town has the same name as one of the areas the place says. In Southampton you hear "Southampton, England, ..." and not "Near Southampton. Southampton, ...".
+* When the Cities and towns layer is switched off, or you are zoomed out beyond where it shows (250 kilometres). A place is said only where it is drawn.
+* After a step, a zoom or a held key. Only Space and Go to say it.
+
+### Worked examples, on the Western Europe trial pack
+
+* Winchester has about 35,000 people: its reach is 4.7 kilometres.
+* Romsey reaches 3 kilometres, Southampton about 13, and London 30.
+* Newport on the Isle of Wight has no population in the pack, and is a town: 3 kilometres. About 1.1 kilometres north of it, you hear "Near Newport. Isle of Wight, England, United Kingdom". About 9 kilometres away, you hear only the place.
+* Paris, a city of 2.1 million, reaches the full 30 kilometres. Eleven kilometres north of it, you hear "Near Paris. ..."

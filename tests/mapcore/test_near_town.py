@@ -123,3 +123,17 @@ def test_only_space_names_the_town_not_a_step(at):
     s = at(NEWPORT[0] + 0.01, NEWPORT[1])
     s.world.lat -= 0.0001
     assert not any(t.startswith("Near") for t in spoken(s._arrived(s._moved())))
+
+
+def test_go_to_names_the_town_you_are_near_as_space_does(at):
+    s = at(NEWPORT[0] + 0.3, NEWPORT[1] + 0.3)   # far from any town
+    r = s.run("goto.set", text=f"{NEWPORT[0] + 0.01},{NEWPORT[1]}")   # about 1.1 km north of Newport
+    place = s._place_text()
+    assert spoken(r) == ["Near Newport. " + place]
+    assert spoken(s.press("Space")) == spoken(r)
+
+
+def test_go_to_says_only_the_place_beyond_every_towns_reach(at):
+    s = at(NEWPORT[0], NEWPORT[1])
+    r = s.run("goto.set", text=f"{NEWPORT[0] - 0.05},{NEWPORT[1] + 0.1}")
+    assert spoken(r) == [s._place_text()]

@@ -328,7 +328,9 @@ def test_a_list_downloaded_on_the_web_is_the_cores_text_and_opens_through_the_co
     saved = path.read_bytes().decode("utf-8")
     b = bm.Bookmarks.from_text(text)
     assert saved == bookmark_files.file_text(b, 1, kind)
-    assert app.evaluate("document.activeElement.closest('#bm-list') !== null")   # the focus is back on the list
+    # the focus is back on the list (moved after the dialog closes, so waited for, as Chromium on CI is slower)
+    app.wait_for_function("document.activeElement && document.activeElement.closest('#bm-list') !== null",
+                          timeout=5000)
     opened = bookmark_files.read(saved, name)
     assert marks(b, 1) == [(m.name, m.note, round(m.lat, 6), round(m.lon, 6)) for m in opened.lists[0].bookmarks]
     app.click("#bm-close")

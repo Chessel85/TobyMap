@@ -157,3 +157,17 @@ sources:
     date: 2026-10-31
     licence: ODbL 1.0
     attribution: © OpenStreetMap contributors
+
+  sample-osm-raw:
+    name: OpenStreetMap objects with their tags, three small areas of Hampshire, test samples (P4-T0e)
+    repo: tests/samples/osm-raw
+    date: 2026-11-21
+    licence: ODbL 1.0
+    attribution: © OpenStreetMap contributors
+
+  sample-outline:
+    name: The test region's outline, a .poly file made by TobyMap from the sample boxes (P4-T0e)
+    repo: tests/samples/outlines/test-region.poly
+    date: 2026-11-21
+    licence: GPL-3.0, the repository's own, as it holds no outside data
+    attribution: Made by TobyMap from its own sample boxes

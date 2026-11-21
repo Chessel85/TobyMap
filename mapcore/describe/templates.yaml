@@ -68,6 +68,7 @@ panel:
   bordering: Bordering
   overlapping: Overlapping
   search: Search
+  bookmarks: Bookmarks
   # A group about the current feature names it in its heading (LOC-4, P3-T4a): "Bordering France",
   # then with its count, "Bordering France, 8 items". Before it is opened it has no count yet.
   about: "{group} {name}"
@@ -87,6 +88,7 @@ panel:
   # The Search group's first order (P3-T32k): a search's results as it ranked them; a query "within a distance of",
   # nearest first. A line's areas are "from its start" (overlapping.order_from_start); browsing is "by name".
   order_natural_search: "best match first"
+  order_natural_bookmarks: "in list order"   # the Bookmarks group's first order (P4-T8c)
   order_natural_nearest: "nearest first"  # Enter on an item, or on the map while look around plays one: its name, then the place there, as it
   # becomes the current feature (P3-T19a). Where the place starts with the item, only the place is said.
   gone: "{name}. {place}"
@@ -609,6 +611,9 @@ measure:
   none: "Cannot measure to {name}."
   # An item about one point, such as an end of a shared border (P3-T24f).
   point: "{distance} {direction}"
+  # A bookmark in the Bookmarks group (P4-T8c).
+  bookmark: "{name}, {distance} {direction}"
+  bookmark_here: "{name}, here"
 
 nearby:
   item: "{name}, {distance} {direction}"
@@ -635,6 +640,14 @@ crossed:
   passed_over_here: "{name}, passed over, here"
   passed_here: "Passed nearby to {name}, here"
   none: "Nothing crossed or passed on the last move."
+
+# The Bookmarks group of the Information panel, on Shift+8 (P4-T8c, USR-3, DP219): a heading for each list, "Castles, 3
+# items", and its bookmarks under it. A bookmark you are at, under a metre away, is "here".
+bookmarks_group:
+  item: "{name}, {distance} {direction}"
+  here: "{name}, here"
+  gone: "{name}. {place}"   # Enter: the bookmark's name, then the place there (P4-T8d makes it the current feature)
+  none: "No bookmarks. Press {key} to make one."
 
 # The bookmark dialog, on Ctrl+Enter on the map or on an item of the Information panel (P4-T8b, USR-1, DP219).
 bookmark:

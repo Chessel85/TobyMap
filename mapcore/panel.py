@@ -12,6 +12,8 @@ their Shift and number keys (DP156); this table gives how each behaves:
   line starts in that order, "from its start", and Ctrl+S then sorts it like the others (MapSession._first_order).
   Search starts in the order its results came (P3-T32k): a search's as it ranked them, "best match first"; a query
   within a distance, "nearest first"; a line's areas, "from its start"; browsing and the other queries, by name.
+  Bookmarks (P4-T8c, USR-3) starts in list order: a heading for each list that is on, in the lists' order, with its
+  bookmarks in the list's own order; Ctrl+S then sorts the bookmarks under each heading by name, distance or bearing.
 * zoom_limited: whether it shows only visible features (ANN-7, DP80, DP160). Contains, Nearby,
   and Passed over are; Within follows the zoom ranges through "where am I"; the others
   show everything from the layers that are switched on.
@@ -54,6 +56,7 @@ GROUPS: dict[str, Group] = {g.id: g for g in [
     Group("overlapping", "name", zoom_limited=False, about_current=True, lazy=True),
     Group("crossed", "distance", zoom_limited=True, about_current=False, lazy=False),   # "Passed over"
     Group("search", "natural", zoom_limited=False, about_current=False, lazy=True),   # as found (P3-T32k)
+    Group("bookmarks", "natural", zoom_limited=False, about_current=False, lazy=True),   # list order (P4-T8c)
 ]}
 
 

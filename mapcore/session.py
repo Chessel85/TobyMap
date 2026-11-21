@@ -310,6 +310,7 @@ class MapSession:
         self._panel_cache: tuple | None = None
         # (group, item id): (feature, lat, lon) of Nearby and Crossed and passed. By group too, as an
         # area can be in both, at its nearest point in one and where it was crossed in the other.
+        self._bookmarks_rev = 0   # changes with the bookmarks, so the Bookmarks group is filled again (P4-T8c)
         self._spots: dict[tuple[str, str], tuple] = {}
         self._scene = None
         # The current layer (P3-T24b, DP202): the current feature is the area of this layer where you are.
@@ -987,7 +988,7 @@ class MapSession:
         # changes, as its bearing order is clockwise from ahead.
         context = (base["key"], current.id if current else None, describer.facing(self.world),
                    frozenset(layer.id for layer in self.layers.layers() if layer.on), tuple(self.search_found),
-                   self.search_title, self.panel_open)
+                   self.search_title, self.panel_open, self._bookmarks_rev)
         for gid in registry.panel_groups():
             g = panel_table.GROUPS[gid]
             if g.lazy and gid not in wanted:
@@ -1049,6 +1050,8 @@ class MapSession:
             key = f"panel.order_natural_{gid}"
             if gid == "overlapping" or (gid == "search" and self.search_order == "from_start"):
                 return say("overlapping.order_from_start")
+            if gid == "bookmarks":
+                return say("panel.order_natural_bookmarks")
             if gid == "search":   # as the search ranked them, or nearest first (P3-T32k)
                 return say("panel.order_natural_nearest" if self.search_order == "nearest"
                            else "panel.order_natural_search")
@@ -1848,6 +1851,34 @@ class MapSession:
             items.append(self._item_at("search", area, area.id, "search.item", lat, lon, heading, distance, bearing,
                                        description=self.search_found[area.id].description, where=where))
         return items, say("search.none")
+
+    def _group_bookmarks(self, current, heading) -> tuple[list[dict], str]:
+        """Bookmarks (USR-3, DP219, P4-T8c): a heading for each bookmark list that is on, in the lists' order,
+        "Castles, 3 items", with its bookmarks under it in the list's own order. Each is said with its distance
+        and direction from where you are, "here" under a metre away. Enter goes to the bookmark's point
+        (_panel_go), Space hears it, Shift+M measures to it. A list switched off is not shown (SCP-6). With no
+        bookmark in any list that is on, the group is empty and says how to make one."""
+        w = self.world
+        shown = [(li, lst) for li, lst in enumerate(self.bookmarks.lists) if lst.on]
+        if not any(lst.bookmarks for _li, lst in shown):
+            key = registry.key_text(registry.key_of(registry.by_name("bookmark.open"), self.keys()), self.system)
+            return [], say("bookmarks_group.none", key=key)
+        units, bearing_setting = self._units(), self.settings["bearing"]
+        ahead = describer.facing(w) or 0.0
+        out = []
+        for li, lst in shown:
+            children = []
+            for bi, mark in enumerate(lst.bookmarks):
+                distance, bearing, _ = geodesy.inverse(w.lat, w.lon, mark.lat, mark.lon)
+                spot = bookmarks_mod.Spot(f"bookmark:{li}:{bi}", mark.name, mark.lat, mark.lon)
+                self._spots[("bookmarks", spot.id)] = (spot, mark.lat, mark.lon, True)
+                label = say("bookmarks_group.here", name=mark.name) if distance < HERE_M else say(
+                    "bookmarks_group.item", name=mark.name, distance=words.distance_text(distance, units),
+                    direction=words.direction_text(bearing, bearing_setting, heading))
+                children.append(panel_table.item(spot.id, label, mark.name, distance, bearing - ahead))
+            out.append(panel_table.heading(f"bookmarks:{li}", self._count_label(lst.name, children), children,
+                                           name=lst.name))
+        return out, ""
 
     # The search dialog (P3-T8c, P3-T8d; SRB-1, SRB-2, NAV-8) -----------------------------------------------
 
@@ -2758,6 +2789,8 @@ class MapSession:
         """Hands the shell the bookmarks file's new text, after any change to the bookmarks (P4-T8a).
         Kept apart from save(): the bookmarks are not settings, and Reset all settings leaves them (DP209)."""
         response.bookmarks = self.bookmarks.to_text()
+        self._bookmarks_rev += 1
+        response.panel_stale = True
         return response
 
     def save(self) -> dict:
@@ -3565,6 +3598,10 @@ class MapSession:
         if found is None:   # a group heading: nothing is said or done (the PO, 10 November 2026)
             return Response()
         group, area, lat, lon, point = found
+        if isinstance(area, bookmarks_mod.Spot):   # a bookmark: its point (P4-T8c)
+            r = self._go_to_bookmark(area)
+            r.focus = {"region": "panel", "group": group, "heading": True}
+            return r
         # A point of a line, such as a crossing, makes its line the current feature, as Enter on any other item of
         # a line does (P4-T14d, the PO's notes on checklist steps 6.5 and 7.4). A point about an area, such as an
         # end of a shared border, leaves the current feature as it is there.
@@ -3574,6 +3611,14 @@ class MapSession:
             r = self._go_to_item(area, lat, lon)
         r.focus = {"region": "panel", "group": group, "heading": True}   # the group's heading (P4-T14e)
         return r
+
+    def _go_to_bookmark(self, spot) -> Response:
+        """Enter on a bookmark: a jump to its point, so Alt+comma comes back, then its name and the place there.
+        It does not make a current feature yet: P4-T8d makes the bookmark the current feature here (USR-1)."""
+        r = self._jump(spot.lat, spot.lon)
+        self.areas = self._here()
+        r.panel_stale = r.details_stale = True
+        return r.speak(say("bookmarks_group.gone", name=spot.name, place=self._place_text()), ASSERTIVE)
 
     def _jump_to_point(self, area, lat: float, lon: float) -> Response:
         """Enter on an item about one point, such as an end of a shared border (P3-T24f): go to that point, as a
@@ -3617,6 +3662,14 @@ class MapSession:
         if spot is not None and len(spot) > 3:   # one point, such as an end of a shared border (P3-T24f)
             w = self.world
             distance, bearing, _ = geodesy.inverse(w.lat, w.lon, spot[1], spot[2])
+            if isinstance(spot[0], bookmarks_mod.Spot):   # a bookmark, said with its name (P4-T8c)
+                if distance < HERE_M:
+                    return Response().speak(say("measure.bookmark_here", name=spot[0].name), ASSERTIVE)
+                text = say("measure.bookmark", name=spot[0].name,
+                           distance=words.distance_text(distance, self._units()),
+                           direction=words.direction_text(bearing, self.settings["bearing"],
+                                                          describer.words_facing(w, self.settings)))
+                return Response().speak(text, ASSERTIVE)
             text = say("measure.point", distance=words.distance_text(distance, self._units()),
                        direction=words.direction_text(bearing, self.settings["bearing"],
                                                       describer.words_facing(w, self.settings)))

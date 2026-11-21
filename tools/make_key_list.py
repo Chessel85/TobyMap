@@ -37,7 +37,8 @@ KEY_COLUMNS = [("Windows desktop", "windows-desktop", "desktop", "windows"),
                ("Mac browser", "mac-browser", "web", "mac")]
 # The information panel's groups: the key map holds one key for each, the command list one command for all.
 GROUPS = [("within", "Within"), ("nearby", "Nearby"), ("bordering", "Bordering"), ("contains", "Contains"),
-          ("overlapping", "Overlapping"), ("crossed", "Passed over"), ("search", "Search")]
+          ("overlapping", "Overlapping"), ("crossed", "Passed over"), ("search", "Search"),
+          ("bookmarks", "Bookmarks")]
 CHARACTER_NAMES = {",": "comma", ".": "full stop", "/": "slash", "\\": "backslash", "[": "left bracket",
                    "]": "right bracket", "-": "minus", "=": "equals", "+": "plus", ";": "semicolon",
                    ":": "colon", "'": "apostrophe", '"': "quotation mark", "`": "grave accent",

@@ -57,6 +57,18 @@ class BookmarkList:
     max_zoom_m: float | None = None     # the farthest; None for no limit
 
 
+@dataclass(frozen=True)
+class Spot:
+    """A bookmark as the Bookmarks group of the Information panel holds it (P4-T8c): enough of a feature's
+    shape (id, name, layer) for Space to hear it and the panel to say it. It is a point, never a feature (DP210)."""
+    id: str
+    name: str
+    lat: float
+    lon: float
+    layer: str = "bookmarks"
+    record: dict = field(default_factory=dict)
+
+
 def _name(text) -> str:
     if not isinstance(text, str) or not text.strip():
         raise ValueError("a name must have something in it")

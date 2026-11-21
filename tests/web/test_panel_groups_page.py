@@ -13,7 +13,7 @@ BORDERING = "[...document.querySelectorAll('#tree > [role=treeitem]')].find(g =>
 
 def test_a_closed_group_opens_with_right_and_is_filled(page, site_url):
     app = open_app(page, site_url, state=SWITZERLAND)
-    assert app.evaluate("document.querySelectorAll('#tree > [role=treeitem]').length") == 7
+    assert app.evaluate("document.querySelectorAll('#tree > [role=treeitem]').length") == 8
     assert app.evaluate(f"{BORDERING}.getAttribute('aria-label')") == "Bordering Switzerland"
     assert app.evaluate(f"{BORDERING}.getAttribute('aria-expanded')") == "false"
     app.evaluate(f"{BORDERING}.focus()")
@@ -67,3 +67,14 @@ def test_a_neighbour_opens_with_right_to_the_ends_of_the_shared_border(page, sit
     ends = app.evaluate(f"[...{germany}.querySelectorAll('[role=treeitem]')].map(i => i.textContent)")
     assert any(e.startswith("End of the border with Germany, where Austria meets it") for e in ends)
     assert app.evaluate(f"{germany}.querySelector('[role=treeitem]').getAttribute('aria-level')") == "3"
+
+
+def test_shift_8_goes_to_the_bookmarks_group(page, site_url):
+    """P4-T8c: Shift+8 is found by its place on the keyboard, as Shift+1 to Shift+7 are; with no bookmark the group
+    is empty and its heading says so. Written, not yet run."""
+    app = open_app(page, site_url, state=SWITZERLAND)
+    app.keyboard.press("Shift+Digit8")
+    app.wait_for_function("document.getElementById('tree').contains(document.activeElement)"
+                          " && document.activeElement.getAttribute('aria-level') === '1'"
+                          " && document.activeElement.dataset.id === 'group:bookmarks'")
+    assert app.evaluate("document.activeElement.getAttribute('aria-label')") == "Bookmarks, no items"

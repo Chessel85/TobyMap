@@ -28,8 +28,8 @@ menus:
 # The Information panel's groups, in order (UX section 6). The session makes them in this order,
 # and each has its Shift and number key in the key maps. A new group is added here, in the group table,
 # mapcore/panel.py, and in the key maps. Their order and keys are the PO's of 19 November 2026 (INF-10, P3-T29a): Within, Nearby,
-# Bordering, Contains, Overlapping, Passed over (id "crossed"), Search, on Shift+1 to Shift+7.
-panel_groups: [within, nearby, bordering, contains, overlapping, crossed, search]
+# Bordering, Contains, Overlapping, Passed over (id "crossed"), Search, Bookmarks (P4-T8c), on Shift+1 to Shift+8.
+panel_groups: [within, nearby, bordering, contains, overlapping, crossed, search, bookmarks]
 
 commands:
   # Moving (NAV-1). Arrow keys step north, south, west and east; in hierarchy mode they go up to the

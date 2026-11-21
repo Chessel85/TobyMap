@@ -77,6 +77,7 @@ keys:
   panel.overlapping: Shift+5
   panel.crossed: Shift+6
   panel.search: Shift+7
+  panel.bookmarks: Shift+8
   panel.hear: Space
   measure.to: Shift+M
   panel.go: Enter

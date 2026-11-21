@@ -21,8 +21,8 @@ def top(window, gid):
                 if window.tree.topLevelItem(i).data(0, ITEM_ID) == f"group:{gid}")
 
 
-def test_the_panel_has_seven_groups_and_a_closed_one_can_be_opened(window):
-    assert window.tree.topLevelItemCount() == 7
+def test_the_panel_has_eight_groups_and_a_closed_one_can_be_opened(window):
+    assert window.tree.topLevelItemCount() == 8
     bordering = top(window, "bordering")
     assert bordering.text(0) == "Bordering Switzerland" and bordering.childCount() == 0
     state = window.tree.accessible().item_interface(bordering).state()
@@ -68,3 +68,17 @@ def test_an_item_under_a_heading_is_level_3(window, monkeypatch):
     assert window.session.panel_item == "osm:r2" and window.session.panel_group == "contains"
     window.tree.setCurrentItem(heading)
     assert window.session.selected is None    # a heading is not a feature
+
+
+def test_shift_8_shows_each_bookmark_list_as_a_heading_with_its_bookmarks(window):
+    """The Bookmarks group (P4-T8c): a heading for each list, its bookmarks under it, as Contains has."""
+    window.session.bookmarks.add(0, "Spot", 46.9, 8.2)
+    window.handle(window.session.bookmarks_changed(window.session.start()))
+    window.handle(window.session.press("Shift+8", "map"))
+    QApplication.processEvents()
+    item = window.tree.currentItem()
+    assert item is top(window, "bookmarks") and item.isExpanded()
+    assert item.text(0) == "Bookmarks, 1 item, in list order" and item.childCount() == 1
+    heading = item.child(0)
+    assert heading.text(0) == "Bookmarks, 1 item" and heading.childCount() == 1
+    assert heading.child(0).text(0).startswith("Spot, ") and "north" in heading.child(0).text(0)

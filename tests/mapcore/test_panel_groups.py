@@ -12,7 +12,7 @@ from mapcore.session import MapSession, box_centre
 
 SWITZERLAND = {"lat": 46.8, "lon": 8.2, "zoom_m": 100000, "step_m": 1000}
 HAMPSHIRE = {"lat": 51.06, "lon": -1.31, "zoom_m": 100000, "step_m": 1000}
-LAZY = ["bordering", "contains", "overlapping", "search"]
+LAZY = ["bordering", "contains", "overlapping", "search", "bookmarks"]
 
 
 @pytest.fixture
@@ -29,11 +29,11 @@ def group(groups, gid):
 
 # The group table ------------------------------------------------------------------------------
 
-def test_the_seven_groups_in_the_pos_order():
-    """INF-10, P3-T29a: Within, Nearby, Bordering, Contains, Overlapping, Passed over, Search, on Shift+1 to
-    Shift+7. The Crossing group is gone."""
+def test_the_eight_groups_in_the_pos_order():
+    """INF-10, P3-T29a: Within, Nearby, Bordering, Contains, Overlapping, Passed over, Search, Bookmarks, on Shift+1 to
+    Shift+8. The Crossing group is gone."""
     assert registry.panel_groups() == ["within", "nearby", "bordering", "contains", "overlapping", "crossed",
-                                       "search"]
+                                       "search", "bookmarks"]
     assert set(panel_table.GROUPS) == set(registry.panel_groups())
 
 

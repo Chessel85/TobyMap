@@ -370,3 +370,23 @@ def test_an_overlapping_item_of_an_unfilled_layer_is_highlighted(hants):
     # The P3-T4f finding, fixed by P3-T23: a layer that is not filled is still outlined, so its shapes are drawn.
     item = group(hants.panel(open={"overlapping"}), "overlapping")["items"][0]["children"][0]
     assert _highlighted(hants, "overlapping", item["id"])[0]
+
+
+def test_within_lists_an_island_and_an_area_of_one_name_on_the_same_land_once(hants, monkeypatch):
+    """P4-T14k, DP198: Space says Sark once, "Sark, Guernsey, Europe", as its county, region and island are the
+    same land; Within listed "Sark" three times, the island after Guernsey."""
+    from types import SimpleNamespace
+
+    def area(i, name, layer):
+        return SimpleNamespace(id=i, name=name, layer=layer, rank=1,
+                               record={"id": i, "layer": layer, "bbox": [-2.38, 49.41, -2.34, 49.45]})
+
+    same = {"county": ["region", "island"], "region": ["county", "island"], "island": ["county", "region"]}
+    monkeypatch.setattr(hants.store, "relationships", lambda i: {"same": same.get(i, [])})
+    hants.areas = [area("county", "Sark", "counties"), area("region", "Sark", "regions"),
+                   area("gg", "Guernsey", "countries"), area("island", "Sark", "islands"),
+                   area("eu", "Europe", "continents")]
+    hants._panel_cache = None
+    within = group(hants.panel(), "within")
+    assert [i["id"] for i in within["items"]] == ["county", "gg", "eu"]
+    assert within["label"] == "Within, 3 items, smallest first"

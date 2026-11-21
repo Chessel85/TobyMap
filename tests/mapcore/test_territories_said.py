@@ -97,6 +97,33 @@ def test_a_distant_part_said_once_with_its_county_still_says_its_sovereign(sessi
     assert names(session, ceuta) == ["Ceuta", "Spain", "exclave on the coast of Morocco", "Africa"]
 
 
+def test_an_exclave_that_is_the_same_land_as_its_region_is_still_said_as_one(session, monkeypatch):
+    # P4-T14j: on the world pack of 20 November 2026, Kaliningrad's exclave is the same land as its region, so it
+    # was left out with its words: "Kaliningrad, Russia, North European Plain, Europe", and so for Cabinda.
+    session.known.update({"lt": area("lt", "Lithuania", "countries"), "pl": area("pl", "Poland", "countries")})
+    same = {"region": ["x"], "x": ["region"]}
+    monkeypatch.setattr(session.store, "relationships", lambda i: {"same": same.get(i, [])})
+    kaliningrad = [area("county", "Kaliningrad", "counties"), area("region", "Kaliningrad", "regions"),
+                   area("ru", "Russia", "countries"),
+                   area("x", "Kaliningrad", "exclaves",
+                        exclave={"sovereign": "Russia", "beside": ["lt", "pl"], "coast": True, "enclave": False}),
+                   area("eu", "Europe", "continents")]
+    assert names(session, kaliningrad) == ["Kaliningrad", "Kaliningrad", "Russia",
+                                           "exclave on the coast of Lithuania and Poland", "Europe"]
+
+
+def test_an_exclave_named_as_an_area_said_before_it_is_not_named_again(session):
+    # P4-T14j: in the Western Europe trial, Ceuta is part of Spain's own area, so its exclave is an area of the
+    # Enclaves and exclaves layer, a little smaller than the region: "Ceuta, Spain, Ceuta, exclave of Spain on the
+    # coast of Morocco". The name is said once.
+    session.known["ma"] = area("ma", "Morocco", "countries")
+    ceuta = [area("county", "Ceuta", "counties"), area("es", "Spain", "countries"),
+             area("x", "Ceuta", "exclaves",
+                  exclave={"sovereign": "Spain", "beside": ["ma"], "coast": True, "enclave": False}),
+             area("af", "Africa", "continents")]
+    assert names(session, ceuta) == ["Ceuta", "Spain", "exclave on the coast of Morocco", "Africa"]
+
+
 def test_an_exclave_beside_several_countries(session):
     session.known.update({"lt": area("lt", "Lithuania", "countries"), "pl": area("pl", "Poland", "countries")})
     words = session._exclave_words({"beside": ["lt", "pl"], "coast": False, "enclave": False})

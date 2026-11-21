@@ -862,20 +862,35 @@ class MapSession:
         out = []
         for a in areas:
             rec = getattr(a, "record", None) or {}
-            if any(b.name == a.name and b.id in self.store.relationships(a.id).get("same", ()) for b in out):
+            if a.layer == "exclaves":   # said as what it is, after the country: "exclave in France" (P3-T24g)
+                if rec.get("exclave"):
+                    # Its name only if not said already: Kaliningrad's exclave is the same land as its region, and
+                    # in a pack with no distant parts Ceuta's is nearly so; what it is is still said (P4-T14j).
+                    named = not any(str(b.name) == str(a.name) for b in out)
+                    out.append(_Said(a.id, self._exclave_words(rec["exclave"], a.name if named else None), a.layer,
+                                     rec))
+                continue
+            if self._same_as_one_before(a, out):
                 # Said once, but its sovereign and what it is are still said: Ceuta's county, region and distant
                 # part are one land, and only the part knows it is Spain's exclave (the world pack, 20 November).
                 self._said_after(a, rec, areas, out)
                 continue
             if rec.get("type") == "unnamed island" and self.store.barely_parted(a.id):
                 continue   # land a canal or creek cuts off, as Ceuta's old town, is no island to say (P3-T32e)
-            if a.layer == "exclaves":   # said as what it is, after the country: "exclave in France" (P3-T24g)
-                if rec.get("exclave"):
-                    out.append(_Said(a.id, self._exclave_words(rec["exclave"], a.name), a.layer, rec))
-                continue
             out.append(a)
             self._said_after(a, rec, areas, out)
         return out
+
+    def _same_as_one_before(self, a, before: list) -> bool:
+        """Whether an area has the name of one before it that the build found to be the same land (DP198), as
+        Sark the island is Sark the region: said once by Space, and listed once in Within (P4-T14k)."""
+        same = None
+        for b in before:
+            if b.name == a.name:
+                same = self.store.relationships(a.id).get("same", ()) if same is None else same
+                if b.id in same:
+                    return True
+        return False
 
     def _said_after(self, a, rec: dict, areas, out: list) -> None:
         """What is said after an area: its sovereign state, for an integral part such as the Canary Islands, unless
@@ -2233,7 +2248,11 @@ class MapSession:
                 direction=words.direction_text(bearing, self.settings["bearing"], heading)),
                 current.name, distance, bearing - (describer.facing(self.world) or 0.0)))
             within_spots[("within", current.id)] = (current, near_lat, near_lon)
+        listed = []
         for a in self.areas:   # the distance and direction to its centre, as Nearby has (P2-T17k, DP155)
+            if self._same_as_one_before(a, listed):
+                continue   # the same land under the same name, listed once, as Space says it (P4-T14k, DP198)
+            listed.append(a)
             distance, bearing, _ = geodesy.inverse(self.world.lat, self.world.lon, *box_centre(a.record["bbox"]))
             within.append(panel_table.item(a.id, say(
                 "within.here" if distance < HERE_M else "within.item", name=a.name,

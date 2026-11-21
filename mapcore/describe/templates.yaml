@@ -453,7 +453,8 @@ movement:
   # the step is linked to the zoom, both change, so both are said.
   zoom_only: "Zoom {zoom}."
   step_only: "Step {step}."
-  # A zoom that changes what Space would say adds the place (P3-T28k, ANN-1, ANN-7).
+  # A zoom that changes what Space would say adds the place (P3-T28k, ANN-1, ANN-7): only what changed, the
+  # smallest area added, or, with none added but some gone, the smallest left (P4-T14a).
   zoom_place: "{zoom_step} {place}"
   zoom_end_out: "Widest zoom. {zoom_step}"
   zoom_end_in: "Closest zoom. {zoom_step}"

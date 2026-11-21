@@ -619,6 +619,56 @@ def test_the_wheel_changes_the_zoom_one_step(session):
     assert spoken(session.run("map.zoom_to", direction=1))[0].startswith("Zoom 25 kilometres")
 
 
+# After a zoom, only what changed among the areas Space would say (P4-T14a, the PO's notes on 1.9 and 1.10):
+# the smallest area added, or, when none was added but some went, the smallest left. Space still says them all.
+
+def _zoom_to(session, zoom_m):
+    session.world.zoom_index = session.world.zoom_list.index(zoom_m)
+
+
+def test_a_zoom_that_leaves_out_the_county_says_the_first_area_left(session):
+    _zoom_to(session, 100000)
+    assert spoken(session.press("Space")) == ["Kent, England, United Kingdom"]
+    assert spoken(session.press("Page Up")) == ["Zoom 250 kilometres. England"]
+    assert spoken(session.press("Space")) == ["England, United Kingdom"]
+
+
+def test_a_zoom_that_brings_back_the_county_says_only_the_county(session):
+    _zoom_to(session, 250000)
+    assert spoken(session.press("Page Down")) == ["Zoom 100 kilometres. Kent"]
+    assert spoken(session.press("Space")) == ["Kent, England, United Kingdom"]
+
+
+def test_a_zoom_that_changes_no_area_says_only_the_zoom(session):
+    _zoom_to(session, 100000)
+    assert spoken(session.press("Page Down")) == ["Zoom 50 kilometres."]
+
+
+def test_a_zoom_that_adds_one_area_and_leaves_out_another_says_the_one_added(session):
+    session.run("layers.set", layer="regions", field="min_zoom_m", value=250000)   # England only from 250 km
+    _zoom_to(session, 100000)
+    assert spoken(session.press("Space")) == ["Kent, United Kingdom"]
+    assert spoken(session.press("Page Up")) == ["Zoom 250 kilometres. England"]
+    assert spoken(session.press("Page Down")) == ["Zoom 100 kilometres. Kent"]
+
+
+def test_a_zoom_that_leaves_no_area_says_why(session):
+    session.run("layers.set", layer="countries", field="max_zoom_m", value=1000000)
+    _zoom_to(session, 1000000)
+    assert spoken(session.press("Page Up")) == ["Zoom 2,500 kilometres. No data at this zoom level"]
+    # Nothing was said before, so the whole place is said (orchestrator, P4-T14a).
+    assert spoken(session.press("Page Down")) == ["Zoom 1,000 kilometres. England, United Kingdom"]
+
+
+def test_the_wheel_and_a_burst_of_zooms_say_only_what_changed_too(session):
+    _zoom_to(session, 100000)
+    assert spoken(session.run("map.zoom_to", direction=1)) == ["Zoom 250 kilometres. England"]
+    assert spoken(session.run("map.zoom_to", direction=-1)) == ["Zoom 100 kilometres. Kent"]
+    # A burst is compared with what Space would have said before its first zoom (ANN-3).
+    assert spoken(session.run_many([("zoom.out", {})] * 4)) == ["Zoom 2,500 kilometres. United Kingdom"]
+    assert spoken(session.run_many([("zoom.in", {})] * 4)) == ["Zoom 100 kilometres. Kent"]
+
+
 def test_the_trace_records_commands_and_what_was_said(session):
     session.press("Space")
     last = session.trace[-1]

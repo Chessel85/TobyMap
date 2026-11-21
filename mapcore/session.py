@@ -280,7 +280,7 @@ class MapSession:
         self.held_moves = 0
         self.held_turns = 0               # turns made while Left or Right is held in a facing orientation
         self._in_burst = False            # inside run_many: zooms are compared with the place before the burst
-        self._place_said_before_zoom: str | None = None
+        self._place_said_before_zoom: tuple[list, str] | None = None   # the areas as said, and their words
         self.holding: str | None = None   # the movement command whose key is down (DP140)
         self._repeat_due = 0.0             # when the held key next steps (DP129)
         self._drawn_at = -math.inf         # when the map was last drawn for a held key
@@ -3187,16 +3187,20 @@ class MapSession:
             return say("movement.step_only", step=words.distance_text(self.world.step_m, units))
         return self._zoom_step()
 
-    def _place_words_here(self) -> str:
-        """What Space would say now, worked out afresh, without touching the areas kept."""
+    def _place_said_here(self) -> tuple[list, str]:
+        """The areas Space would say now, as said, and its words, worked out afresh, without touching the
+        areas kept."""
         areas, why_none = self._said_at(self.world.lat, self.world.lon)
-        return describer.place_text(self._said(areas), why_none)
+        said = self._said(areas)
+        return said, describer.place_text(said, why_none)
 
     def _zoom(self, direction: int) -> Response:
+        """The new zoom, and when what Space would say has changed, only what changed (P4-T14a): the smallest
+        area added, or, with none added but some gone, the smallest left."""
         before = (self.world.zoom_m, self.world.step_m)
         said_before = self._place_said_before_zoom
         if said_before is None:   # what Space would say before this zoom, or before the burst's first
-            said_before = self._place_words_here()
+            said_before = self._place_said_here()
         if not self.world.change_zoom(direction):
             key = "movement.zoom_end_out" if direction > 0 else "movement.zoom_end_in"
             return Response().speak(say(key, zoom_step=say(
@@ -3206,9 +3210,10 @@ class MapSession:
             self._place_said_before_zoom = said_before
         self.areas = self._here()   # a layer may have come into or gone out of its zoom range (DP160)
         r = Response(redraw=True, panel_stale=True, details_stale=True)
-        place = self._place_text()
-        if place == said_before:   # what Space would say is unchanged: only the zoom is said, as before
+        old_areas, old_text = said_before
+        if self._place_text() == old_text:   # what Space would say is unchanged: only the zoom is said, as before
             return self._sizes_said(r, before)
+        place = describer.zoom_change_text(old_areas, self._said(self.areas), self.why_none_here)
         if not self.settings["say_zoom_step"]:
             return r.speak(place, ASSERTIVE)
         return r.speak(say("movement.zoom_place", zoom_step=self._changed_sizes(*before), place=place), ASSERTIVE)

@@ -343,8 +343,9 @@ def test_a_zoom_that_changes_what_space_would_say_says_the_place_after_the_zoom(
     session.run("layers.set", layer="regions", field="max_zoom_m", value=50000)
     _zoom(session, 100000)
     session.press("Space")
-    assert spoken(session.press("Page Down")) == ["Zoom 50 kilometres. Kent, England, United Kingdom"]
-    assert spoken(session.press("Page Up")) == ["Zoom 100 kilometres. Kent, United Kingdom"]
+    # Only what changed (P4-T14a): the area added, or, with none added, the first area left.
+    assert spoken(session.press("Page Down")) == ["Zoom 50 kilometres. England"]
+    assert spoken(session.press("Page Up")) == ["Zoom 100 kilometres. Kent"]
 
 
 def test_a_zoom_that_changes_nothing_in_the_place_says_only_the_zoom(session):

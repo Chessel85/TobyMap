@@ -115,6 +115,23 @@ def changed_areas(old, new) -> list:
     return [a for a in new if a.id not in seen]
 
 
+def zoom_change_text(old, new, why_none: str | None = None) -> str:
+    """What a zoom says of the place when what Space would say has changed (P4-T14a, the PO's notes on checklist
+    steps 1.9 and 1.10): the smallest area added; if none was added but some went, the smallest left; with none
+    left, why. `old` and `new` are the areas as said, smallest first. When nothing was said before (no data at the
+    old zoom), the whole place is said, as there is nothing to hear it against."""
+    kept = said_once(new)
+    if not old:
+        return place_text(new, why_none)
+    before = {a.id for a in old}
+    added = [a for a in kept if a.id not in before]
+    if added:
+        return area_names(added[:1])[0]
+    if kept and before - {a.id for a in new}:
+        return area_names(kept[:1])[0]
+    return place_text(new, why_none)
+
+
 def place_text(areas, why_none: str | None = None) -> str:
     """The smallest area and its parents, such as "England, United Kingdom" (LOC-2).
     No place is ever blank (LOC-3). why_none, when there are areas here but none is

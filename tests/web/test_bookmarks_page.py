@@ -126,3 +126,81 @@ def test_new_list_is_chosen_and_ok_bookmarks_into_it(page, site_url):
     file = json.loads(stored(app, "tobymap-bookmarks"))
     assert [l["name"] for l in file["tobymap"]["lists"]] == ["Bookmarks", "Castles"]
     assert file["features"][0]["properties"]["list"] == "Castles"
+
+
+# A bookmark as the current feature (P4-T8d; USR-1, DP219 point 6, ACC-7). Written, not yet run: a world build was
+# using the memory. Delete asks in the message box, and Cancel keeps it; a text box and Details keep Ctrl+C and Delete.
+
+def castles_text():
+    from mapcore import bookmarks as bm
+
+    b = bm.Bookmarks()
+    b.lists[0].name = "Castles"
+    b.add(0, "Alpha", 51.2, 1.3, feature="Kent")
+    return b.to_text()
+
+
+def make_current(app):
+    """Shift+8, open the Castles list, down to Alpha, and Enter: Alpha is the current feature."""
+    app.keyboard.press("Shift+Digit8")
+    app.wait_for_function("document.activeElement.dataset.id === 'group:bookmarks'"
+                          " && document.activeElement.getAttribute('aria-expanded') === 'true'")
+    app.evaluate("document.querySelector('[data-id=\"heading:bookmarks:0\"]').focus()")
+    app.keyboard.press("ArrowRight")
+    app.keyboard.press("ArrowDown")
+    app.wait_for_function("document.activeElement.dataset.id === 'bookmark:0:0'")
+    app.keyboard.press("Enter")
+    app.wait_for_function("document.activeElement.dataset.id === 'group:bookmarks'")
+
+
+def watch_keys(app):
+    """A listener after the page's own: whether the page took the last key from the browser."""
+    app.evaluate("document.addEventListener('keydown', (e) => { window.lastKeyTaken = e.defaultPrevented; })")
+
+
+def test_delete_asks_and_cancel_keeps_it(page, site_url):
+    text = castles_text()
+    app = open_with(page, site_url, text)
+    make_current(app)
+    app.keyboard.press("Delete")
+    app.wait_for_function("document.getElementById('messagebox').open")
+    assert app.text_content("#messagebox-text") == "Delete the bookmark Alpha from Castles?"
+    assert app.text_content("#messagebox-ok") == "Delete"
+    assert app.evaluate("document.activeElement.id") == "messagebox-cancel"   # Cancel first
+    app.click("#messagebox-cancel")
+    app.wait_for_function("!document.getElementById('messagebox').open")
+    assert stored(app, "tobymap-bookmarks") == text
+
+
+def test_delete_after_asking_writes_the_file(page, site_url):
+    app = open_with(page, site_url, castles_text())
+    make_current(app)
+    app.keyboard.press("Delete")
+    app.wait_for_function("document.getElementById('messagebox').open")
+    app.click("#messagebox-ok")
+    app.wait_for_function("!document.getElementById('messagebox').open")
+    app.wait_for_function("!localStorage.getItem('tobymap-bookmarks').includes('Alpha')")
+
+
+def test_ctrl_c_in_the_search_box_and_in_details_is_left_to_the_browser(page, site_url):
+    app = open_with(page, site_url, castles_text())
+    make_current(app)
+    watch_keys(app)
+    app.keyboard.press("Control+f")
+    app.wait_for_function("document.activeElement.id === 'search-field'")
+    app.keyboard.type("Kent")
+    app.keyboard.press("Control+a")
+    app.keyboard.press("Control+c")
+    assert app.evaluate("window.lastKeyTaken") is False
+    app.keyboard.press("Delete")   # Delete edits the text, and asks nothing
+    assert app.evaluate("window.lastKeyTaken") is False
+    assert app.input_value("#search-field") == ""
+    assert not app.evaluate("document.getElementById('messagebox').open")
+    app.click("#search-cancel")
+    app.wait_for_function("!document.getElementById('searchdialog').open")
+    app.focus("#details")
+    app.keyboard.press("Control+c")
+    assert app.evaluate("window.lastKeyTaken") is False
+    app.focus("#map")
+    app.keyboard.press("Control+c")
+    assert app.evaluate("window.lastKeyTaken") is True   # on the map, Ctrl+C copies the bookmark

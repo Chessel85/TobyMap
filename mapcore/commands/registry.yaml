@@ -124,6 +124,18 @@ commands:
   - {name: panel.bookmark, label: Bookmark the item, region: panel, menu: ""}
   # Ctrl+Enter on the map: the bookmark dialog, for where you are (P4-T8b, DP219).
   - {name: bookmark.open, label: Bookmark here, region: map, menu: Map}
+  # A bookmark made the current feature by Enter in the Bookmarks group (P4-T8d; USR-1, DP219 point 6): Delete,
+  # cut, copy and paste. Each is twice, on the map and in the Information panel, never global, so a text box
+  # and Details' text keep Delete, Ctrl+X, Ctrl+C and Ctrl+V (docs/plan/p4-t0f-keys.md). Ctrl+Enter renames it,
+  # through bookmark.open and panel.bookmark: the core decides by what is current.
+  - {name: bookmark.delete, label: Delete the current bookmark, region: map, menu: ""}
+  - {name: bookmark.cut, label: Cut the current bookmark, region: map, menu: ""}
+  - {name: bookmark.copy, label: Copy the current bookmark, region: map, menu: ""}
+  - {name: bookmark.paste, label: Paste a bookmark, region: map, menu: ""}
+  - {name: panel.bookmark_delete, label: Delete the current bookmark, region: panel, menu: ""}
+  - {name: panel.bookmark_cut, label: Cut the current bookmark, region: panel, menu: ""}
+  - {name: panel.bookmark_copy, label: Copy the current bookmark, region: panel, menu: ""}
+  - {name: panel.bookmark_paste, label: Paste a bookmark into the bookmark list, region: panel, menu: ""}
   - {name: app.exit, label: Exit, region: global, menu: Map, platforms: [desktop]}
   # Speech (ANN-4, SON-7).
   - {name: speech.repeat, label: Repeat the last announcement, region: global, menu: Speech}
@@ -183,3 +195,6 @@ commands:
   # The bookmark dialog's New list and OK buttons (P4-T8b, DP219).
   - {name: bookmark.new_list, label: New bookmark list, region: global, menu: "", pointer: true}
   - {name: bookmark.add, label: Add the bookmark, region: global, menu: "", pointer: true}
+  # The bookmark dialog's OK when it renames the current bookmark, and Delete in the question after Delete (P4-T8d).
+  - {name: bookmark.rename, label: Rename the bookmark, region: global, menu: "", pointer: true}
+  - {name: bookmark.delete_confirm, label: Delete the bookmark, region: global, menu: "", pointer: true}

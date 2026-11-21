@@ -17,6 +17,8 @@ keys:
   history.forward: Shift+Cmd+Right
   wikipedia.open: Ctrl+Shift+W
   sound.mute: Ctrl+M
+  bookmark.delete: Cmd+Backspace
+  panel.bookmark_delete: Cmd+Backspace
   # Cmd+Comma opens the browser's own settings: Control+Comma, where the Windows key is.
   settings.open: "Ctrl+,"
   # Cmd+Option+M minimises every window, and Option+M types a character.

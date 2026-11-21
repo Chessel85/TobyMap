@@ -646,7 +646,7 @@ crossed:
 bookmarks_group:
   item: "{name}, {distance} {direction}"
   here: "{name}, here"
-  gone: "{name}. {place}"   # Enter: the bookmark's name, then the place there (P4-T8d makes it the current feature)
+  gone: "{name}. {place}"   # Enter: the bookmark's name, then the place there; it is now the current feature (P4-T8d)
   none: "No bookmarks. Press {key} to make one."
 
 # The bookmark dialog, on Ctrl+Enter on the map or on an item of the Information panel (P4-T8b, USR-1, DP219).
@@ -667,6 +667,35 @@ bookmark:
   list_name_taken: "There is already a bookmark list called {name}. Type another name."
   # Said once after OK: the focus goes back to the map or the item, which says nothing of it.
   added: "Bookmarked {name} in {list}."
+
+# A bookmark as the current feature (P4-T8d; USR-1, DP219 point 6), after Enter on it in the Bookmarks group. Each
+# message after a key is said because nothing else tells it: the focus does not move (P4-T14f's rule).
+bookmark_current:
+  none: "No bookmark is the current feature. Enter on a bookmark in the Bookmarks group makes it current."
+  # Bordering, Contains and Overlapping: a bookmark is a point, with no borders or contents of its own.
+  group: "The current feature is the bookmark {name}, which is only a point."
+  type: "bookmark"
+  list: "Bookmark list: {value}"
+  feature: "Feature: {value}"
+  note: "Note: {value}"
+  # Delete asks first, with Delete and Cancel; Cancel says nothing.
+  delete_title: "Delete bookmark"
+  delete_question: "Delete the bookmark {name} from {list}?"
+  delete_ok: "Delete"
+  deleted: "Deleted {name}."
+  # Ctrl+Enter: the bookmark dialog, to rename it or move it to another list.
+  rename_title: "Rename bookmark"
+  rename_help: "Change the name, or choose another bookmark list to move the bookmark there. OK keeps the change, and Cancel changes nothing."
+  renamed: "Renamed {old} to {name}."
+  moved: "Moved {name} to {list}."
+  renamed_moved: "Renamed {old} to {name} and moved it to {list}."
+  # Ctrl+C, Ctrl+X and Ctrl+V. The copy is kept in TobyMap, not on the clipboard.
+  copied: "Copied {name}."
+  cut: "{name} will move when pasted."
+  pasted: "Pasted {name} into {list}."
+  already_there: "{name} is already in {list}."
+  paste_where: "To paste, go to a bookmark list in the Bookmarks group, {key}."
+  paste_nothing: "Nothing to paste. Copy or cut a bookmark first."
 
 # The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists in one GeoJSON file.
 bookmarks:

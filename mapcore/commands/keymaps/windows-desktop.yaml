@@ -87,6 +87,16 @@ keys:
   panel.bookmark: Ctrl+Enter
   # On the map: the same key, the bookmark dialog for where you are (P4-T8b, DP219).
   bookmark.open: Ctrl+Enter
+  # A bookmark that is the current feature (P4-T8d, DP219): on the map and in the Information panel only, so a
+  # text box and Details' text keep these keys. Ctrl+C was dropped in DP113 and is back for bookmarks only.
+  bookmark.delete: Delete
+  bookmark.cut: Ctrl+X
+  bookmark.copy: Ctrl+C
+  bookmark.paste: Ctrl+V
+  panel.bookmark_delete: Delete
+  panel.bookmark_cut: Ctrl+X
+  panel.bookmark_copy: Ctrl+C
+  panel.bookmark_paste: Ctrl+V
   # Speech (ANN-4, SON-7, ACC-5).
   speech.repeat: Shift+Space
   sound.mute: Ctrl+M

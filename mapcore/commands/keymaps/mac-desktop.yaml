@@ -25,3 +25,6 @@ keys:
   wikipedia.open: Ctrl+Shift+W
   # Cmd+M minimises the window on a Mac: Control+M, the Windows key's own letter.
   sound.mute: Ctrl+M
+  # Deleting a bookmark that is the current feature (P4-T8d): Cmd+Backspace, Apple's key for deleting an item.
+  bookmark.delete: Cmd+Backspace
+  panel.bookmark_delete: Cmd+Backspace

@@ -143,9 +143,14 @@ def test_the_phase_1_keys_are_there():
 
 def test_the_dropped_keys_are_gone():
     # DP106: D, R and Ctrl+Alt+Space are dropped (Shift+Space was dropped as the Within key, and is now the repeat key); DP113: no copy of the coordinates.
+    # DP219 brings Ctrl+C back for one thing only, copying the bookmark that is the current feature (P4-T8d), on the
+    # map and in the Information panel: never global and never in Details, whose text it still copies.
     for platform in PLATFORMS:
-        keys = {k for region in registry.keymap(platform).values() for k in region}
-        assert not keys & {"D", "R", "Ctrl+Alt+Space", "Ctrl+C"}
+        keymap = registry.keymap(platform)
+        keys = {k for region in keymap.values() for k in region}
+        assert not keys & {"D", "R", "Ctrl+Alt+Space"}
+        assert {region: names.get("Ctrl+C") for region, names in keymap.items() if "Ctrl+C" in names} == {
+            "map": "bookmark.copy", "panel": "panel.bookmark_copy"}
 
 
 def test_menu_access_letters_are_in_the_label_and_unique():

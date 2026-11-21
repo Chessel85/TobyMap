@@ -274,6 +274,14 @@ class MapSession:
         # The current feature, when it is not the smallest area here (LOC-4): (identifier, lat, lon), set by
         # hierarchy mode (P3-T6) as it moves you there. Any move away from that place ends it.
         self._current: tuple[str, float, float] | None = None
+        # A bookmark made the current feature by Enter in the Bookmarks group (P4-T8d, DP219 point 6): (the Bookmark
+        # itself, lat, lon). It is not a feature, so current_feature keeps the usual rule; current_bookmark says it.
+        # Any move away from its place, or another feature made current, ends it.
+        self._current_bookmark: tuple | None = None
+        # Ctrl+C or Ctrl+X: ("copy", a copy of the bookmark) or ("cut", the bookmark itself), until pasted. Kept
+        # in TobyMap, not on the system clipboard. Then the bookmark Delete asks about, until the answer.
+        self._bookmark_clip: tuple | None = None
+        self._bookmark_deleting = None
         # Hierarchy mode (P3-T6a): the neighbours Left and Right go round, the list offered to choose from,
         # and the kinds of feature Down found.
         self._across: dict | None = None
@@ -360,6 +368,16 @@ class MapSession:
             "bookmark.open": self._bookmark_here,
             "bookmark.new_list": self._bookmark_new_list,
             "bookmark.add": self._bookmark_add,
+            "bookmark.rename": self._bookmark_rename,
+            "bookmark.delete": self._bookmark_delete_ask,
+            "panel.bookmark_delete": self._bookmark_delete_ask,
+            "bookmark.delete_confirm": self._bookmark_delete,
+            "bookmark.cut": lambda **a: self._bookmark_clip_set("cut"),
+            "panel.bookmark_cut": lambda **a: self._bookmark_clip_set("cut"),
+            "bookmark.copy": lambda **a: self._bookmark_clip_set("copy"),
+            "panel.bookmark_copy": lambda **a: self._bookmark_clip_set("copy"),
+            "bookmark.paste": lambda **a: self._bookmark_paste(None),
+            "panel.bookmark_paste": lambda **a: self._bookmark_paste(self._bookmark_list_focused()),
             "speech.repeat": self._repeat,
             "history.list": self._history,
             "speech.braille_test": self._braille_test,
@@ -660,7 +678,8 @@ class MapSession:
         if self._scene is None:
             self._scene = scene_mod.SceneBuilder(self.store)
         # The current feature is outlined: the smallest area here, or the one hierarchy mode moved you to.
-        feature = self.current_feature
+        # A bookmark that is current is a point, with no outline (P4-T8d).
+        feature = self.current_feature if self.current_bookmark is None else None
         current = feature.id if feature is not None and outlined(feature.record, self.settings["outline_current"]) \
             else None
         # A copy of the place: on the desktop the map is drawn in a thread of its
@@ -988,7 +1007,7 @@ class MapSession:
         # changes, as its bearing order is clockwise from ahead.
         context = (base["key"], current.id if current else None, describer.facing(self.world),
                    frozenset(layer.id for layer in self.layers.layers() if layer.on), tuple(self.search_found),
-                   self.search_title, self.panel_open, self._bookmarks_rev)
+                   self.search_title, self.panel_open, self._bookmarks_rev, id(self.current_bookmark))
         for gid in registry.panel_groups():
             g = panel_table.GROUPS[gid]
             if g.lazy and gid not in wanted:
@@ -1127,6 +1146,7 @@ class MapSession:
         smallest = self._first_said_here()
         r = Response(panel_stale=True, details_stale=True, redraw=True)
         self._layer_here = None
+        self._current_bookmark = None
         if smallest is not None and area.id == smallest.id:
             self.current_layer = None
             self._current = None
@@ -1154,6 +1174,37 @@ class MapSession:
         """Make a feature the current one at the place you are now (LOC-4), as hierarchy mode does when
         it moves you to it (P3-T6). A move away from this place makes the first area said current again."""
         self._current = (identifier, self.world.lat, self.world.lon)
+        self._current_bookmark = None
+
+    @property
+    def current_bookmark(self):
+        """The bookmark that is the current feature (P4-T8d, DP219 point 6), while you are still at its place and
+        it is still in a bookmark list; otherwise None."""
+        if self._current_bookmark is None:
+            return None
+        mark, lat, lon = self._current_bookmark
+        if (lat, lon) != (self.world.lat, self.world.lon) or self._bookmark_place(mark) is None:
+            self._current_bookmark = None
+            return None
+        return mark
+
+    def _bookmark_place(self, mark) -> tuple[int, int] | None:
+        """(list, place in it) of this very bookmark, found by itself, not by its name: two may be alike."""
+        for li, lst in enumerate(self.bookmarks.lists):
+            for bi, other in enumerate(lst.bookmarks):
+                if other is mark:
+                    return li, bi
+        return None
+
+    def _bookmark_of_id(self, item: str | None):
+        """The bookmark an item of the Bookmarks group is about, "bookmark:list:place", or None."""
+        parts = str(item or "").split(":")
+        if len(parts) != 3 or parts[0] != "bookmark":
+            return None
+        try:
+            return self.bookmarks.lists[int(parts[1])].bookmarks[int(parts[2])]
+        except (ValueError, IndexError):
+            return None
 
     def _closed_group(self, gid: str, current) -> dict:
         """A lazy group not yet opened: its heading, with no count, and no items."""
@@ -1165,7 +1216,7 @@ class MapSession:
         name = say(f"panel.{gid}")
         if gid == "search" and self.search_title:   # after a query: "Rivers crossing Germany" (P3-T10a)
             return self.search_title
-        if panel_table.GROUPS[gid].about_current and current is not None:
+        if panel_table.GROUPS[gid].about_current and current is not None and self.current_bookmark is None:
             return say("panel.about", group=name, name=current.name)
         return name
 
@@ -1174,7 +1225,10 @@ class MapSession:
         Space in self._spots, under (group, item id). A group about the current feature is empty where
         there is none, as at a place in no area."""
         name = self._heading_name(gid, current)
-        if panel_table.GROUPS[gid].about_current and current is None:
+        mark = self.current_bookmark
+        if panel_table.GROUPS[gid].about_current and mark is not None:   # a point has no relationships (P4-T8d)
+            items, empty = [], say("bookmark_current.group", name=mark.name)
+        elif panel_table.GROUPS[gid].about_current and current is None:
             items, empty = [], say("place.none")
         else:
             items, empty = getattr(self, f"_group_{gid}")(current, heading)
@@ -2381,8 +2435,33 @@ class MapSession:
 
     def _wikipedia(self, **a) -> Response:
         """Open the article of the feature Details is about in the browser (P3-T5b, INF-1). Says which
-        feature (LOC-4); with no article, says so."""
+        feature (LOC-4); with no article, says so. A bookmark has none (P4-T8d)."""
+        mark = self._details_bookmark()
+        if mark is not None:
+            return Response().speak(say("details.wikipedia_none", name=mark.name))
         return self._open_article(self._details_feature())
+
+    def _details_bookmark(self):
+        """The bookmark Details is about (P4-T8d): the selected item, when it is a bookmark, or the current bookmark
+        when no item is selected. None when Details is about a feature."""
+        if self.selected:
+            return self._bookmark_of_id(self.selected)
+        return self.current_bookmark
+
+    def _bookmark_details(self, mark) -> str:
+        """Details of a bookmark (P4-T8d): its name, its list, its coordinates, the feature it was made at, as
+        words only (DP210), and its note."""
+        place = self._bookmark_place(mark)
+        lines = [mark.name, say("details.type", value=say("bookmark_current.type"))]
+        if place is not None:
+            lines.append(say("bookmark_current.list", value=self.bookmarks.lists[place[0]].name))
+        lines.append(say("details.centre", value=words.coordinates_text(mark.lat, mark.lon, self.settings["coordinates"],
+                                                                      self._coordinate_step())))
+        if mark.feature:
+            lines.append(say("bookmark_current.feature", value=mark.feature))
+        if mark.note:
+            lines.append(say("bookmark_current.note", value=mark.note))
+        return "\n".join(lines)
 
     def _wikipedia_current(self, **a) -> Response:
         """Ctrl+Alt+W, from anywhere: the article of the current feature, the one the panel and hierarchy
@@ -2410,6 +2489,9 @@ class MapSession:
 
     def details(self) -> str:
         """Details of the selected item, or of the smallest area here (DAT-9)."""
+        mark = self._details_bookmark()
+        if mark is not None:
+            return self._bookmark_details(mark)
         area = self._details_feature()
         if area is None:
             return say("details.nothing")
@@ -3369,8 +3451,8 @@ class MapSession:
         checklist step 3.3). It is the most exact thing about where you are, and the PO asked that Space start
         with it; a town it is itself is not named again as near."""
         place = self._place_text()
-        here = self._current_here()
-        town = self._near_town([here.name] if here is not None else [])
+        here = self.current_bookmark or self._current_here()   # a current bookmark: you are at it (P4-T8d)
+        town =self._near_town([here.name] if here is not None else [])
         if town is not None:
             place = say("place.near", name=town.name, place=place)
         if here is not None:
@@ -3614,9 +3696,13 @@ class MapSession:
 
     def _go_to_bookmark(self, spot) -> Response:
         """Enter on a bookmark: a jump to its point, so Alt+comma comes back, then its name and the place there.
-        It does not make a current feature yet: P4-T8d makes the bookmark the current feature here (USR-1)."""
+        It becomes the current feature (P4-T8d; USR-1, DP219 point 6), for Delete, Ctrl+Enter, Ctrl+X and Ctrl+C."""
+        mark = self._bookmark_of_id(spot.id)
         r = self._jump(spot.lat, spot.lon)
         self.areas = self._here()
+        self._current = None
+        if mark is not None:
+            self._current_bookmark = (mark, self.world.lat, self.world.lon)
         r.panel_stale = r.details_stale = True
         return r.speak(say("bookmarks_group.gone", name=spot.name, place=self._place_text()), ASSERTIVE)
 
@@ -3675,6 +3761,8 @@ class MapSession:
                                                       describer.words_facing(w, self.settings)))
             return Response().speak(text, ASSERTIVE)
         area = spot[0] if spot else (self.store.feature(item) if item and not panel_table.is_heading(item) else None)
+        if area is None and self.current_bookmark is not None:   # you are at it (P4-T8d)
+            return Response().speak(say("measure.bookmark_here", name=self.current_bookmark.name), ASSERTIVE)
         if area is None:
             area = self.current_feature
         if area is None:
@@ -3711,6 +3799,9 @@ class MapSession:
     def _bookmark(self, item: str | None = None, group: str | None = None, **_a) -> Response:
         """Ctrl+Enter on an item: the dialog for the item's own point. On a group heading, nothing."""
         found = self._panel_spot(item, group)
+        mark = self.current_bookmark
+        if mark is not None and (found is None or self._bookmark_of_id(found[1].id) is mark):
+            return self._bookmark_rename_dialog(mark)   # on a heading, or on the current bookmark itself (P4-T8d)
         if found is None:
             return Response()
         _group, area, lat, lon, point = found
@@ -3719,7 +3810,9 @@ class MapSession:
         return self._bookmark_dialog(lat, lon, area.name)
 
     def _bookmark_here(self, **_a) -> Response:
-        """Ctrl+Enter on the map: the dialog for where you are."""
+        """Ctrl+Enter on the map: the dialog for where you are; with a current bookmark, the dialog to rename it."""
+        if self.current_bookmark is not None:
+            return self._bookmark_rename_dialog(self.current_bookmark)
         area = self.current_feature
         return self._bookmark_dialog(self.world.lat, self.world.lon, area.name if area else "")
 
@@ -3774,6 +3867,145 @@ class MapSession:
         self._bookmark_draft = None
         r = Response().speak(say("bookmark.added", name=name, list=self.bookmarks.lists[li].name), ASSERTIVE)
         return self.bookmarks_changed(r)
+
+    # A bookmark as the current feature (P4-T8d; USR-1, DP219 point 6, DP211 point 7). Enter on a bookmark in the
+    # Bookmarks group makes it current (_go_to_bookmark). Then Delete deletes it after asking, Ctrl+Enter opens the
+    # bookmark dialog to rename it or move it to another list, and Ctrl+X, Ctrl+C and Ctrl+V cut, copy and paste it
+    # into a bookmark list. The keys are on the map and in the Information panel only, never global, so a text box
+    # and Details' text keep them. Each change goes through bookmarks_changed(): the file is written and the group
+    # filled again. A message is said after each key, as the focus does not move and nothing else tells it.
+
+    def _no_current_bookmark(self) -> Response:
+        return Response().earcon("blocked").speak(say("bookmark_current.none"), ASSERTIVE)
+
+    def _bookmark_rename_dialog(self, mark) -> Response:
+        """The bookmark dialog, to rename the current bookmark: Name filled with its name, the list box on its list.
+        OK runs bookmark.rename; New list works as when bookmarking; Cancel changes nothing."""
+        li, _bi = self._bookmark_place(mark)
+        self._bookmark_draft = {"mark": mark, "new": []}
+        keys = ("name_label", "feature_label", "coordinates_label", "list_label", "new_list", "new_list_title",
+                "new_list_label", "new_list_help")
+        words_ = {k: say(f"bookmark.{k}") for k in keys} | {"ok": say("ui.ok"), "cancel": say("ui.cancel")}
+        coordinates = words.coordinates_text(mark.lat, mark.lon, self.settings["coordinates"], self._coordinate_step())
+        return Response(dialog={
+            "kind": "bookmark", "title": say("bookmark_current.rename_title"), "help": say("bookmark_current.rename_help"),
+            "words": words_, "name": mark.name, "feature": mark.feature or say("bookmark.feature_none"),
+            "coordinates": coordinates, "lists": self._bookmark_lists(li),
+            "new_list": "bookmark.new_list", "add": "bookmark.rename"})
+
+    def _bookmark_rename(self, text: str = "", list: int = -1, **_a) -> Response:
+        """OK in the dialog to rename: the new name, and to the end of the chosen list if it is another. Said once,
+        as the focus goes back to the map or the panel, which tell nothing of it. Nothing changed, nothing said."""
+        d = getattr(self, "_bookmark_draft", None)
+        mark = d.get("mark") if d else None
+        place = self._bookmark_place(mark) if mark is not None else None
+        if place is None:
+            self._bookmark_draft = None
+            return Response().earcon("blocked")
+        name = " ".join(str(text).split())
+        if not name:
+            return Response(error=say("bookmark.name_empty"))
+        old_li, bi = place
+        have = len(self.bookmarks.lists)
+        li = int(list)
+        if not 0 <= li < have + len(d["new"]):
+            li = old_li
+        if li >= have:
+            li = self.bookmarks.new_list(d["new"][li - have])
+        self._bookmark_draft = None
+        old = mark.name
+        renamed, moved = name != old, li != old_li
+        if not renamed and not moved:
+            return Response()
+        if renamed:
+            self.bookmarks.rename(old_li, bi, name)
+        if moved:
+            self.bookmarks.move_to(old_li, bi, li)
+        list_name = self.bookmarks.lists[li].name
+        text = say("bookmark_current.renamed_moved", old=old, name=name, list=list_name) if renamed and moved else (
+            say("bookmark_current.renamed", old=old, name=name) if renamed else
+            say("bookmark_current.moved", name=name, list=list_name))
+        return self.bookmarks_changed(Response(details_stale=True).speak(text, ASSERTIVE))
+
+    def _bookmark_delete_ask(self, **_a) -> Response:
+        """Delete: a question, "Delete the bookmark Rome from Castles?", with Delete and Cancel, Cancel first, as
+        Reset all settings asks. Cancel runs nothing and says nothing."""
+        mark = self.current_bookmark
+        if mark is None:
+            return self._no_current_bookmark()
+        self._bookmark_deleting = mark
+        li, _bi = self._bookmark_place(mark)
+        return Response(dialog={
+            "kind": "confirm", "title": say("bookmark_current.delete_title"),
+            "text": say("bookmark_current.delete_question", name=mark.name, list=self.bookmarks.lists[li].name),
+            "ok": say("bookmark_current.delete_ok"), "cancel": say("ui.cancel"), "submit": "bookmark.delete_confirm"})
+
+    def _bookmark_delete(self, **_a) -> Response:
+        """Delete in the question: the bookmark goes, and the current feature is again the usual rule's. Said, as
+        nothing else tells it: "Deleted Rome." (P4-T14f's rule)."""
+        mark, self._bookmark_deleting = self._bookmark_deleting, None
+        place = self._bookmark_place(mark) if mark is not None else None
+        if place is None:
+            return Response().earcon("blocked")
+        self.bookmarks.delete(*place)
+        if self._current_bookmark is not None and self._current_bookmark[0] is mark:
+            self._current_bookmark = None
+        r = Response(redraw=True, panel_stale=True, details_stale=True)
+        return self.bookmarks_changed(r.speak(say("bookmark_current.deleted", name=mark.name), ASSERTIVE))
+
+    def _bookmark_clip_set(self, how: str) -> Response:
+        """Ctrl+C keeps a copy of the current bookmark, Ctrl+X the bookmark itself, to move it, until Ctrl+V."""
+        mark = self.current_bookmark
+        if mark is None:
+            return self._no_current_bookmark()
+        if how == "copy":
+            self._bookmark_clip = ("copy", copy.copy(mark))
+            return Response().speak(say("bookmark_current.copied", name=mark.name), ASSERTIVE)
+        self._bookmark_clip = ("cut", mark)
+        return Response().speak(say("bookmark_current.cut", name=mark.name), ASSERTIVE)
+
+    def _bookmark_list_focused(self) -> int | None:
+        """The bookmark list the Information panel's focus is in: on a list's heading or on a bookmark in it."""
+        if self.panel_group != "bookmarks" or not self.panel_on_item or not self.panel_item:
+            return None
+        parts = str(self.panel_item).split(":")
+        try:
+            if parts[0] == "bookmark" and len(parts) == 3:
+                li = int(parts[1])
+            elif str(self.panel_item).startswith(panel_table.HEADING_PREFIX + "bookmarks:"):
+                li = int(parts[-1])
+            else:
+                return None
+        except ValueError:
+            return None
+        return li if 0 <= li < len(self.bookmarks.lists) else None
+
+    def _bookmark_paste(self, li: int | None) -> Response:
+        """Ctrl+V on a bookmark list in the Bookmarks group, or on a bookmark in it: a copy goes to the end of that
+        list, as a new bookmark numbered if its name is used (Rome_1), and can be pasted again; a cut bookmark
+        moves there, once. Anywhere else, where to paste."""
+        clip = self._bookmark_clip
+        if clip is not None and clip[0] == "cut" and self._bookmark_place(clip[1]) is None:
+            clip = self._bookmark_clip = None   # deleted since it was cut
+        if clip is None:
+            return Response().earcon("blocked").speak(say("bookmark_current.paste_nothing"), ASSERTIVE)
+        if li is None:
+            key = registry.key_text(registry.key_of(registry.by_name("panel.bookmarks"), self.keys()), self.system)
+            return Response().earcon("blocked").speak(say("bookmark_current.paste_where", key=key), ASSERTIVE)
+        how, mark = clip
+        target = self.bookmarks.lists[li]
+        if how == "copy":
+            name = self.bookmarks.unique_name(mark.name)
+            self.bookmarks.add(li, name, mark.lat, mark.lon, mark.feature, mark.note)
+        else:
+            old_li, bi = self._bookmark_place(mark)
+            if old_li == li:
+                return Response().speak(say("bookmark_current.already_there", name=mark.name, list=target.name),
+                                        ASSERTIVE)
+            self.bookmarks.move_to(old_li, bi, li)
+            self._bookmark_clip, name = None, mark.name
+        r = Response(redraw=True, panel_stale=True, details_stale=True)
+        return self.bookmarks_changed(r.speak(say("bookmark_current.pasted", name=name, list=target.name), ASSERTIVE))
 
     # Hierarchy mode (P3-T6a; NAV-4, NAV-11, LOC-4, DP77, architecture 7.6) ---------------------------
     # The arrow keys move between features: Up to the area that holds the current feature, Down into what

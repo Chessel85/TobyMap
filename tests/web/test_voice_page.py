@@ -5,6 +5,7 @@ threads, else one. On GitHub Pages the helper script makes the page isolated; th
 still download and read the pack then. Each label is placed with the core's numbers, after
 the item's sound. Needs tools/fetch_vendor.py --piper; skipped without it, failed in CI.
 """
+import json
 import os
 from pathlib import Path
 
@@ -12,7 +13,7 @@ import pytest
 
 pytest.importorskip("playwright")
 
-from tests.web.test_shell_page import open_app  # noqa: E402
+from tests.web.test_shell_page import open_app, saved  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 STATION_WEST = {"lat": 50.9074977, "lon": -1.4142289 - 0.03, "zoom_m": 5000, "step_m": 1000}
@@ -147,9 +148,15 @@ def test_at_500_percent_the_core_stretches_the_label_and_behind_it_is_lower_at_t
 
 
 def test_the_helper_script_isolates_the_page_and_the_pack_still_downloads(page, plain_site_url):
-    app = open_app(page, plain_site_url, state=STATION_WEST)
-    app.wait_for_function("window.crossOriginIsolated === true", timeout=60_000)
-    app.wait_for_function("window.tobymap && window.tobymap.ready", timeout=120_000)
+    # The helper script reloads the page once, so the first page (not isolated) must not be asked
+    # anything: its application is thrown away with it and may report a start-up error as it goes.
+    # Only wait_for_function is used until the isolated page is ready; it carries on across the reload.
+    app = page
+    app.add_init_script(f"if (!localStorage.getItem('tobymap')) localStorage.setItem('tobymap', {json.dumps(saved(STATION_WEST, None))});")
+    app.set_viewport_size({"width": 1200, "height": 800})
+    app.goto(f"{plain_site_url}/index.html")
+    app.wait_for_function("window.crossOriginIsolated === true && window.tobymap && window.tobymap.ready",
+                          timeout=180_000)
     assert app.evaluate("window.tobymap.error") is None
     info = voice_ready(app)
     assert info["isolated"] and info["threads"] > 1 or app.evaluate("navigator.hardwareConcurrency") == 1

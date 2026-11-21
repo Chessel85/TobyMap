@@ -20,6 +20,11 @@ const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dia
 const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), viewsDialog = $("viewsdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
+// The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists, as the core's GeoJSON text, in the
+// browser's private storage under a key of its own, so Reset all settings and the settings' own Export and
+// Open leave it alone (DP209). localStorage puts a value in place whole or not at all, so a crash never
+// loses it. A damaged file is kept under BOOKMARKS_KEY + "-damaged" (or -damaged-2 and so on).
+const BOOKMARKS_KEY = "tobymap-bookmarks";
 
 const client = new WorkerClient(new URL("../worker.js", import.meta.url));
 let registry = null, words = null, menubar = null, tree = null;
@@ -152,6 +157,10 @@ function handle(result, keyAt, held = false, named = false) {
   if (r.scan) scan.start(r.scan);   // look around (P3-T11a)
   if (r.open_url) openUrl(r.open_url);
   if (r.action === "reset") ownSounds.clear().catch(() => {});   // your own sound files go too (P2-T18h)
+  if (r.bookmarks_damaged) setAsideBookmarks();   // kept, renamed, before anything is written in its place
+  if (r.bookmarks !== null && r.bookmarks !== undefined) {
+    try { localStorage.setItem(BOOKMARKS_KEY, r.bookmarks); } catch (e) { /* private browsing: nothing is kept */ }
+  }
   if (spoke && keyAt !== undefined) {
     const now = performance.now();
     window.tobymap.timings.push(now - keyAt);
@@ -1597,6 +1606,18 @@ function exportSettings() {
   URL.revokeObjectURL(a.href);
 }
 
+// A damaged bookmarks file, kept under a free name of its own, so nothing is lost (P4-T8a).
+function setAsideBookmarks() {
+  try {
+    const text = localStorage.getItem(BOOKMARKS_KEY);
+    if (text === null) return;
+    let aside = `${BOOKMARKS_KEY}-damaged`;
+    for (let n = 2; localStorage.getItem(aside) !== null; n++) aside = `${BOOKMARKS_KEY}-damaged-${n}`;
+    localStorage.setItem(aside, text);
+    localStorage.removeItem(BOOKMARKS_KEY);
+  } catch (e) { /* private browsing: nothing is kept */ }
+}
+
 async function importSettings(input) {
   const file = input.files[0];
   if (!file) return;
@@ -1705,11 +1726,13 @@ async function boot() {
   const { width, height } = mapSize();
   let saved = "";
   try { saved = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) { saved = ""; }
+  let bookmarks = "";
+  try { bookmarks = localStorage.getItem(BOOKMARKS_KEY) || ""; } catch (e) { bookmarks = ""; }
   // ?at=43.08,-79.08 in the address starts there instead of the last place (for testing).
   const at = new URLSearchParams(location.search).get("at") || "";
   // ?slowdraw=200 makes every drawing take 200 ms longer, for the held key test only (P2-T14).
   const slowMs = Number(new URLSearchParams(location.search).get("slowdraw")) || 0;
-  const result = await client.send({ type: "start", width, height, saved, at, slowMs, system: systemName() });
+  const result = await client.send({ type: "start", width, height, saved, at, slowMs, system: systemName(), bookmarks });
   registry = result.registry;
   words = result.words;
   client.latestOnly = new Set(registry.latest_only);

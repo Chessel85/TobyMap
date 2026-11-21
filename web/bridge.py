@@ -121,14 +121,16 @@ def _extras(response, out: dict, width: int, height: int) -> dict:
 
 
 def start(width: int, height: int, startup_ms: float, packs, saved_json: str, start_at: str = "",
-          slow_ms: float = 0.0, system: str = "windows"):
-    """system is "mac" or "windows", from the page (js/keys.js): the core picks the key map for it (P3-T31a)."""
+          slow_ms: float = 0.0, system: str = "windows", bookmarks: str = ""):
+    """system is "mac" or "windows", from the page (js/keys.js): the core picks the key map for it (P3-T31a).
+    bookmarks is the bookmarks file's text from the browser's private storage, "" when there is none (P4-T8a)."""
     global _session, _slow_ms
     _slow_ms = float(slow_ms or 0)
     saved = json.loads(saved_json) if saved_json else {}
     sources = [HandleSource(p.handle, str(p.name)) for p in packs]
     _session = MapSession(platform="web", system=system, packs=[_pack(s) for s in sources],
-                          settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at or None)
+                          settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at or None,
+                          bookmarks=bookmarks or None)
     _session.startup_took(startup_ms)
     response = _session.start()
     out = {"registry": _session.registry(), "words": _session.words()}

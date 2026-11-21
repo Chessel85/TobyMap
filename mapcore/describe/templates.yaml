@@ -639,6 +639,18 @@ crossed:
 bookmark:
   later: "Bookmarks come in Phase 4."
 
+# The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists in one GeoJSON file.
+bookmarks:
+  # At start, after the place: the file could not be read. The shell has renamed it, so it is kept.
+  damaged: "Your bookmarks file could not be read. It is kept, renamed, and you start with one empty bookmark list, Bookmarks."
+  # A file that is not a bookmark file is refused, and nothing changes (USR-5).
+  file:
+    not_json: "This is not a bookmark file: it is not a JSON file. Nothing is changed."
+    not_geojson: "This is not a bookmark file: it is not a GeoJSON feature collection. Nothing is changed."
+    not_bookmarks: "This GeoJSON file is not a TobyMap bookmark file. Nothing is changed."
+    newer: "This bookmark file was made by a newer TobyMap. Update TobyMap to open it. Nothing is changed."
+    damaged: "This bookmark file is damaged, so it cannot be opened. Nothing is changed."
+
 # The groups about the current feature (P3-T4, LOC-4). {name} is the current feature.
 # Bordering (INF-2): each neighbour, its direction from where you are, and the length of the shared
 # border; or, for an area that only nearly touches, the distance across.

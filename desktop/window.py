@@ -330,7 +330,8 @@ class MainWindow(QMainWindow):
     def _new_session(self, start_at: str | None = None) -> MapSession:
         saved = storage.load(self.data_folder)
         return MapSession(platform="desktop", system=system(), packs=storage.find_packs(self.data_folder),
-                          settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at)
+                          settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at,
+                          bookmarks=storage.load_bookmarks(self.data_folder))
 
     def closeEvent(self, event):
         self.save()
@@ -546,6 +547,10 @@ class MainWindow(QMainWindow):
         self._refresh_controls()
         if not focus_first:
             self._refresh_regions(response)
+        if response.bookmarks_damaged:   # kept, renamed, before anything is written in its place (P4-T8a)
+            storage.set_aside_bookmarks(self.data_folder)
+        if response.bookmarks is not None:
+            storage.save_bookmarks(response.bookmarks, self.data_folder)
         if response.settings_changed:
             self.save()
             self._registry = self.session.registry()

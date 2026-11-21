@@ -58,6 +58,52 @@ def save(data: dict, folder: Path | None = None) -> Path:
     return path
 
 
+# The bookmarks file (P4-T8a, USR-5, DP219) ---------------------------------------------------------
+# All the bookmark lists, in one GeoJSON file beside settings.json. The core makes its text; this only
+# reads and writes it. Reset all settings never touches it (DP209).
+
+def bookmarks_file(folder: Path | None = None) -> Path:
+    return Path(folder or app_data_folder()) / "bookmarks.geojson"
+
+
+def load_bookmarks(folder: Path | None = None) -> str | None:
+    """The bookmarks file's text, for the core to read, or None when there is none yet. Bytes that are not
+    UTF-8 are passed on as they are, marked, so the core finds the file damaged and it is set aside."""
+    try:
+        return bookmarks_file(folder).read_bytes().decode("utf-8", errors="replace")
+    except OSError:
+        return None
+
+
+def save_bookmarks(text: str, folder: Path | None = None) -> Path:
+    """Written safely, so a crash never loses the bookmarks: the new text goes to a temporary file beside
+    the old one, which is flushed to the disk, and then put in the old one's place in one step."""
+    path = bookmarks_file(folder)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(path.name + ".tmp")
+    with open(temp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temp, path)
+    return path
+
+
+def set_aside_bookmarks(folder: Path | None = None) -> Path | None:
+    """A damaged bookmarks file renamed, so it is kept: bookmarks-damaged.geojson, or -2, -3 and so on
+    when that is taken. Returns the new name, or None when there was no file."""
+    path = bookmarks_file(folder)
+    if not path.is_file():
+        return None
+    aside = path.with_name("bookmarks-damaged.geojson")
+    n = 2
+    while aside.exists():
+        aside = path.with_name(f"bookmarks-damaged-{n}.geojson")
+        n += 1
+    os.replace(path, aside)
+    return aside
+
+
 def export_to(data: dict, target: Path) -> None:
     """Settings to a file you choose, to keep or move to another computer (PLT-5)."""
     Path(target).write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")

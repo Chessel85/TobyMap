@@ -24,6 +24,7 @@ import numpy as np
 import yaml
 
 import mapcore
+from mapcore import bookmarks as bookmarks_mod
 from mapcore import memory
 from mapcore import views as views_mod
 from mapcore import names as names_mod
@@ -136,6 +137,12 @@ class Response:
     scan: dict | None = None
     # The view manager's list (P3-T28h): {"items": [{"id", "label", "own"}], "current"}, after each Add, Rename or Delete.
     views: dict | None = None
+    # The bookmarks file's new text, whenever the bookmarks change (P4-T8a, USR-5): the shell writes it, safely,
+    # to its bookmarks file. None when they have not changed. Reset all settings never sets it (DP209).
+    bookmarks: str | None = None
+    # At start: the bookmarks file the shell gave could not be read. The shell renames it aside, so it is kept,
+    # before writing anything; the session has started one empty "Bookmarks" list (P4-T8a).
+    bookmarks_damaged: bool = False
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -203,7 +210,8 @@ def outlined(record: dict, setting: str) -> bool:
 class MapSession:
     def __init__(self, platform: str = "desktop", packs=None, store=None, settings: dict | None = None,
                  saved_state: dict | None = None, clock=time.perf_counter, start_at: str | None = None,
-                 system: str = "windows"):
+                 system: str = "windows", bookmarks: str | None = None):
+        """bookmarks is the bookmarks file's text as the shell read it, or None when there is none (P4-T8a)."""
         from mapcore.store import Store
 
         self.platform = platform
@@ -237,6 +245,8 @@ class MapSession:
             except ValueError:
                 pass
         self.clock = clock
+        # Every bookmark list (P4-T8a, USR-1, USR-3). A damaged file gives one empty list, and start() says so.
+        self.bookmarks, self.bookmarks_damaged = bookmarks_mod.load(bookmarks)
         self.areas: list = []          # the areas at the last described place, smallest first
         self.last_spoken: str | None = None
         # The location history (NAV-10, DP142, DP158): the places before each step or jump, newest
@@ -421,11 +431,13 @@ class MapSession:
     def start(self) -> Response:
         """The first announcement: the place the application starts at."""
         self.areas = self._here()
-        r = Response(redraw=True, panel_stale=True, details_stale=True)
+        r = Response(redraw=True, panel_stale=True, details_stale=True, bookmarks_damaged=self.bookmarks_damaged)
         if not self.store.packs:
             r.speak(say("packs.none_installed"), ASSERTIVE)
-            return self._record("start", r)
-        r.speak(say("start", place=self._place_text()), POLITE)
+        else:
+            r.speak(say("start", place=self._place_text()), POLITE)
+        if self.bookmarks_damaged:
+            r.speak(say("bookmarks.damaged"), POLITE)
         return self._record("start", r)
 
     def run(self, name: str, pressed_in: str | None = None, **args) -> Response:
@@ -488,6 +500,8 @@ class MapSession:
             merged.found = r.found or merged.found
             merged.branch = r.branch or merged.branch
             merged.views = r.views or merged.views   # the view manager's list (P3-T28h), as the web version runs
+            merged.bookmarks = r.bookmarks if r.bookmarks is not None else merged.bookmarks   # the newest file (P4-T8a)
+            merged.bookmarks_damaged |= r.bookmarks_damaged
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 
@@ -2707,9 +2721,10 @@ class MapSession:
         """The map region's name as the focus first arrives on it at start (P2-T17d). The screen
         reader reads the window's title, TobyMap, then this name, so the start is heard in full.
         Spoken as well, the start was cut off by that reading and "Press F1 for keys" was lost."""
-        if not self.store.packs:
-            return say("packs.none_installed")
-        return say("start_label", place=self._place_text())
+        label = say("packs.none_installed") if not self.store.packs else say("start_label", place=self._place_text())
+        if self.bookmarks_damaged:   # heard as TobyMap starts, after the place (P4-T8a)
+            label = f"{label} {say('bookmarks.damaged')}"
+        return label
 
     def map_label(self) -> str:
         """The map region's accessible name: the place under the centre."""
@@ -2733,8 +2748,15 @@ class MapSession:
     def startup_took(self, startup_ms: float) -> None:
         self.startup_ms = startup_ms
 
+    def bookmarks_changed(self, response: Response) -> Response:
+        """Hands the shell the bookmarks file's new text, after any change to the bookmarks (P4-T8a).
+        Kept apart from save(): the bookmarks are not settings, and Reset all settings leaves them (DP209)."""
+        response.bookmarks = self.bookmarks.to_text()
+        return response
+
     def save(self) -> dict:
-        """Everything to keep between runs: settings, keys and the world state (PLT-5)."""
+        """Everything to keep between runs: settings, keys and the world state (PLT-5). Not the
+        bookmarks, which have a file of their own (bookmarks_changed())."""
         state = self.world.to_dict()
         state["jumps"] = {"back": self.back_places[-PLACE_LIMIT:], "forward": self.forward_places[-PLACE_LIMIT:]}
         return {"settings": self.settings.to_dict(), "state": state}
@@ -3924,7 +3946,7 @@ class MapSession:
         place, zoom and step, and the location history. The open packs stay. action "reset" tells
         the shell to forget what it keeps itself, such as the web's own sound files; it then saves,
         as settings_changed asks, which writes the new installation's settings."""
-        keep = {"map_size": self.map_size, "trace": self.trace}
+        keep = {"map_size": self.map_size, "trace": self.trace, "bookmarks": self.bookmarks}   # bookmarks stay (DP209)
         self.__init__(platform=self.platform, store=self.store, clock=self.clock, system=self.system)
         for name, value in keep.items():
             setattr(self, name, value)

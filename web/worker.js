@@ -137,11 +137,12 @@ function finish(result) {
 
 self.onmessage = async (event) => {
   const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs,
-          problem, samples, rate, factor, pitch, open, text, scope, index, system } = event.data;
+          problem, samples, rate, factor, pitch, open, text, scope, index, system, bookmarks } = event.data;
   try {
     await ready;
     let out;
-    if (type === "start") out = finish(bridge.start(width, height, startupMs, packs, saved || "", at || "", slowMs || 0, system || "windows"));
+    if (type === "start") out = finish(bridge.start(width, height, startupMs, packs, saved || "", at || "", slowMs || 0, system || "windows",
+                                                         bookmarks || ""));
     else if (type === "run") out = finish(bridge.run(JSON.stringify(commands), width, height));
     else if (type === "press") out = finish(bridge.press(key, region, width, height));
     else if (type === "release") out = finish(bridge.release(width, height));

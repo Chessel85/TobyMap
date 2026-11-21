@@ -14,10 +14,15 @@ Two layers, each from a source of its own:
   each is called; its other classes, such as islands and mountain ranges, are
   left out, as other layers hold them.
 
-Each area is simplified to tolerance_m, then cut to the land with the OSM land
-polygons (AD-15), as both sources draw their edges loosely along the coast: so
-at sea you never hear that you are in a mountain range. A range left with no
-land is left out. The layers' areas overlap each other, so they are not painted
+Each area is simplified to tolerance_m, then cut to the land as the pack draws it:
+the areas of the land layer (land_layer, the countries), as the join stage made
+them, whose coast is the oceans' and seas' own (DP220). Both sources draw their
+edges loosely along the coast, so at sea you never hear that you are in a
+mountain range, and no range overlaps a sea. A range on several islands keeps
+each island's part; a range left with no land is left out. Until DP220 the
+areas were cut to the OSM land polygons simplified to tolerance_m, a coast drawn
+a little differently from the pack's: Exmoor reached 1.17 percent into the
+Bristol Channel. The layers' areas overlap each other, so they are not painted
 on the map, and their drawing levels are made one area at a time.
 
 The features of the stage before are kept, and the new ones added after them.
@@ -34,7 +39,6 @@ import shapely
 
 from mapdata.pipeline import features
 from mapdata.pipeline.errors import BuildStopped
-from mapdata.stages import land as landmod
 
 METRES_PER_DEGREE = 111_320.0
 GMBA_INNER = "GMBA_Inventory_v2.0_standard.shp"
@@ -131,33 +135,43 @@ def natural_earth_regions(path: Path, box, classes: dict[str, str]) -> tuple[lis
     return [records[i] for i in order], [geoms[i] for i in order]
 
 
-class SimpleLand:
-    """The land index's land tiles, each read once and simplified once to tolerance_m, then kept: ranges sit
-    inside ranges, so the same land tiles are asked for many times, and their full detail is far finer than
-    the base pack keeps. Cutting the North European Plain at full detail read 1,441 land tiles of 773,000
-    points and took 11 seconds."""
+class DrawnLand:
+    """The land as the pack draws it: the areas of the land layer, the countries, as the join stage made them from
+    the grid squares, with the same coast as the oceans and seas (DP220). Each is split into parts of at most
+    `most` points, halving its box until each part is small enough, so a range is cut only against the few parts
+    near it, not against a country of millions of points. The parts never overlap, and meet exactly along the
+    lines they were split on, so the parts of a range join up again exactly."""
 
-    def __init__(self, index, tolerance_m: float):
-        self.index = index
-        self.tol = tolerance_m / METRES_PER_DEGREE
-        self.kept: dict[int, object] = {}
+    def __init__(self, geoms, most: int = 1000):
+        parts = []
+        for g in geoms:
+            stack = list(shapely.get_parts(g))
+            while stack:
+                g = stack.pop()
+                if g.is_empty:
+                    continue
+                if shapely.get_num_coordinates(g) <= most:
+                    g = polygonal(g)
+                    if g is not None:
+                        parts.extend(shapely.get_parts(g))
+                    continue
+                x0, y0, x1, y1 = g.bounds
+                if x1 - x0 >= y1 - y0:
+                    m = (x0 + x1) / 2
+                    halves = ((x0, y0, m, y1), (m, y0, x1, y1))
+                else:
+                    m = (y0 + y1) / 2
+                    halves = ((x0, y0, x1, m), (x0, m, x1, y1))
+                stack.extend(shapely.clip_by_rect(g, *h) for h in halves)
+        self.parts = np.array(parts, dtype=object)
+        self.tree = shapely.STRtree(self.parts)
+
+    @classmethod
+    def of_layer(cls, records, geoms, layer: str, most: int = 1000) -> "DrawnLand":
+        return cls([g for r, g in zip(records, geoms) if r.get("layer") == layer], most)
 
     def within(self, mask) -> np.ndarray:
-        parts = shapely.get_parts(mask)
-        positions = self.index.touching([p.bounds for p in parts])
-        new = np.array([p for p in positions.tolist() if p not in self.kept], dtype=np.intp)
-        if len(new):
-            read = self.index.read(new)
-            if self.tol:
-                read = shapely.simplify(read, self.tol, preserve_topology=True)
-            for pos, g in zip(new.tolist(), read):
-                self.kept[pos] = g
-        tiles = np.array([self.kept[p] for p in positions.tolist()], dtype=object)
-        if not len(tiles):
-            return tiles
-        tiles = tiles[~shapely.is_empty(tiles)]
-        shapely.prepare(mask)
-        return tiles[shapely.intersects(mask, tiles)]
+        return self.parts[self.tree.query(mask, predicate="intersects")]
 
 
 def union_land(pieces: list):
@@ -176,7 +190,8 @@ def union_land(pieces: list):
 
 
 def cut_to_land(geoms: list, index, box, tolerance_m: float) -> list:
-    """Each shape simplified, cut to the box, if any, then to the land. None where no land is left."""
+    """Each shape simplified, cut to the box, if any, then to the land, which is not simplified again: the range's
+    coast is the land's own, as the pack draws it (DP220). None where no land is left."""
     clip = shapely.box(*box) if box else None
     tol = tolerance_m / METRES_PER_DEGREE
     out = []
@@ -195,8 +210,6 @@ def cut_to_land(geoms: list, index, box, tolerance_m: float) -> list:
         inside = shapely.contains_properly(g, tiles)
         pieces = list(tiles[inside]) + [p for p in shapely.intersection(tiles[~inside], g) if not p.is_empty]
         land = union_land(pieces) if pieces else None
-        if land is not None and tol:   # the coast's own detail is far finer than the base pack needs
-            land = polygonal(shapely.simplify(land, tol, preserve_topology=False))
         if land is not None:
             land = polygonal(shapely.set_precision(land, 1e-7))
         out.append(land)
@@ -207,8 +220,15 @@ def run(ctx) -> None:
     s = ctx.settings
     box = s.get("box")
     t0 = time.perf_counter()
-    index = landmod.open_index(ctx.folders.downloads, ctx.folders.working, ctx.progress.log)
-    lands: dict[float, SimpleLand] = {}
+    land_layer = s.get("land_layer", "countries")
+    records, geoms = features.load_layers(ctx.previous, {land_layer})
+    if not records:
+        raise BuildStopped(f"The physical stage cuts to the land of the layer {land_layer}, which the stage before "
+                           "has none of. Put the stage after the join stage, or correct its land_layer setting.")
+    land = DrawnLand(geoms)
+    del records, geoms
+    ctx.progress.line(f"The land of the layer {land_layer}, to cut the areas to, made ready in "
+                      f"{time.perf_counter() - t0:.0f} seconds: {len(land.parts):,} shapes of at most 1,000 points.")
     new_records, new_geoms = [], []
     for part, reader in (("ranges", "gmba"), ("regions", "ne")):
         c = s.get(part)
@@ -227,7 +247,7 @@ def run(ctx) -> None:
             recs, geoms = natural_earth_regions(path, box, c.get("classes") or {})
         read_n = len(recs)
         tol = float(c.get("tolerance_m", 0))
-        cut = cut_to_land(geoms, lands.setdefault(tol, SimpleLand(index, tol)), box, tol)
+        cut = cut_to_land(geoms, land, box, tol)
         kept = {r["id"] for r, g in zip(recs, cut) if g is not None}
         n = 0
         for r, g in zip(recs, cut):

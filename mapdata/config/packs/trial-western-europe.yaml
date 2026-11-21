@@ -86,9 +86,9 @@ stages:
     check_km: 500
     check_within_km: 5
     box: [-11.0, 35.0, 17.0, 61.0]
-  # Mountain ranges (GMBA) and physical regions (Natural Earth), cut to the land (P3-T1f, DAT-5, DP169).
+  # Mountain ranges (GMBA) and physical regions (Natural Earth), cut to the land as the countries draw it (P3-T1f, DAT-5, DP169, DP220).
   - stage: physical
-    sources: [gmba-mountains, naturalearth-physical-regions, land-polygons]
+    sources: [gmba-mountains, naturalearth-physical-regions]
     ranges:
       source: gmba-mountains
       layer: mountain-ranges

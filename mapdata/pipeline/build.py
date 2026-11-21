@@ -69,7 +69,7 @@ STAGES = {
     "osm-lines": StageKind("reading the roads and railways from the planet file", "mapdata.stages.osm_lines",
                            ("mapdata.stages.osm_lines", "mapdata.stages.osm_rivers")),
     "physical": StageKind("building the mountain ranges and physical regions", "mapdata.stages.physical",
-                          ("mapdata.stages.physical", "mapdata.stages.land")),
+                          ("mapdata.stages.physical",)),
     "disputes": StageKind("making the disputed areas", "mapdata.stages.disputes",
                           ("mapdata.stages.disputes",)),
     "enclaves": StageKind("finding the enclaves and exclaves", "mapdata.stages.enclaves",

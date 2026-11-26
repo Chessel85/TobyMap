@@ -45,9 +45,30 @@ stages:
     tolerance_m: 10
     sliver_km2: 0.1
     sliver_width_m: 200
-  # small-islands: added by P4-T1c
-  # osm-layer (lakes): added by P4-T1c
-  # osm-water: added by P4-T1c
+  # Every island under 1 km2 that the join has not named, as "Unnamed island" or by OpenStreetMap's island point on
+  # it (P4-T1c).
+  - stage: small-islands
+  # Every named lake, reservoir and lagoon, with the world's queries and ids, of any size, at 5 metres (P4-T1c).
+  - stage: osm-layer
+    source: planet
+    layer: lakes
+    queries:
+      - {query: "a[natural=water][water=lake][name]", type: lake}
+      - {query: "a[natural=water][water=reservoir][name]", type: reservoir}
+      - {query: "a[natural=water][water=lagoon][name]", type: lagoon}
+      - {query: "a[natural=water][water=pond][name]", type: lake}
+      - {query: "a[natural=water][!water][name]", type: lake}
+      - {query: "a[landuse=reservoir][name]", type: reservoir}
+    min_km2: 0
+    tolerance_m: 5
+    same_as: [oceans, seas]
+    box: [-2.06, 50.41, -0.63, 51.49]   # region:
+  # Every other lake, pond, reservoir and basin, of any size, into the lakes; unnamed ones by their type's words
+  # ("Pond", "Unnamed lake"); a river's area left out (P4-T1c).
+  - stage: osm-water
+    source: planet
+    tolerance_m: 5
+    leave_out: [river]
   # osm-rivers: added by P4-T1g
   # osm-waterways: added by P4-T1g
   # osm-lines: added by P4-T1d

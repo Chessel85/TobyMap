@@ -128,6 +128,16 @@ details:
     district: district
     parish: parish
   tier_of: "{tier} of {owner}"
+  # The name a regional pack gives an island, lake or pond that OpenStreetMap leaves unnamed, by its type (P4-T1c,
+  # DP87). The build writes it into the pack, so changing a word here makes the small-islands and osm-water stages
+  # run again.
+  unnamed:
+    island: Unnamed island
+    lake: Unnamed lake
+    pond: Pond
+    reservoir: Unnamed reservoir
+    basin: Unnamed basin
+    lagoon: Unnamed lagoon
   # A country's distant part with no region of its own, such as Wake Island: "part of the United States" (DP191).
   distant_part: part
   # Land the build names itself, in the Countries layer, said by its type, not as a country (P3-T2c, DP120).

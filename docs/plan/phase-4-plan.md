@@ -253,6 +253,7 @@ Tests first, on the test pack's street samples: the centre of Winchester has its
 
 * Requirements: DAT-2, DAT-3, PCK-1, DMT-1, DMT-7, NFR-1.
 * Needs first: P4-T1, DP223.
+* The PO, 26 November 2026, after the rehearsal: build England only, not all of Great Britain; keep unnamed land use (named by its use); before the build, change the stages that load every feature so no process goes over the memory aim. The work items below read "England" for "Great Britain".
 
 Work items:
 

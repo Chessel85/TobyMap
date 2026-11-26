@@ -134,3 +134,9 @@ About 30 GB in the working folder (1 GB times 28), plus the pack. The data folde
 
 1. The pack is likely over 1 GB. The design's options: split Great Britain (England, Scotland and Wales as three packs), or leave things out. The largest that could go: unnamed land use such as farmland and woodland (land use is about 315 MB plus its share of the records, about 420 MB in all), street furniture (about 30 MB with its records), unnamed service roads. P4-T2b will set these out for you.
 2. Before the Great Britain build, the stages that load every feature should be changed to load only the layers they need. This is a new work item, after P4-T1j and before P4-T2. Should it be done first?
+
+### The product owner's answers, 26 November 2026
+
+1. Build England only, not all of Great Britain: it is large enough to be useful and is the area the PO knows best for testing. Unnamed land use stays: it is named by its use, such as "Farmland" or "Woodland" (docs/design/explanation.md, "How land use with no name is named").
+2. Yes: the build must avoid using too much memory, so that work comes first.
+3. National parks are said first.

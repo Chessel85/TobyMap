@@ -696,3 +696,19 @@ Each town has a reach, from 2 to 30 kilometres. Of the towns whose reach you are
 * Romsey reaches 3 kilometres, Southampton about 13, and London 30.
 * Newport on the Isle of Wight has no population in the pack, and is a town: 3 kilometres. About 1.1 kilometres north of it, you hear "Near Newport. Isle of Wight, England, United Kingdom". About 9 kilometres away, you hear only the place.
 * Paris, a city of 2.1 million, reaches the full 30 kilometres. Eleven kilometres north of it, you hear "Near Paris. ..."
+
+## How land use with no name is named
+
+### The short version
+
+Most fields and woods in OpenStreetMap have no name. TobyMap names each one by what the land is used for, so you hear "Farmland" or "Woodland" rather than nothing. In the Hampshire and Isle of Wight rehearsal pack, every feature has a name.
+
+### How it works
+
+1. The land use stage reads each area of land use, park or school ground from the planet file, with its tag, such as landuse=farmland or natural=wood (mapdata/config/land_classes.yaml lists them).
+2. An area with no name is given the words for its type, with a capital first letter: "Farmland", "Woodland", "Residential area", "Retail area".
+3. Unnamed areas of the same type that touch, inside one parish, are joined into one area. A patchwork of twenty fields becomes one "Farmland". This is what keeps the land use layer small enough. Named areas are never joined; they keep their own names.
+
+### What "leaving out unnamed land use" would mean
+
+The rehearsal report (docs/plan/p4-t1j-rehearsal-report.md) listed leaving these areas out as one way to make a large pack smaller. It would mean dropping the "Farmland" and "Woodland" areas altogether, so the map would say nothing about what the land is used for there. The PO decided against this (26 November 2026): the use is useful to hear, so these areas stay, named by their use.

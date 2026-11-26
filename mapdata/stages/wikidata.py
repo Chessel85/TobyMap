@@ -35,6 +35,9 @@ Settings:
 * offline: true to fetch nothing; features whose facts are not in the file have none. The test pack
   reads its facts from the repository this way, as tests never use the network.
 * batch: items to a query, 200 by default.
+* layers: the layers whose features are given facts, a Wikipedia article and a site count (P4-T1k), so the
+  streets and shops of a regional pack with a Wikidata link do not each wait on the query service. Every layer
+  if not given. A feature of another layer keeps its Wikidata link, but nothing is fetched for it.
 """
 from __future__ import annotations
 
@@ -515,6 +518,14 @@ def match_by_name(records: list[dict], boxes: list, named: dict[str, dict], km: 
 
 # The stage --------------------------------------------------------------------------------------------
 
+def given_facts(records: list[dict], layers) -> list[bool]:
+    """For each record, whether it is in a layer given facts: every layer when layers is None (P4-T1k)."""
+    if layers is None:
+        return [True] * len(records)
+    wanted = set(layers)
+    return [r["layer"] in wanted for r in records]
+
+
 def facts_path(ctx) -> Path:
     """The facts file: facts-<refresh>.jsonl in the source's folder."""
     s = ctx.settings
@@ -589,7 +600,9 @@ def run(ctx) -> None:
         line(f"Matched by name and place, where exactly one Wikidata item has the name near the feature: "
              f"{len(found):,} of {len(unlinked):,} features with no link. The log lists each.")
 
-    wanted = sorted({r["wikidata"] for r in records if r.get("wikidata")}, key=qid_order)
+    # Only the layers given facts are looked up (P4-T1k); every layer if the setting is not given.
+    chosen = [r for r, g in zip(records, given_facts(records, s.get("layers"))) if g]
+    wanted = sorted({r["wikidata"] for r in chosen if r.get("wikidata")}, key=qid_order)
     held = read_file(path)
     missing = [q for q in wanted if q not in held]
     if missing and not offline:
@@ -602,7 +615,7 @@ def run(ctx) -> None:
 
     # Each capital's id becomes the pack's feature, where the pack has it, so Details can go there.
     with_facts = 0
-    for r in records:
+    for r in chosen:
         q = r.get("wikidata")
         if not q or q not in held:
             continue
@@ -623,7 +636,7 @@ def run(ctx) -> None:
     # An English article on a closely related item, for those with none of their own (P3-T19j).
     apath = articles_path(path)
     related = read_file(apath)
-    lacking = sorted({r["wikidata"] for r in records if r.get("wikidata") and not r.get("wikipedia")}, key=qid_order)
+    lacking = sorted({r["wikidata"] for r in chosen if r.get("wikidata") and not r.get("wikipedia")}, key=qid_order)
     missing = [q for q in lacking if q not in related]
     if missing and not offline:
         line(f"Looking for related English articles for {len(missing):,} Wikidata items with none of their own; "
@@ -631,7 +644,7 @@ def run(ctx) -> None:
         related.update(fetch_articles(missing, say=line, batch=int(s.get("sites_batch", SITES_BATCH)),
                                       keep=lambda e: append_file(ctx.claim(apath), e)))
     linked = 0
-    for r in records:
+    for r in chosen:
         q = r.get("wikidata")
         if q and not r.get("wikipedia") and q in related:
             article = related_article(r.get("name"), related[q].get("rows") or [])
@@ -655,7 +668,7 @@ def run(ctx) -> None:
         say(f"Offline: the site counts of {len(missing)} Wikidata items are not in {spath.name}, so they count "
             "as none.")
     counted = 0
-    for r in records:
+    for r in chosen:
         q = r.get("wikidata")
         if q and (sites.get(q) or {}).get("sites"):
             r["sitelinks"] = int(sites[q]["sites"])

@@ -152,9 +152,18 @@ stages:
     source: wikidata
     refresh: 2026-11
     match: [lakes]
-    # wikidata layers: set by P4-T1k
+    # Facts only for the areas, lakes, rivers, parks and national parks, so the streets and shops with a Wikidata
+    # link do not each wait on the query service (P4-T1k, design 3.12).
+    layers: [countries, regions, counties, islands, districts, parishes, oceans, seas, lakes, rivers, parks,
+             national_parks]
+  # Street-scale layers get only the areas they are in or partly in, and a line the boundaries it passes through
+  # in order; no neighbours, nearly touching or overlaps, and they are counted in no area's counts (P4-T1k, design
+  # 3.12). The districts, parishes, national parks, lakes and rivers keep everything. A street says which parishes
+  # it passes through, so districts and parishes are crossing areas too.
   - stage: relationships
-    # relationships light_layers and crossing_areas: set by P4-T1k
+    light_layers: [main-roads, streets, paths, streams, land-use, parks, school-grounds, stops, shops-food, services,
+                   street-furniture, villages]
+    crossing_areas: [countries, regions, counties, districts, parishes]
   - stage: coast-stretches
   - stage: corrections
   - stage: write

@@ -100,8 +100,14 @@ stages:
   # coverage with no match (P4-T1h).
   - stage: match
     source: world-pack
+  # Street-scale layers get only the areas they are in or partly in, and a line the boundaries it passes through
+  # in order; no neighbours, nearly touching or overlaps, and they are counted in no area's counts (P4-T1k, design
+  # 3.12). The districts, parishes, national parks, lakes and rivers keep everything. A street says which parishes
+  # it passes through, so districts and parishes are crossing areas too.
   - stage: relationships
-    # relationships light_layers and crossing_areas: set by P4-T1k
+    light_layers: [main-roads, streets, paths, streams, land-use, parks, school-grounds, stops, shops-food, services,
+                   street-furniture, villages]
+    crossing_areas: [countries, regions, counties, districts, parishes]
   - stage: coast-stretches
   - stage: corrections
     file: tests/samples/corrections.yaml

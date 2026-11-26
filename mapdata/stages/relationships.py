@@ -40,6 +40,11 @@ railways), on land for it to be measured on land, so a line nearly all over the 
 water_share (0.5), leaf_points (20000), min_leaf_deg (0.25), top_deg (45), along_lines and along_areas (the
 layers looked at for a line along a border: rivers, against countries, regions and counties), and leave_out, the
 layers with no relationships (the graticule and the special lines).
+
+light_layers (P4-T1k, empty by default): street-scale layers whose features get only the areas they are in or partly
+in and, for a line, the areas of the crossing_areas layers it passes through, in order. They get no neighbours,
+nothing nearly touching, no overlaps and no outline; they hold nothing; no area lists or counts them; and two of them
+are never compared, so Great Britain's streets, paths and fields do not each meet every other.
 """
 from __future__ import annotations
 
@@ -61,7 +66,7 @@ SETTINGS = {"coast_land": ["countries", "regions", "counties", "islands"], "shor
             "shore_land": ["countries", "regions", "counties"], "water": [],
             "same_name_share": 0.9, "same_share": 0.99, "full_share": 0.995, "partly_share": 0.005, "cross_km": 0.05, "near_km": 5.0, "near_share": 0.25, "near_most": 10, "border_m": 100.0,
             "water_share": 0.5, "leaf_points": 20000, "min_leaf_deg": 0.25, "top_deg": 45.0,
-            "along_lines": ("rivers",), "along_areas": ("countries", "regions", "counties")}
+            "along_lines": ("rivers",), "along_areas": ("countries", "regions", "counties"), "light_layers": []}
 AREA, LINE, POINT = "area", "line", "point"
 # Layers with no relationships: the graticule's lines would each cross hundreds of areas, and say nothing new.
 LEAVE_OUT = ("graticule", "special-lines")
@@ -356,6 +361,10 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
     w, s, e, n = box
     box_shape = shapely.box(w, s, e, n)
     box_km2 = float(areas_km2([box_shape])[0])
+    light = set(settings.get("light_layers", ()))
+
+    def lit(i):   # a feature of a light layer (P4-T1k): only the areas it is in, and it holds nothing
+        return layer_of[i] in light
     areas = [it for it in items if it[1] == AREA]
     lines = [it for it in items if it[1] == LINE]
     places = [it for it in items if it[1] == POINT]
@@ -375,6 +384,8 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
     for a in whole:
         for b in range(len(areas)):
             if b != a and areas[b][0] != areas[a][0] and (areas[b][2] is not COVER or a < b):
+                if light and lit(areas[a][0]) and lit(areas[b][0]):
+                    continue
                 key = tuple(sorted((areas[a][0], areas[b][0])))
                 sums.shared[key] += own[b]
     if len(parts) > 1:
@@ -382,6 +393,9 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
         tree = shapely.STRtree(arr)
         left, right = tree.query(arr, predicate="intersects")
         keep = left < right
+        if light and len(left):   # two areas of light layers are never compared
+            keep &= ~np.array([lit(areas[parts[a]][0]) and lit(areas[parts[b]][0]) for a, b in zip(left, right)],
+                              dtype=bool)
         left, right = left[keep], right[keep]
         if len(left):
             inter = robust(shapely.intersection, arr[left], arr[right])
@@ -397,6 +411,7 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
             # Borders shared by two areas of one layer, and coast between land and sea (P3-T24e), but not along
             # the box's own edges.
             same = np.array([bordering(layer_of[areas[parts[a]][0]], layer_of[areas[parts[b]][0]], settings)
+                             and not (light and (lit(areas[parts[a]][0]) or lit(areas[parts[b]][0])))
                              for a, b in zip(left, right)], dtype=bool)
             if same.any():
                 la, rb = left[same], right[same]
@@ -408,7 +423,7 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
                         sums.border[tuple(sorted((areas[parts[a]][0], areas[parts[b]][0])))] += float(km)
     land_sea = {}   # a land area's part in the sea here, by its index here, where it reaches the sea
     if land_layers and sea_layers:
-        land_sea = land_in_sea(areas, own, in_sea, layer_of, land_layers, sea_layers, sums)
+        land_sea = land_in_sea(areas, own, in_sea, layer_of, land_layers, sea_layers, sums, light)
     # A lake's shore inside each land area round it (P3-T24e, DP200): a lake lies on the land, so its outline is
     # inside the countries, regions and counties, not along their borders.
     lakes = [k for k in parts if layer_of[areas[k][0]] in settings.get("shore_lakes", ())]
@@ -432,6 +447,10 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
                 for s_, l_, km in zip(s_idx, l_idx, lengths_km(inside)):
                     if km > 0:
                         sums.shore[(areas[lakes[s_]][0], areas[land_parts[l_]][0])] += float(km)
+    # Lines and places are measured only inside the areas that are not light: a light area holds nothing (P4-T1k).
+    if light:
+        whole = [a for a in whole if not lit(areas[a][0])]
+        parts = [k for k in parts if not lit(areas[k][0])]
     # Lines: their length here, inside each area, and along each area's border.
     if lines:
         larr = np.array([it[2] for it in lines], dtype=object)
@@ -471,7 +490,8 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
                 # Where each line crosses the border of a country, region or county, but not the box's own edges
                 # (P3-T24f, DP201): Crossing says how many times, and the nearest.
                 wanted = np.array([layer_of[areas[parts[a_]][0]] in settings.get("crossing_areas", ())
-                                   for a_ in ar_idx], dtype=bool)
+                                   and not (light and lit(lines[l_][0])) for l_, a_ in zip(li_idx, ar_idx)],
+                                  dtype=bool)
                 if wanted.any():
                     cl, ca = li_idx[wanted], ar_idx[wanted]
                     rim = shapely.buffer(shapely.boundary(box_shape), 1e-9)
@@ -489,7 +509,7 @@ def leaf(box, items, layer_of: list[str], settings: dict, sums: Sums) -> None:
             # areas of the layers named, such as a river forming a border, as buffering every outline is slow.
             tol = settings["border_m"] / 1000 / 111.32
             li_idx, ar_idx = tree.query(larr, predicate="dwithin", distance=tol)
-            keep = np.array([layer_of[lines[l_][0]] in settings["along_lines"]
+            keep = np.array([layer_of[lines[l_][0]] in settings["along_lines"] and not (light and lit(lines[l_][0]))
                              and layer_of[areas[parts[a_]][0]] in settings["along_areas"]
                              for l_, a_ in zip(li_idx, ar_idx)], dtype=bool)
             li_idx, ar_idx = (li_idx[keep], ar_idx[keep]) if len(li_idx) else (li_idx, ar_idx)
@@ -573,7 +593,7 @@ def _one(shapes):
         return shapely.union_all([shapely.make_valid(g) for g in shapes], grid_size=GRID_DEG)
 
 
-def land_in_sea(areas, own, in_sea, layer_of, land_layers, sea_layers, sums: Sums) -> dict:
+def land_in_sea(areas, own, in_sea, layer_of, land_layers, sea_layers, sums: Sums, light=frozenset()) -> dict:
     """How much of each land area is in the sea here, and how much of each two land areas' shared land is (P3-T28n),
     so a land area's share inside another is measured on its land: Exmoor, whose outline runs a little into the sea
     beyond England's coast, is wholly inside England. The sea is the layer that holds all the water (the oceans),
@@ -607,7 +627,7 @@ def land_in_sea(areas, own, in_sea, layer_of, land_layers, sea_layers, sums: Sum
         for y in range(x + 1, len(wet)):
             (ka, ga, kma), (kb, gb, kmb) = wet[x], wet[y]
             ia, ib = areas[ka][0], areas[kb][0]
-            if ia == ib:
+            if ia == ib or (light and layer_of[ia] in light and layer_of[ib] in light):
                 continue
             if ga is COVER or gb is COVER:
                 km2 = kmb if ga is COVER else kma
@@ -677,8 +697,10 @@ def relate(box, items, layer_of, settings, sums: Sums, depth: int = 0) -> None:
         leaf(box, items, layer_of, settings, sums)
         return
     mx, my = (w + e) / 2, (s + n) / 2
+    light = set(settings.get("light_layers", ()))
     for it in items:
-        on_lines(it, [("v", mx, s, n), ("h", my, w, e)], sums)
+        if not light or layer_of[it[0]] not in light:   # a light area has no neighbours (P4-T1k)
+            on_lines(it, [("v", mx, s, n), ("h", my, w, e)], sums)
     for sub in ((w, s, mx, my), (mx, s, e, my), (w, my, mx, n), (mx, my, e, n)):
         inside = [c for c in (cut(it, sub) for it in items) if c is not None]
         relate(sub, inside, layer_of, settings, sums, depth + 1)
@@ -717,8 +739,10 @@ def measure(records, geoms, kinds, settings, executor=None, workers: int = 1, sa
     top = total = Sums()
     deg = settings["top_deg"]
     lines = [("v", float(x), -90.0, 90.0) for x in np.arange(-180 + deg, 180, deg)] +             [("h", float(y), -180.0, 180.0) for y in np.arange(-90 + deg, 90, deg)]
+    light = set(settings.get("light_layers", ()))
     for it in items:
-        on_lines(it, lines, top)
+        if not light or layer_of[it[0]] not in light:
+            on_lines(it, lines, top)
     jobs = []
     for box in top_boxes(settings["top_deg"]):
         inside = [c for c in (cut(it, box) for it in items) if c is not None]
@@ -756,8 +780,9 @@ def nearly_touching(records, geoms, kinds, neighbours: set, settings, own: dict 
     near_deg = settings["near_km"] / 111.32
     found: dict[tuple, float] = {}
     by_layer = defaultdict(list)
+    light = set(settings.get("light_layers", ()))
     for i, k in enumerate(kinds):
-        if k == AREA and geoms[i] is not None and not geoms[i].is_empty:
+        if k == AREA and geoms[i] is not None and not geoms[i].is_empty and records[i]["layer"] not in light:
             by_layer[records[i]["layer"]].append(i)
     own = own or {}
 
@@ -799,6 +824,8 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
 
     own = sums.own
     land_layers = set(settings.get("land", ()))
+    light = set(settings.get("light_layers", ()))
+    crossing = set(settings.get("crossing_areas", ()))
 
     def share(i, km2, key):
         """The share of area i that km2 is: of its land, for a land area with at least land_least of it on land,
@@ -814,6 +841,17 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
         key = (a, b) if records[a]["layer"] in land_layers and records[b]["layer"] in land_layers else None
         sa, sb = share(a, km2, key), share(b, km2, key)
         same_name = settings["same_name_share"]
+        if light and (records[a]["layer"] in light or records[b]["layer"] in light):
+            # An area of a light layer (P4-T1k) is in, or partly in, the other; never the same, overlapping or
+            # holding anything. Two light areas are not compared at all.
+            if records[a]["layer"] in light and records[b]["layer"] in light:
+                continue
+            x, y, sx = (a, b, sa) if records[a]["layer"] in light else (b, a, sb)
+            if sx >= full or (sa >= same_s and sb >= same_s):
+                put(x, "in", y)
+            elif sx >= partly:
+                put(x, "partly", [y, round(min(sx, 1.0), 4)])
+            continue
         if (sa >= same_s and sb >= same_s) or (sa >= same_name and sb >= same_name and records[a].get("name")
                                                 and records[a].get("name") == records[b].get("name")):
             # The same land, or an island and an area of one name over nearly the same land, as the Isle of Wight
@@ -871,6 +909,11 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
         elif share >= partly:
             put(i, "partly", [a, round(share, 4)])
         if kinds[i] == LINE and amount >= settings["cross_km"]:   # by length, so a long river's short pass counts
+            if light and records[i]["layer"] in light:
+                # A light line (P4-T1k) lists only the crossing_areas it passes through, and no area lists it.
+                if records[a]["layer"] in crossing:
+                    put(i, "crosses", [a, sums.first.get((i, a), math.inf)])
+                continue
             put(i, "crosses", [a, sums.first.get((i, a), math.inf)])
             put(a, "crossed_by", i)
     for (i, a), km in sums.along.items():
@@ -920,6 +963,8 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
     # Ctrl+Shift+F (Store.browse), so the count said is the number listed: an area overlapping it, such as Lake
     # Geneva for Switzerland, and a line crossing it, count too (P3-T19j, checklist 12.3).
     for i, rel in list(out.items()):
+        if light and records[i]["layer"] in light:   # not counted in any area's counts (P4-T1k)
+            continue
         holders = set(rel.get("in", [])) | set(rel.get("same", [])) | set(rel.get("crosses", []))             | {v[0] for v in rel.get("partly", [])} | {v[0] for v in rel.get("overlaps", [])}
         for a in sorted(holders):
             counts = out[a].setdefault("counts", {})
@@ -963,7 +1008,9 @@ def run(ctx) -> None:
         sums = measure(records, geoms_used, kinds, settings, None if ctx.workers == 1 else executor, ctx.workers,
                        ctx.progress.line)
     rel = relationships(records, geoms_used, kinds, sums, ranks, water, settings)
-    for i, km in outlines(geoms_used, kinds).items():   # each area's whole border, land and coast (P3-T24f)
+    light = set(settings.get("light_layers", ()))
+    outlined = [None if r["layer"] in light else g for r, g in zip(records, geoms_used)] if light else geoms_used
+    for i, km in outlines(outlined, kinds).items():   # each area's whole border, land and coast (P3-T24f)
         rel.setdefault(i, {})["outline_km"] = km
     counts = defaultdict(int)
     for r in rel.values():

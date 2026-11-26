@@ -103,16 +103,26 @@ stages:
       layer: physical-regions
       tolerance_m: 300
       # Natural Earth's classes kept, and what each is called. Its islands, mountain ranges, continents and lakes
-      # are left out, as the islands, mountain ranges, continents and lakes layers hold them.
+      # are left out, as the islands, mountain ranges, continents and lakes layers hold them, and its groups of islands,
+      # as the island-groups stage makes them (P4-T13b).
       classes: {Plateau: plateau, Desert: desert, Plain: plain, Peninsula: peninsula, Pen/cape: peninsula,
                 Basin: basin, Delta: delta, Valley: valley, Lowland: lowland, Tundra: tundra, Isthmus: isthmus,
-                Wetlands: wetland, Gorge: gorge, Foothills: foothills, Depression: depression, Geoarea: region,
-                Island group: group of islands}
+                Wetlands: wetland, Gorge: gorge, Foothills: foothills, Depression: depression, Geoarea: region}
     box: [-11.0, 35.0, 17.0, 61.0]
   # Each country's territorial waters: its area as OpenStreetMap has it, less the land as the countries draw it
   # (P4-T12a, DAT-15). Settings: see configuration.md.
   - stage: territorial-waters
     tolerance_m: 100
+    box: [-11.0, 35.0, 17.0, 61.0]
+  # Groups of islands, such as the Channel Islands: members from OpenStreetMap's place=archipelago, groups inside
+  # groups through Wikidata, our own record and Natural Earth; each outline grown from its own islands over the sea
+  # between them (P4-T13b, DAT-1, DAT-3, LOC-3). Settings: see configuration.md.
+  - stage: island-groups
+    source: planet
+    sources: [naturalearth-physical-regions, wikidata]
+    natural_earth: naturalearth-physical-regions
+    wikidata: wikidata
+    refresh: 2026-11
     box: [-11.0, 35.0, 17.0, 61.0]
   # Named peaks and volcanoes of 1,000 metres or more, as places, with their height (P3-T1f, DP169). Peaks only
   # with a Wikidata link, the notable ones (DP176, option 2).
@@ -179,7 +189,7 @@ stages:
   - stage: wikidata
     source: wikidata
     refresh: 2026-11
-    match: [oceans, seas, lakes, mountain-ranges, physical-regions]
+    match: [oceans, seas, lakes, mountain-ranges, physical-regions, island-groups]
   # What each feature is inside, beside, overlapping and crossing (P3-T3, AD-8). Settings: see configuration.md.
   - stage: relationships
   # Each area's coast in stretches between its neighbours, with their ends (P3-T30b, INF-2). Settings: see configuration.md.

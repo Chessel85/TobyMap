@@ -12,7 +12,10 @@ Two layers, each from a source of its own:
 * regions: Natural Earth's physical regions, such as deserts, plateaus,
   plains and peninsulas. Its classes are given in the settings with the type
   each is called; its other classes, such as islands and mountain ranges, are
-  left out, as other layers hold them.
+  left out, as other layers hold them. Its groups of islands are always left
+  out, even if the settings name them: the island-groups stage makes the Groups
+  of islands layer from the islands themselves, as Natural Earth's outlines are
+  too rough to say "you are in" (P4-T13b).
 
 Each area is simplified to tolerance_m, then cut to the land as the pack draws it:
 the areas of the land layer (land_layer, the countries), as the join stage made
@@ -52,6 +55,8 @@ GMBA_KINDS = {
     "Escarpment / Canyon": "escarpment",
 }
 SUB_RANGE = "Geographically-defined sub-range"
+# Natural Earth's classes another stage makes a layer of, never read here: its groups of islands (P4-T13b).
+MADE_ELSEWHERE = {"Island group": "island-groups"}
 
 
 def polygonal(g):
@@ -244,7 +249,12 @@ def run(ctx) -> None:
             recs, geoms = gmba_ranges(path, box, int(c.get("min_level", 3)), int(c.get("sub_range_min_level", 4)),
                                       int(c.get("max_level", 99)))
         else:
-            recs, geoms = natural_earth_regions(path, box, c.get("classes") or {})
+            classes = dict(c.get("classes") or {})
+            for k, stage in MADE_ELSEWHERE.items():
+                if classes.pop(k, None):
+                    ctx.progress.line(f"Natural Earth's class {k} is left out of the layer {layer}: the {stage} "
+                                      "stage makes it.")
+            recs, geoms = natural_earth_regions(path, box, classes)
         read_n = len(recs)
         tol = float(c.get("tolerance_m", 0))
         cut = cut_to_land(geoms, land, box, tol)

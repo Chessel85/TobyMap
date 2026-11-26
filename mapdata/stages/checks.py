@@ -40,7 +40,9 @@ from mapdata.pipeline.build import pack_file_name
 from mapdata.pipeline.errors import BuildStopped
 from mapdata.pipeline.settings import REPO
 
-WATER_LAYERS = ("oceans", "seas", "territorial-waters")   # territorial waters are sea (P4-T12)
+# The layers a place marked "sea" may be in: territorial waters are sea (P4-T12), and a group of islands holds the
+# sea between its islands (P4-T13b).
+WATER_LAYERS = ("oceans", "seas", "territorial-waters", "island-groups")
 
 
 def run(ctx) -> None:

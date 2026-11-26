@@ -76,6 +76,8 @@ STAGES = {
     "territorial-waters": StageKind("making each country's territorial waters", "mapdata.stages.territorial_waters",
                                     ("mapdata.stages.territorial_waters", "mapdata.stages.physical",
                                      "mapcore.describe.words")),
+    "island-groups": StageKind("making the groups of islands from their islands", "mapdata.stages.island_groups",
+                               ("mapdata.stages.island_groups", "mapdata.stages.physical")),
     "disputes": StageKind("making the disputed areas", "mapdata.stages.disputes",
                           ("mapdata.stages.disputes",)),
     "enclaves": StageKind("finding the enclaves and exclaves", "mapdata.stages.enclaves",

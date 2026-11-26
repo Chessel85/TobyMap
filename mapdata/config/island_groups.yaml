@@ -1,0 +1,38 @@
+# Groups of islands: our own record (P4-T13b, DAT-1, DAT-3, LOC-3), for what OpenStreetMap, Wikidata and Natural
+# Earth lack. Read by the island-groups stage; its method is in docs/plan/p4-t13a-island-groups-report.md, and each
+# setting is in docs/data-manager/configuration.md. A change here makes the stage, and the stages after it, run
+# again.
+
+# A Wikidata link for an OpenStreetMap group that has none, by its OpenStreetMap id.
+links:
+  osm:r3067412: Q100166     # Orkney Islands
+  osm:r21692014: Q4058447   # Arquipélago dos Açores, the Azores
+
+# An English name, by the group's id, where OpenStreetMap's English name is not the usual one, or it has none.
+names:
+  osm:r1959008: Outer Hebrides   # OpenStreetMap: Na h-Eileanan Siar, in English "Western Isles"
+  osm:r21692014: Azores          # OpenStreetMap: Arquipélago dos Açores, with no English name
+
+# OpenStreetMap groups to leave out, by id, each with the reason.
+leave_out: []
+
+# Natural Earth groups kept although the rule takes them for one island or a country, by name.
+natural_earth_keep: []
+
+# Groups the sources lack. Each has an id and a name, may have a Wikidata link, and takes its islands from any of:
+# islands_in (the islands inside an area of the pack, by id), natural_earth (the islands inside Natural Earth's
+# outline of that name), islands (islands by their Wikidata items) and groups (the islands of groups, by id).
+groups:
+  # OpenStreetMap has only its parts, the Pityusic Islands and some small groups: the islands of the region.
+  - id: record:balearic-islands
+    name: Balearic Islands
+    wikidata: Q5765
+    islands_in: osm:r348981
+  # OpenStreetMap has only a place. Natural Earth's outline leaves out Shetland and the Channel Islands, which
+  # Wikidata lists as its parts with Great Britain, Ireland, the Isle of Man and Anglesey.
+  - id: record:british-isles
+    name: British Isles
+    wikidata: Q38272
+    natural_earth: British Isles
+    islands: [Q23666, Q22890, Q9676, Q194430]
+    groups: [osm:r158039, osm:r6031891, osm:r16304905, osm:r3067412, osm:r2235077]

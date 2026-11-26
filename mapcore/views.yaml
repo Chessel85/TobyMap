@@ -34,7 +34,9 @@ drawing_order:
   - countries       # 2. Countries.
   - regions         # 3. Regions.
   - counties        # 4. Counties.
-  - physical-regions  # 5. Physical regions, including groups of islands, larger under smaller.
+  - physical-regions  # 5. Physical regions, larger under smaller. The groups of islands (P4-T13b) are not listed
+                      # yet: an area layer not listed is drawn after the listed areas, before the outlines, and theirs
+                      # is outlined, not filled. Where they go in this order waits for the PO (DP198 approved it).
   - islands         # 6. Islands.
   - mountain-ranges   # 7. Mountain ranges, larger under smaller.
   - lakes           # 8. Lakes and rivers: a country reaches across a lake to its border, so the lake comes after it.
@@ -50,8 +52,8 @@ political_layers: [countries, regions, counties]
 views:
   - id: political
     name: Political
-    said: [lakes, seas, oceans, territorial-waters, counties, regions, countries, exclaves, islands, mountain-ranges,
-           physical-regions, continents]
+    said: [lakes, seas, oceans, territorial-waters, counties, regions, countries, exclaves, islands, island-groups,
+           mountain-ranges, physical-regions, continents]
     layers:
       oceans: {fill: water, outline: false}
       seas: {fill: water, outline: false}
@@ -63,6 +65,9 @@ views:
       lakes: {fill: water}
       physical-regions: {fill: none, names: false}
       islands: {fill: none, names: true}
+      # Groups of islands: said after the island, outlined but not filled, as they hold the sea between their
+      # islands and overlap each other; not named on the map (P4-T13b).
+      island-groups: {fill: none, names: false}
       mountain-ranges: {fill: none, names: false}
       # The continents are said, not drawn: their borders across the land are not a map's.
       continents: {fill: none, outline: false}
@@ -71,8 +76,8 @@ views:
 
   - id: physical
     name: Physical
-    said: [lakes, seas, oceans, territorial-waters, islands, mountain-ranges, physical-regions, counties, regions,
-           countries, exclaves, continents]
+    said: [lakes, seas, oceans, territorial-waters, islands, island-groups, mountain-ranges, physical-regions, counties,
+           regions, countries, exclaves, continents]
     layers:
       oceans: {fill: water, outline: false}
       seas: {fill: water, outline: false}
@@ -83,6 +88,9 @@ views:
       counties: {fill: none}
       physical-regions: {fill: kind}
       islands: {fill: kind}
+      # Groups of islands: outlined, not filled, so the sea between the islands stays the sea's colour; named on the
+      # map, as a physical map names them (P4-T13b).
+      island-groups: {fill: none, names: true}
       mountain-ranges: {fill: kind}
       lakes: {fill: water}
       continents: {fill: none, outline: false}

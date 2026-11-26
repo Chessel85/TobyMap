@@ -333,7 +333,7 @@ def test_inspect_gives_the_manifest_and_a_feature(test_pack, capsys):
     assert ("Layers: Countries, Oceans and seas, Seas, bays and straits, Territorial waters, "
             "Regions and constituent countries, "
             "Counties, Rivers, Cities and towns, Enclaves and exclaves, Lakes, "
-            "Railway stations, National parks.") in out
+            "Railway stations, National parks and National Landscapes.") in out
     assert main(["inspect", str(test_pack), "feature", "osm:r154350"]) == 0
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "Isle of Wight: osm:r154350."

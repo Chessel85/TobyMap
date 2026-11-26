@@ -131,7 +131,7 @@ def test_a_line_partly_inside_says_how_many_times_it_crosses_and_its_nearest_cro
     assert itchen["label"].startswith("River Itchen, crosses once, nearest ") and itchen["level"] == 2
     assert itchen["expandable"]
     # The headings: areas by layer first, then the lines crossing its border.
-    assert [i["label"] for i in g["items"]] == ["National parks 1", "Lines crossing its border 1"]
+    assert [i["label"] for i in g["items"]] == ["National parks and National Landscapes 1", "Lines crossing its border 1"]
     s.store.close()
 
 

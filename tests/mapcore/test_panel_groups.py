@@ -230,7 +230,7 @@ def test_enter_works_on_an_item_under_a_heading(hants):
 def test_overlapping_an_area_says_both_shares(hants):
     headings = group(hants.panel(open={"overlapping"}), "overlapping")["items"]
     # Under a heading for each kind (P3-T24e), then the lines crossing its border (P3-T29e).
-    assert [h["name"] for h in headings] == ["National parks", "Lines crossing its border 1"]
+    assert [h["name"] for h in headings] == ["National parks and National Landscapes", "Lines crossing its border 1"]
     items = headings[0]["children"]
     assert [i["name"] for i in items] == ["New Forest National Park"]
     assert "14 percent of Hampshire and 93 percent of New Forest National Park overlap" in items[0]["label"]

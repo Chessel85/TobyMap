@@ -117,7 +117,13 @@ stages:
     tolerance_m: 2
     join_gap_m: 30
     meet_m: 3
-  # osm-land: added by P4-T1e
+  # Land use, parks, school grounds and national parks within the coverage, by mapdata/config/land_classes.yaml,
+  # simplified to 5 metres: unnamed areas of one type that touch joined within one parish; national parks cut to
+  # the land; each class that differs from Shortbread's layer or zoom logged (P4-T1e).
+  - stage: osm-land
+    source: planet
+    tolerance_m: 5
+    meet_m: 1
   # osm-pois: added by P4-T1f
   # osm-places (villages): added by P4-T1f
   # match: added by P4-T1h

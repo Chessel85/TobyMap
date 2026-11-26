@@ -118,7 +118,7 @@ STAGES = {
                              ("mapdata.stages.osm_streets", "mapdata.stages.osm_lines", "mapdata.stages.osm_rivers",
                               *_READING)),
     "osm-land": StageKind("reading the land use, parks, school grounds and national parks", "mapdata.stages.osm_land",
-                          ("mapdata.stages.osm_land", *_READING)),
+                          ("mapdata.stages.osm_land", "mapdata.stages.osm_lines", *_READING)),
     "osm-pois": StageKind("reading the points of interest", "mapdata.stages.osm_pois",
                           ("mapdata.stages.osm_pois", "mapdata.stages.osm_places", *_READING)),
     "match": StageKind("giving features the world pack's identifiers", "mapdata.stages.match",

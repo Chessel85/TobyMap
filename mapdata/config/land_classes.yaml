@@ -1,0 +1,92 @@
+# The land classes of the osm-land stage (P4-T1e, design docs/plan/p4-t1-design.md 3.8): which OpenStreetMap tags make
+# a feature in each of the four land layers, the plain words of its type, and the same tag's place in Shortbread, the
+# open vector tile schema (docs/design/data sources.md: a reference only; no code or data is taken from it).
+#
+# Each class is read as: the layer it goes in, the tag (key and value, and "also" for a second tag it needs), the type's
+# words (an unnamed area is named by them, with a capital first letter: "Woodland"), the zoom at which TobyMap first
+# shows it (the tile zoom the drawing's size rule corresponds to), and Shortbread's layer and first zoom for the same
+# tag. "shortbread_layer: none" means Shortbread does not hold the tag. "when: named_or_open" keeps a garden only if it
+# has a name or access=yes or access=permissive: private gardens are left out.
+#
+# The classes are tried in this order and the first that matches wins, so one OpenStreetMap object is never in two
+# layers. The stage logs every class whose layer or zoom differs from Shortbread's (see layer_equivalents), so the
+# differences are deliberate.
+#
+# Shortbread's layers and zooms were entered here by hand from its schema (shortbread-tiles.org/schema) and are to be
+# checked against it by whoever next changes this file. Changing this file reads the areas again.
+
+# Which Shortbread layer holds the same kind of thing as each TobyMap layer. A class whose Shortbread layer is another
+# one is a difference.
+layer_equivalents:
+  land-use: land
+  parks: land
+  school-grounds: sites
+  national_parks: boundaries
+
+# The words of the type of a protected area by its designation tag, and the words when it has none of these.
+designations:
+  national_park: national park
+  national_landscape: national landscape
+  national_scenic_area: national scenic area
+  aonb: national landscape
+default_designation: protected landscape
+
+classes:
+  # National parks: boundary=national_park, and the protected areas of class 5 (England and Wales's National
+  # Landscapes, Scotland's National Scenic Areas). The layer id is national_parks, the test pack's.
+  - {layer: national_parks, key: boundary, value: national_park, type: national park, zoom: 7, shortbread_layer: boundaries, shortbread_zoom: 7}
+  - {layer: national_parks, key: boundary, value: protected_area, also: {protect_class: "5"}, type: protected landscape, zoom: 7, shortbread_layer: none}
+
+  # School grounds: schools, colleges, universities and kindergartens as areas. One mapped as a point is a point of
+  # interest (P4-T1f).
+  - {layer: school-grounds, key: amenity, value: school, type: school, zoom: 14, shortbread_layer: sites, shortbread_zoom: 14}
+  - {layer: school-grounds, key: amenity, value: college, type: college, zoom: 14, shortbread_layer: sites, shortbread_zoom: 14}
+  - {layer: school-grounds, key: amenity, value: university, type: university, zoom: 14, shortbread_layer: sites, shortbread_zoom: 14}
+  - {layer: school-grounds, key: amenity, value: kindergarten, type: kindergarten, zoom: 14, shortbread_layer: sites, shortbread_zoom: 14}
+
+  # Parks and public spaces.
+  - {layer: parks, key: leisure, value: park, type: park, zoom: 10, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: parks, key: leisure, value: common, type: common, zoom: 10, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: parks, key: leisure, value: nature_reserve, type: nature reserve, zoom: 10, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: parks, key: leisure, value: recreation_ground, type: recreation ground, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: parks, key: landuse, value: recreation_ground, type: recreation ground, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: parks, key: landuse, value: village_green, type: village green, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: parks, key: leisure, value: playground, type: playground, zoom: 14, shortbread_layer: land, shortbread_zoom: 14}
+  - {layer: parks, key: leisure, value: dog_park, type: dog park, zoom: 14, shortbread_layer: land, shortbread_zoom: 14}
+  - {layer: parks, key: leisure, value: pitch, type: pitch, zoom: 14, shortbread_layer: land, shortbread_zoom: 14}
+  - {layer: parks, key: leisure, value: golf_course, type: golf course, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: parks, key: leisure, value: sports_centre, type: sports centre, zoom: 13, shortbread_layer: sites, shortbread_zoom: 14}
+  - {layer: parks, key: leisure, value: stadium, type: stadium, zoom: 13, shortbread_layer: sites, shortbread_zoom: 14}
+  - {layer: parks, key: leisure, value: garden, when: named_or_open, type: garden, zoom: 13, shortbread_layer: land, shortbread_zoom: 13}
+
+  # Land use.
+  - {layer: land-use, key: landuse, value: residential, type: residential area, zoom: 11, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: land-use, key: landuse, value: commercial, type: commercial area, zoom: 11, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: land-use, key: landuse, value: retail, type: retail area, zoom: 11, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: land-use, key: landuse, value: industrial, type: industrial area, zoom: 11, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: land-use, key: landuse, value: farmland, type: farmland, zoom: 11, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: land-use, key: landuse, value: farmyard, type: farmyard, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: landuse, value: meadow, type: meadow, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: landuse, value: orchard, type: orchard, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: landuse, value: vineyard, type: vineyard, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: landuse, value: allotments, type: allotments, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: landuse, value: cemetery, type: cemetery, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: amenity, value: grave_yard, type: graveyard, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: landuse, value: religious, type: religious ground, zoom: 13, shortbread_layer: land, shortbread_zoom: 13}
+  - {layer: land-use, key: landuse, value: forest, type: forest, zoom: 8, shortbread_layer: land, shortbread_zoom: 7}
+  - {layer: land-use, key: landuse, value: quarry, type: quarry, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: landuse, value: landfill, type: landfill, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: landuse, value: military, type: military land, zoom: 11, shortbread_layer: land, shortbread_zoom: 11}
+  - {layer: land-use, key: landuse, value: construction, type: building site, zoom: 13, shortbread_layer: land, shortbread_zoom: 13}
+  - {layer: land-use, key: landuse, value: brownfield, type: brownfield land, zoom: 13, shortbread_layer: land, shortbread_zoom: 13}
+  - {layer: land-use, key: landuse, value: greenfield, type: greenfield land, zoom: 13, shortbread_layer: land, shortbread_zoom: 13}
+  - {layer: land-use, key: landuse, value: railway, type: railway land, zoom: 13, shortbread_layer: land, shortbread_zoom: 13}
+  - {layer: land-use, key: natural, value: wood, type: woodland, zoom: 8, shortbread_layer: land, shortbread_zoom: 7}
+  - {layer: land-use, key: natural, value: scrub, type: scrub, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: natural, value: heath, type: heath, zoom: 10, shortbread_layer: land, shortbread_zoom: 10}
+  - {layer: land-use, key: natural, value: grassland, type: grassland, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: natural, value: wetland, type: wetland, zoom: 10, shortbread_layer: land, shortbread_zoom: 10}
+  - {layer: land-use, key: natural, value: moor, type: moor, zoom: 10, shortbread_layer: land, shortbread_zoom: 10}
+  - {layer: land-use, key: natural, value: bare_rock, type: bare rock, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: natural, value: sand, type: sand, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}
+  - {layer: land-use, key: natural, value: beach, type: beach, zoom: 12, shortbread_layer: land, shortbread_zoom: 12}

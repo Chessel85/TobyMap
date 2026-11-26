@@ -25,15 +25,18 @@ Each world feature is matched once. The world's shapes are read from its pack ti
 
 matches.csv, in the stage's folder, lists every match made by Wikidata or by name, and every world feature left
 unmatched, with both ids, both names and the overlap; match.json holds the counts. The quality report's section
-"Matches with the world pack" is made from them (mapdata/pipeline/report.py). The shapes are not changed: shapes.wkb
-is copied, and features.json written again with the ids changed, in the same order.
+"Matches with the world pack" is made from them (mapdata/pipeline/report.py).
+
+First, every feature is cut to the coverage (P4-T1j): the unchanged reading stages osm-layer, osm-rivers, osm-lines
+and osm-places read the outline's box, not the coverage, so their lakes, rivers, roads, railways and villages may
+reach beyond it. A shape inside the coverage is copied byte for byte, one the coverage cuts is cut and marked
+partial, and one wholly outside is left out. features.json is written again with the ids changed, in the same order.
 """
 from __future__ import annotations
 
 import csv
 import json
 import math
-import shutil
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -339,6 +342,42 @@ def open_world(path: Path):
 
 # The stage ----------------------------------------------------------------------------------------------------------
 
+def cut_to_coverage(folder: Path, data: dict, cover, out: Path) -> dict:
+    """Every feature of the stage before cut to the coverage, read and written one shape at a time into out (a
+    shapes.wkb), as the unchanged reading stages (osm-layer, osm-rivers, osm-lines, osm-places) read the outline's
+    box, not the coverage (P4-T1j). A shape inside the coverage is copied byte for byte; one the coverage cuts is
+    cut and marked partial; one wholly outside is dropped, with its record. data's records and offsets are changed in
+    place. Returns the counts: kept, partial, dropped and cut."""
+    from mapdata.stages import coverage as coveragemod
+
+    shapely.prepare(cover)
+    records, offsets, at = [], [], 0
+    counts = {"kept": 0, "partial": 0, "dropped": 0, "cut": 0}
+    with open(Path(folder) / "shapes.wkb", "rb") as f, open(out, "wb") as w:
+        for r, (a, n) in zip(data["records"], data["shapes"]):
+            f.seek(a)
+            blob = f.read(n)
+            g = shapely.from_wkb(blob)
+            if g is not None and not g.is_empty and not shapely.contains_properly(cover, g):
+                cut, partial = coveragemod.cut_one(g, cover)
+                if cut is None:
+                    counts["dropped"] += 1
+                    continue
+                if not cut.equals(g):
+                    blob = shapely.to_wkb(cut)
+                    counts["cut"] += 1
+                if partial:
+                    r["partial"] = True
+            counts["kept"] += 1
+            counts["partial"] += bool(r.get("partial"))
+            w.write(blob)
+            records.append(r)
+            offsets.append([at, len(blob)])
+            at += len(blob)
+    data["records"], data["shapes"] = records, offsets
+    return counts
+
+
 def _shapes_of(folder: Path, data: dict, indexes) -> dict:
     out = {}
     with open(Path(folder) / "shapes.wkb", "rb") as f:
@@ -374,6 +413,9 @@ def run(ctx) -> None:
     _src, path = ctx.source(key)
 
     data = json.loads((Path(ctx.previous) / "features.json").read_text(encoding="utf-8"))
+    cut = cut_to_coverage(Path(ctx.previous), data, cover, ctx.claim(Path(ctx.folder) / "shapes.wkb"))
+    ctx.progress.line(f"Cut to the coverage: {cut['cut']:,} features cut and {cut['dropped']:,} outside it left out, "
+                      "from the stages that read the outline's box (lakes, rivers, roads, railways, villages).")
     records = data["records"]
     pack = open_world(path)
     try:
@@ -385,7 +427,7 @@ def run(ctx) -> None:
     # Only the shapes that may be matched by Wikidata or by name are read.
     maybe = [i for i, r in enumerate(records) if r.get("layer") in layers
              and r["id"] not in world_ids and f"{r['id']}#as-{r['layer']}" not in world_ids]
-    shapes = _shapes_of(ctx.previous, data, maybe)
+    shapes = _shapes_of(ctx.folder, data, maybe)
     found, unmatched = find_matches(records, shapes, world, wshapes, layers=layers, line_m=line_m, share=share)
 
     names = {i: records[i].get("name") or "" for i in found}
@@ -407,13 +449,12 @@ def run(ctx) -> None:
         rows.append({"how": "unmatched", "layer": w["layer"], "world identifier": wid, "world name": w.get("name") or "",
                      "regional identifier": "", "regional name": "", "overlap %": ""})
 
-    shutil.copyfile(Path(ctx.previous) / "shapes.wkb", ctx.claim(Path(ctx.folder) / "shapes.wkb"))
     ctx.claim(Path(ctx.folder) / "features.json").write_text(
         json.dumps(data, ensure_ascii=False, sort_keys=True, indent=0), encoding="utf-8", newline="\n")
     write_matches(ctx.claim(Path(ctx.folder) / MATCHES), rows)
     ctx.claim(Path(ctx.folder) / REPORT).write_text(
-        json.dumps({"counts": counts, "layers": list(layers)}, indent=1, sort_keys=True), encoding="utf-8",
-        newline="\n")
+        json.dumps({"counts": counts, "layers": list(layers), "cut_to_coverage": cut}, indent=1, sort_keys=True),
+        encoding="utf-8", newline="\n")
 
     ctx.progress.line(f"Matched with the world pack: {counts['id']:,} features by their id, {counts['wikidata']:,} "
                       f"by Wikidata and {counts['name']:,} by name, each of those taking the world's id and keeping "

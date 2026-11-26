@@ -192,6 +192,32 @@ def test_the_report_lists_each_match_made_by_name(tmp_path):
         lines.index(next(x for x in lines if "River Itchen" in x))   # matches by name first, to be checked
 
 
+def test_features_of_stages_that_read_a_box_are_cut_to_the_coverage(tmp_path):
+    """The unchanged stages osm-layer, osm-rivers, osm-lines and osm-places read the outline's box, not the coverage:
+    on the rehearsal, 710 villages and many lakes, rivers and roads lay outside the coverage, and a long river was not
+    partial (P4-T1j). The match stage cuts every feature to the coverage, one shape at a time, keeping a shape already
+    inside byte for byte."""
+    from mapdata.pipeline import features
+
+    cover = shapely.box(0, 0, 10, 10)
+    records = [{"id": "in", "layer": "lakes"}, {"id": "river", "layer": "rivers"}, {"id": "out", "layer": "villages"},
+               {"id": "was", "layer": "streets", "partial": True}]
+    geoms = [shapely.box(1, 1, 2, 2), shapely.LineString([(5, 5), (25, 5)]), shapely.Point(20, 20),
+             shapely.LineString([(1, 1), (3, 3)])]
+    src = tmp_path / "before"
+    src.mkdir()
+    features.save(src, records, geoms)
+    data = json.loads((src / "features.json").read_text(encoding="utf-8"))
+    counts = match.cut_to_coverage(src, data, cover, tmp_path / "shapes.wkb")
+    assert [r["id"] for r in data["records"]] == ["in", "river", "was"]
+    assert [r.get("partial", False) for r in data["records"]] == [False, True, True]
+    raw = (tmp_path / "shapes.wkb").read_bytes()
+    got = [shapely.from_wkb(raw[a:a + n]) for a, n in data["shapes"]]
+    assert got[0].equals(geoms[0]) and got[1].length == 5
+    assert raw[:data["shapes"][0][1]] == shapely.to_wkb(geoms[0])
+    assert counts == {"kept": 3, "partial": 2, "dropped": 1, "cut": 1}
+
+
 def test_a_pack_with_no_match_stage_says_so():
     short, lines = report.world_matches_section(None, "x.csv")
     assert "no match stage" in " ".join(lines)

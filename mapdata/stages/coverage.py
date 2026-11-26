@@ -210,9 +210,9 @@ def cut_one(g, shape):
         cut = polygonal(cut)
     elif kind.endswith("LineString"):
         lines = [p for p in shapely.get_parts(cut) if p.geom_type.endswith("LineString")]
-        lines = [q for p in lines for q in shapely.get_parts(p)]
+        lines = [q for p in lines for q in shapely.get_parts(p) if not q.is_empty]   # a line of no length: empty
         cut = shapely.line_merge(shapely.MultiLineString(lines)) if lines else shapely.LineString()
-        if kind == "MultiLineString" and cut.geom_type == "LineString":
+        if kind == "MultiLineString" and cut.geom_type == "LineString" and not cut.is_empty:
             cut = shapely.MultiLineString([cut])
     elif kind.endswith("Point"):
         pts = [q for p in shapely.get_parts(cut) if p.geom_type.endswith("Point") for q in shapely.get_parts(p)]

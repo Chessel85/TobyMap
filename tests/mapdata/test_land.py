@@ -81,7 +81,21 @@ def test_differences_name_each_tag_whose_layer_or_zoom_differs(record):
     assert any(line.startswith("leisure=sports_centre:") and "Shortbread's layer sites" in line for line in lines)
     assert any(line.startswith("boundary=protected_area:") and "does not hold" in line for line in lines)
     assert any(line.startswith("natural=wood:") and "zoom 7" in line for line in lines)
-    assert "landuse=residential" not in text   # the same layer and zoom as Shortbread's
+    assert "amenity=school" not in text   # the same layer and zoom as Shortbread's
+
+
+@pytest.mark.parametrize("tag, layer, zoom", [
+    ("landuse=residential", "land", 10), ("landuse=farmland", "land", 10), ("landuse=cemetery", "land", 13),
+    ("leisure=park", "land", 11), ("leisure=playground", "land", 11), ("leisure=stadium", "pois", 14),
+    ("landuse=construction", "sites", 14), ("natural=heath", "land", 11), ("leisure=common", "none", None),
+    ("leisure=nature_reserve", "none", None), ("boundary=national_park", "none", None),
+    ("amenity=kindergarten", "none", None), ("natural=wetland", "none", None),
+])
+def test_shortbread_layers_and_zooms_are_its_schemas(record, tag, layer, zoom):
+    """The Shortbread reference values as its schema 1.0 documents them (shortbread-tiles.org/schema/1.0, read on
+    26 November 2026, P4-T1j); P4-T1e had entered them from memory."""
+    (c,) = [c for c in record["classes"] if f"{c['key']}={c['value']}" == tag]
+    assert c["shortbread_layer"] == layer and c.get("shortbread_zoom") == zoom
 
 
 # Joining ------------------------------------------------------------------------------------------------------------

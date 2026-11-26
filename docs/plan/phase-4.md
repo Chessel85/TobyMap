@@ -32,7 +32,7 @@ Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP22
 
 ## Street detail
 
-* [ ] P4-T1 The regional pipeline, rehearsed on Hampshire and the Isle of Wight.
+* [x] P4-T1 The regional pipeline, rehearsed on Hampshire and the Isle of Wight: 43.22 MB, 20 of 20 check places; Great Britain estimated at about 1.3 GB (docs/plan/p4-t1j-rehearsal-report.md).
 * [ ] P4-T2 The Great Britain pack.
 * [ ] P4-T3 Combining packs.
 

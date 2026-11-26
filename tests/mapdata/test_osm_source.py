@@ -70,6 +70,16 @@ def test_quoted_values():
     assert not osm_source.matches(sel, "way", {"name": "Abbey Gardens"})
 
 
+def test_the_planet_is_given_values_quoted_where_geodesk_needs_it():
+    """GeoDesk refuses an unquoted value with a hyphen, such as drive-through, which stopped the rehearsal's
+    osm-streets stage (P4-T1j). The query given to GeoDesk quotes every value that is not a plain word or number."""
+    q = osm_source.geodesk_query("w[highway=service][service!=driveway,parking_aisle,drive-through], "
+                                 "na[name='Abbey Gardens'][!access][population>=1000], w[bridge]")
+    assert q == ('w[highway=service][service!=driveway,parking_aisle,"drive-through"], '
+                 'na[name="Abbey Gardens"][!access][population>=1000], w[bridge]')
+    assert osm_source.parse_query(q) == osm_source.parse_query(q.replace('"drive-through"', "drive-through"))
+
+
 def test_has_means_a_value_other_than_no():
     sel = osm_source.parse_query("w[bridge]")
     assert osm_source.matches(sel, "way", {"bridge": "yes"})
@@ -126,6 +136,27 @@ class FakeCtx:
     def claim(self, path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         return Path(path)
+
+
+def test_a_reading_box_keeps_only_what_is_near_the_coverage(tmp_path):
+    """A reading box is a level 8 pack tile, far larger than the coverage at its edge: on the rehearsal, 590,000 of
+    the 710,000 street features joined lay outside the coverage (P4-T1j). save_box keeps only the shapes within
+    NEAR_DEG of the coverage, so joining across its edge still works."""
+    tiles = [(14, 8132, 12839)]   # Winchester's pack tile
+    cov_folder = tmp_path / "coverage"
+    cov_folder.mkdir()
+    shape = coverage.coverage_shape(tiles)
+    coverage.save(cov_folder, coverage.Coverage("test", 14, tiles, shape, ["test"]))
+    request = {"coverage": str(cov_folder / coverage.COVERAGE_FILE), "own": ""}
+    west, south, east, north = shape.bounds
+    geoms = [shapely.Point(west + 0.001, south + 0.001), shapely.Point(east + osm_source.NEAR_DEG / 2, south),
+             shapely.Point(east + 0.5, north), shapely.LineString([(east + 0.5, south), (west, south + 0.001)])]
+    records = [{"id": i} for i in ("in", "near", "far", "crossing")]
+    folder = osm_source.save_box(request, tmp_path / "read", 0, records, geoms)
+    from mapdata.pipeline import features
+
+    kept, _g = features.load(folder)
+    assert [r["id"] for r in kept] == ["in", "near", "crossing"]
 
 
 def test_run_reading_runs_the_stages_read_job_a_box_at_a_time(tmp_path, monkeypatch):

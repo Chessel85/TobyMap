@@ -172,4 +172,4 @@ stages:
       - {tolerance_m: 25, min_km2: 0.02, tile_level: 9, view_km: 50}
       - {tolerance_m: 150, min_km2: 0.5, tile_level: 7, view_km: 150}
   - stage: checks
-    # checks places: added by P4-T1j
+    places: [tests/acceptance/street_places_hampshire.yaml]   # region: the rehearsal's street places (P4-T1j)

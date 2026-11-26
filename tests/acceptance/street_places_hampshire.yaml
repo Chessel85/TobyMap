@@ -1,0 +1,35 @@
+# Street places of the rehearsal pack, Hampshire and the Isle of Wight (P4-T1j, design docs/plan/p4-t1-design.md
+# 3.2 stage 22, LOC-1, LOC-2, DAT-3).
+#
+# For each place: its latitude and longitude, and either "sea: true", meaning no land area may contain it, or
+# "includes": names that must all be among the areas containing it, as the checks stage looks them up. The names
+# were checked against the rehearsal pack of 26 November 2026 with mapdata inspect. They test the new local levels
+# (districts and parishes, including the unparished areas), the national parks and the islands, in Winchester,
+# Southampton, Portsmouth, the New Forest, Lymington and the Isle of Wight. The PO may add places.
+
+places:
+  # Winchester, Southampton, Portsmouth, Basingstoke and Fareham have no civil parish: their area is "Unparished area".
+  - {name: Winchester Cathedral, lat: 51.0606, lon: -1.3131, includes: [United Kingdom, England, Hampshire, Winchester, Unparished area]}
+  - {name: Southampton at the Bargate, lat: 50.9033, lon: -1.4045, includes: [United Kingdom, England, Southampton, Unparished area]}
+  - {name: Portsmouth Guildhall on Portsea Island, lat: 50.7979, lon: -1.0918, includes: [United Kingdom, England, Portsmouth, Portsea Island]}
+  - {name: Basingstoke town centre, lat: 51.2665, lon: -1.0872, includes: [Hampshire, Basingstoke and Deane, Unparished area]}
+  - {name: Fareham town centre, lat: 50.8526, lon: -1.1773, includes: [Hampshire, Fareham, Unparished area]}
+  # Parishes in districts.
+  - {name: Lymington High Street, lat: 50.7586, lon: -1.5440, includes: [Hampshire, New Forest, Lymington and Pennington]}
+  - {name: Ringwood, lat: 50.8462, lon: -1.7900, includes: [Hampshire, New Forest, Ringwood]}
+  - {name: Romsey Abbey, lat: 50.9890, lon: -1.5003, includes: [Hampshire, Test Valley, Romsey]}
+  - {name: Andover, lat: 51.2079, lon: -1.4805, includes: [Hampshire, Test Valley, Andover]}
+  - {name: New Alresford, lat: 51.0889, lon: -1.1617, includes: [Hampshire, Winchester, New Alresford]}
+  # The national parks.
+  - {name: Lyndhurst in the New Forest, lat: 50.8721, lon: -1.5745, includes: [New Forest, Lyndhurst, New Forest National Park]}
+  - {name: Brockenhurst, lat: 50.8186, lon: -1.5735, includes: [New Forest, Brockenhurst, New Forest National Park]}
+  - {name: Beaulieu, lat: 50.8162, lon: -1.4524, includes: [New Forest, Beaulieu, New Forest National Park]}
+  - {name: Petersfield, lat: 51.0035, lon: -0.9365, includes: [East Hampshire, Petersfield, South Downs National Park]}
+  # The Isle of Wight: an island and a county of the same name.
+  - {name: Newport on the Isle of Wight, lat: 50.7008, lon: -1.2925, includes: [England, Isle of Wight, Newport]}
+  - {name: Cowes, lat: 50.7618, lon: -1.2988, includes: [Isle of Wight, Cowes]}
+  - {name: Ryde, lat: 50.7300, lon: -1.1610, includes: [Isle of Wight, Ryde]}
+  - {name: Ventnor, lat: 50.5946, lon: -1.2063, includes: [Isle of Wight, Ventnor]}
+  - {name: Yarmouth on the Isle of Wight, lat: 50.7055, lon: -1.4996, includes: [Isle of Wight, Yarmouth, Isle of Wight National Landscape]}
+  # At sea.
+  - {name: The Solent between Cowes and Southampton Water, lat: 50.7900, lon: -1.3000, sea: true}

@@ -118,6 +118,20 @@ def test_a_feature_cut_by_the_coverage_is_partial_and_one_inside_is_not():
     assert "partial" not in records[1]   # the records given are not changed
 
 
+def test_a_line_of_no_length_is_dropped_not_a_fault():
+    """A way whose points are all at one place cuts to an empty line; on the coverage's edge or outside it, this
+    stopped the rehearsal's osm-waterways stage (P4-T1j)."""
+    shape = shapely.box(0, 0, 10, 10)
+    records = [{"id": "edge", "layer": "l"}, {"id": "outside", "layer": "l"}, {"id": "kept", "layer": "l"},
+               {"id": "multi", "layer": "l"}]
+    geoms = [shapely.LineString([(10, 5), (10, 5)]), shapely.LineString([(20, 5), (20, 5)]),
+             shapely.MultiLineString([[(5, 5), (15, 5)], [(30, 5), (30, 5)]]),
+             shapely.MultiLineString([[(10, 6), (10, 6)], [(30, 5), (30, 5)]])]
+    out_r, out_g, counts = coverage.cut_to_coverage(records, geoms, shape)
+    assert [r["id"] for r in out_r] == ["kept"] and out_g[0].length == 5
+    assert counts == {"kept": 1, "partial": 1, "dropped": 3}
+
+
 # The manifest's coverage ---------------------------------------------------------------------------------------
 
 def _regional(**over):
@@ -218,6 +232,8 @@ def _without_region_lines(name: str) -> dict:
         data.pop(key)
     for st in data["stages"]:
         st.pop("box", None)
+        if st["stage"] == "checks":
+            st.pop("places", None)   # each pack's own check places (P4-T1j, P4-T2c)
         if st["stage"] == "coverage":
             st.pop("sources", None)
     return data

@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 
+import numpy as np
 import shapely
 
 from mapdata.pipeline import features
@@ -91,6 +92,32 @@ def _split_top(text: str) -> list[str]:
             start = i + 1
     out.append(text[start:])
     return out
+
+
+_PLAIN = re.compile(r"^(?:[A-Za-z_][A-Za-z0-9_:]*|-?\d+(?:\.\d+)?)$")
+
+
+def geodesk_query(goql: str) -> str:
+    """The query as GeoDesk reads it: the same query, with every value that is not a plain word or number in double
+    quotes, as GeoDesk refuses an unquoted "drive-through" (P4-T1j)."""
+    def value(v: str) -> str:
+        return v if _PLAIN.match(v) else '"' + v.replace('"', '\\"') + '"'
+
+    out = []
+    for part in _split_top(goql):
+        part = part.strip()
+        (sel,) = parse_query(part)
+        text = re.match(r"^([A-Za-z*]+)", part).group(1)
+        for f in sel.filters:
+            if f.op == "has":
+                text += f"[{f.key}]"
+            elif f.op == "not":
+                text += f"[!{f.key}]"
+            else:
+                op = {"eq": "=", "ne": "!=", "ge": ">="}[f.op]
+                text += f"[{f.key}{op}{','.join(value(v) for v in f.values)}]"
+        out.append(text)
+    return ", ".join(out)
 
 
 def parse_query(goql: str) -> tuple[Selector, ...]:
@@ -224,9 +251,8 @@ class Planet:
         self.world = geodesk.Features(str(path))
 
     def query(self, goql: str, box=None, seen: set | None = None):
-        parse_query(goql)   # the same queries as the samples, or none
         gd = self._geodesk
-        sel = self.world(goql)
+        sel = self.world(geodesk_query(goql))   # the same queries as the samples, or none
         if box is not None:
             sel = sel(gd.Box(west=box[0], south=box[1], east=box[2], north=box[3]))
         for f in sel:
@@ -360,8 +386,32 @@ def box_folder(out: Path, n: int) -> Path:
     return Path(out) / f"box-{n:04d}"
 
 
+NEAR_DEG = 0.02   # about 2 km: what a reading box keeps beyond the coverage, so joining across its edge still works
+
+_near_cache: dict = {}
+
+
+def _near_coverage(request: dict):
+    """The coverage shape widened by NEAR_DEG, prepared, once per process; None when the request has no coverage."""
+    path = request.get("coverage")
+    if not path:
+        return None
+    if path not in _near_cache:
+        near = shapely.buffer(load_request_coverage(request).shape, NEAR_DEG, quad_segs=2)
+        shapely.prepare(near)
+        _near_cache[path] = near
+    return _near_cache[path]
+
+
 def save_box(request: dict, out: Path, n: int, records: list[dict], geoms: list) -> Path:
-    """One reading box's results, saved before the next box is read: records and shapes, as a stage keeps them."""
+    """One reading box's results, saved before the next box is read: records and shapes, as a stage keeps them. Only
+    the shapes within NEAR_DEG of the coverage are kept: a reading box is a level 8 pack tile, and at the coverage's
+    edge most of it lies outside (P4-T1j)."""
+    near = _near_coverage(request)
+    if near is not None and geoms:
+        keep = shapely.intersects(near, np.array(geoms, dtype=object))
+        records = [r for r, k in zip(records, keep) if k]
+        geoms = [g for g, k in zip(geoms, keep) if k]
     folder = box_folder(out, n)
     claim = claimer(request)
     folder.mkdir(parents=True, exist_ok=True)

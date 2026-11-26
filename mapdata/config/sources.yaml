@@ -183,6 +183,15 @@ sources:
     attribution: Data processed by Geofabrik GmbH and created by OpenStreetMap contributors
     refresh_days: 365
 
+  england-outline:
+    name: Geofabrik's outline of England, a .poly file
+    about: "The clipping boundary Geofabrik uses for its England extract: England with its islands, a buffer round the land, not a border. It chooses the pack tiles the England pack covers (P4-T2, England only, the PO's decision of 26 November 2026)."
+    url: https://download.geofabrik.de/europe/united-kingdom/england.poly
+    file: geofabrik-outlines/england.poly
+    licence: ODbL 1.0
+    attribution: Data processed by Geofabrik GmbH and created by OpenStreetMap contributors
+    refresh_days: 365
+
   hampshire-outline:
     name: Geofabrik's outline of Hampshire, a .poly file
     about: The clipping boundary Geofabrik uses for its Hampshire extract, for the rehearsal pack (P4-T1j).

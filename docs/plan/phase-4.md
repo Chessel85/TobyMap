@@ -36,7 +36,7 @@ Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP22
 * [x] P4-T1l Memory: no stage over 12 GB a process for the England build (the PO, 26 November 2026). Done with P4-T1m, 27 November 2026.
 * [x] P4-T1m The writing stage group by group: about 5 to 7 GB for England, not 20 to 30; the pack the same byte for byte, 27 November 2026 (docs/plan/p4-t1m-report.md).
 * [ ] P4-T2 The England pack (England only, the PO, 26 November 2026; planned as Great Britain). Work items, each its own session:
-  * [ ] P4-T2a Estimate and get ready: England's time, size and memory from the rehearsal; nothing heavy until you have it.
+  * [x] P4-T2a Estimate and get ready, 26 November 2026: about 850 MB, about 6 million features, 4.5 to 7 hours with --away, no process expected over 12 GB (docs/plan/p4-t2a-estimate-report.md).
   * [ ] P4-T2b The build, overnight.
   * [ ] P4-T2c Size by layer; a proposal to you if over 1 GB.
   * [ ] P4-T2d Checks: street places in and away from Hampshire, England's coast and islands, step timing.

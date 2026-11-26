@@ -182,7 +182,7 @@ def test_the_regional_packs_fetch_facts_only_for_areas_lakes_rivers_parks_and_na
 
     from mapdata.paths import CONFIG_DIR
 
-    for name in ("great-britain", "hampshire-isle-of-wight"):
+    for name in ("great-britain", "england", "hampshire-isle-of-wight"):
         stages = yaml.safe_load((CONFIG_DIR / "packs" / f"{name}.yaml").read_text(encoding="utf-8"))["stages"]
         layers = next(s for s in stages if s["stage"] == "wikidata")["layers"]
         assert {"lakes", "rivers", "parks", "national_parks", "parishes", "districts", "counties"} <= set(layers)

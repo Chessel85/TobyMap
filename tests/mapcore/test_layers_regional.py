@@ -14,7 +14,7 @@ LAYERS = yaml.safe_load((ROOT / "mapdata/config/layers/regional.yaml").read_text
 IDS = [layer["id"] for layer in LAYERS]
 TEMPLATES = yaml.safe_load((ROOT / "mapcore/describe/templates.yaml").read_text(encoding="utf-8"))
 EVENTS = {e["event"] for e in earcon_list()}
-PACKS = ["great-britain", "hampshire-isle-of-wight", "test-region"]
+PACKS = ["great-britain", "england", "hampshire-isle-of-wight", "test-region"]
 
 
 @pytest.mark.parametrize("layer", LAYERS, ids=IDS)

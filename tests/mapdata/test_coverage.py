@@ -243,8 +243,12 @@ def test_great_britain_and_its_rehearsal_have_the_same_stages():
     assert _without_region_lines("great-britain") == _without_region_lines("hampshire-isle-of-wight")
 
 
+def test_england_has_the_same_stages_as_great_britain():
+    assert _without_region_lines("england") == _without_region_lines("great-britain")
+
+
 def test_the_regional_packs_settings_load():
-    for name in ("great-britain", "hampshire-isle-of-wight", "test-region"):
+    for name in ("great-britain", "england", "hampshire-isle-of-wight", "test-region"):
         pack = load_pack(name)
         assert pack.data["coverage"]["kind"] == "region"
         assert [s["stage"] for s in pack.stages].index("coverage") >= 2

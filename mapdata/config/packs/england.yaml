@@ -1,0 +1,177 @@
+# The England pack (P4-T2, design docs/plan/p4-t1-design.md): a regional pack with street detail for England and its
+# islands, as Geofabrik's outline draws England. England only, the PO's decision of 26 November 2026; the Great
+# Britain pack's settings, great-britain.yaml, are kept for later. Inside its coverage, the pack tiles of tile level
+# 12 that hold land inside the outline, it answers for its layers instead of the world pack. It is built from the
+# same planet file as the world pack (DP107), so identifiers and borders agree.
+# The reference for each setting is docs/data-manager/configuration.md.
+#
+# This file must stay the same as great-britain.yaml apart from the lines marked "region:" at their end (name,
+# title, the outline, the box, space_needed_mb, the check places): a test compares the two.
+
+name: england   # region: the pack's name
+title: "England: streets, paths, land use, parks, school grounds, points of interest and every administrative level."   # region:
+version: 0.1.0
+# app_versions: P4-T3a sets the first version of the application that opens a regional pack (design 2.4).
+app_versions: {from: 0.0.1}
+coverage: {kind: region, draw_below_km: 250}
+layer_groups: [base, regional]
+space_needed_mb: 40000   # region: about 20 to 25 GB of stage folders, scaled from the rehearsal (P4-T2a)
+
+stages:
+  # The countries, regions, counties and islands, as the world reads them, within the outline's box widened by 0.1
+  # degrees (design 3.2).
+  - stage: osm-areas
+    source: planet
+    levels: [3, 4, 5]
+    counties: true
+    islands: true
+    box: [-7.21, 49.47, 2.35, 56.17]   # region:
+  # The grid squares at 10 metres instead of the world's 100, so the coast under the streets is the coast they meet.
+  - stage: squares
+    sources: [land-polygons, vliz-oceans]
+    seas: naturalearth-marine-areas
+    box: [-7.21, 49.47, 2.35, 56.17]   # region:
+    tolerance_m: 10
+    counties: true
+  - stage: join
+  # The coverage: the pack tiles at tile level 12 that hold land inside the outline, and everything cut to them.
+  - stage: coverage
+    sources: [england-outline]   # region:
+    tile_level: 12
+    merge_from_level: 6
+  # Every administrative level below the counties, by the local levels record (mapdata/config/local_levels.yaml):
+  # districts and parishes, cut to the counties' land, slivers to the neighbour, land in no parish as one area for
+  # each district, simplified on shared edges at the counties' detail (P4-T1b).
+  - stage: local-areas
+    source: planet
+    tolerance_m: 10
+    sliver_km2: 0.1
+    sliver_width_m: 200
+  # Every island under 1 km2 that the join has not named, as "Unnamed island" or by OpenStreetMap's island point on
+  # it (P4-T1c).
+  - stage: small-islands
+  # Every named lake, reservoir and lagoon, with the world's queries and ids, of any size, at 5 metres (P4-T1c).
+  - stage: osm-layer
+    source: planet
+    layer: lakes
+    queries:
+      - {query: "a[natural=water][water=lake][name]", type: lake}
+      - {query: "a[natural=water][water=reservoir][name]", type: reservoir}
+      - {query: "a[natural=water][water=lagoon][name]", type: lagoon}
+      - {query: "a[natural=water][water=pond][name]", type: lake}
+      - {query: "a[natural=water][!water][name]", type: lake}
+      - {query: "a[landuse=reservoir][name]", type: reservoir}
+    min_km2: 0
+    tolerance_m: 5
+    same_as: [oceans, seas]
+    box: [-7.21, 49.47, 2.35, 56.17]   # region:
+  # Every other lake, pond, reservoir and basin, of any size, into the lakes; unnamed ones by their type's words
+  # ("Pond", "Unnamed lake"); a river's area left out (P4-T1c).
+  - stage: osm-water
+    source: planet
+    tolerance_m: 5
+    leave_out: [river]
+  # The rivers the world pack has, with the world's settings and ids, joined by their Wikidata link, at 2 metres
+  # and with no check against Natural Earth (P4-T1g).
+  - stage: osm-rivers
+    source: planet
+    layer: rivers
+    min_km: 50
+    min_km_unlinked: 200
+    tolerance_m: 2
+    box: [-7.21, 49.47, 2.35, 56.17]   # region:
+  # Every other river and canal into the rivers, and every stream, ditch and drain into the streams, within the
+  # coverage, simplified to 2 metres: ways of one name that meet joined end to end, each kept in the direction the
+  # water flows; unnamed ways of one type that meet joined within one parish; a river way the osm-rivers stage has
+  # already used not read again; each feature's way numbers kept in ways.json (P4-T1g).
+  - stage: osm-waterways
+    source: planet
+    tolerance_m: 2
+    meet_m: 3
+    used_within_m: 5
+    used_share: 0.9
+  # The motorways and trunk roads and the main railway lines, with the world's settings and ids, at 2 metres
+  # (P4-T1d).
+  - stage: osm-lines
+    source: planet
+    tolerance_m: 2
+    box: [-7.21, 49.47, 2.35, 56.17]   # region:
+    layers:
+      - layer: roads
+        key: ref
+        unnamed: Unnamed road
+        queries:
+          - {query: "w[highway=motorway]", type: motorway}
+          - {query: "w[highway=trunk]", type: trunk road}
+      - layer: railways
+        key: name
+        unnamed: Unnamed railway line
+        number_name: Railway line
+        queries:
+          - {query: "w[railway=rail][highspeed=yes][!service]", type: high-speed railway}
+          - {query: "w[railway=rail][usage=main][!service]", type: railway}
+  # Every main road, street, track and path, named or not, within the coverage, simplified to 2 metres: main roads
+  # joined by their number, streets and paths by their name where they meet (or within 30 metres), unnamed ways of
+  # one type that meet joined within one parish; each feature's way numbers kept in ways.json (P4-T1d).
+  - stage: osm-streets
+    source: planet
+    tolerance_m: 2
+    join_gap_m: 30
+    meet_m: 3
+  # Land use, parks, school grounds and national parks within the coverage, by mapdata/config/land_classes.yaml,
+  # simplified to 5 metres: unnamed areas of one type that touch joined within one parish; national parks cut to
+  # the land; each class that differs from Shortbread's layer or zoom logged (P4-T1e).
+  - stage: osm-land
+    source: planet
+    tolerance_m: 5
+    meet_m: 1
+  # The points of interest within the coverage, in four layers (stops, shops-food, services, street-furniture), by
+  # the categories of mapdata/config/poi_categories.yaml: the first category that matches wins; an area becomes a
+  # place at a point inside it; an unnamed place is named by its category's words ("Bench") (P4-T1f).
+  - stage: osm-pois
+    source: planet
+  # Villages, suburbs, hamlets, neighbourhoods and quarters, as places, with their population from OSM and the areas
+  # each is in, read with the existing osm-places stage within the outline's box (P4-T1f).
+  - stage: osm-places
+    source: planet
+    layer: villages
+    box: [-7.21, 49.47, 2.35, 56.17]   # region:
+    queries:
+      - {query: "n[place=village][name]", type: village, population: true}
+      - {query: "n[place=suburb][name]", type: suburb, population: true}
+      - {query: "n[place=hamlet][name]", type: hamlet, population: true}
+      - {query: "n[place=neighbourhood][name]", type: neighbourhood, population: true}
+      - {query: "n[place=quarter][name]", type: quarter, population: true}
+    within: [countries, regions, counties, districts, parishes]
+  # The world pack's identifiers: each feature of a layer the world pack also has takes the world's id where both
+  # packs hold it, by id, then Wikidata, then name, type and overlap, keeping its own as an alias; every record
+  # naming it is changed too. matches.csv lists each match by Wikidata or name, and each world feature in the
+  # coverage with no match (P4-T1h).
+  - stage: match
+    source: world-pack
+  # Facts from Wikidata, read from the data folder where the world build already fetched them (same refresh label).
+  - stage: wikidata
+    source: wikidata
+    refresh: 2026-11
+    match: [lakes]
+    # Facts only for the areas, lakes, rivers, parks and national parks, so the streets and shops with a Wikidata
+    # link do not each wait on the query service (P4-T1k, design 3.12).
+    layers: [countries, regions, counties, islands, districts, parishes, oceans, seas, lakes, rivers, parks,
+             national_parks]
+  # Street-scale layers get only the areas they are in or partly in, and a line the boundaries it passes through
+  # in order; no neighbours, nearly touching or overlaps, and they are counted in no area's counts (P4-T1k, design
+  # 3.12). The districts, parishes, national parks, lakes and rivers keep everything. A street says which parishes
+  # it passes through, so districts and parishes are crossing areas too.
+  - stage: relationships
+    light_layers: [main-roads, streets, paths, streams, land-use, parks, school-grounds, stops, shops-food, services,
+                   street-furniture, villages]
+    crossing_areas: [countries, regions, counties, districts, parishes]
+  - stage: coast-stretches
+  - stage: corrections
+  - stage: write
+    # The drawing levels (P4-T1i): adjust on the rehearsal so a frame stays near 10,000 points a layer (VIS-1).
+    drawing_levels:
+      - {tolerance_m: 25, min_km2: 0.02, tile_level: 9, view_km: 50}
+      - {tolerance_m: 150, min_km2: 0.5, tile_level: 7, view_km: 150}
+  - stage: checks
+    places: [tests/acceptance/street_places_hampshire.yaml]   # region: the rehearsal's street places, all in England; P4-T2d adds places away from Hampshire

@@ -123,7 +123,7 @@ Last updated 26 November 2026. Read this first to resume.
 * The world pack of 21 November 07:17 (552.46 MB) is at E:\osmdata\tobymap\output\world\world.pack and fits the code, apart from the core-only work since. The Western Europe trial (55.19 MB) was built 21 November 01:20.
 * P4-T9d is done and committed (21 November, 09:40): bookmark files save and open on the desktop and the web; a core gap fixed (run_many dropped save_file and open_file). P4-T9 is complete.
 * Committed since 21 November 09:40: P4-T0e, P4-T13a, P4-T1 design note, P4-T1a, P4-T13b, P4-T1b to P4-T1k (see Progress). The Hampshire and Isle of Wight rehearsal pack (43.22 MB, 26 November) is at E:\osmdata\tobymap\output\hampshire-isle-of-wight.
-* Next: the memory work for the stages that load every feature (new work item, before P4-T2a), then the England pack (P4-T2, England only, the PO's decision of 26 November). Meanwhile P4-T3 (combining packs) and P4-T6 can go ahead on the rehearsal pack.
+* Next: P4-T1l, the memory work for the stages that load every feature (before P4-T2a; read "Hand-over: the memory work" below), then the England pack (P4-T2, England only, the PO's decision of 26 November). Meanwhile P4-T3 (combining packs) and P4-T6 can go ahead on the rehearsal pack.
 * Continuous integration: the P3-T28m said-order test now expects national parks first (the PO, 26 November); four other tests expected the old layer name and were fixed (e1bcfa8).
 * Continuous integration: the last failures were the macOS held-key timing test (allowance widened, c4d25ef) and two bookmark browser tests (fixed, 84c93d1). Check the latest runs first.
 
@@ -159,16 +159,49 @@ Then P4-T13b builds the stage (after physical, as territorial-waters is, so the 
 
 ### Suggested order for the next session
 
-1. Check continuous integration.
-2. P3-T15 Help (Sonnet), as the application has changed a lot.
-3. P4-T13a research (Opus), then P4-T13b on the Western Europe trial.
-4. P4-T0e test samples (Sonnet: Winchester, the New Forest, Lymington), needed by P4-T1.
-5. P4-T1a to P4-T1i (the regional pipeline; P4-T1f's category table goes to the PO as a CSV but need not wait), then P4-T1j the Hampshire and Isle of Wight rehearsal (a heavy run: under an hour).
-6. P4-T2 the Great Britain build (heavy: estimated from the rehearsal; run with the run switch, a stall watch and a snapshot worktree as on 21 November). If over 1 GB, P4-T2b proposes a split to the PO and waits.
-7. P4-T3 combining packs; then P3-T20d (browser speed, DP222 yes).
-8. P4-T6 the pack manager, P4-T6a to g (h, the test release, waits for the PO's yes).
-9. A world rebuild for P4-T13 and P4-T1h's identifier register, then P4-T7 memory with both packs, with the laptop idle.
-10. The full Python suite and all browser tests at the end.
+Written 26 November 2026, before a /clear. Steps 1 to 5 of the earlier list are done.
+
+1. Check continuous integration for 06fc39b (the five P4-T1i test failures should be gone).
+2. The memory work (new work item P4-T1l, Opus), the PO's decision of 26 November: the England build must not use too much memory. See "Hand-over: the memory work" below.
+3. P4-T2 the England pack (England only, the PO's decision): first a new estimate from the rehearsal for England, then the build (heavy: run switch, stall watch, snapshot worktree as on 21 November, --away overnight).
+4. P4-T3 combining packs (can start on the rehearsal pack while step 2 is under way); then P3-T20d (browser speed, DP222 yes).
+5. P4-T6 the pack manager, P4-T6a to g (h, the test release, waits for the PO's yes).
+6. A world rebuild for P4-T13 and P4-T1h's identifier register, then P4-T7 memory with both packs, with the laptop idle.
+7. The full Python suite and all browser tests at the end.
+
+### Hand-over: the memory work (P4-T1l)
+
+The aim (design docs/plan/p4-t1-design.md 7.4): no process above 12 GB for England, with the PO's files and NVDA open on the 32 GB laptop.
+
+What the rehearsal measured (docs/plan/p4-t1j-rehearsal-report.md, "Peak memory for each stage"), 306,860 features, the largest single process:
+
+* relationships 1.5 GB, write 1.8 GB, wikidata 1.4 GB; the reading stages under 0.9 GB; match 0.6 GB.
+* About 4 KB a feature after about 0.3 GB for the program itself. England may hold 6 to 7 million features, so 25 GB or more in one process as the stages are now.
+
+Where the whole pack is loaded at once:
+
+* features.load(ctx.previous) loads every record and every shape: mapdata/stages/relationships.py line 994, write.py line 464, wikidata.py line 568. mapdata/pipeline/features.py has load and load_layers.
+* json.loads of the whole features.json (records only): match.py line 415, coast_stretches.py line 250, corrections.py line 322.
+
+Ways to look at, to be chosen after measuring:
+
+* Load only the layers a stage needs (load_layers), or records without shapes where shapes are not used (wikidata likely needs only records).
+* Relationships: the light layers need only "in", "partly" and crossings. Handle them in batches by pack tile or region against the areas, which are few, instead of holding every feature's shape at once.
+* Writing: write pack tile by pack tile, reading only the shapes each needs, and build the search index and directory from records alone.
+* Records as compact rows (tuples or NumPy arrays) instead of dicts, if records dominate.
+
+Method:
+
+1. First measure where the memory goes, stage by stage, on the rehearsal: records against shapes against each stage's own structures (tracemalloc or a peak working set sample). The build's heartbeat already logs "Memory: this build ... MB" every 5 minutes. A peak-memory line per stage in the build log would be worth adding for the England build.
+2. Change one stage at a time, with a test that the stage's output is byte for byte the same as before (the test pack, and the rehearsal's stage folder).
+3. Rerun the rehearsal from the first changed stage (fingerprints change with the code) and compare: the pack's sha256, the check places (20 of 20), the time, and the peak memory. Then estimate England's peak again.
+4. World fingerprints: relationships.py, write.py and wikidata.py are in the world's stages too. A change reruns them on the next world build; that is expected, but the world's output must stay the same (DMT-1).
+
+How to run and watch the rehearsal (learnt 26 November):
+
+* .venv\Scripts\python.exe -m mapdata build hampshire-isle-of-wight --workers 3. A full rerun from the reading stages takes about 19 minutes.
+* Watch E:\osmdata\tobymap\output\hampshire-isle-of-wight\hampshire-isle-of-wight build log.txt, which is written as the build goes; standard output sent to a file stays empty until the end.
+* A sampler of the build's Python processes every 10 seconds (Get-Process python, WorkingSet64, total and largest) gave each stage's peak by matching the log's elapsed times.
 
 ### How the 20 to 21 November run went, for method
 

@@ -1285,11 +1285,43 @@ def by_id(rel: dict[int, dict], ids: list[str]) -> dict[str, dict]:
 def load_by_id(folder, ids: list[str]) -> dict[str, dict] | None:
     """by_id(load(folder), ids), but each feature's relationships read from the file and given their ids one at a
     time, so the relationships by index are never all held beside those by id (P4-T1l). The same order."""
+    out: dict[str, dict] = {}
+    if not _each_by_id(folder, ids, lambda i, rel: out.__setitem__(ids[i], rel)):
+        return None
+    return out
+
+
+def load_store(folder, ids: list[str], index_of: dict[str, int], spill_folder=None, change=None):
+    """The relationships as load_by_id gives them, but set aside on disk in a RelStore (P4-T1m), each changed by
+    change(rel) first if given. None when the stage before has no relationships file."""
+    from mapdata.pipeline.spill import RelStore
+
+    store = RelStore(ids, index_of, spill_folder)
+
+    def put(i, rel):
+        if change is not None:
+            change(rel)
+        store.put(i, rel)
+
+    try:
+        found = _each_by_id(folder, ids, put)
+    except BaseException:
+        store.close()
+        raise
+    if not found:
+        store.close()
+        return None
+    return store
+
+
+def _each_by_id(folder, ids: list[str], take) -> bool:
+    """take(index, relationships with ids) for each feature in the relationships file, in its order; False when
+    there is no file."""
     path = Path(folder) / FILE
     if not path.is_file():
-        return None
+        return False
     text = path.read_text(encoding="utf-8")
-    decoder, out = json.JSONDecoder(), {}
+    decoder = json.JSONDecoder()
     space = " \t\r\n"
 
     def skip(at):
@@ -1302,8 +1334,8 @@ def load_by_id(folder, ids: list[str]) -> dict[str, dict] | None:
         key, at = decoder.raw_decode(text, at)
         at = skip(at)
         value, at = decoder.raw_decode(text, skip(at + 1))   # past ":"
-        out[ids[int(key)]] = _with_ids(value, ids)
+        take(int(key), _with_ids(value, ids))
         at = skip(at)
         if text[at] == ",":
             at = skip(at + 1)
-    return out
+    return True

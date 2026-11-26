@@ -188,6 +188,41 @@ def require_checksum(path) -> None:
 
 # Writing -------------------------------------------------------------------
 
+def tile_data(entries, exact: bool, level: int, count: int) -> bytes:
+    """A pack tile's or drawing tile's record, checked: entries are (feature number, kind, bytes), with feature
+    numbers below count. exact for a pack tile of exact shapes, whose limits on points are checked."""
+    entries = [tiles.TileEntry(*e) for e in entries]
+    if not entries:
+        raise PackWriteError("an empty tile is not stored")
+    total = 0
+    for e in entries:
+        if not 0 <= e.feature < count:
+            raise PackWriteError(f"feature number {e.feature} is not in the pack")
+        if e.kind not in tiles.KINDS:
+            raise PackWriteError(f"tile entry kind {e.kind} is not allowed")
+        if e.kind == tiles.COVERED:
+            if e.data:
+                raise PackWriteError("a covered note has no bytes")
+            continue
+        points = coords.point_count(e.data) if e.kind == tiles.COMPACT else coords.line_point_count(e.data)
+        total += points
+        if exact and points > tiles.ENTRY_POINTS and level < tiles.MAX_TILE_LEVEL:
+            raise PackWriteError(f"a tile entry at tile level {level} has {points} points; "
+                                 f"the most is {tiles.ENTRY_POINTS}, so cut it at the next level")
+    if exact and total > tiles.TILE_POINTS and level < tiles.MAX_TILE_LEVEL:
+        raise PackWriteError(f"a pack tile at tile level {level} has {total} points; "
+                             f"the most is {tiles.TILE_POINTS}, so split it")
+    return tiles.encode_entries(entries)
+
+
+def stored_tile(entries, level: int, count: int) -> tuple[bytes, int]:
+    """A pack tile's record compressed as the pack stores it, and its check number, for
+    PackWriter.add_stored_tile. Made in a worker, so the main process neither holds the entries nor compresses
+    them (P4-T1m)."""
+    stored = zlib.compress(tile_data(entries, True, level, count), 9)
+    return stored, check_number(stored)
+
+
 class PackWriter:
     """Writes a pack in format 4.
 
@@ -210,8 +245,9 @@ class PackWriter:
         self.start = self.out.tell()
         self.out.write(bytes(HEADER_SIZE))
         self.directory: dict[str, list[int]] = {}
-        self.numbers: dict[str, int] | None = None
-        self.features: list[dict] = []
+        self.numbers: dict[str, int] | None = None   # or any mapping that answers `in` and [] (P4-T1m)
+        self.count = 0   # how many features
+        self.layers_used: set[str] = set()
         self.group_starts: list[int] = []
         self.tile_levels: set[int] = set()
         self.drawing_used: dict[int, set[tuple[int, int]]] = {}
@@ -219,12 +255,16 @@ class PackWriter:
         self.finished = False
 
     def _put(self, key: str, data: bytes) -> None:
+        stored = zlib.compress(data, 9)
+        self._put_stored(key, stored, check_number(stored))
+
+    def _put_stored(self, key: str, stored: bytes, check: int) -> None:
+        """A record already compressed, with its check number."""
         if self.finished:
             raise PackWriteError("the pack is already finished")
         if key in self.directory:
             raise PackWriteError(f"record {key} is written twice")
-        stored = zlib.compress(data, 9)
-        self.directory[key] = [self.out.tell() - self.start, len(stored), check_number(stored)]
+        self.directory[key] = [self.out.tell() - self.start, len(stored), check]
         self.out.write(stored)
 
     def add_features(self, records: list[dict]) -> dict[str, int]:
@@ -242,26 +282,57 @@ class PackWriter:
             seen.add(r["id"])
         groups = max(1, math.ceil(len(records) / GROUP_SIZE))
         ordered = sorted(records, key=lambda r: (feature_group(r["id"], groups), r["id"]))
-        self.features = ordered
-        self.numbers = {r["id"]: n for n, r in enumerate(ordered)}
-        self.group_starts = []
+        starts, by_group = [], []
         n = 0
         for g in range(groups):
-            self.group_starts.append(n)
+            starts.append(n)
             members = []
             while n < len(ordered) and feature_group(ordered[n]["id"], groups) == g:
                 members.append(ordered[n])
                 n += 1
             if members:
-                self._put(f"features/{g}", _json(members))
+                by_group.append((g, members))
+        self.add_feature_groups(starts, by_group, {r["id"]: n for n, r in enumerate(ordered)})
         return dict(self.numbers)
+
+    def add_feature_groups(self, group_starts: list[int], members, numbers) -> None:
+        """Write the feature records a group at a time (P4-T1m), as add_features does: members gives (group, its
+        records in their order) for each group that has any, in order, and numbers each identifier's feature
+        number, a mapping that answers `in`, [] and len. The caller has put them in order and numbered them as
+        add_features would; only one group's records need be held at once."""
+        if self.numbers is not None:
+            raise PackWriteError("add_features is called once")
+        self.numbers = numbers
+        self.group_starts = list(group_starts)
+        written = 0
+        for g, records in members:
+            for r in records:
+                missing = [f for f in FEATURE_FIELDS if f not in r]
+                if missing:
+                    raise PackWriteError(f"feature {r.get('id', '?')} has no {', '.join(missing)}")
+                self.layers_used.add(r["layer"])
+            written += len(records)
+            if records:
+                self._put(f"features/{g}", _json(records))
+        if written != len(numbers):
+            raise PackWriteError(f"{written} feature records written for {len(numbers)} features")
+        self.count = written
+
+    def add_relationship_groups(self, per_group) -> None:
+        """add_relationships a group at a time (P4-T1m): per_group gives (group, {identifier: relationships}) for
+        each group whose features have any, in order. The caller makes sure each identifier is in the pack."""
+        if self.numbers is None:
+            raise PackWriteError("add_features comes before the relationships")
+        for g, by_id in per_group:
+            if by_id:
+                self._put(f"relations/{g}", _json(by_id))
 
     def add_relationships(self, by_id: dict[str, dict]) -> None:
         """Write each feature's relationships (P3-T3e, architecture 6.5), in the feature records' groups: record
         relations/G holds, as a JSON object by identifier, those of group G's features that have any."""
         if self.numbers is None:
             raise PackWriteError("add_features comes before the relationships")
-        unknown = sorted(set(by_id) - set(self.numbers))
+        unknown = sorted(f for f in by_id if f not in self.numbers)
         if unknown:
             raise PackWriteError(f"relationships of features not in the pack: {', '.join(unknown[:5])}")
         groups = max(1, len(self.group_starts))
@@ -285,7 +356,7 @@ class PackWriter:
         if "tree" in self.directory:
             raise PackWriteError("add_contents is called once")
         named = {i for ids in tree.values() for i in ids if not i.startswith(contents.DISPUTE_PREFIX)}
-        unknown = sorted((named | set(holds)) - set(self.numbers))
+        unknown = sorted(f for f in (named | set(holds)) if f not in self.numbers)
         if unknown:
             raise PackWriteError(f"the contents name features not in the pack: {', '.join(unknown[:5])}")
         self._put("tree", _json({"children": {k: list(v) for k, v in tree.items()}, "names": names}))
@@ -293,7 +364,7 @@ class PackWriter:
         per: dict[int, dict] = {}
         for fid, by_layer in holds.items():
             for layer, (numbers, partly) in by_layer.items():
-                if any(not 0 <= n < len(self.features) for n in numbers) or not set(partly) <= set(numbers):
+                if any(not 0 <= n < self.count for n in numbers) or not set(partly) <= set(numbers):
                     raise PackWriteError(f"the contents of {fid} give a feature number not in the pack")
             per.setdefault(feature_group(fid, groups), {})[fid] = {
                 layer: [contents.to_steps(sorted(numbers)), contents.to_steps(sorted(partly))]
@@ -321,28 +392,16 @@ class PackWriter:
     def _entries(self, entries, exact: bool, level: int) -> bytes:
         if self.numbers is None:
             raise PackWriteError("add_features comes before the tiles")
-        entries = [tiles.TileEntry(*e) for e in entries]
-        if not entries:
-            raise PackWriteError("an empty tile is not stored")
-        total = 0
-        for e in entries:
-            if not 0 <= e.feature < len(self.features):
-                raise PackWriteError(f"feature number {e.feature} is not in the pack")
-            if e.kind not in tiles.KINDS:
-                raise PackWriteError(f"tile entry kind {e.kind} is not allowed")
-            if e.kind == tiles.COVERED:
-                if e.data:
-                    raise PackWriteError("a covered note has no bytes")
-                continue
-            points = coords.point_count(e.data) if e.kind == tiles.COMPACT else coords.line_point_count(e.data)
-            total += points
-            if exact and points > tiles.ENTRY_POINTS and level < tiles.MAX_TILE_LEVEL:
-                raise PackWriteError(f"a tile entry at tile level {level} has {points} points; "
-                                     f"the most is {tiles.ENTRY_POINTS}, so cut it at the next level")
-        if exact and total > tiles.TILE_POINTS and level < tiles.MAX_TILE_LEVEL:
-            raise PackWriteError(f"a pack tile at tile level {level} has {total} points; "
-                                 f"the most is {tiles.TILE_POINTS}, so split it")
-        return tiles.encode_entries(entries)
+        return tile_data(entries, exact, level, self.count)
+
+    def add_stored_tile(self, level: int, x: int, y: int, stored: bytes, check: int) -> None:
+        """add_tile with the record already made and compressed by stored_tile, such as in a worker (P4-T1m)."""
+        if self.numbers is None:
+            raise PackWriteError("add_features comes before the tiles")
+        if not tiles.in_grid(level, x, y):
+            raise PackWriteError(f"pack tile {level}/{x}/{y} is not in the grid")
+        self._put_stored(tiles.tile_key(level, x, y), stored, check)
+        self.tile_levels.add(level)
 
     def add_tile(self, level: int, x: int, y: int, entries) -> None:
         """A pack tile of exact shapes: entries are (feature number, kind, bytes)."""
@@ -397,7 +456,7 @@ class PackWriter:
             "layers": [layer["id"] for layer in layers],
             "tile_levels": sorted(self.tile_levels),
             "coordinates": {"encoding": "compact", "scale": coords.SCALE},
-            "features": {"count": len(self.features), "groups": len(self.group_starts),
+            "features": {"count": self.count, "groups": len(self.group_starts),
                          "group_starts": self.group_starts},
             "limits": {"entry_points": tiles.ENTRY_POINTS, "tile_points": tiles.TILE_POINTS},
         }
@@ -415,7 +474,7 @@ class PackWriter:
         ids = [layer.get("id") for layer in layers]
         if any(not i or not layers[n].get("name") for n, i in enumerate(ids)) or len(set(ids)) != len(ids):
             raise PackWriteError("each layer has its own id and a name")
-        unknown = sorted({f["layer"] for f in self.features} - set(ids))
+        unknown = sorted(self.layers_used - set(ids))
         if unknown:
             raise PackWriteError(f"features use layers not defined: {', '.join(unknown)}")
         self._put("manifest", _json(self._manifest(manifest, layers)))

@@ -603,10 +603,15 @@ def run(ctx) -> None:
 def with_ids(rel_by_id: dict[str, dict], ids: list[str]) -> None:
     """The stored stretches with each neighbour's and water's index made the identifier it is written with, in place."""
     for rel in rel_by_id.values():
-        entry = rel.get(KEY)
-        if not entry:
-            continue
-        for s in entry["stretches"]:
-            s["ends"] = [[lon, lat, None if o is None else ids[o]] for lon, lat, o in s["ends"]]
-            if s.get("water") is not None:
-                s["water"] = ids[s["water"]]
+        with_ids_one(rel, ids)
+
+
+def with_ids_one(rel: dict, ids: list[str]) -> None:
+    """with_ids for one feature's relationships (P4-T1m)."""
+    entry = rel.get(KEY)
+    if not entry:
+        return
+    for s in entry["stretches"]:
+        s["ends"] = [[lon, lat, None if o is None else ids[o]] for lon, lat, o in s["ends"]]
+        if s.get("water") is not None:
+            s["water"] = ids[s["water"]]

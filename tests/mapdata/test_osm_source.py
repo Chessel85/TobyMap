@@ -159,6 +159,25 @@ def test_a_reading_box_keeps_only_what_is_near_the_coverage(tmp_path):
     assert [r["id"] for r in kept] == ["in", "near", "crossing"]
 
 
+def test_a_reading_box_keeps_its_count_record_but_no_empty_feature(tmp_path):
+    """osm-water's count of the river areas left out has no shape and is kept; a feature whose shape is empty is
+    left out, as osm-land's joining fails on it (found rebuilding the rehearsal, P4-T1m)."""
+    tiles = [(14, 8132, 12839)]
+    cov_folder = tmp_path / "coverage"
+    cov_folder.mkdir()
+    shape = coverage.coverage_shape(tiles)
+    coverage.save(cov_folder, coverage.Coverage("test", 14, tiles, shape, ["test"]))
+    request = {"coverage": str(cov_folder / coverage.COVERAGE_FILE), "own": ""}
+    west, south, _east, _north = shape.bounds
+    geoms = [shapely.Point(west + 0.001, south + 0.001), shapely.Polygon(), shapely.GeometryCollection()]
+    records = [{"id": "in"}, {"id": "way/1", "layer": "land-use"}, {"id": "count:rivers:0", "rivers_left_out": 3}]
+    folder = osm_source.save_box(request, tmp_path / "read", 0, records, geoms)
+    from mapdata.pipeline import features
+
+    kept, _g = features.load(folder)
+    assert [r["id"] for r in kept] == ["in", "count:rivers:0"]
+
+
 def test_run_reading_runs_the_stages_read_job_a_box_at_a_time(tmp_path, monkeypatch):
     tiles = [(14, 8132, 12839)]   # Winchester's pack tile
     cov_folder = tmp_path / "coverage"

@@ -32,9 +32,14 @@ def one_crossing_each(rel: dict[int, dict]) -> None:
     apart and was stored as crossing twice. Done here, not in the long relationships stage, so only the pack is
     written again; the core keeps the same rule for packs written before."""
     for r in rel.values():
-        if "crossed_at" in r:
-            r["crossed_at"] = [[i, [list(p) for p in geodesy.merge_close(pts, geodesy.ONE_CROSSING_M)]]
-                               for i, pts in r["crossed_at"]]
+        one_crossing(r)
+
+
+def one_crossing(r: dict) -> None:
+    """one_crossing_each for one feature's relationships (P4-T1m)."""
+    if "crossed_at" in r:
+        r["crossed_at"] = [[i, [list(p) for p in geodesy.merge_close(pts, geodesy.ONE_CROSSING_M)]]
+                           for i, pts in r["crossed_at"]]
 
 
 def keep_ids_unique(records: list[dict], say, renamed: dict | None = None) -> int:
@@ -490,14 +495,29 @@ def _run(ctx, records, geoms) -> None:
     if changed:
         ctx.progress.line(f"Ids used twice, written with an ending so every id is different: {changed}. "
                           "The log lists them.")
-    # From the relationships stage, by each feature's index (P3-T3), read straight into their form by id (P4-T1l).
-    rel_by_id = relmod.load_by_id(ctx.previous, [r["id"] for r in records]) or None
-    if rel_by_id:
-        one_crossing_each(rel_by_id)
-    if rel_by_id is not None:   # P3-T30b: the stretches of coast name their neighbours and waters by identifier
-        from mapdata.stages import coast_stretches
+    # From the relationships stage, by each feature's index (P3-T3), read straight into their form by id (P4-T1l),
+    # and set aside on disk, not held: England has millions (P4-T1m). Each line's crossings close together made one;
+    # the stretches of coast name their neighbours and waters by identifier (P3-T30b).
+    from mapdata.stages import coast_stretches
 
-        coast_stretches.with_ids(rel_by_id, [r["id"] for r in records])
+    ids = [r["id"] for r in records]
+    index_of = {fid: i for i, fid in enumerate(ids)}
+
+    def change(rel):
+        one_crossing(rel)
+        coast_stretches.with_ids_one(rel, ids)
+
+    rel_by_id = relmod.load_store(ctx.previous, ids, index_of, ctx.folder, change)
+    try:
+        _run_with(ctx, records, geoms, rel_by_id, ids, index_of)
+    finally:
+        if rel_by_id is not None:
+            rel_by_id.close()
+
+
+def _run_with(ctx, records, geoms, rel_by_id, ids, index_of) -> None:
+    if rel_by_id is not None and not rel_by_id:
+        rel_by_id = None   # as before: a file with no relationships is as none
     if rel_by_id is not None:   # P3-T32g: the islands' shores on the lakes, for the islands in each lake
         import time
 
@@ -530,7 +550,7 @@ def _run(ctx, records, geoms) -> None:
     with parallel.pool(ctx.workers) as executor:
         pool = None if ctx.workers == 1 else executor
         write_with(ctx, records, geoms, sources, pool, tiers["tiers"],
-                   rel_by_id, search)   # records become the feature records, in place (P4-T1l)
+                   rel_by_id, search, ids, index_of)   # records become the feature records, in place (P4-T1l)
 
 
 def coverage_member(ctx, present: list[str]) -> dict:
@@ -549,7 +569,8 @@ def coverage_member(ctx, present: list[str]) -> dict:
 
 
 def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None = None,
-               relationships: dict | None = None, search: dict | None = None) -> None:
+               relationships: dict | None = None, search: dict | None = None, ids: list[str] | None = None,
+               index_of: dict[str, int] | None = None) -> None:
     """The rest of the writing stage, with the pool of workers open for all of it (P3-T1k)."""
     import time
 
@@ -606,4 +627,5 @@ def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None =
     ctx.claim(checksum_path(path))
     pack_write.write(path, manifest, records, geoms, ctx.workers, say=ctx.progress.line, layers=layers,
                      attribution=attribution_text(sources), drawing_geoms=drawing_geoms, executor=executor,
-                     before_records=set_areas, relationships=relationships, search=search, in_place=True)
+                     before_records=set_areas, relationships=relationships, search=search, in_place=True,
+                     ids=ids, index_of=index_of, records_first=not early)

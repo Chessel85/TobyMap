@@ -228,16 +228,21 @@ def contents(records: list[dict], relationships_of, numbers: dict[str, int],
     """The contents of each area of the holder layers, as {holder id: {layer: (feature numbers, those only partly
     inside)}}, each ascending: every feature inside it fully or partly, the same land, or crossing it."""
     holding = {r["id"] for r in records if r.get("layer") in holder_layers}
-    out: dict[str, dict[str, tuple[set, set]]] = {}
+    # Lists, not sets: holders() gives each area once, so a feature is added to each list at most once, and a
+    # list of the same numbers takes a fraction of a set's memory on a pack of millions of features (P4-T1m).
+    out: dict[str, dict[str, tuple[list, list]]] = {}
     for r in records:
         fid = r["id"]
         rel = relationships_of(fid)
+        number = None
         for h in holders(rel, r["layer"]):
             if h in holding and h != fid:
-                every, partly = out.setdefault(h, {}).setdefault(r["layer"], (set(), set()))
-                every.add(numbers[fid])
+                if number is None:
+                    number = numbers[fid]
+                every, partly = out.setdefault(h, {}).setdefault(r["layer"], ([], []))
+                every.append(number)
                 if partly_in(rel, h, r["layer"]):
-                    partly.add(numbers[fid])
+                    partly.append(number)
     return {h: {layer: (sorted(every), sorted(partly)) for layer, (every, partly) in by_layer.items()}
             for h, by_layer in out.items()}
 

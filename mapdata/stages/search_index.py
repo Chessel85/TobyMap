@@ -193,67 +193,117 @@ def _nearly_same_size(a: dict, b: dict) -> bool:
     return x > 0 and y > 0 and min(x, y) >= SAME_SIZE * max(x, y)
 
 
-def rows(made: list[dict], relationships: dict[str, dict] | None, sites: dict[str, int],
-         settings: dict | None = None) -> list[list]:
-    """The search index's rows (mapcore.search.ROW), sorted."""
+class _Found:
+    """What the index keeps of a feature while it is made (P4-T1m): only what the rows and the choice between two
+    features of one name need, not the whole record, as England has millions."""
+
+    __slots__ = ("id", "english", "layer", "wikidata", "order", "area", "same", "named_from", "inside",
+                 "importance", "lon", "lat", "parts", "parts_more")
+
+
+class _Names:
+    """Describer's by_id, read through lookup(identifier) and kept short: each area's name and layer only."""
+
+    def __init__(self, lookup):
+        self.lookup = lookup
+        self.seen: dict[str, dict | None] = {}
+
+    def get(self, fid, default=None):
+        if fid not in self.seen:
+            r = self.lookup(fid)
+            self.seen[fid] = None if r is None else {
+                "name": (r.get("names") or {}).get("en") or r.get("name"), "layer": r.get("layer")}
+        got = self.seen[fid]
+        return default if got is None else got
+
+
+def rows(made, relationships: dict[str, dict] | None, sites: dict[str, int],
+         settings: dict | None = None, lookup=None) -> list[list]:
+    """The search index's rows (mapcore.search.ROW), sorted. made gives the feature records, in order, once;
+    lookup(identifier), if given, finds a feature's record for the descriptions, else made is a list and is read
+    twice. relationships may be a spill.RelStore (P4-T1m)."""
     s = settings_of(settings)
     skip = set(s["skip_names"])
     leave_out = set(s["leave_out"])
     rel = relationships or {}
-    by_id = {r["id"]: r for r in made}
-    describe = Describer(by_id, rel)
-    by_key: dict[str, list[tuple[dict, str]]] = defaultdict(list)
+    if lookup is None:
+        by_id = {r["id"]: r for r in made}
+        lookup = by_id.get
+    describe = Describer(_Names(lookup), rel)
+    by_key: dict[str, list[tuple[_Found, str]]] = defaultdict(list)
     for rec in made:
         if rec["layer"] in leave_out:
             continue
-        for key, written in names_of(rec, skip):
-            by_key[key].append((rec, written))
+        names = names_of(rec, skip)
+        if not names:
+            continue
+        mine = rel.get(rec["id"]) or {}
+        f = _Found()
+        f.id, f.layer, f.wikidata = rec["id"], rec["layer"], rec.get("wikidata")
+        f.english = (rec.get("names") or {}).get("en") or rec.get("name")
+        f.area = rec.get("area_km2") or 0.0
+        f.order = (rec.get("layer") not in ADMIN, rec.get("rank", 8), -f.area, rec["id"])
+        f.same = tuple(mine.get("same", ()))
+        f.named_from = rec.get("named_from")
+        # Only an area can be nearly the size of an area it is in (_nearly_same_size), so only an area keeps "in".
+        f.inside = tuple(sys.intern(o) for o in mine.get("in", ())) if f.area > 0 else ()
+        f.importance = importance(rec, sites.get(rec["id"]), s["weights"])
+        point = rec.get("point") or [None, None]
+        f.lon = None if point[0] is None else round(point[0], 3)
+        f.lat = None if point[1] is None else round(point[1], 3)
+        f.parts = sys.intern(", ".join(describe.parts(rec)))
+        f.parts_more = sys.intern(", ".join(describe.parts(rec, more=True)))
+        for key, written in names:
+            by_key[sys.intern(key)].append((f, written))
+
+    def text(f: _Found, more: bool = False) -> str:   # Describer.text, from what was kept
+        parts = f.parts_more if more else f.parts
+        return f"{f.english}, {parts}" if parts else f.english
+
+    def better(a: _Found, b: _Found) -> bool:   # _better
+        return a.order < b.order
+
+    def nearly_same_size(a: _Found, b: _Found) -> bool:   # _nearly_same_size
+        x, y = a.area, b.area
+        return x > 0 and y > 0 and min(x, y) >= SAME_SIZE * max(x, y)
 
     out = []
     for key in sorted(by_key):
-        found = by_key[key]
+        found = by_key.pop(key)
         # One thing found two ways: the same Wikidata item, or the same land (DP71), under the same name.
         dropped: set[str] = set()
-        recs = {rec["id"]: rec for rec, _w in found}
-        by_item: dict[str, dict] = {}
-        for rec, _w in found:
-            q = rec.get("wikidata")
+        recs = {f.id: f for f, _w in found}
+        by_item: dict[str, _Found] = {}
+        for f, _w in found:
+            q = f.wikidata
             if q:
                 if q in by_item:
-                    worse = rec if _better(by_item[q], rec) else by_item[q]
-                    dropped.add(worse["id"])
+                    worse = f if better(by_item[q], f) else by_item[q]
+                    dropped.add(worse.id)
                     if worse is by_item[q]:
-                        by_item[q] = rec
+                        by_item[q] = f
                 else:
-                    by_item[q] = rec
-        ids = {rec["id"] for rec, _w in found}
-        for rec, _w in found:
+                    by_item[q] = f
+        for f, _w in found:
             # The same land (DP71), or an area named from the other, as a country's distant part is from its
             # region (DP191): Hawaii the region and Hawaii the area of the Countries layer.
             # Also an area inside another of the same name and nearly its size: the Isle of Wight the island and
             # the Isle of Wight the county.
-            mine = rel.get(rec["id"], {})
-            others = [*mine.get("same", ()), rec.get("named_from"),
-                      *(o for o in mine.get("in", ()) if o in recs and _nearly_same_size(rec, recs[o]))]
+            others = [*f.same, f.named_from, *(o for o in f.inside if o in recs and nearly_same_size(f, recs[o]))]
             for other in others:
-                if other and other in ids and other != rec["id"]:
-                    dropped.add(rec["id"] if _better(recs[other], rec) else other)
-        kept = [(rec, w) for rec, w in found if rec["id"] not in dropped]
-        texts = {rec["id"]: describe.text(rec) for rec, _w in kept}
+                if other and other in recs and other != f.id:
+                    dropped.add(f.id if better(recs[other], f) else other)
+        kept = [(f, w) for f, w in found if f.id not in dropped]
+        texts = {f.id: text(f) for f, _w in kept}
         counts: dict[str, int] = defaultdict(int)
         for t in texts.values():
             counts[t] += 1
-        for rec, written in kept:
-            text = texts[rec["id"]]
-            if counts[text] > 1:
-                text = describe.text(rec, more=True)
-            english = (rec.get("names") or {}).get("en") or rec.get("name")
-            point = rec.get("point") or [None, None]
-            out.append([sys.intern(key), english, rec["id"], rec["layer"],
-                        importance(rec, sites.get(rec["id"]), s["weights"]),
-                        None if point[0] is None else round(point[0], 3),
-                        None if point[1] is None else round(point[1], 3),
-                        sys.intern(text), "" if written == english or search.normalise(english) == key else written])
+        for f, written in kept:
+            t = texts[f.id]
+            if counts[t] > 1:
+                t = text(f, more=True)
+            out.append([key, f.english, f.id, f.layer, f.importance, f.lon, f.lat, sys.intern(t),
+                        "" if written == f.english or search.normalise(f.english) == key else written])
     out.sort(key=lambda r: (r[search.KEY], r[search.ID]))
     return out
 
@@ -273,11 +323,12 @@ def stored(row: list) -> list:
 def buckets(rows_: list[list], bucket_rows: int = SETTINGS["bucket_rows"]) -> tuple[int, dict[int, list[list]]]:
     """(how many search records, {record number: its rows as stored}), each row filed under each of its
     prefixes once."""
-    filings = [(row, search.filed_under(row[search.KEY])) for row in rows_]
-    total = sum(len(p) for _r, p in filings)
+    total = sum(len(search.filed_under(row[search.KEY])) for row in rows_)
     n = max(1, math.ceil(total / max(1, bucket_rows)))
     out: dict[int, list[list]] = defaultdict(list)
-    for row, prefixes in filings:
+    for row in rows_:
+        prefixes = search.filed_under(row[search.KEY])
+        kept = stored(row)   # one list, filed in each of its records: the same bytes, a fraction of the memory
         for b in sorted({search.bucket(p, n) for p in prefixes}):
-            out[b].append(stored(row))
+            out[b].append(kept)
     return n, dict(out)

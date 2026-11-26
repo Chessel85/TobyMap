@@ -40,7 +40,8 @@ from pathlib import Path
 
 from mapdata.pipeline.errors import BuildStopped
 from mapdata.pipeline.settings import REPO
-from mapdata.stages.relationships import FILE as REL_FILE
+from mapdata.pipeline import features
+from mapdata.stages.relationships import FILE as REL_FILE, write_file
 
 DEFAULT_FILE = "mapdata/config/corrections.yaml"
 KINDS = ("rename", "leave_out", "change", "parent")
@@ -319,7 +320,7 @@ def _copy(src, dst) -> None:
 def run(ctx) -> None:
     rules = load_rules(ctx.settings)
     shown = ctx.settings.get("file") or DEFAULT_FILE
-    data = json.loads((ctx.previous / "features.json").read_text(encoding="utf-8"))
+    data = features.read_index(ctx.previous)   # each repeated short string held once (P4-T1l)
     records, shapes = data["records"], data["shapes"]
     rel_path = ctx.previous / REL_FILE
     rel = ({int(k): v for k, v in json.loads(rel_path.read_text(encoding="utf-8")).items()}
@@ -328,13 +329,11 @@ def run(ctx) -> None:
     records, shapes, rel = leave_out(leave, records, shapes, rel)
 
     _copy(ctx.previous / "shapes.wkb", ctx.claim(ctx.folder / "shapes.wkb"))
-    text = json.dumps({"records": records, "shapes": shapes}, ensure_ascii=False, sort_keys=True, indent=0)
-    ctx.claim(ctx.folder / "features.json").write_text(text, encoding="utf-8", newline="\n")
+    features.write_json(ctx.claim(ctx.folder / "features.json"), {"records": records, "shapes": shapes})
     if rel_path.is_file() and not (leave or any("parent" in r for r in rules)):
         _copy(rel_path, ctx.claim(ctx.folder / REL_FILE))   # no rule changes a relationship: passed on unchanged
     elif rel_path.is_file():
-        text = json.dumps({str(i): r for i, r in sorted(rel.items())}, sort_keys=True, separators=(",", ":"))
-        ctx.claim(ctx.folder / REL_FILE).write_text(text, encoding="utf-8", newline="\n")
+        write_file(ctx.claim(ctx.folder / REL_FILE), rel)
 
     n = {k: len(v) for k, v in outcome.items()}
     head = summary_line(n)

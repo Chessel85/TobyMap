@@ -91,6 +91,7 @@ Progress this session:
 * P4-T1i DONE (Sonnet), report docs/plan/p4-t1i-report.md (if written). 271 targeted tests pass. The approved test test_the_drawing_order_is_the_definitions now checks only the world's 14 layers in their old order (PO approved this, 26 Nov). Choices: island groups left out of the drawing order (design 4.6 gives it no place; unlisted area layers draw after the listed areas, before the outlines; it is in both said orders): the PO's to place; national_parks sound layer_park is mine; land use, parks, school grounds filled by kind in Physical and none in Political; districts and parishes coloured in Political, no fill in Physical; streets and paths have no per-layer colours (one line colour); min_size 0.01 for land use, parks, school grounds. Not run: tools/make_placeholder_sounds.py.
 * P4-T1j DONE (Opus, interrupted by the token limit after the first build and finished in a new session, 26 Nov), report docs/plan/p4-t1j-rehearsal-report.md. Rehearsal pack 43.22 MB, 306,860 features, 19 min 18 s with 3 workers, peak memory 2.1 GB; 20 of 20 street check places pass (tests/acceptance/street_places_hampshire.yaml). Five fixes from the first build: match cuts every feature to the coverage; reading boxes keep only shapes within 2 km of the coverage; GeoDesk queries quote values such as drive-through; empty lines dropped when cutting; land classes' Shortbread layers. test_coverage's pack comparison now ignores the checks stage's places (each pack has its own). Estimate for Great Britain: about 1.3 GB (1.1 to 1.5), 8.7 million features, 8 to 12 hours with --away. Risk: about 4 KB a feature in relationships and writing, so 35 GB or more for one process; those stages must load only the layers they need, or the pack be split, before P4-T2. Waits for the PO: the split or what to leave out (P4-T2b), and whether the memory work comes first.
 
+* P4-T1l PART DONE (Opus, 26 Nov), report docs/plan/p4-t1l-memory-report.md. New tools/time_stage.py (one stage alone: time, peak memory, files compared byte for byte) and mapdata/pipeline/peak.py (each stage's peak memory in the build log). features.py: records read with repeated strings shared, shapes read only when needed (read_shapes, DiskShapes), records saved with the shapes file kept. Relationships: light layers related in batches after the other layers (stage's own process 1,478 to 478 MB); Wikidata 1,448 to 1,085 MB; writing 1,749 to 1,096 MB; match, coast stretches, corrections read and write as they go. Every stage the same byte for byte on the rehearsal except relationships: 30 of 306,860 features differ in rounding (a share by at most 0.0006, or the order of areas entered at one point), none gains or loses a relationship. Still over the aim: writing, about 3.4 KB a feature, 20 to 30 GB for England; the next step is P4-T1m (below). Also found: splitting full pack tiles is about 70 percent of writing's time, about 2 hours for England.
 Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to P4-T1j, P4-T2, P4-T3, P4-T6a to g, the world rebuild (P4-T13, P4-T1h), P4-T7, the full tests. Choices are listed under "Overnight choices for the PO" below, marked "21 Nov day".
 
 ## Overnight choices for the PO
@@ -123,7 +124,7 @@ Last updated 26 November 2026. Read this first to resume.
 * The world pack of 21 November 07:17 (552.46 MB) is at E:\osmdata\tobymap\output\world\world.pack and fits the code, apart from the core-only work since. The Western Europe trial (55.19 MB) was built 21 November 01:20.
 * P4-T9d is done and committed (21 November, 09:40): bookmark files save and open on the desktop and the web; a core gap fixed (run_many dropped save_file and open_file). P4-T9 is complete.
 * Committed since 21 November 09:40: P4-T0e, P4-T13a, P4-T1 design note, P4-T1a, P4-T13b, P4-T1b to P4-T1k (see Progress). The Hampshire and Isle of Wight rehearsal pack (43.22 MB, 26 November) is at E:\osmdata\tobymap\output\hampshire-isle-of-wight.
-* Next: P4-T1l, the memory work for the stages that load every feature (before P4-T2a; read "Hand-over: the memory work" below), then the England pack (P4-T2, England only, the PO's decision of 26 November). Meanwhile P4-T3 (combining packs) and P4-T6 can go ahead on the rehearsal pack.
+* Next: P4-T1m, the writing stage group by group (the rest of the memory work, before P4-T2a; read "Hand-over: the memory work" below and docs/plan/p4-t1l-memory-report.md), then the England pack (P4-T2, England only, the PO's decision of 26 November). Meanwhile P4-T3 (combining packs) and P4-T6 can go ahead on the rehearsal pack.
 * Continuous integration: the P3-T28m said-order test now expects national parks first (the PO, 26 November); four other tests expected the old layer name and were fixed (e1bcfa8).
 * Continuous integration: the last failures were the macOS held-key timing test (allowance widened, c4d25ef) and two bookmark browser tests (fixed, 84c93d1). Check the latest runs first.
 
@@ -139,6 +140,7 @@ Last updated 26 November 2026. Read this first to resume.
 * P4-T13 groups of islands: the orchestrator does the research and chooses the source without the PO's input, following the research approach below, and records the choice and its reasons in the ledger.
 * To do next, without waiting for the PO: P4-T13, the Great Britain work (P4-T1, P4-T2), combining packs (P4-T3), the pack manager (P4-T6), and memory with both packs (P4-T7, which needs the laptop idle: run it when nothing else runs, and say so in the ledger).
 * P4-T10, the NVDA language harness: not now; the PO wants to understand it better first. Do not start it.
+* DP224 answered 26 November: "Accept recommendation" (a later work item in the lakes' stage: leave out a lake lying mostly in the sea, cut the sea out of the rest). Not yet started.
 * Still waiting for the PO: P4-T14f's change (the proposal is docs/plan/p4-t14f-messages.md), the key plan (docs/plan/p4-t0f-keys.md), DP224, the overnight choices above, P4-T11b and P4-T6h (publishing: nothing is published without the PO's yes), and permission for the DMT-1 "built twice" run of the world's writing stage (about 1.5 hours).
 
 ### The research approach for P4-T13a (groups of islands)
@@ -159,10 +161,10 @@ Then P4-T13b builds the stage (after physical, as territorial-waters is, so the 
 
 ### Suggested order for the next session
 
-Written 26 November 2026, before a /clear. Steps 1 to 5 of the earlier list are done.
+Written 26 November 2026, updated in the evening before a /clear. Step 1 is done (CI's one failure, test_osm_water's river count, was fixed in osm_source.save_box); step 2 is part done.
 
 1. Check continuous integration for 06fc39b (the five P4-T1i test failures should be gone).
-2. The memory work (new work item P4-T1l, Opus), the PO's decision of 26 November: the England build must not use too much memory. See "Hand-over: the memory work" below.
+2. The memory work, the PO's decision of 26 November. P4-T1l is part done (every stage but writing fits England, docs/plan/p4-t1l-memory-report.md). Next: P4-T1m (Opus), the writing stage group by group, checked with tools/time_stage.py hampshire-isle-of-wight write (the pack must stay the same byte for byte). Then rebuild the rehearsal from the wikidata stage and compare the pack's check places (20 of 20), time and the build log's peak memory lines. See "Hand-over: the memory work" below.
 3. P4-T2 the England pack (England only, the PO's decision): first a new estimate from the rehearsal for England, then the build (heavy: run switch, stall watch, snapshot worktree as on 21 November, --away overnight).
 4. P4-T3 combining packs (can start on the rehearsal pack while step 2 is under way); then P3-T20d (browser speed, DP222 yes).
 5. P4-T6 the pack manager, P4-T6a to g (h, the test release, waits for the PO's yes).
@@ -170,6 +172,15 @@ Written 26 November 2026, before a /clear. Steps 1 to 5 of the earlier list are 
 7. The full Python suite and all browser tests at the end.
 
 ### Hand-over: the memory work (P4-T1l)
+
+State on 26 November, evening: part done, see the P4-T1l line under Progress and docs/plan/p4-t1l-memory-report.md. All but the writing stage now fit the estimate for England. What is left, as P4-T1m (Opus):
+
+* The writing stage holds a Python record per feature several times: the feature record (about 1.2 KB), its relationships by id (about 0.6 KB), the search rows, and contents. Measured step by step with tools/time_stage.py (each line shows the memory then).
+* Plan: number the features from the identifiers alone; make, write and let go of features/G, relations/G and the search rows group by group (PackWriter already writes them by feature_group), in the workers; keep only the areas' records, the held counts, what each area holds (as feature numbers, perhaps NumPy arrays) and compact search rows. The pack must stay byte for byte the same on the rehearsal (tools/time_stage.py compares) and the test pack.
+* Look at split_full_tiles' time too (about 70 percent of writing).
+* Fallback, the PO's decision: England as a few regional packs combined by P4-T3.
+
+The text below is the hand-over as written before this work.
 
 The aim (design docs/plan/p4-t1-design.md 7.4): no process above 12 GB for England, with the PO's files and NVDA open on the 32 GB laptop.
 

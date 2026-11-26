@@ -15,6 +15,7 @@ AD-19).
 from __future__ import annotations
 
 import math
+import sys
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -142,15 +143,18 @@ def _split_tile(key: tuple, entries: list, out: dict) -> None:
 
 
 def _wkb_entries(entries) -> list:
-    return [(i, k, None if g is None else shapely.to_wkb(g)) for i, k, g in entries]
+    """Tile entries as the main process keeps them (P4-T1l): (index, kind, WKB or None, points), so a full pack
+    tile is found without decoding its parts."""
+    return [(i, k, None, 0) if g is None else (i, k, shapely.to_wkb(g), int(shapely.get_num_coordinates(g)))
+            for i, k, g in entries]
 
 
 def _shape_entries(entries) -> list:
-    return [(i, k, None if b is None else shapely.from_wkb(b)) for i, k, b in entries]
+    return [(i, k, None if b is None else shapely.from_wkb(b)) for i, k, b, *_n in entries]
 
 
 def _split_batch(jobs: list) -> list:
-    """Full pack tiles split in a worker: [(key, WKB entries)] gives {pack tile: WKB entries}."""
+    """Full pack tiles split, in a worker or here: [(key, entries)] gives [(pack tile, entries)]."""
     out: dict = defaultdict(list)
     for key, entries in jobs:
         _split_tile(key, _shape_entries(entries), out)
@@ -159,26 +163,26 @@ def _split_batch(jobs: list) -> list:
 
 def split_full_tiles(cut: dict, executor=None, workers: int = 1) -> int:
     """Split every pack tile whose tile entries together have more than TILE_POINTS points, a tile level at a
-    time. With an executor, the full pack tiles of a level are split in the workers. The entries of each pack
-    tile are put in feature order afterwards, so the order the workers finish in does not matter. Returns how
-    many pack tiles were split."""
+    time. cut holds the entries as _wkb_entries makes them. With an executor, the full pack tiles of a level are
+    split in the workers. The entries of each pack tile are put in feature order afterwards, so the order the
+    workers finish in does not matter. Returns how many pack tiles were split."""
     split = 0
     for level in range(START_LEVEL, MAX_LEVEL):
         full = [k for k in sorted(k for k in cut if k[0] == level)
-                if sum(shapely.get_num_coordinates(g) for _i, kind, g in cut[k] if kind != COVERED) > TILE_POINTS]
+                if sum(e[3] for e in cut[k] if e[1] != COVERED) > TILE_POINTS]
         if not full:
             continue
         split += len(full)
+        jobs = [(key, cut.pop(key)) for key in full]
         if executor is None:
-            for key in full:
-                _split_tile(key, cut.pop(key), cut)
-            continue
-        jobs = [(key, _wkb_entries(cut.pop(key))) for key in full]
-        jobs.sort(key=lambda j: -sum(len(b or b"") for _i, _k, b in j[1]))
-        n = max(1, min(len(jobs), workers * 4))
-        for part in executor_map(executor, _split_batch, [jobs[k::n] for k in range(n) if jobs[k::n]], workers):
+            parts = [_split_batch(jobs)]
+        else:
+            jobs.sort(key=lambda j: -sum(len(e[2] or b"") for e in j[1]))
+            n = max(1, min(len(jobs), workers * 4))
+            parts = executor_map(executor, _split_batch, [jobs[k::n] for k in range(n) if jobs[k::n]], workers)
+        for part in parts:
             for key, entries in part:
-                cut[key].extend(_shape_entries(entries))
+                cut[key].extend(entries)
     return split
 
 
@@ -217,17 +221,25 @@ def count_held(records: list[dict], relationships: dict[str, dict]) -> int:
     return len(held)
 
 
-def feature_records(records: list[dict], geoms: list, executor=None, workers: int = 1) -> list[dict]:
+def feature_records(records: list[dict], geoms: list, executor=None, workers: int = 1,
+                    in_place: bool = False) -> list[dict]:
     """feature_record for each feature, in the workers when there is an executor, in batches of about the same
-    number of points."""
+    number of points. With in_place, each record in records is replaced by its feature record as it is made, so
+    the two are never all held at once (P4-T1l), and records is returned."""
     if executor is None:
-        return [feature_record(r, g) for r, g in zip(records, geoms)]
+        if not in_place:
+            return [feature_record(r, g) for r, g in zip(records, geoms)]
+        for i, g in enumerate(geoms):
+            records[i] = feature_record(records[i], g)
+        return records
     n = max(1, min(len(records), workers * 4))
-    order = sorted(range(len(records)), key=lambda i: -shapely.get_num_coordinates(geoms[i]))
+    points = [int(shapely.get_num_coordinates(g)) for g in geoms]
+    order = sorted(range(len(records)), key=lambda i: -points[i])
+    del points
     jobs = [order[k::n] for k in range(n) if order[k::n]]
-    out: list = [None] * len(records)
+    out: list = records if in_place else [None] * len(records)
     for part in run_within_budget(executor, _records_batch, jobs,
-                                  lambda job: [(i, records[i], shapely.to_wkb(geoms[i])) for i in job],
+                                  lambda job: [(i, records[i], wkb_of(geoms, i)) for i in job],
                                   [0] * len(jobs), 0, workers):
         for i, rec in part:
             out[i] = rec
@@ -315,8 +327,7 @@ def _cut_batch(items: list) -> tuple[dict, list]:
         for x in range(x0, x1 + 1):
             for y in range(y0, y1 + 1):
                 _cut(geom, START_LEVEL, x, y, cut, index, defer)
-    return ({key: [(i, k, None if g is None else shapely.to_wkb(g)) for i, k, g in entries]
-             for key, entries in cut.items()},
+    return ({key: _wkb_entries(entries) for key, entries in cut.items()},
             [("children", i, lv, x, y, shapely.to_wkb(g)) for i, lv, x, y, g in defer])
 
 
@@ -328,6 +339,14 @@ def start_tiles(geom) -> tuple[int, int, int, int]:
     return x0, y0, x1, y1
 
 
+def wkb_of(geoms, i: int, g=None) -> bytes:
+    """Shape i's well-known binary: as stored, for shapes read from a stage's folder (features.DiskShapes), which
+    is the same bytes as encoding the decoded shape again; else encoded."""
+    if hasattr(geoms, "blob"):
+        return geoms.blob(i)
+    return shapely.to_wkb(geoms[i] if g is None else g)
+
+
 def cut_jobs(geoms: list, workers: int) -> list[list]:
     """The first jobs of the cut, in batches: each feature over DEFER_POINTS points one job per start pack tile,
     alone in its batch, the largest first; the rest in batches of about the same number of points."""
@@ -335,14 +354,14 @@ def cut_jobs(geoms: list, workers: int) -> list[list]:
     for i, g in enumerate(geoms):
         n = shapely.get_num_coordinates(g)
         if n > DEFER_POINTS:
-            wkb = shapely.to_wkb(g)
+            wkb = wkb_of(geoms, i, g)
             x0, y0, x1, y1 = start_tiles(g)
             big += [(n, [("tile", i, x, y, wkb)]) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)]
         else:
             small.append((n, i))
     small.sort(key=lambda s: (-s[0], s[1]))
     n_batches = max(1, min(len(small), workers * 4))
-    batches = [[(i, shapely.to_wkb(geoms[i])) for _n, i in small[k::n_batches]] for k in range(n_batches)]
+    batches = [[(i, wkb_of(geoms, i)) for _n, i in small[k::n_batches]] for k in range(n_batches)]
     return [b for _n, b in sorted(big, key=lambda b: -b[0])] + [b for b in batches if b]
 
 
@@ -371,7 +390,7 @@ def _encode_batch(batch: list) -> list:
     out = []
     for key, entries in batch:
         out.append((key, [(index, COVERED, b"") if kind == COVERED else (index, kind, encode(kind, shapely.from_wkb(blob)))
-                          for index, kind, blob in entries]))
+                          for index, kind, blob, *_n in entries]))
     return out
 
 
@@ -395,7 +414,7 @@ def feature_record(record: dict, geom) -> dict:
     """
     out = dict(record)
     layer = record["layer"]
-    out.setdefault("source", record["id"].split(":")[0])
+    out.setdefault("source", sys.intern(record["id"].split(":")[0]))
     names = {"en": record["name"]}
     if record.get("local_name") and record["local_name"] != record["name"]:
         names["local"] = record["local_name"]
@@ -449,7 +468,7 @@ def spike_sources(gol: Path, land_polygons: Path) -> list[dict]:
 def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers: int = 1, say=print,
           layers: list[dict] | None = None, attribution: str | None = None,
           drawing_geoms: dict[int, list] | None = None, executor=None, before_records=None,
-          relationships: dict[str, dict] | None = None, search: dict | None = None) -> dict:
+          relationships: dict[str, dict] | None = None, search: dict | None = None, in_place: bool = False) -> dict:
     """Write the pack. The cutting into pack tiles and the encoding are split
     into batches run by worker processes (DP103); the main process joins the
     results, splits full pack tiles, and writes the file. The tile entries
@@ -468,6 +487,7 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
     relationships, if given, are each feature's relationships by id (P3-T3e), written beside the feature records.
     search, if given, makes the search index (P3-T8a, mapdata.stages.search_index): {"sites": {id: how many
     Wikimedia sites have it}, "settings": the index's settings}.
+    in_place: records become the feature records, each replaced as it is made, to save memory (P4-T1l).
 
     A progress line is written after each step, so a long step is seen to move (DMT-2).
 
@@ -486,9 +506,9 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
     manifest = full_manifest(manifest)
     cut: dict = defaultdict(list)
     with (contextlib.nullcontext(executor) if executor is not None else parallel.pool(workers)) as executor:
-        def merge(part):
+        def merge(part):   # kept as the workers give them, never decoded here (P4-T1l)
             for key, entries in part.items():
-                cut[key].extend((i, k, None if b is None else shapely.from_wkb(b)) for i, k, b in entries)
+                cut[key].extend(entries)
 
         handed = run_cut(executor, cut_jobs(geoms, workers), workers, merge)
         step(f"Cut {len(geoms):,} features into {len(cut):,} pack tiles, with {handed:,} large parts shared "
@@ -499,11 +519,10 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
             entries.sort(key=lambda e: e[0])
         keys = sorted(cut)
         n_enc = max(1, min(len(keys), workers * 8))
-        enc_batches = [[(key, [(i, k, None if g is None else shapely.to_wkb(g)) for i, k, g in cut[key]])
-                        for key in keys[j::n_enc]] for j in range(n_enc)]
+        enc_batches = [b for b in ([(key, cut[key]) for key in keys[j::n_enc]] for j in range(n_enc)) if b]
         cut.clear()
         encoded = {}
-        for result in executor_map(executor, _encode_batch, [b for b in enc_batches if b], workers):
+        for result in executor_map(executor, _encode_batch, enc_batches, workers, consume=True):
             for key, entries in result:
                 encoded[key] = entries
         step(f"Encoded {len(encoded):,} pack tiles")
@@ -525,7 +544,7 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
                 step(f"Cut drawing level {level_id} into {len(level_tiles):,} drawing tiles")
         if before_records is not None:
             before_records()
-        made = feature_records(records, geoms, None if workers == 1 else executor, workers)
+        made = feature_records(records, geoms, None if workers == 1 else executor, workers, in_place)
         step(f"Made {len(made):,} feature records")
     from mapcore.store import contents
 
@@ -542,8 +561,9 @@ def write(path: Path, manifest: dict, records: list[dict], geoms: list, workers:
         n_buckets, filed = search_index.buckets(
             index_rows, search_index.settings_of(search.get("settings"))["bucket_rows"])
         index = (n_buckets, filed, len(index_rows))
-        step(f"Made the search index: {len(index_rows):,} names of {len({r[2] for r in index_rows}):,} features, "
-             f"in {n_buckets:,} search records")
+        n_rows, n_named = len(index_rows), len({r[2] for r in index_rows})
+        del index_rows   # filed holds them; only the counts are said (P4-T1l)
+        step(f"Made the search index: {n_rows:,} names of {n_named:,} features, in {n_buckets:,} search records")
     writer = PackWriter(path)
     numbers = writer.add_features(made)
     if relationships:   # P3-T3e: by id, beside the feature records
@@ -606,13 +626,14 @@ def run_within_budget(executor, function, jobs: list, make, costs: list, budget:
             yield future.result()
 
 
-def executor_map(executor, function, batches: list, workers: int):
-    """Results of function over batches, a few at a time, holding back when memory is short (DP103)."""
+def executor_map(executor, function, batches: list, workers: int, consume: bool = False):
+    """Results of function over batches, a few at a time, holding back when memory is short (DP103). With consume,
+    batches is emptied as each is sent, so what each holds is let go once it is done (P4-T1l)."""
     import concurrent.futures as cf
 
     from mapdata import parallel
 
-    queue, running = list(batches), set()
+    queue, running = (batches if consume else list(batches)), set()
     while queue or running:
         while queue and len(running) < workers + 1 and parallel.room_for_another(len(running)):
             running.add(executor.submit(function, queue.pop(0)))

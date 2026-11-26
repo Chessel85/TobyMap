@@ -255,15 +255,18 @@ def feature_areas_km2(geoms: list, executor=None, workers: int = 1, batch: int =
     they belong to are None, and finish_areas, given the second value returned, completes them. GEOS repairs an invalid polygon as it measures it, which
     is slow: one shape at a time, the world's Indian Ocean took 714 seconds, the South Pacific 194 and the
     South Atlantic 53, of about 1,170 seconds for all the world's features."""
+    points, parts_of = [], []   # one pass, as the shapes may be read from disk each time (P4-T1l)
+    for g in geoms:
+        points.append(int(shapely.get_num_coordinates(g)))
+        parts_of.append(max(1, int(shapely.get_num_geometries(g))))
     if executor is not None:   # enough batches to keep every worker busy
-        batch = max(1, min(batch, sum(max(1, shapely.get_num_geometries(g)) for g in geoms) // (workers * 4) + 1))
-    points = [int(shapely.get_num_coordinates(g)) for g in geoms]
+        batch = max(1, min(batch, sum(parts_of) // (workers * 4) + 1))
     big = {i for i, n in enumerate(points) if n > ALONE_POINTS} if executor is not None else set()
     spans, start = [], 0
     while start < len(geoms):
         end, n = start, 0
         while end < len(geoms) and end not in big and (n == 0 or n < batch):
-            n += max(1, shapely.get_num_geometries(geoms[end]))
+            n += parts_of[end]
             end += 1
         if end > start:
             spans.append((start, end))
@@ -286,6 +289,8 @@ def feature_areas_km2(geoms: list, executor=None, workers: int = 1, batch: int =
 
     def make(job):
         if job[0] == "shapes":
+            if hasattr(geoms, "blobs"):   # as stored: the same bytes as encoding each again
+                return ("shapes", job[1], geoms.blobs(job[1], job[2]))
             return ("shapes", job[1], [shapely.to_wkb(g) for g in geoms[job[1]:job[2]]])
         return ("parts", job[1], job[2], [shapely.to_wkb(g) for g in job[3]])
 
@@ -348,6 +353,9 @@ def drawing_shapes(records, geoms, levels, say, apart=frozenset(), held=None, ex
     from mapdata.stages import drawing_levels
 
     t = time.perf_counter()
+    from mapdata.stages.pack_write import wkb_of
+
+    pts = [int(shapely.get_num_coordinates(g)) for g in geoms]   # one pass (P4-T1l)
     order = list(dict.fromkeys(r["layer"] for r in records))
     members = {layer: [i for i, r in enumerate(records) if r["layer"] == layer] for layer in order}
     out = {lv["id"]: [None] * len(geoms) for lv in levels}
@@ -365,12 +373,12 @@ def drawing_shapes(records, geoms, levels, say, apart=frozenset(), held=None, ex
     else:
         from mapdata.stages.pack_write import run_within_budget
 
-        size = {layer: sum(int(shapely.get_num_coordinates(geoms[i])) for i in members[layer]) for layer in order}
+        size = {layer: sum(pts[i] for i in members[layer]) for layer in order}
         jobs.sort(key=lambda j: -size[j[1]])
 
         def make(job):   # each job's copy of its shapes is made only when it starts, to save memory
             lv, layer = job
-            return (lv["id"], layer, [shapely.to_wkb(geoms[i]) for i in members[layer]], lv["tolerance_m"],
+            return (lv["id"], layer, [wkb_of(geoms, i) for i in members[layer]], lv["tolerance_m"],
                     lv["min_km2"], layer not in apart)
 
         # Simplifying a layer takes several times its shapes' memory, so the layers simplified at once hold no
@@ -384,7 +392,7 @@ def drawing_shapes(records, geoms, levels, say, apart=frozenset(), held=None, ex
         per_layer = ", ".join(
             f"{layer} {drawing_levels.points([shapes[i] for i in members[layer]]):,}" for layer in order)
         say(f"Drawing level {lv['id']}: simplified to {lv['tolerance_m']:g} metres, parts under {lv['min_km2']:g} "
-            f"km2 left out: {drawing_levels.points(geoms):,} points down to {drawing_levels.points(shapes):,} "
+            f"km2 left out: {sum(pts):,} points down to {drawing_levels.points(shapes):,} "
             f"({per_layer}).")
     say(f"Simplified the {len(levels)} drawing levels in {time.perf_counter() - t:.0f} seconds.")
     return out
@@ -461,19 +469,31 @@ def lake_shores(records: list[dict], geoms: list, relationships: dict[str, dict]
 
 
 def run(ctx) -> None:
-    records, geoms = features.load(ctx.previous)
+    # The records, and the shapes read from the stage before's folder each time a step needs them, not held: England
+    # has millions (P4-T1l).
+    index = features.read_index(ctx.previous)
+    records = index["records"]
+    geoms = features.DiskShapes(ctx.previous, index["shapes"])
+    del index
+    try:
+        _run(ctx, records, geoms)
+    finally:
+        geoms.close()
+
+
+def _run(ctx, records, geoms) -> None:
     from mapdata.stages import relationships as relmod
 
-    rel = relmod.load(ctx.previous)   # from the relationships stage, by each feature's index (P3-T3)
-    if rel:
-        one_crossing_each(rel)
     renamed: dict = {}
     changed = keep_ids_unique(records, ctx.progress.log, renamed)
     resolve_within(records, renamed)
     if changed:
         ctx.progress.line(f"Ids used twice, written with an ending so every id is different: {changed}. "
                           "The log lists them.")
-    rel_by_id = relmod.by_id(rel, [r["id"] for r in records]) if rel else None
+    # From the relationships stage, by each feature's index (P3-T3), read straight into their form by id (P4-T1l).
+    rel_by_id = relmod.load_by_id(ctx.previous, [r["id"] for r in records]) or None
+    if rel_by_id:
+        one_crossing_each(rel_by_id)
     if rel_by_id is not None:   # P3-T30b: the stretches of coast name their neighbours and waters by identifier
         from mapdata.stages import coast_stretches
 
@@ -510,7 +530,7 @@ def run(ctx) -> None:
     with parallel.pool(ctx.workers) as executor:
         pool = None if ctx.workers == 1 else executor
         write_with(ctx, records, geoms, sources, pool, tiers["tiers"],
-                   rel_by_id, search)
+                   rel_by_id, search)   # records become the feature records, in place (P4-T1l)
 
 
 def coverage_member(ctx, present: list[str]) -> dict:
@@ -586,4 +606,4 @@ def write_with(ctx, records, geoms, sources, executor, tiers: list[str] | None =
     ctx.claim(checksum_path(path))
     pack_write.write(path, manifest, records, geoms, ctx.workers, say=ctx.progress.line, layers=layers,
                      attribution=attribution_text(sources), drawing_geoms=drawing_geoms, executor=executor,
-                     before_records=set_areas, relationships=relationships, search=search)
+                     before_records=set_areas, relationships=relationships, search=search, in_place=True)

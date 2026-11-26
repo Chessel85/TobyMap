@@ -52,6 +52,7 @@ import json
 import math
 import time
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 import shapely
@@ -814,8 +815,10 @@ def nearly_touching(records, geoms, kinds, neighbours: set, settings, own: dict 
     return {(a, b): km for (a, b), km in found.items() if b in keep[a] and a in keep[b]}
 
 
-def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, settings) -> dict[int, dict]:
-    """Each feature's relationships, by index, with the others also by index."""
+def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, settings,
+                  near: bool = True) -> dict[int, dict]:
+    """Each feature's relationships, by index, with the others also by index. records and kinds may be lists or
+    dicts by index. near=False leaves out the areas nearly touching, for a batch of light features (P4-T1l)."""
     full, same_s, partly = settings["full_share"], settings["same_share"], settings["partly_share"]
     out: dict[int, dict] = defaultdict(dict)
 
@@ -884,7 +887,7 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
     for (lake, land), km in sums.shore.items():
         if km >= 0.01:
             put(lake, "shores", [land, round(km, 2)])
-    for (a, b), km in nearly_touching(records, geoms, kinds, neighbours, settings, own).items():
+    for (a, b), km in (nearly_touching(records, geoms, kinds, neighbours, settings, own) if near else {}).items():
         put(a, "near", [b, km])
         put(b, "near", [a, km])
     # A road's or railway's share inside a land area is measured on its length on land, when at least land_least of
@@ -933,7 +936,7 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
                 if share >= settings["water_share"] and (best is None or share > best[1]):
                     out[x]["water_in"] = [y, round(share, 4)]
     # Tidy: each list in a fixed order, so the pack is the same each time (DMT-1).
-    size = {i: own.get(i, 0) for i in range(len(records))}
+    size = _Size(own)
     for i, rel in out.items():
         for key in ("in", "same", "crossed_by", "along"):
             if key in rel:
@@ -975,6 +978,16 @@ def relationships(records, geoms, kinds, sums: Sums, ranks: dict, water: set, se
     return dict(out)
 
 
+class _Size:
+    """Each feature's own measure by index, 0 for one with none, without a dict of every feature (P4-T1l)."""
+
+    def __init__(self, own):
+        self.own = own
+
+    def __getitem__(self, i):
+        return self.own.get(i, 0)
+
+
 def sea_and_land(layers) -> tuple[list[str], list[str]]:
     """The layer that holds all the sea, and the land layers, whose areas' shares inside each other are measured on
     land (P3-T28n). The sea is the water layer of areas of the lowest rank, the oceans: the join stage gives all
@@ -991,36 +1004,231 @@ def sea_and_land(layers) -> tuple[list[str], list[str]]:
 
 
 def run(ctx) -> None:
-    records, geoms = features.load(ctx.previous)
+    # The records alone, slimmed to what is used: the stage passes features.json and shapes.wkb on unchanged, so
+    # they are kept as they are, not saved again (P4-T1l).
+    index = features.read_index(ctx.previous)
+    offsets = index["shapes"]
+    records = [{"id": r["id"], "layer": r["layer"], **({"name": r["name"]} if "name" in r else {})}
+               for r in index["records"]]
+    del index
     settings = {**SETTINGS, **{k: v for k, v in ctx.settings.items() if k in SETTINGS}}
     layers = ctx.pack.layers
     settings["water"] = sorted(k for k, v in layers.items() if v.kind == "water" and v.geometry == AREA)
     settings["sea"], settings["land"] = sea_and_land(layers)
     kinds = [layers[r["layer"]].geometry if r["layer"] in layers else AREA for r in records]
     left_out = set(ctx.settings.get("leave_out", LEAVE_OUT))
-    geoms_used = [None if r["layer"] in left_out else g for r, g in zip(records, geoms)]
+    light = set(settings.get("light_layers", ()))
+    # With light layers, only the other features' shapes are held; the light ones are read batch by batch.
+    held = [i for i, r in enumerate(records) if r["layer"] not in left_out and r["layer"] not in light]
+    shapes = features.read_shapes(ctx.previous, offsets, held)
+    geoms_used = [shapes.get(i) for i in range(len(records))]
+    del shapes
     ranks = {k: v.rank for k, v in layers.items()}
     water = {k for k, v in layers.items() if v.kind == "water" and v.geometry == AREA}
     t = time.perf_counter()
     from mapdata import parallel
 
+    texts: dict[int, str] = {}
     with parallel.pool(ctx.workers) as executor:
-        sums = measure(records, geoms_used, kinds, settings, None if ctx.workers == 1 else executor, ctx.workers,
-                       ctx.progress.line)
-    rel = relationships(records, geoms_used, kinds, sums, ranks, water, settings)
-    light = set(settings.get("light_layers", ()))
-    outlined = [None if r["layer"] in light else g for r, g in zip(records, geoms_used)] if light else geoms_used
-    for i, km in outlines(outlined, kinds).items():   # each area's whole border, land and coast (P3-T24f)
-        rel.setdefault(i, {})["outline_km"] = km
-    counts = defaultdict(int)
-    for r in rel.values():
-        for k, v in r.items():
-            counts[k] += len(v) if isinstance(v, (list, dict)) else 1
-    ctx.progress.line(f"Relationships of {len(rel):,} features worked out in {time.perf_counter() - t:.0f} seconds: "
+        pool = None if ctx.workers == 1 else executor
+        sums = measure(records, geoms_used, kinds, settings, pool, ctx.workers, ctx.progress.line)
+        rel = relationships(records, geoms_used, kinds, sums, ranks, water, settings)
+        for i, km in outlines(geoms_used, kinds).items():   # each area's whole border, land and coast (P3-T24f)
+            rel.setdefault(i, {})["outline_km"] = km
+        counts = defaultdict(int)
+        for r in rel.values():
+            for k, v in r.items():
+                counts[k] += len(v) if isinstance(v, (list, dict)) else 1
+        if light:
+            lit = [i for i, r in enumerate(records) if r["layer"] in light]
+            texts, light_counts = light_relationships(ctx.previous, offsets, lit, records, kinds, geoms_used, sums,
+                                                      ranks, water, settings, pool, ctx.workers, ctx.progress.line)
+            for k, n in light_counts.items():
+                counts[k] += n
+    ctx.progress.line(f"Relationships of {len(rel) + len(texts):,} features worked out in "
+                      f"{time.perf_counter() - t:.0f} seconds: "
                       + ", ".join(f"{WORDS[k]} {counts[k]:,}" for k in WORDS if counts.get(k)) + ".")
-    features.save(ctx.folder, records, geoms, ctx.claim)
-    text = json.dumps({str(i): r for i, r in sorted(rel.items())}, sort_keys=True, separators=(",", ":"))
-    ctx.claim(ctx.folder / FILE).write_text(text, encoding="utf-8", newline="\n")
+    for name in ("features.json", "shapes.wkb"):
+        features.keep_file(ctx.previous / name, ctx.claim(ctx.folder / name))
+    write_file(ctx.claim(ctx.folder / FILE), rel, texts)
+
+
+def write_file(path, rel: dict[int, dict], texts: dict[int, str] | None = None) -> None:
+    """relationships.json, written as it is made: the same bytes as json.dumps of {str(index): relationships} with
+    sorted keys, where texts holds some features' relationships already as that text (P4-T1l)."""
+    texts = texts or {}
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write("{")
+        for n, i in enumerate(sorted(set(rel) | set(texts), key=str)):
+            text = texts[i] if i in texts else json.dumps(rel[i], sort_keys=True, separators=(",", ":"))
+            out.write(("," if n else "") + json.dumps(str(i)) + ":" + text)
+        out.write("}")
+
+
+# The light layers in batches (P4-T1l) ------------------------------------------------------------------------------
+#
+# A feature of a light layer is compared only with the areas that are not light, and nothing else depends on it. So
+# the other features are related first, as before but without the light ones; then the light features are related in
+# batches of features near each other, each batch in a worker with the areas that are not light cut to the batch's
+# box, and each area's own measure and sea from the first pass. Only each light feature's relationships come back, as
+# text. So no process holds every light feature's shape, or the sums for all of them: England has millions.
+
+BATCH_POINTS = 400_000   # about this many points of light features in one batch
+CELL_DEG = 0.05          # light features are put in order by the cell their box's centre is in, the cells in Z order
+BATCH_MARGIN_DEG = 1e-4  # a batch's box reaches this far beyond its features, so no point lies on its edge
+READ_CHUNK = 100_000     # light features' shapes read at once, for their boxes
+
+
+def z_order(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """The Z-order (Morton) number of each cell (x, y), so cells near each other mostly come close in order."""
+    def spread(v):
+        v = v.astype(np.uint64) & np.uint64(0xFFFFFFFF)
+        for shift, mask in ((16, 0x0000FFFF0000FFFF), (8, 0x00FF00FF00FF00FF), (4, 0x0F0F0F0F0F0F0F0F),
+                            (2, 0x3333333333333333), (1, 0x5555555555555555)):
+            v = (v | (v << np.uint64(shift))) & np.uint64(mask)
+        return v
+    return spread(x) | (spread(y) << np.uint64(1))
+
+
+def light_batches(idx: np.ndarray, bounds: np.ndarray, points: np.ndarray, most: int,
+                  cell_deg: float = CELL_DEG) -> list[np.ndarray]:
+    """The light features (their indexes idx, boxes and points) put into batches of about most points, near each
+    other: in Z order of the cell holding each box's centre, then by index. Each batch's indexes in order."""
+    if not len(idx):
+        return []
+    cx = np.floor(((bounds[:, 0] + bounds[:, 2]) / 2 + 180) / cell_deg)
+    cy = np.floor(((bounds[:, 1] + bounds[:, 3]) / 2 + 90) / cell_deg)
+    order = np.lexsort((idx, z_order(cx, cy)))
+    group = (np.cumsum(points[order]) - 1) // max(int(most), 1)
+    cuts = np.nonzero(np.diff(group))[0] + 1
+    return [np.sort(idx[part]) for part in np.split(order, cuts)]
+
+
+def _read_blobs(folder, offsets, which) -> list[bytes]:
+    out = []
+    with open(Path(folder) / "shapes.wkb", "rb") as f:
+        for i in which:
+            a, n = offsets[i]
+            f.seek(a)
+            out.append(f.read(n))
+    return out
+
+
+def _light_job(job):
+    """One batch of light features, related in a worker: their relationships as text by index, the counts by kind,
+    and how many pairs needed repairing."""
+    box, light_items, area_items, meta, own, sea, settings, ranks, water = job
+    records = {i: m[0] for i, m in meta.items()}
+    kinds = {i: m[1] for i, m in meta.items()}
+    layer_of = {i: m[0]["layer"] for i, m in meta.items()}
+    lit = [(i, k, shapely.from_wkb(b)) for i, k, b in light_items]
+    # As measure does: a line that goes back over itself is measured with each stretch once, and carries its
+    # distance from its start.
+    lines = [n for n, (_i, k, g) in enumerate(lit) if k == LINE and not g.is_empty]
+    twice = retraced([lit[n][2] for n in lines]) if lines else np.zeros(0, dtype=bool)
+    back = {n for n, t in zip(lines, twice) if t}
+    items = []
+    for n, (i, k, g) in enumerate(lit):
+        if g.is_empty:
+            continue
+        items.append((i, k, with_distance(once_over(g) if n in back else g) if k == LINE else g))
+    items += [(i, AREA, shapely.from_wkb(b)) for i, b in area_items]
+    items.sort(key=lambda it: it[0])
+    sums = Sums()
+    REPAIRED[0] = 0
+    relate(tuple(box), items, layer_of, settings, sums)
+    light_ids = {i for i, _k, _b in light_items}
+    # Only what concerns a light feature is kept; each area's own measure and sea are its whole, from the first pass.
+    for name in ("shared", "border", "inside", "along", "shore", "sea_shared", "sea_inside"):
+        d = getattr(sums, name)
+        for key in [key for key in d if key[0] not in light_ids and key[1] not in light_ids]:
+            del d[key]
+    sums.first = {k: v for k, v in sums.first.items() if k[0] in light_ids or k[1] in light_ids}
+    sums.crossed_at.clear()
+    sums.edges = []
+    for i, km in own.items():
+        sums.own[i] = km
+    for i in [i for i in sums.sea if i not in light_ids]:
+        del sums.sea[i]
+    for i, km2 in sea.items():
+        sums.sea[i] = km2
+    out = relationships(records, None, kinds, sums, ranks, water, settings, near=False)
+    texts, counts = {}, defaultdict(int)
+    for i in sorted(light_ids):
+        r = out.get(i)
+        if r:
+            texts[i] = json.dumps(r, sort_keys=True, separators=(",", ":"))
+            for k, v in r.items():
+                counts[k] += len(v) if isinstance(v, (list, dict)) else 1
+    return texts, dict(counts), REPAIRED[0]
+
+
+def light_relationships(folder, offsets, lit: list[int], records, kinds, geoms, sums: Sums, ranks, water, settings,
+                        executor, workers: int, say=print) -> tuple[dict[int, str], dict[str, int]]:
+    """The light features' relationships, batch by batch (see above): {index: text}, and the counts by kind. geoms
+    holds the shapes of the features that are not light, and sums their first pass."""
+    from mapdata.stages.pack_write import run_within_budget
+
+    started = time.perf_counter()
+    idx = np.array(lit, dtype=np.intp)
+    bounds = np.zeros((len(idx), 4))
+    points = np.zeros(len(idx), dtype=np.int64)
+    for at in range(0, len(idx), READ_CHUNK):
+        part = idx[at:at + READ_CHUNK]
+        g = shapely.from_wkb(np.array(_read_blobs(folder, offsets, part), dtype=object))
+        bounds[at:at + len(part)] = shapely.bounds(g)
+        points[at:at + len(part)] = shapely.get_num_coordinates(g)
+    keep = ~np.isnan(bounds).any(axis=1)   # an empty shape has no box, and no relationships
+    most = int(settings.get("batch_points", BATCH_POINTS))
+    batches = light_batches(idx[keep], bounds[keep], points[keep], most)
+    where = {int(i): k for k, i in enumerate(idx)}
+    areas = [i for i, g in enumerate(geoms) if g is not None and kinds[i] == AREA and not g.is_empty]
+    tree = shapely.STRtree(np.array([geoms[i] for i in areas], dtype=object))
+    say(f"Relating {int(keep.sum()):,} features of the light layers to the {len(areas):,} areas of the other layers, "
+        f"in {len(batches):,} batches of about {most:,} points.")
+
+    def make(batch):
+        b = bounds[[where[int(i)] for i in batch]]
+        m = BATCH_MARGIN_DEG
+        box = (float(b[:, 0].min()) - m, float(b[:, 1].min()) - m, float(b[:, 2].max()) + m,
+               float(b[:, 3].max()) + m)
+        area_items = []
+        for i in sorted(int(areas[k]) for k in tree.query(shapely.box(*box))):
+            g = geoms[i]
+            gx0, gy0, gx1, gy1 = shapely.bounds(g)
+            if not (gx0 >= box[0] and gy0 >= box[1] and gx1 <= box[2] and gy1 <= box[3]):
+                g = shapely.clip_by_rect(g, *box)
+                if g.is_empty or shapely.area(g) <= 0:
+                    continue
+            area_items.append((i, shapely.to_wkb(g)))
+        ids = [int(i) for i in batch]
+        meta = {i: (records[i], kinds[i]) for i in ids}
+        meta.update({i: (records[i], kinds[i]) for i, _b in area_items})
+        own = {i: sums.own.get(i, 0.0) for i, _b in area_items}
+        sea = {i: sums.sea[i] for i, _b in area_items if i in sums.sea}
+        light_items = list(zip(ids, [kinds[i] for i in ids], _read_blobs(folder, offsets, ids)))
+        return (box, light_items, area_items, meta, own, sea, settings, ranks, water)
+
+    texts: dict[int, str] = {}
+    counts: dict[str, int] = defaultdict(int)
+    repaired = 0
+    if executor is None or workers == 1:
+        results = (_light_job(make(b)) for b in batches)
+    else:
+        costs = [int(points[[where[int(i)] for i in b]].sum()) for b in batches]
+        results = run_within_budget(executor, _light_job, batches, make, costs, math.inf, workers)
+    for n, (got, c, rep) in enumerate(results, 1):
+        texts.update(got)
+        for k, v in c.items():
+            counts[k] += v
+        repaired += rep
+        if n % 10 == 0 or n == len(batches):
+            say(f"Related the light features of {n:,} of {len(batches):,} batches, "
+                f"{time.perf_counter() - started:.0f} seconds.")
+    if repaired:
+        say(f"Pairs of shapes the geometry library could not compare as they were, so made valid first, in the light "
+            f"layers' batches: {repaired}.")
+    return texts, dict(counts)
 
 
 def outlines(geoms, kinds, chunk: int = 2000) -> dict[int, float]:
@@ -1057,8 +1265,7 @@ def load(folder) -> dict[int, dict] | None:
     return {int(k): v for k, v in json.loads(path.read_text(encoding="utf-8")).items()}
 
 
-def by_id(rel: dict[int, dict], ids: list[str]) -> dict[str, dict]:
-    """The relationships with every index made the id the feature is written with."""
+def _with_ids(r: dict, ids: list[str]) -> dict:
     def fix(key, v):
         if key in ("in", "same", "crossed_by", "along", "crosses", "partly_by"):
             return [ids[j] for j in v]
@@ -1067,4 +1274,36 @@ def by_id(rel: dict[int, dict], ids: list[str]) -> dict[str, dict]:
         if key == "water_in":
             return ids[v]
         return v
-    return {ids[i]: {k: fix(k, v) for k, v in r.items()} for i, r in rel.items()}
+    return {k: fix(k, v) for k, v in r.items()}
+
+
+def by_id(rel: dict[int, dict], ids: list[str]) -> dict[str, dict]:
+    """The relationships with every index made the id the feature is written with."""
+    return {ids[i]: _with_ids(r, ids) for i, r in rel.items()}
+
+
+def load_by_id(folder, ids: list[str]) -> dict[str, dict] | None:
+    """by_id(load(folder), ids), but each feature's relationships read from the file and given their ids one at a
+    time, so the relationships by index are never all held beside those by id (P4-T1l). The same order."""
+    path = Path(folder) / FILE
+    if not path.is_file():
+        return None
+    text = path.read_text(encoding="utf-8")
+    decoder, out = json.JSONDecoder(), {}
+    space = " \t\r\n"
+
+    def skip(at):
+        while text[at] in space:
+            at += 1
+        return at
+
+    at = skip(skip(0) + 1)   # past "{"
+    while text[at] != "}":
+        key, at = decoder.raw_decode(text, at)
+        at = skip(at)
+        value, at = decoder.raw_decode(text, skip(at + 1))   # past ":"
+        out[ids[int(key)]] = _with_ids(value, ids)
+        at = skip(at)
+        if text[at] == ",":
+            at = skip(at + 1)
+    return out

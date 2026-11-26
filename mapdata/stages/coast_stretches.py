@@ -62,6 +62,7 @@ from mapcore.packs import coords
 from mapdata.pipeline import features
 from mapdata.stages.geodesy import areas_km2
 from mapdata.stages.relationships import FILE, SETTINGS as REL_SETTINGS, lengths_km, sea_and_land
+from mapdata.stages.relationships import write_file
 
 SETTINGS = {"sliver_km2": 0.05, "gap_m": 100.0, "least_km": 1.0, "tolerance_m": 200.0, "samples": 9,
             "end_match_m": 200.0, "join_km": 20.0, "sea_km": 20.0}
@@ -247,7 +248,7 @@ def decode_line(values: list[int]) -> np.ndarray:
 
 def _load(folder, layers: set[str], also: set[int]) -> tuple[list[dict], dict[int, object]]:
     """Every record, and by their index the shapes of the named layers and of the features numbered in also."""
-    data = json.loads((folder / "features.json").read_text(encoding="utf-8"))
+    data = features.read_index(folder)   # each repeated short string held once (P4-T1l)
     shapes = {}
     with open(folder / "shapes.wkb", "rb") as f:
         for i, (r, (a, n)) in enumerate(zip(data["records"], data["shapes"])):
@@ -592,8 +593,7 @@ def run(ctx) -> None:
         rel.setdefault(i, {})[KEY] = entry
     for name in ("features.json", "shapes.wkb"):
         _copy(ctx.previous / name, ctx.claim(ctx.folder / name))
-    text = json.dumps({str(i): r for i, r in sorted(rel.items())}, sort_keys=True, separators=(",", ":"))
-    ctx.claim(ctx.folder / FILE).write_text(text, encoding="utf-8", newline="\n")
+    write_file(ctx.claim(ctx.folder / FILE), rel)   # written as it is made (P4-T1l)
     size = len(json.dumps({str(i): e for i, e in stored.items()}, separators=(",", ":")).encode())
     ctx.progress.line(f"Kept {sum(len(e['stretches']) for e in stored.values()):,} stretches of coast for "
                       f"{len(stored):,} areas, {size / 1e6:.2f} MB before compression, in "

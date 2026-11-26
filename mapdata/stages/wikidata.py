@@ -565,7 +565,11 @@ def _bbox(geom):
 
 def run(ctx) -> None:
     s = ctx.settings
-    records, geoms = features.load(ctx.previous)
+    # The records alone: only the features matched by name need their shapes, and the shapes file is kept as it
+    # is (P4-T1l), so England's millions of streets are never decoded here.
+    index = features.read_index(ctx.previous)
+    records, offsets = index["records"], index["shapes"]
+    del index
     say, line = ctx.progress.log, ctx.progress.line
     path = facts_path(ctx)
     offline = bool(s.get("offline"))
@@ -589,7 +593,9 @@ def run(ctx) -> None:
             named.update(fetch_names(wanted, say=line, batch=int(s.get("batch", BATCH)),
                                      keep=lambda e: append_names(ctx.claim(npath), e)))
         km = float(s.get("match_km", 50))
-        boxes = {i: _bbox(geoms[i]) for i in unlinked}
+        shapes = features.read_shapes(ctx.previous, offsets, unlinked)
+        boxes = {i: _bbox(shapes[i]) for i in unlinked}
+        del shapes
         sub = [records[i] for i in unlinked]
         found = match_by_name(sub, [boxes[i] for i in unlinked], named, km)
         for j, q in found:
@@ -676,7 +682,7 @@ def run(ctx) -> None:
     line(f"Wikimedia site counts for {counted:,} features, for their importance in search.")
     for text in coverage_lines(records, ctx.pack.layers):
         line(text)
-    features.save(ctx.folder, records, geoms, ctx.claim)
+    features.save_records(ctx.folder, records, ctx.previous, offsets, ctx.claim)
 
 
 def read_file_names(path: Path) -> dict[str, dict]:

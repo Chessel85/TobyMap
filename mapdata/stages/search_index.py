@@ -28,6 +28,7 @@ only a few records, never the whole index. Rows are sorted, so the same features
 from __future__ import annotations
 
 import math
+import sys
 from collections import defaultdict
 
 from mapcore import search
@@ -248,11 +249,11 @@ def rows(made: list[dict], relationships: dict[str, dict] | None, sites: dict[st
                 text = describe.text(rec, more=True)
             english = (rec.get("names") or {}).get("en") or rec.get("name")
             point = rec.get("point") or [None, None]
-            out.append([key, english, rec["id"], rec["layer"],
+            out.append([sys.intern(key), english, rec["id"], rec["layer"],
                         importance(rec, sites.get(rec["id"]), s["weights"]),
                         None if point[0] is None else round(point[0], 3),
                         None if point[1] is None else round(point[1], 3),
-                        text, "" if written == english or search.normalise(english) == key else written])
+                        sys.intern(text), "" if written == english or search.normalise(english) == key else written])
     out.sort(key=lambda r: (r[search.KEY], r[search.ID]))
     return out
 

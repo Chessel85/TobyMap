@@ -34,6 +34,7 @@ Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP22
 
 * [x] P4-T1 The regional pipeline, rehearsed on Hampshire and the Isle of Wight: 43.22 MB, 20 of 20 check places; Great Britain estimated at about 1.3 GB (docs/plan/p4-t1j-rehearsal-report.md).
 * [ ] P4-T1l Memory: no stage over 12 GB a process for the England build (the PO, 26 November 2026).
+* [ ] P4-T1m The writing stage group by group, the rest of P4-T1l: within 12 GB for England (docs/plan/p4-t1l-memory-report.md).
 * [ ] P4-T2 The England pack (England only, the PO, 26 November 2026; planned as Great Britain).
 * [ ] P4-T3 Combining packs.
 

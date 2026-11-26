@@ -299,13 +299,18 @@ def _build(name: str, folders: DataFolders, workers: int, progress: Progress, co
             ctx = StageContext(pack, stage, n, previous_folder, folder, folders, progress, ledger, workers,
                                source_paths, switch, dict(earlier))
             folder.mkdir(parents=True, exist_ok=True)
-            import_module(kind.module).run(ctx)
+            from mapdata.pipeline.peak import PeakWatch
+
+            with PeakWatch() as watch:   # each stage's peak memory, in the log (P4-T1l)
+                import_module(kind.module).run(ctx)
             took = time.perf_counter() - start
             ledger.claim(folder / FINISHED).write_text(
                 json.dumps({"stage": kind_name, "fingerprint": fp, "seconds": round(took, 1)}, indent=1) + "\n",
                 encoding="utf-8", newline="\n")
             ran.append((kind_name, took))
             progress.line(f"Stage {n} of {total} finished in {duration_words(took)}.")
+            if watch.sentence():
+                progress.line(watch.sentence())
         previous_folder = folder
         earlier[kind_name] = folder
 

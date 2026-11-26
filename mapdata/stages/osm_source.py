@@ -406,10 +406,12 @@ def _near_coverage(request: dict):
 def save_box(request: dict, out: Path, n: int, records: list[dict], geoms: list) -> Path:
     """One reading box's results, saved before the next box is read: records and shapes, as a stage keeps them. Only
     the shapes within NEAR_DEG of the coverage are kept: a reading box is a level 8 pack tile, and at the coverage's
-    edge most of it lies outside (P4-T1j)."""
+    edge most of it lies outside (P4-T1j). A record with no shape, such as osm-water's count of the river areas left
+    out, is kept: it is not a feature."""
     near = _near_coverage(request)
     if near is not None and geoms:
-        keep = shapely.intersects(near, np.array(geoms, dtype=object))
+        arr = np.array(geoms, dtype=object)
+        keep = shapely.intersects(near, arr) | shapely.is_empty(arr)
         records = [r for r, k in zip(records, keep) if k]
         geoms = [g for g, k in zip(geoms, keep) if k]
     folder = box_folder(out, n)

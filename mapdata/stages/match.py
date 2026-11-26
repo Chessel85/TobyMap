@@ -45,6 +45,7 @@ import numpy as np
 import shapely
 
 from mapdata.pipeline.errors import BuildStopped
+from mapdata.pipeline import features
 
 REPORT = "match.json"
 MATCHES = "matches.csv"
@@ -412,7 +413,7 @@ def run(ctx) -> None:
     cover = coveragemod.load(cov_folder).shape
     _src, path = ctx.source(key)
 
-    data = json.loads((Path(ctx.previous) / "features.json").read_text(encoding="utf-8"))
+    data = features.read_index(Path(ctx.previous))   # each repeated short string held once (P4-T1l)
     cut = cut_to_coverage(Path(ctx.previous), data, cover, ctx.claim(Path(ctx.folder) / "shapes.wkb"))
     ctx.progress.line(f"Cut to the coverage: {cut['cut']:,} features cut and {cut['dropped']:,} outside it left out, "
                       "from the stages that read the outline's box (lakes, rivers, roads, railways, villages).")
@@ -449,8 +450,7 @@ def run(ctx) -> None:
         rows.append({"how": "unmatched", "layer": w["layer"], "world identifier": wid, "world name": w.get("name") or "",
                      "regional identifier": "", "regional name": "", "overlap %": ""})
 
-    ctx.claim(Path(ctx.folder) / "features.json").write_text(
-        json.dumps(data, ensure_ascii=False, sort_keys=True, indent=0), encoding="utf-8", newline="\n")
+    features.write_json(ctx.claim(Path(ctx.folder) / "features.json"), data)
     write_matches(ctx.claim(Path(ctx.folder) / MATCHES), rows)
     ctx.claim(Path(ctx.folder) / REPORT).write_text(
         json.dumps({"counts": counts, "layers": list(layers), "cut_to_coverage": cut}, indent=1, sort_keys=True),

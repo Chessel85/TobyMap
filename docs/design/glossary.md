@@ -148,6 +148,10 @@ Older documents written before this glossary, such as architecture section 6 and
 * Padded copy: a copy of a pack made larger with records the application never reads, so a pack of a size not yet built can be tried for start-up, memory, download and storage.
 * Region used as county: where no county level covers some land, the region itself stands in as its county there (DP101).
 * Sample: a small file of areas kept in the repository, in tests/samples, that the test pack is built from.
+* Light layer: a street-scale layer, such as streets, paths, land use or shops, whose features the relationships stage gives only the areas they are in or partly in, and for a line the boundaries it passes through, with no neighbours or overlaps, and which no area lists or counts (P4-T1k). The pack's settings name them.
+* Batch: a group of light layers' features near each other, about 400,000 points in all, that the relationships stage relates together in one worker, so no process holds every feature at once (P4-T1l).
+* Feature group: one of the groups a pack keeps its feature records in, each feature's group worked out from its identifier. The relationships and what each area holds are kept in the same groups.
+* Peak memory: the most memory a stage used at any moment, said in the build log after each stage for the build's own process, its largest worker, and all of them together (P4-T1l).
 
 ## Testing
 

@@ -124,6 +124,7 @@ Last updated 26 November 2026. Read this first to resume.
 * P4-T9d is done and committed (21 November, 09:40): bookmark files save and open on the desktop and the web; a core gap fixed (run_many dropped save_file and open_file). P4-T9 is complete.
 * Committed since 21 November 09:40: P4-T0e, P4-T13a, P4-T1 design note, P4-T1a, P4-T13b, P4-T1b to P4-T1k (see Progress). The Hampshire and Isle of Wight rehearsal pack (43.22 MB, 26 November) is at E:\osmdata\tobymap\output\hampshire-isle-of-wight.
 * Next: the PO's answers to the two choices in docs/plan/p4-t1j-rehearsal-report.md (splitting or leaving things out of Great Britain; making relationships, writing and Wikidata load only the layers they need before P4-T2). Meanwhile P4-T3 (combining packs) and P4-T6 can go ahead on the rehearsal pack.
+* Continuous integration fails on one test since P4-T1i: test_the_current_feature_is_the_first_area_where_am_i_says_not_the_first_by_layer_rank (P3-T28m) expects England said first at 500 km zoom in the New Forest, but P4-T1i put national_parks before counties in each view's said order (design 4.6), so the New Forest National Park is said first. Waits for the PO: national parks said last (as before), or the test changed. Four other tests expected the old layer name and were fixed (e1bcfa8).
 * Continuous integration: the last failures were the macOS held-key timing test (allowance widened, c4d25ef) and two bookmark browser tests (fixed, 84c93d1). Check the latest runs first.
 
 ### The PO's decisions, 21 November 2026, morning

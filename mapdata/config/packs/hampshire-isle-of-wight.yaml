@@ -141,7 +141,12 @@ stages:
       - {query: "n[place=neighbourhood][name]", type: neighbourhood, population: true}
       - {query: "n[place=quarter][name]", type: quarter, population: true}
     within: [countries, regions, counties, districts, parishes]
-  # match: added by P4-T1h
+  # The world pack's identifiers: each feature of a layer the world pack also has takes the world's id where both
+  # packs hold it, by id, then Wikidata, then name, type and overlap, keeping its own as an alias; every record
+  # naming it is changed too. matches.csv lists each match by Wikidata or name, and each world feature in the
+  # coverage with no match (P4-T1h).
+  - stage: match
+    source: world-pack
   # Facts from Wikidata, read from the data folder where the world build already fetched them (same refresh label).
   - stage: wikidata
     source: wikidata

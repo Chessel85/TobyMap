@@ -208,6 +208,15 @@ The layers of points of interest have say_type: true in their layer definition (
 
 In the real regional packs, the osm-places stage (P4-T1f) then reads the villages layer: OpenStreetMap's place=village, suburb, hamlet, neighbourhood and quarter nodes with a name, within the outline's box, each with its population and the areas it is in (countries, regions, counties, districts and parishes).
 
+The match stage (P4-T1h) gives the regional pack's features the world pack's identifiers, so the two packs can be combined. The world pack itself is the register of identifiers: the stage reads it, and nothing of its shapes goes into the regional pack. Put it after every stage that makes features and before wikidata, relationships, corrections and write. Its settings:
+
+* source: the world pack, world-pack. The tests use the test pack in its place.
+* layers: the layers the world pack also has, whose features are matched: countries, regions, counties, islands, oceans, seas, lakes, rivers, roads and railways if not given.
+* line_m: how near a regional line must lie to the world's line, 200 metres if not given.
+* share: how much each must cover of the other, 0.5 if not given.
+
+What it does: a feature of those layers with the same id in the same layer as a world feature is matched, which is nearly every one. Otherwise one with the same Wikidata link in the same layer takes the world's id. Otherwise one with the same name (made plain, as search does), layer and type takes the world's id when the two overlap inside the coverage: two areas each covering at least share of the other, or a line with at least share of it within line_m of the world's line; unnamed islands are matched by their overlap alone. Each world feature is matched once, to the feature that overlaps it most. A matched feature keeps its own id as an alias, and every record that names it, such as a district's parent or a village's areas, names the world's id, so a parish sits under the world pack's Hampshire. An id the world pack uses in another layer gets the ending "#as-" and its layer, as the writing stage does. A world feature of those layers in the coverage with no match is listed in the log, as the combined packs will hide it there. The stage writes matches.csv (each match made by Wikidata or by name, and each world feature with no match, with both ids, both names and the overlap) and match.json (the counts); the quality report's section "Matches with the world pack" is made from them. A world rebuild changes the source's fingerprint, so the regional build runs again from this stage on.
+
 Sources for the regional packs, in sources.yaml: great-britain-outline, hampshire-outline and isle-of-wight-outline (Geofabrik's .poly files, ODbL 1.0, fetched with `mapdata fetch <key>` into the downloads folder's geofabrik-outlines folder), and world-pack, the world pack mapdata built (tobymap/output/world/world.pack), which the match stage reads (P4-T1h).
 
 ## Other files

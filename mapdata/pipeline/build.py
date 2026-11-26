@@ -122,7 +122,8 @@ STAGES = {
     "osm-pois": StageKind("reading the points of interest", "mapdata.stages.osm_pois",
                           ("mapdata.stages.osm_pois", "mapdata.stages.osm_places", *_READING)),
     "match": StageKind("giving features the world pack's identifiers", "mapdata.stages.match",
-                       ("mapdata.stages.match", "mapcore.packs.pack", "mapcore.store.store", "mapcore.search")),
+                       ("mapdata.stages.match", "mapdata.stages.coverage", "mapcore.packs.pack",
+                        "mapcore.packs.tiles", "mapcore.packs.coords", "mapcore.search")),
 }
 
 

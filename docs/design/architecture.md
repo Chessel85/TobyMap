@@ -532,7 +532,7 @@ Each feature record holds:
 
 ### 6.7 Canonical identifiers
 * Features keep their source identifier as their canonical identifier: "osm:r62149" for an OpenStreetMap relation, "ne:admin0:FRA" for Natural Earth, "vliz:…" for seas.
-* The base pack publishes an identifier register. When a regional pack is built, its features are matched to base features by Wikidata identifier, and failing that by name, type and overlap. A matched feature keeps the base identifier, with the regional identifier recorded as an alias.
+* The base pack is the identifier register: its own feature records, so no separate register file is published. When a regional pack is built, its match stage reads the base pack and matches each feature of a layer both packs have: by the same identifier in the same layer, which is nearly every feature, as both are built from the same planet file; failing that by Wikidata identifier; failing that by name, type and overlap inside the regional pack's coverage. A matched feature takes the base identifier, with the regional identifier recorded as an alias, and every record naming it is changed to match. A regional identifier the base pack uses in another layer gets the ending "#as-" and its layer. Each match made by Wikidata or by name, and each base feature in the coverage left unmatched, is listed in the quality report (P4-T1h).
 * Bookmarks do not use identifiers. A bookmark is a point with a name, so it needs no matching when packs are rebuilt, updated or added (DP210, DP219). USR-2, which kept feature bookmarks working, is withdrawn. A bookmark keeps only the name of the current feature it was made at, as words.
 
 ### 6.8 Combining installed packs

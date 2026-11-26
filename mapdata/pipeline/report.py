@@ -11,6 +11,7 @@ folder, and the pack itself:
 * gaps in coverage and gaps filled by the counties record: the report of the joining stage (join.json);
 * matches made by name for Wikidata: the records of the last stage that kept them (features.json), which flag each;
 * the correction rules applied: the corrections stage's corrections.txt;
+* matches with the world pack, for a regional pack: the match stage's matches.csv and match.json (P4-T1h);
 * size by layer: the pack, measured as tools/pack_layers.py does (mapdata/pipeline/pack_size.py);
 * differences from the last build: a small summary of each build, kept beside the pack, compared with the one the
   build before kept.
@@ -52,6 +53,7 @@ def file_names(pack: str) -> dict[str, str]:
         "filled": f"{base} gaps filled by the counties record.csv",
         "matches": f"{base} wikidata matches by name.csv",
         "rules": f"{base} correction rules.csv",
+        "world matches": f"{base} matches with the world pack.csv",
         "size": f"{base} size by layer.csv",
         "by layer": f"{base} differences by layer.csv",
         "by feature": f"{base} differences by feature.csv",
@@ -156,6 +158,57 @@ def gather_matches(stage_folders) -> list[dict] | None:
             return [{"identifier": r["id"], "layer": r["layer"], "name": r["name"], "wikidata item": r["wikidata"]}
                     for r in records if r.get("wikidata_matched")]
     return None
+
+
+WORLD_MATCH_COLUMNS = ["how", "layer", "world identifier", "world name", "regional identifier", "regional name",
+                       "overlap %"]
+
+
+def gather_world_matches(stage_folders) -> dict | None:
+    """A regional pack's matches with the world pack (P4-T1h): the match stage's counts (match.json) and its rows
+    (matches.csv), each match made by Wikidata or by name and each world feature left unmatched. None for a pack
+    with no match stage."""
+    for _, kind, folder in reversed(stage_folders):
+        if kind == "match" and (folder / "matches.csv").is_file():
+            with open(folder / "matches.csv", encoding="utf-8", newline="") as f:
+                rows = list(csv.DictReader(f))
+            counts = {}
+            if (folder / "match.json").is_file():
+                counts = json.loads((folder / "match.json").read_text(encoding="utf-8")).get("counts") or {}
+            return {"counts": counts, "rows": rows}
+    return None
+
+
+def world_matches_section(got: dict | None, csv_name: str) -> tuple[str, list[str]]:
+    """The short line and the lines of the section "Matches with the world pack". Matches made by name come first,
+    as a wrong match is most likely among them (design 3.11, Risks), then those made by Wikidata, then the world
+    features in the coverage left unmatched."""
+    if got is None:
+        return ("Matches with the world pack: none, as this pack has no match stage.",
+                ["This pack has no match stage: only a regional pack is matched with the world pack."])
+    rows, counts = got["rows"], got["counts"]
+    by = {how: [r for r in rows if r["how"] == how] for how in ("name", "wikidata", "unmatched")}
+    short = (f"Matches with the world pack: {counts.get('id', 0):,} by id, {len(by['wikidata']):,} by Wikidata, "
+             f"{len(by['name']):,} by name; {len(by['unmatched']):,} world features with no match.")
+    lines = [f"{plural(counts.get('id', 0), 'feature')} kept the world pack's id, as both packs gave it the same.",
+             f"{plural(len(by['wikidata']), 'feature')} matched by Wikidata and {len(by['name']):,} by name, type "
+             f"and overlap, each taking the world's id and keeping its own as an alias.",
+             f"{plural(counts.get('as_layer', 0), 'id')} the world uses in another layer given the ending of its "
+             f"layer.",
+             f"{plural(len(by['unmatched']), 'world feature')} in the coverage with no match, to be hidden there "
+             f"when the packs are combined.",
+             "Check each match made by name: a wrong one joins two features."]
+
+    def said(r: dict) -> str:
+        if r["how"] == "unmatched":
+            return f"No match: {r['world name'] or 'no name'} ({r['world identifier']}, {r['layer']})."
+        how = "by name" if r["how"] == "name" else "by Wikidata"
+        overlap = f", overlap {r['overlap %']}%" if r.get("overlap %") else ""
+        return (f"Matched {how}: {r['regional name'] or 'no name'} ({r['regional identifier']}) is the world's "
+                f"{r['world name'] or 'no name'} ({r['world identifier']}, {r['layer']}){overlap}.")
+
+    lines += examples([said(r) for r in by["name"] + by["wikidata"] + by["unmatched"]], csv_name)
+    return short, lines
 
 
 # The pack -----------------------------------------------------------------------------------------------------------
@@ -285,6 +338,7 @@ def make_report(pack_name: str, title: str, target: Path, stage_folders: list[tu
     coverage = gather_gaps(join_report(stage_folders), build_log)
     rules = gather_corrections(stage_folders)
     matches = gather_matches(stage_folders)
+    world_matches = gather_world_matches(stage_folders)
     summary = summary_of(pack_name, identity, data["built"], data, size)
     before = keep_summary(summary, out_dir, names, ledger)
     by_layer, by_feature = compare(summary, before) if before else ([], [])
@@ -387,6 +441,14 @@ def make_report(pack_name: str, title: str, target: Path, stage_folders: list[tu
             lines.append("Mend or remove each rule not found or not applied in mapdata/config/corrections.yaml.")
         write_csv(out_dir / names["rules"], ["result", "rule"], rules, ledger)
     section("Correction rules applied", lines)
+
+    # 6b Matches with the world pack (P4-T1h)
+    line, lines = world_matches_section(world_matches, names["world matches"])
+    short.append(line)
+    order = {"name": 0, "wikidata": 1, "unmatched": 2}
+    write_csv(out_dir / names["world matches"], WORLD_MATCH_COLUMNS,   # only the headings, for a pack not matched
+              sorted(world_matches["rows"] if world_matches else [], key=lambda r: order.get(r["how"], 3)), ledger)
+    section("Matches with the world pack", lines)
 
     # 7 Size by layer
     rows = sorted(({"layer": d["name"], "features": len(d["features"]), "megabytes": round(size["by layer"].get(k, 0) / 1e6, 3),

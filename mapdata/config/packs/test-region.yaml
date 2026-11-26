@@ -94,7 +94,12 @@ stages:
         - {query: "n[place=neighbourhood][name]", type: neighbourhood, population: true}
         - {query: "n[place=quarter][name]", type: quarter, population: true}
       within: [countries, regions, counties, districts, parishes]
-  # match: added by P4-T1h
+  # The world pack's identifiers: each feature of a layer the world pack also has takes the world's id where both
+  # packs hold it, by id, then Wikidata, then name, type and overlap, keeping its own as an alias; every record
+  # naming it is changed too. matches.csv lists each match by Wikidata or name, and each world feature in the
+  # coverage with no match (P4-T1h).
+  - stage: match
+    source: world-pack
   - stage: relationships
     # relationships light_layers and crossing_areas: set by P4-T1k
   - stage: coast-stretches

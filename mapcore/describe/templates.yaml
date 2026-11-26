@@ -138,6 +138,26 @@ details:
     reservoir: Unnamed reservoir
     basin: Unnamed basin
     lagoon: Unnamed lagoon
+  # The type of a road, street or path in a regional pack, by OpenStreetMap's highway value (P4-T1d). A way with no
+  # name is named by its type's words with a capital first letter: "Footpath", "Service road". The build writes them
+  # into the pack, so changing a word here makes the osm-streets stage run again.
+  street_types:
+    primary: primary road
+    secondary: secondary road
+    tertiary: tertiary road
+    unclassified: unclassified road
+    residential: residential street
+    living_street: living street
+    road: road
+    pedestrian: pedestrian street
+    busway: busway
+    service: service road
+    footway: footpath
+    path: path
+    bridleway: bridleway
+    cycleway: cycle path
+    steps: steps
+    track: track
   # A country's distant part with no region of its own, such as Wake Island: "part of the United States" (DP191).
   distant_part: part
   # Land the build names itself, in the Countries layer, said by its type, not as a country (P3-T2c, DP120).

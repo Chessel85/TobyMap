@@ -161,6 +161,23 @@ The osm-water stage (P4-T1c) adds every other water area to the lakes layer: Ope
 
 What it does: an area whose id is already in the stage before, such as a lake the osm-layer stage read, is skipped, so no lake is read twice and each keeps the world's id. Each other area's type comes from its tags: lake, pond, reservoir, basin or lagoon (a fishpond or moat is a pond, wastewater a basin, any other water value a lake). Its name is OpenStreetMap's, or where it has none, its type's words from mapcore/describe/templates.yaml, under details, unnamed: "Pond", "Unnamed lake", "Unnamed reservoir", "Unnamed basin", "Unnamed lagoon". Changing those words makes the stage run again. Each shape is cut to the coverage, and one the coverage cuts is partial. The stage writes osm_water.json in its folder: the counts of areas read, added (by type), with no name, already in the pack, river areas left out, and outside the coverage.
 
+In the real regional packs, the osm-lines stage (P4-T1d) reads the motorways and trunk roads and the main railway lines with the world's settings, so they keep the world's ids, at tolerance_m 2 and within the outline's box.
+
+The osm-streets stage (P4-T1d) reads every other road, street, track and path, named or not, within the coverage, into three layers:
+
+* main-roads: highway primary and secondary, and their link roads.
+* streets: highway tertiary, unclassified, residential, living_street, road, pedestrian (as a line), busway, and service, but not driveways, parking aisles or drive-throughs.
+* paths: highway footway, but not sidewalks or crossings; path, bridleway, cycleway, steps and track.
+
+Its settings:
+
+* source: the OpenStreetMap source, planet for the real packs and sample-osm-raw for the test region.
+* tolerance_m: the detail of the lines, 2 metres if not given.
+* join_gap_m: how far apart two ways of one name may be and still be joined, 30 metres if not given, so a street broken by a roundabout, or a dual carriageway's two sides, is one feature.
+* meet_m: how close two unnamed ways must come to be joined, 3 metres if not given.
+
+What it does: a main road with a number is joined by its number, in each country, by the osm-lines stage's rules for stretches far apart, and named by its number, with its name added where most of its ways carry it: "A33, Basingstoke Road". An unnamed slip road that meets it joins it. Every other way with a name is joined with the ways of the same name and layer that it meets, again and again, so two High Streets in two towns are two features. Unnamed ways of one layer and type that meet are joined within one parish, so footpaths that cross a parish boundary are two features. Each way's type is its highway value's words from mapcore/describe/templates.yaml, under details, street_types, such as "footpath" or "service road", and an unnamed feature is named by those words: "Footpath", "Service road". Changing those words makes the stage run again. A feature takes the id of its smallest way. Each line is cut to the coverage, and one the coverage cuts is partial. The stage writes, in its folder, ways.json, every feature's OpenStreetMap way numbers, for the network graph of Phase 5 (the writing stage does not read it), and osm_streets.json, for each layer the ways read, the features made, the km of line, those named by their type and those cut by the coverage.
+
 Sources for the regional packs, in sources.yaml: great-britain-outline, hampshire-outline and isle-of-wight-outline (Geofabrik's .poly files, ODbL 1.0, fetched with `mapdata fetch <key>` into the downloads folder's geofabrik-outlines folder), and world-pack, the world pack mapdata built (tobymap/output/world/world.pack), which the match stage reads (P4-T1h).
 
 ## Other files

@@ -51,7 +51,14 @@ stages:
     tolerance_m: 5
     leave_out: [river]
   # osm-waterways: added by P4-T1g
-  # osm-streets: added by P4-T1d
+  # Every main road, street, track and path, named or not, within the coverage, simplified to 2 metres: main roads
+  # joined by their number, streets and paths by their name where they meet (or within 30 metres), unnamed ways of
+  # one type that meet joined within one parish; each feature's way numbers kept in ways.json (P4-T1d).
+  - stage: osm-streets
+    source: sample-osm-raw
+    tolerance_m: 2
+    join_gap_m: 30
+    meet_m: 3
   # osm-land: added by P4-T1e
   # osm-pois: added by P4-T1f
   # osm-places (villages): added by P4-T1f

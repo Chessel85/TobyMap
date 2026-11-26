@@ -72,8 +72,34 @@ stages:
     leave_out: [river]
   # osm-rivers: added by P4-T1g
   # osm-waterways: added by P4-T1g
-  # osm-lines: added by P4-T1d
-  # osm-streets: added by P4-T1d
+  # The motorways and trunk roads and the main railway lines, with the world's settings and ids, at 2 metres
+  # (P4-T1d).
+  - stage: osm-lines
+    source: planet
+    tolerance_m: 2
+    box: [-15.1, 49.42, 2.62, 61.24]   # region:
+    layers:
+      - layer: roads
+        key: ref
+        unnamed: Unnamed road
+        queries:
+          - {query: "w[highway=motorway]", type: motorway}
+          - {query: "w[highway=trunk]", type: trunk road}
+      - layer: railways
+        key: name
+        unnamed: Unnamed railway line
+        number_name: Railway line
+        queries:
+          - {query: "w[railway=rail][highspeed=yes][!service]", type: high-speed railway}
+          - {query: "w[railway=rail][usage=main][!service]", type: railway}
+  # Every main road, street, track and path, named or not, within the coverage, simplified to 2 metres: main roads
+  # joined by their number, streets and paths by their name where they meet (or within 30 metres), unnamed ways of
+  # one type that meet joined within one parish; each feature's way numbers kept in ways.json (P4-T1d).
+  - stage: osm-streets
+    source: planet
+    tolerance_m: 2
+    join_gap_m: 30
+    meet_m: 3
   # osm-land: added by P4-T1e
   # osm-pois: added by P4-T1f
   # osm-places (villages): added by P4-T1f

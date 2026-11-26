@@ -72,6 +72,15 @@ Not started tonight, as they need the PO: P4-T14f's change (the PO sees the list
 
 The PO's instructions (toOrchestrate.txt, pasted again): cover P4-T1, P4-T2, P4-T3, P4-T6, P4-T7 (laptop idle) and P4-T13 (source chosen by own research); one fresh subagent per work item; checked, committed and pushed one by one; full suite and browser tests at the end; a world build when the code changes are done. Nothing that needs the PO is started (P4-T10, P4-T14f, publishing P4-T6h and P4-T11b, DMT-1 rerun).
 
+Progress this session:
+
+* CI of 09:14 failed on one Chromium bookmark download test (focus checked before it returned); the test now waits for it (passes locally, committed).
+* P4-T1 design note written by an Opus designer, docs/plan/p4-t1-design.md, committed: stage list, layers, coverage in the manifest (format stays 4), samples, work items with file owners, estimates (rehearsal 35 to 60 MB, Great Britain about 800 MB, 6 to 12 hours), 19 choices for the PO in its section 8. New work item P4-T1k (relationships at street scale). No existing stage's code changes except write.py and relationships.py, so world fingerprints stay. Every later P4-T1 subagent is told to follow it.
+* P4-T0e done, checked (12 sample tests; tag counts read from the files), committed 55fcedb: three raw samples in tests/samples/osm-raw (5.06 MB together, over the design's 3 MB: real streets, not buildings; limit set to 5.5 MB), lymington-coast.geojson, test-region.poly; two runs identical. Brockenhurst's box widened (Mirror Pond, two parishes). Winchester's box has no parish at all (wholly unparished), Lymington no named islets.
+* P4-T13a done, report docs/plan/p4-t13a-island-groups-report.md, committed. Decision (the orchestrator's, as the PO asked): membership from OpenStreetMap place=archipelago (islands inside the group's outline; by member id only for the Cyclades), Wikidata only for groups inside groups, a record of our own (island_groups.yaml) for the Balearics, the British Isles and missing links or names, Natural Earth only as a member list where OSM lacks a group; outlines grown from our own islands (twice the joining distance, 10 to 60 km, shrunk back to 3 km off the outer coasts, other land cut away), right at every tested point in 15 groups. Natural Earth's island groups leave the physical layer; the British Isles rebuilt from members. The 99 percent British Isles fault is already gone in the 21 November build. One planet query, 69 s, about 4 GB.
+* P4-T1a done, checked (41 coverage, reading and core rules tests, 1 expected failure: 0.7 km2 of the Lymington River estuary in neither land nor sea in the test region, as its only sea is VLIZ's coarse North Atlantic; a cooked sea sample would fix it), committed 65f89b5. Coverage stage, osm_source.py (planet or raw samples; refuses query forms it cannot match), manifest coverage {kind: region, region, tile_level, tiles, layers, draw_below_km}, read-osm subcommand, every new stage's build.py entry, test_region_pack fixture. Test region: 11 pack tiles, 1.3 s. World and trial fingerprints: only write and checks change. Geofabrik: "Data: ODbL 1.0", no separate outline terms; outlines fetched (Hampshire's URL corrected to .../england/hampshire/hampshire.poly). Departures: the coverage stage names outlines with source/sources (settings.py registers only those); the trial keeps {kind: region} with no coverage stage, so P4-T3a must not treat it as regional. Planet reading path untried until P4-T1j.
+* Running: P4-T13b (Opus), with a Western Europe trial rehearsal.
+
 Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to P4-T1j, P4-T2, P4-T3, P4-T6a to g, the world rebuild (P4-T13, P4-T1h), P4-T7, the full tests. Choices are listed under "Overnight choices for the PO" below, marked "21 Nov day".
 
 ## Overnight choices for the PO
@@ -96,13 +105,14 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 
 ## Current state
 
-Last updated 21 November 2026, 09:15, before the PO cleared the session. Read this first to resume.
+Last updated 26 November 2026. Read this first to resume.
 
 ### Where things stand
 
 * Everything listed under Progress is committed and pushed. The tick list is docs/plan/phase-4.md.
 * The world pack of 21 November 07:17 (552.46 MB) is at E:\osmdata\tobymap\output\world\world.pack and fits the code, apart from the core-only work since. The Western Europe trial (55.19 MB) was built 21 November 01:20.
 * P4-T9d is done and committed (21 November, 09:40): bookmark files save and open on the desktop and the web; a core gap fixed (run_many dropped save_file and open_file). P4-T9 is complete.
+* Committed since 21 November 09:40: P4-T0e (55fcedb), P4-T13a (49dc159), P4-T1 design note (965c5e6), P4-T1a (65f89b5). Next: P4-T13b (unfinished and uncommitted: the island_groups stage, its config and tests are in the working tree; it still needs the missing sample, test fixes, the Channel Islands outline and a Western Europe trial practice run), then P4-T1b to P4-T1j, P4-T2, P4-T3, P4-T6. Work is on the Western Europe trial; the world pack is rebuilt at the end.
 * Continuous integration: the last failures were the macOS held-key timing test (allowance widened, c4d25ef) and two bookmark browser tests (fixed, 84c93d1). Check the latest runs first.
 
 ### The PO's decisions, 21 November 2026, morning

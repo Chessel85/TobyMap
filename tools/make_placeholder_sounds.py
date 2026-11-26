@@ -45,6 +45,9 @@ TONES = {
     "layer_town": [(660, 0.05), (880, 0.05), (1100, 0.07)],
     "layer_mountain": [(150, 0.14), (120, 0.18)],
     "layer_peak": [(200, 0.06), (400, 0.06), (800, 0.1)],
+    "layer_path": [(500, 0.04), (450, 0.04), (500, 0.04), (450, 0.04), (500, 0.04)],   # P4-T1i, stand-ins
+    "layer_park": [(440, 0.1), (554, 0.1), (659, 0.14)],
+    "layer_poi": [(1040, 0.05), (1040, 0.05)],
     "beacon": [],   # made by make_beacon_samples.soft_whump instead (P2-T16h)
 }
 VOLUME = 0.35

@@ -8,4 +8,4 @@ layers:
   # The New Forest National Park, which overlaps Hampshire and Wiltshire, for the tests of the relationships only:
   # INF-5's overlaps and NAV-4's ambiguous up (P3-T3). National parks come to the real packs in Phase 4. Its area
   # overlaps the counties, so it is not painted.
-  - {id: national_parks, name: National parks, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true, fill: none}
+  - {id: national_parks, name: National parks, rank: 6, kind: land, group: Boundaries, geometry: area, switched_on: true, fill: none, sound: layer_park, shown_name: National parks and National Landscapes}

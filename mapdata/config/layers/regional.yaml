@@ -13,23 +13,23 @@
 
 layers:
   # Boundaries: every administrative level below the counties (P4-T1b), and the national parks (P4-T1e).
-  - {id: districts, name: Districts, rank: 7, kind: land, made_by: local-areas, group: Boundaries, geometry: area}
-  - {id: parishes, name: Parishes, rank: 7, kind: land, made_by: local-areas, group: Boundaries, geometry: area}
+  - {id: districts, name: Districts, rank: 7, kind: land, made_by: local-areas, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 50000, sound: layer_region, shown_name: Districts and boroughs}
+  - {id: parishes, name: Parishes, rank: 7, kind: land, made_by: local-areas, group: Boundaries, geometry: area, switched_on: true, max_zoom_m: 10000, sound: layer_region, shown_name: Parishes and communities}
   # The same id as the test pack's sample layer (mapdata/config/layers/samples.yaml), so its tests keep working.
-  - {id: national_parks, name: National parks, rank: 6, kind: land, made_by: osm-land, group: Boundaries, geometry: area}
+  - {id: national_parks, name: National parks, rank: 6, kind: land, made_by: osm-land, group: Boundaries, geometry: area, switched_on: true, fill: none, sound: layer_park, shown_name: National parks and National Landscapes}
   # Water: streams, ditches and drains (P4-T1g). Every lake and river is in the base layers lakes and rivers.
-  - {id: streams, name: Streams and ditches, rank: 8, kind: land, made_by: osm-waterways, group: Water, geometry: line}
+  - {id: streams, name: Streams and ditches, rank: 8, kind: land, made_by: osm-waterways, group: Water, geometry: line, switched_on: true, max_zoom_m: 5000, crossing_earcon: line_crossing, sound: layer_river}
   # Transport (P4-T1d). Motorways and trunk roads stay in the base layer roads.
-  - {id: main-roads, name: Main roads, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line}
-  - {id: streets, name: Streets and minor roads, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line}
-  - {id: paths, name: Paths and tracks, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line}
+  - {id: main-roads, name: Main roads, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line, switched_on: true, max_zoom_m: 50000, crossing_earcon: line_crossing, sound: layer_road}
+  - {id: streets, name: Streets and minor roads, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line, switched_on: true, max_zoom_m: 5000, crossing_earcon: line_crossing, sound: layer_road}
+  - {id: paths, name: Paths and tracks, rank: 8, kind: land, made_by: osm-streets, group: Transport, geometry: line, switched_on: true, max_zoom_m: 2500, crossing_earcon: line_crossing, sound: layer_path}
   # Land use and parks (P4-T1e).
-  - {id: land-use, name: Land use, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area}
-  - {id: parks, name: Parks and public spaces, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area}
-  - {id: school-grounds, name: Schools and colleges, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area}
+  - {id: land-use, name: Land use, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area, switched_on: true, max_zoom_m: 2500, min_size: 0.01, fill: none}
+  - {id: parks, name: Parks and public spaces, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area, switched_on: true, max_zoom_m: 10000, min_size: 0.01, fill: none, sound: layer_park}
+  - {id: school-grounds, name: Schools and colleges, rank: 8, kind: land, made_by: osm-land, group: Land use and parks, geometry: area, switched_on: true, max_zoom_m: 5000, min_size: 0.01, fill: none, sound: layer_park}
   # Places: points of interest in four layers (P4-T1f), and villages, from the existing osm-places stage.
-  - {id: stops, name: Stops and crossings, rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point}
-  - {id: shops-food, name: "Shops, cafes and pubs", rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point}
-  - {id: services, name: Services and amenities, rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point}
-  - {id: street-furniture, name: "Post boxes, benches and bins", rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point}
-  - {id: villages, name: "Villages, suburbs and hamlets", rank: 8, kind: land, made_by: osm-places, group: Places, geometry: point}
+  - {id: stops, name: Stops and crossings, rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point, switched_on: true, max_zoom_m: 1000, say_type: true, sound: layer_poi}
+  - {id: shops-food, name: "Shops, cafes and pubs", rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point, switched_on: true, max_zoom_m: 1000, say_type: true, sound: layer_poi}
+  - {id: services, name: Services and amenities, rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point, switched_on: true, max_zoom_m: 2500, say_type: true, sound: layer_poi}
+  - {id: street-furniture, name: "Post boxes, benches and bins", rank: 8, kind: land, made_by: osm-pois, group: Places, geometry: point, switched_on: true, max_zoom_m: 250, say_type: true, sound: layer_poi}
+  - {id: villages, name: "Villages, suburbs and hamlets", rank: 8, kind: land, made_by: osm-places, group: Places, geometry: point, switched_on: true, max_zoom_m: 25000, sound: layer_town}

@@ -34,6 +34,12 @@ drawing_order:
   - countries       # 2. Countries.
   - regions         # 3. Regions.
   - counties        # 4. Counties.
+  - districts       # Districts and boroughs, then parishes: a regional pack's finer government areas (P4-T1i).
+  - parishes
+  - land-use        # Land use, parks and school grounds, under the national parks, over the parishes.
+  - parks
+  - school-grounds
+  - national_parks  # National parks, a regional pack's outlines over the land use, not filled.
   - physical-regions  # 5. Physical regions, larger under smaller. The groups of islands (P4-T13b) are not listed
                       # yet: an area layer not listed is drawn after the listed areas, before the outlines, and theirs
                       # is outlined, not filled. Where they go in this order waits for the PO (DP198 approved it).
@@ -41,19 +47,24 @@ drawing_order:
   - mountain-ranges   # 7. Mountain ranges, larger under smaller.
   - lakes           # 8. Lakes and rivers: a country reaches across a lake to its border, so the lake comes after it.
   - rivers
+  - streams         # Streams and ditches, with the rivers, under the outlines.
   - outlines        # 9. Outlines, over everything painted so far, so a border is a line across a lake.
-  - roads           # 10. Roads and railway lines, then places.
+  - paths           # 10. Paths, streets, main roads, motorways and trunk roads, railway lines, then places.
+  - streets
+  - main-roads
+  - roads
   - railways
   # 11. The current feature, then the areas' names, are not layers: they are drawn after the places.
   # 12. Bookmarks, on top of everything, each a diamond with its name: TobyMap's own layer, in no pack (P4-T8f).
 
-political_layers: [countries, regions, counties]
+political_layers: [countries, regions, counties, districts, parishes]
 
 views:
   - id: political
     name: Political
-    said: [lakes, seas, oceans, territorial-waters, counties, regions, countries, exclaves, islands, island-groups,
-           mountain-ranges, physical-regions, continents]
+    said: [lakes, school-grounds, parks, land-use, seas, oceans, territorial-waters, parishes, districts,
+           national_parks, counties, regions, countries, exclaves, islands, island-groups, mountain-ranges,
+           physical-regions, continents]
     layers:
       oceans: {fill: water, outline: false}
       seas: {fill: water, outline: false}
@@ -62,6 +73,14 @@ views:
       countries: {fill: colours}
       regions: {fill: colours}
       counties: {fill: colours}
+      # A regional pack's finer areas: the most detailed shown at the zoom has the colours (P4-T1i, DP198).
+      districts: {fill: colours}
+      parishes: {fill: colours}
+      # Land use, parks and school grounds are not filled in the political view: their outlines show them.
+      land-use: {fill: none, names: false}
+      parks: {fill: none, names: true}
+      school-grounds: {fill: none, names: true}
+      national_parks: {fill: none, names: false}
       lakes: {fill: water}
       physical-regions: {fill: none, names: false}
       islands: {fill: none, names: true}
@@ -76,8 +95,9 @@ views:
 
   - id: physical
     name: Physical
-    said: [lakes, seas, oceans, territorial-waters, islands, island-groups, mountain-ranges, physical-regions, counties,
-           regions, countries, exclaves, continents]
+    said: [lakes, school-grounds, parks, land-use, seas, oceans, territorial-waters, islands, island-groups,
+           mountain-ranges, physical-regions, parishes, districts, national_parks, counties, regions, countries,
+           exclaves, continents]
     layers:
       oceans: {fill: water, outline: false}
       seas: {fill: water, outline: false}
@@ -86,6 +106,13 @@ views:
       countries: {fill: plain, names: true}
       regions: {fill: none}
       counties: {fill: none}
+      districts: {fill: none}
+      parishes: {fill: none}
+      # The land use, parks and school grounds are the physical view's: a colour each (P4-T1i, DP198).
+      land-use: {fill: kind, names: false}
+      parks: {fill: kind, names: true}
+      school-grounds: {fill: kind, names: true}
+      national_parks: {fill: none, names: false}
       physical-regions: {fill: kind}
       islands: {fill: kind}
       # Groups of islands: outlined, not filled, so the sea between the islands stays the sea's colour; named on the

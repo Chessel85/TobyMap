@@ -112,4 +112,7 @@ stages:
   - stage: corrections
     file: tests/samples/corrections.yaml
   - stage: write
-    # write drawing_levels: set by P4-T1i
+    # The drawing levels (P4-T1i): adjust on the rehearsal so a frame stays near 10,000 points a layer (VIS-1).
+    drawing_levels:
+      - {tolerance_m: 25, min_km2: 0.02, tile_level: 9, view_km: 50}
+      - {tolerance_m: 150, min_km2: 0.5, tile_level: 7, view_km: 150}

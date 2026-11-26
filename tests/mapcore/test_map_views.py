@@ -45,8 +45,10 @@ def _choose(session, label):
 # The views file ------------------------------------------------------------------------------------------
 
 def test_the_drawing_order_is_the_definitions():
-    assert views.drawing_order() == ["oceans", "seas", "territorial-waters", "countries", "regions", "counties", "physical-regions",
-                                     "islands", "mountain-ranges", "lakes", "rivers", "outlines", "roads", "railways"]
+    # The layers of a regional pack (P4-T1i) take their places among these; the world's layers keep their order.
+    world = ["oceans", "seas", "territorial-waters", "countries", "regions", "counties", "physical-regions",
+             "islands", "mountain-ranges", "lakes", "rivers", "outlines", "roads", "railways"]
+    assert [layer for layer in views.drawing_order() if layer in world] == world
 
 
 def test_there_are_two_views_built_in_the_political_first():

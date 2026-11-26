@@ -28,3 +28,7 @@
 - {event: layer_town, file: layer-town.wav, label: City or town, meaning: "Played from the direction of a city or town.", phase: 3}
 - {event: layer_mountain, file: layer-mountain.wav, label: Mountain range or region, meaning: "Played from the direction of a mountain range, desert, plateau or plain.", phase: 3}
 - {event: layer_peak, file: layer-peak.wav, label: Peak, meaning: "Played from the direction of a mountain peak.", phase: 3}
+# A regional pack's layers (P4-T1i): paths, parks and national parks, and points of interest.
+- {event: layer_path, file: layer-path.wav, label: Path or track, meaning: "Played from the direction of a footpath, cycleway or track.", phase: 4}
+- {event: layer_park, file: layer-park.wav, label: Park or open space, meaning: "Played from the direction of a park, public space, school ground or national park.", phase: 4}
+- {event: layer_poi, file: layer-poi.wav, label: Point of interest, meaning: "Played from the direction of a stop, shop, service or other point of interest.", phase: 4}

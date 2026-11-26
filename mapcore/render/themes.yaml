@@ -48,6 +48,9 @@ standard:
     mountain-ranges: "#cfae86"
     physical-regions: "#e6d59c"
     default: "#d9d2bd"
+    land-use: "#ddd8c4"          # a regional pack's land use, parks and school grounds (P4-T1i)
+    parks: "#bfe0a8"
+    school-grounds: "#ecd3b0"
 
 # Dark land, white borders, yellow for the current area; every outline and text 7 to 1.
 high_contrast_dark:
@@ -92,6 +95,9 @@ high_contrast_dark:
     mountain-ranges: "#5c3d1f"
     physical-regions: "#3d3d14"
     default: "#3a3a3a"
+    land-use: "#2e2e2e"          # a regional pack's land use, parks and school grounds (P4-T1i)
+    parks: "#1a4a1a"
+    school-grounds: "#4a3a10"
 
 # Pale land, black borders, dark blue for the current area; every outline and text 7 to 1.
 high_contrast_light:
@@ -136,6 +142,9 @@ high_contrast_light:
     mountain-ranges: "#f5d6b3"
     physical-regions: "#fff0b3"
     default: "#e6e6e6"
+    land-use: "#e0e0e0"          # a regional pack's land use, parks and school grounds (P4-T1i)
+    parks: "#c8ecc8"
+    school-grounds: "#fde6c0"
 
 # Seven colours after the Okabe and Ito palette, lightened for filling, that still differ
 # for each of the three common kinds of colour blindness (tested by simulation), with
@@ -182,6 +191,9 @@ colour_blind_safe:
     mountain-ranges: "#d9a066"
     physical-regions: "#f7ef99"
     default: "#e0e0e0"
+    land-use: "#e6e1cf"          # a regional pack's land use, parks and school grounds (P4-T1i)
+    parks: "#b5dcb0"
+    school-grounds: "#f0d3a8"
 
 # The colours the map display setting can choose for the fill, the borders and the
 # current outline (DP108). Their names are in the settings' choices.

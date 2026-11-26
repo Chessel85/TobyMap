@@ -1,0 +1,63 @@
+# The local levels record (P4-T1b, design docs/plan/p4-t1-design.md 3.5). It sits beside the counties record.
+#
+# For each country, by its OpenStreetMap id: which administrative levels, below the counties, make its districts
+# layer and its parishes layer, and why. The local-areas stage of a regional pack reads it; changing it makes that
+# stage run again (it is in the stage's fingerprint). A country not listed here gets no districts or parishes.
+#
+# For each country:
+# * districts, parishes: the admin_level values read into each layer. A country with no level for a layer leaves
+#   it out (an empty list).
+# * district_tier, parish_tier: the words said for its districts and parishes in Details, such as "district of
+#   Hampshire", where OpenStreetMap's designation tag gives no plainer word.
+# * types: OpenStreetMap's designation values, as plain words. The word is the area's type and the name of its
+#   tier in Details. A designation not listed is said with its underscores as spaces.
+# * parts: the country's parts that differ, by the id of the region above their counties (for the United Kingdom,
+#   its constituent countries):
+#   * gap_name: the name of land in no parish, one area for each district, or for each county with no districts.
+#     None (null) means the part is wholly in parishes: land OpenStreetMap leaves in none goes to the neighbouring
+#     parish with the longest shared edge, whatever its size, and a district with none at all is listed in the log.
+#   * gap_type: the type of that land, also its tier's name in Details.
+#   * parish_tier: the word for its parishes where the designation tag gives none.
+# * why: where the levels come from, and when they were checked.
+
+countries:
+  osm:r62149:
+    name: United Kingdom
+    districts: [8]
+    parishes: [10]
+    district_tier: district
+    parish_tier: parish
+    types:
+      non_metropolitan_district: district
+      metropolitan_district: metropolitan borough
+      outer_london_borough: London borough
+      inner_london_borough: London borough
+      civil_parish: civil parish
+      community: community
+      unparished_area: unparished area
+      non-civil_parish: unparished area
+    parts:
+      osm:r58447:
+        name: England
+        gap_name: Unparished area
+        gap_type: unparished area
+        parish_tier: civil parish
+      osm:r58446:
+        name: Scotland
+        gap_name: Area with no community council
+        gap_type: area with no community council
+        parish_tier: community council area
+      osm:r58437:
+        name: Wales
+        gap_name: null
+        parish_tier: community
+    why: >-
+      Checked on uk.gol (October 2025), 26 November 2026. England: level 8 the districts and boroughs (164
+      non-metropolitan districts, 31 metropolitan boroughs, 32 London boroughs, 5 more with no designation), level 10
+      the civil parishes (10,462), with a few areas drawn as unparished (6). Scotland: no level 8; level 10 is
+      community council areas, but only 127 areas are mapped, so most of Scotland is "Area with no community
+      council". Wales: no level 8; level 10 the 914 communities, covering it. Level 9 is left out: of its 80 areas,
+      70 are electoral divisions of Ireland just over the border, 9 are Buckinghamshire's community boards (advisory
+      bodies, not a level of government) and 1 is the Inner and Middle Temples in London, an extra-parochial liberty.
+      Electoral wards are boundary=political, not administrative, and few are mapped, so they are left out too.
+      Northern Ireland is outside Great Britain and is not described here; its level 10 is townlands.

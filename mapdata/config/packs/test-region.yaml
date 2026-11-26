@@ -33,7 +33,14 @@ stages:
     sources: [sample-outline]
     tile_level: 14
     merge_from_level: 6
-  # local-areas: added by P4-T1b
+  # Every administrative level below the counties, by the local levels record (mapdata/config/local_levels.yaml):
+  # districts and parishes, cut to the counties' land, slivers to the neighbour, land in no parish as one area for
+  # each district, simplified on shared edges at the counties' detail (P4-T1b).
+  - stage: local-areas
+    source: sample-osm-raw
+    tolerance_m: 10
+    sliver_km2: 0.1
+    sliver_width_m: 200
   # small-islands: added by P4-T1c
   # osm-water: added by P4-T1c
   # osm-waterways: added by P4-T1g

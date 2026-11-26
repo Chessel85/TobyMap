@@ -1,12 +1,12 @@
 # The tiers record (P3-T17, DP165; glossary: tier). It sits beside the counties record.
 #
 # A tier is where an area sits in its own country's government, such as country,
-# constituent country, region or county. The OSM level alone cannot say it: England
+# constituent country, region, county, district or parish. The OSM level alone cannot say it: England
 # and the French region Brittany are both level 4, but England is a constituent
 # country of the United Kingdom.
 #
-# The writing stage gives every area of the countries, regions and counties layers
-# a tier, in this order:
+# The writing stage gives every area of the countries, regions, counties, districts
+# and parishes layers a tier, in this order:
 # * an area listed under "areas" takes the tier given there;
 # * an area of a country listed under "countries" takes the tier given there for
 #   its layer;
@@ -20,12 +20,21 @@
 # words there and its place in this list.
 
 # The tiers, highest first.
-tiers: [country, constituent_country, region, county]
+tiers: [country, constituent_country, region, county, district, parish]
 
+# Districts and parishes (P4-T1b) are in a regional pack only. The name of each one's
+# tier in its country, such as "civil parish" in England, "community" in Wales and
+# "community council area" in Scotland, and "district" or "London borough" for a
+# district, comes from OpenStreetMap's designation tag, in the words of the local
+# levels record (mapdata/config/local_levels.yaml): the local-areas stage gives it to
+# each area, so there are too many to list here. Land in no parish is said by its own
+# words there, such as "unparished area of Winchester".
 layers:
   countries: country
   regions: region
   counties: county
+  districts: district
+  parishes: parish
 
 countries:
   osm:r62149:

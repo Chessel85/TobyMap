@@ -125,6 +125,8 @@ details:
     constituent_country: constituent country
     region: region
     county: county
+    district: district
+    parish: parish
   tier_of: "{tier} of {owner}"
   # A country's distant part with no region of its own, such as Wake Island: "part of the United States" (DP191).
   distant_part: part

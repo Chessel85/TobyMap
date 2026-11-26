@@ -33,7 +33,7 @@ def details_type(session, item):
 
 
 def test_each_area_has_its_tier_and_the_pack_lists_the_tiers(session):
-    assert session.store.tiers == ["country", "constituent_country", "region", "county"]
+    assert session.store.tiers == ["country", "constituent_country", "region", "county", "district", "parish"]
     tier = {i: session.store.feature(i).record["tier"] for i in (UK, ENGLAND, BRITTANY, HAMPSHIRE)}
     assert tier == {UK: "country", ENGLAND: "constituent_country", BRITTANY: "region", HAMPSHIRE: "county"}
 
@@ -79,7 +79,7 @@ def test_a_name_after_of_takes_the_where_it_should(name, said):
 
 
 def test_where_two_tiers_share_a_rank_the_lower_tier_comes_first():
-    tiers = ["country", "constituent_country", "region", "county"]
+    tiers = ["country", "constituent_country", "region", "county", "district", "parish"]
 
     def area(i, tier, km2):
         return Area(0, 0, {"id": i, "layer": "regions", "rank": 4, "area_km2": km2, "tier": tier,

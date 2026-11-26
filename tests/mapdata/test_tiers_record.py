@@ -22,7 +22,7 @@ def records():
 
 def test_the_record_in_the_repository_makes_the_uks_regions_constituent_countries():
     tiers = write.load_tiers()
-    assert tiers["tiers"] == ["country", "constituent_country", "region", "county"]
+    assert tiers["tiers"] == ["country", "constituent_country", "region", "county", "district", "parish"]
     assert tiers["countries"][UK]["regions"] == "constituent_country"
 
 
@@ -86,7 +86,7 @@ def test_the_test_pack_has_the_tiers_in_its_manifest_and_records(test_pack):
 
     p = Pack(test_pack)
     try:
-        assert p.manifest["tiers"] == ["country", "constituent_country", "region", "county"]
+        assert p.manifest["tiers"] == ["country", "constituent_country", "region", "county", "district", "parish"]
         tier = {i: p.feature(p.feature_number(i))["tier"] for i in (UK, "osm:r58447", "osm:r102740")}
         assert tier == {UK: "country", "osm:r58447": "constituent_country", "osm:r102740": "region"}
     finally:

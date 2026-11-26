@@ -158,6 +158,15 @@ details:
     cycleway: cycle path
     steps: steps
     track: track
+  # The name of a river, canal, stream, ditch or drain with no name in a regional pack, by OpenStreetMap's waterway
+  # value (P4-T1g). The build writes them into the pack, so changing a word here makes the osm-waterways stage run
+  # again.
+  unnamed_waterways:
+    river: Unnamed river
+    canal: Unnamed canal
+    stream: Unnamed stream
+    ditch: Ditch
+    drain: Drain
   # A country's distant part with no region of its own, such as Wake Island: "part of the United States" (DP191).
   distant_part: part
   # Land the build names itself, in the Countries layer, said by its type, not as a country (P3-T2c, DP120).

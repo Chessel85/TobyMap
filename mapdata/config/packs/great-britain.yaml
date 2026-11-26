@@ -70,8 +70,25 @@ stages:
     source: planet
     tolerance_m: 5
     leave_out: [river]
-  # osm-rivers: added by P4-T1g
-  # osm-waterways: added by P4-T1g
+  # The rivers the world pack has, with the world's settings and ids, joined by their Wikidata link, at 2 metres
+  # and with no check against Natural Earth (P4-T1g).
+  - stage: osm-rivers
+    source: planet
+    layer: rivers
+    min_km: 50
+    min_km_unlinked: 200
+    tolerance_m: 2
+    box: [-15.1, 49.42, 2.62, 61.24]   # region:
+  # Every other river and canal into the rivers, and every stream, ditch and drain into the streams, within the
+  # coverage, simplified to 2 metres: ways of one name that meet joined end to end, each kept in the direction the
+  # water flows; unnamed ways of one type that meet joined within one parish; a river way the osm-rivers stage has
+  # already used not read again; each feature's way numbers kept in ways.json (P4-T1g).
+  - stage: osm-waterways
+    source: planet
+    tolerance_m: 2
+    meet_m: 3
+    used_within_m: 5
+    used_share: 0.9
   # The motorways and trunk roads and the main railway lines, with the world's settings and ids, at 2 metres
   # (P4-T1d).
   - stage: osm-lines

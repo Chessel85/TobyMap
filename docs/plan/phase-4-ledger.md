@@ -166,7 +166,7 @@ Written 26 November 2026, updated in the evening before a /clear. Step 1 is done
 
 1. Check continuous integration for 06fc39b (the five P4-T1i test failures should be gone).
 2. The memory work, the PO's decision of 26 November. P4-T1l is part done (every stage but writing fits England, docs/plan/p4-t1l-memory-report.md). Next: P4-T1m (Opus), the writing stage group by group, checked with tools/time_stage.py hampshire-isle-of-wight write (the pack must stay the same byte for byte). Then rebuild the rehearsal from the wikidata stage and compare the pack's check places (20 of 20), time and the build log's peak memory lines. See "Hand-over: the memory work" below.
-3. P4-T2 the England pack (England only, the PO's decision): first a new estimate from the rehearsal for England, then the build (heavy: run switch, stall watch, snapshot worktree as on 21 November, --away overnight).
+3. P4-T2 the England pack (England only, the PO's decision). The plan was corrected for England on 26 November (phase-4-plan.md, P4-T2): P4-T2a estimate and get ready, P4-T2b the build (heavy: run switch, stall watch, snapshot worktree as on 21 November, --away overnight), P4-T2c size, P4-T2d checks, P4-T2e built twice (waits for the PO's yes). Each is its own session; the PO said on 26 November not to start yet, so wait for the go-ahead before P4-T2a.
 4. P4-T3 combining packs (can start on the rehearsal pack while step 2 is under way); then P3-T20d (browser speed, DP222 yes).
 5. P4-T6 the pack manager, P4-T6a to g (h, the test release, waits for the PO's yes).
 6. A world rebuild for P4-T13 and P4-T1h's identifier register, then P4-T7 memory with both packs, with the laptop idle.

@@ -1,6 +1,6 @@
 # Phase 4 task list
 
-Phase 4 is street detail: the Great Britain pack, combining packs, the whole pack manager, bookmarks, and the data manager's tools. The tasks are described in "implementation plan.md", section 7, and in detail in phase-4-plan.md, which raises DP218 to DP223 and splits each task into work items, each labelled Opus or Sonnet. This list shows what is done.
+Phase 4 is street detail: the England pack (planned as Great Britain), combining packs, the whole pack manager, bookmarks, and the data manager's tools. The tasks are described in "implementation plan.md", section 7, and in detail in phase-4-plan.md, which raises DP218 to DP223 and splits each task into work items, each labelled Opus or Sonnet. This list shows what is done.
 
 Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP223 on 20 November, and work started that night. The orchestrator's record of each work item, its checks and the choices made for you is docs/plan/phase-4-ledger.md.
 
@@ -35,7 +35,12 @@ Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP22
 * [x] P4-T1 The regional pipeline, rehearsed on Hampshire and the Isle of Wight: 43.22 MB, 20 of 20 check places; Great Britain estimated at about 1.3 GB (docs/plan/p4-t1j-rehearsal-report.md).
 * [x] P4-T1l Memory: no stage over 12 GB a process for the England build (the PO, 26 November 2026). Done with P4-T1m, 27 November 2026.
 * [x] P4-T1m The writing stage group by group: about 5 to 7 GB for England, not 20 to 30; the pack the same byte for byte, 27 November 2026 (docs/plan/p4-t1m-report.md).
-* [ ] P4-T2 The England pack (England only, the PO, 26 November 2026; planned as Great Britain).
+* [ ] P4-T2 The England pack (England only, the PO, 26 November 2026; planned as Great Britain). Work items, each its own session:
+  * [ ] P4-T2a Estimate and get ready: England's time, size and memory from the rehearsal; nothing heavy until you have it.
+  * [ ] P4-T2b The build, overnight.
+  * [ ] P4-T2c Size by layer; a proposal to you if over 1 GB.
+  * [ ] P4-T2d Checks: street places in and away from Hampshire, England's coast and islands, step timing.
+  * [ ] P4-T2e Built twice, identical: waits for your yes.
 * [ ] P4-T3 Combining packs.
 
 ## Bookmarks

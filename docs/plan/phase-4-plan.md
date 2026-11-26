@@ -13,14 +13,14 @@ This plan turns section 7 of "implementation plan.md" (version 0.9) into the wor
 * Each work item, such as P4-T1a, is small enough for one session, and has its own model label.
 * The last sections cover the exit checks, your acceptance checklist, closing the phase, risks, and what is left for later phases.
 
-Words follow the glossary. This plan adds five words to it: regional pack, Great Britain pack, pack manager, catalogue and correction rule.
+Words follow the glossary. This plan adds five words to it: regional pack, Great Britain pack, England pack, pack manager, catalogue and correction rule.
 
 ## The goal
 
-Street-level exploration of Great Britain, with packs that join without a seam, a complete pack manager, and bookmarks of your own:
+Street-level exploration of England (planned as Great Britain; England only, your decision of 26 November 2026), with packs that join without a seam, a complete pack manager, and bookmarks of your own:
 
-1. With the Great Britain pack installed, you can step along the streets of a town you know and hear each street, park, school ground and bus stop, and every administrative level down to the parish or ward.
-2. Moving from Great Britain out to sea, or across to France, nothing is said about missing detail: the world pack simply answers where the Great Britain pack does not reach (PLT-4).
+1. With the England pack installed, you can step along the streets of a town you know and hear each street, park, school ground and bus stop, and every administrative level down to the parish or ward.
+2. Moving from England out to sea, across to France, or into Scotland or Wales, nothing is said about missing detail: the world pack simply answers where the England pack does not reach (PLT-4).
 3. The pack manager lists the packs, with their sizes and dates, and installs, updates and removes them, on the desktop and in the web version. A download can be cancelled and carried on later.
 4. Ctrl+Enter makes a bookmark, a point with a name, in a bookmark list of your choice. Bookmarks are in the Information panel and on the map, and can be gone to, heard, measured, and saved to a file.
 5. As data manager, you can run a build yourself, read its quality report, fix a name by a rule rather than by editing a shape, and publish a pack, all with a screen reader.
@@ -103,14 +103,14 @@ The plan has always said "the Great Britain pack". Geofabrik's Great Britain ext
 1. Start of the phase: P4-T0a to P4-T0f.
 2. Your notes first: P4-T14, all in the core and the shells, so you can try them on the packs you have. One build of the Western Europe trial at the end of it, for the coast stretches (P4-T14i).
 3. Carried from Phase 3: P3-T15 Help, and the two unreliable browser tests. P3-T20d after P4-T3, if DP222 says yes.
-4. The data manager's tools, before the Great Britain build, so that build has them: P4-T5 (safety), P4-T4 (correction rules), P4-T11a (quality reports).
-5. The regional pipeline, P4-T1, rehearsed on Hampshire and the Isle of Wight, then the Great Britain pack, P4-T2.
+4. The data manager's tools, before the England build, so that build has them: P4-T5 (safety), P4-T4 (correction rules), P4-T11a (quality reports).
+5. The regional pipeline, P4-T1, rehearsed on Hampshire and the Isle of Wight, then the England pack, P4-T2.
 6. Combining packs, P4-T3.
-7. Bookmarks, P4-T8 and P4-T9, which need only the core and can be done while the Great Britain build runs.
+7. Bookmarks, P4-T8 and P4-T9, which need only the core and can be done while the England build runs.
 8. Territorial waters (P4-T12), groups of islands (P4-T13) and the mountain ranges cut to the coast (DP220), each rehearsed on the Western Europe trial.
 9. The world rebuild, P4-T15, with everything since 20 November.
 10. The pack manager, P4-T6, and publishing, P4-T11b, ending with the test release.
-11. Robustness and memory, P4-T7, on the world and Great Britain packs together.
+11. Robustness and memory, P4-T7, on the world and England packs together.
 12. The NVDA language harness, P4-T10.
 13. The checklists, the report, and closing the phase.
 
@@ -119,8 +119,9 @@ The plan has always said "the Great Britain pack". Geofabrik's Great Britain ext
 You are told before each starts, and each runs with the run switch (continue.txt) and a stall watch.
 
 * The Western Europe trial, once at the end of P4-T14, for the coast stretches: about 7 minutes, as only the coast stretches, writing and checks stages rerun.
-* The regional rehearsal on Hampshire and the Isle of Wight (P4-T1j): expected under an hour; it gives the figures to estimate the Great Britain build.
-* The Great Britain build (P4-T2a): its time is estimated from the rehearsal, before it starts. It reads the planet file once, in its own process.
+* The regional rehearsal on Hampshire and the Isle of Wight (P4-T1j): expected under an hour; it gives the figures to estimate the England build.
+* The England build (P4-T2b): its time is estimated from the rehearsal in P4-T2a, before it starts. It reads the planet file once, in its own process.
+* Built twice, identical, for England (P4-T2e): as long as the build; waits for your yes.
 * Rehearsals of P4-T12, P4-T13 and DP220 on the Western Europe trial: under half an hour each.
 * The world rebuild (P4-T15): overnight. It reruns from the mountain ranges, seas and countries stages onwards, not the planet file reading, if the fingerprints say so; checked before it starts.
 * The memory measurement with both packs (P4-T7b): an hour, the laptop otherwise idle.
@@ -249,17 +250,21 @@ Work items:
 
 Tests first, on the test pack's street samples: the centre of Winchester has its streets, its park and its school ground; a bus stop is said with its category; every point in the sample has a parish or ward; a parish and its district meet with no gap; Hampshire from the street samples has the world pack's identifier.
 
-## P4-T2 The Great Britain pack
+## P4-T2 The England pack
 
 * Requirements: DAT-2, DAT-3, PCK-1, DMT-1, DMT-7, NFR-1.
-* Needs first: P4-T1, DP223.
-* The PO, 26 November 2026, after the rehearsal: build England only, not all of Great Britain; keep unnamed land use (named by its use); before the build, change the stages that load every feature so no process goes over the memory aim. The work items below read "England" for "Great Britain".
+* Needs first: P4-T1, including the memory work P4-T1l and P4-T1m (done 27 November 2026).
+* Planned as the Great Britain pack (DP223). Changed by you, 26 November 2026, after the rehearsal: build England only, as large enough to be useful and the area you know best for testing; keep unnamed land use (named by its use); before the build, change the stages that load every feature so no process goes over the memory aim of 12 GB (done in P4-T1l and P4-T1m). Scotland and Wales are left for Phase 7, with the other regions.
+* The coverage: Geofabrik's England outline (england.poly), used only to decide coverage, as DP223 chose Geofabrik's Great Britain outline. The pack is read from the same planet file as the world pack, so the borders meet exactly. England's islands, such as the Isle of Wight, the Isles of Scilly and Lindisfarne, are in it.
+* Each work item below is a separate session, with the ledger as the hand-over between them, so the conversation can be cleared between them.
 
 Work items:
 
-* P4-T2a The build (Opus). The Great Britain pack built from the planet file on the data folder, with the run switch and a stall watch, three workers, or six with --away.
-* P4-T2b Size and splitting (Opus). The size by layer from the quality report. If the pack is over 1 GB, a proposal to you for splitting it, such as England, Scotland and Wales, before it is split.
-* P4-T2c Checks (Sonnet). The street-level acceptance scripts for the UK test area (DAT-2); the coastline checks of spike S2 on the Great Britain pack; Skye in Highland and the Isle of Wight in its own county (DAT-3); built twice, identical (DMT-1); step timing against NFR-1.
+* P4-T2a Estimate and get ready (Opus). Before anything heavy: England's time, size and peak memory scaled from the rehearsal (docs/plan/p4-t1j-rehearsal-report.md, docs/plan/p4-t1m-report.md), by area for the parts that follow area and by feature count for the rest; mapdata check for space and the planet file; the England outline fetched; a pack settings file mapdata/config/packs/england.yaml, made from great-britain.yaml, which is kept for later. The estimate goes in the ledger and to you, and nothing heavy starts until you have it.
+* P4-T2b The build (Opus). The England pack built from the planet file on the data folder, with the run switch and a stall watch, three workers, or six with --away, overnight. Each finished stage is kept, so a stopped build carries on from where it stopped. The build log's peak memory lines are checked against the 12 GB aim.
+* P4-T2c Size (Opus). The size by layer from the quality report. If the pack is over 1 GB, a proposal to you for what to do, such as splitting England into regions, before anything is split or left out. Unnamed land use is not left out (your decision of 26 November).
+* P4-T2d Checks (Sonnet). The street-level acceptance scripts (DAT-2): the Hampshire places of the rehearsal (tests/acceptance/street_places_hampshire.yaml), and a new file of English places away from Hampshire, such as a street, park and parish in a northern town, so the checks are not only on the area the build was tuned on. The coastline checks of spike S2 that lie in England. DAT-3 in England: the Isle of Wight in its own county, the Isles of Scilly in theirs, Lindisfarne an island in Northumberland, and a point 2 km off the Cornish coast said as sea. Step timing against NFR-1 on the England pack.
+* P4-T2e Built twice, identical (Opus, DMT-1). A second build of the England pack, compared byte for byte with the first. A heavy run of the same length as P4-T2b, so it waits for your yes.
 
 ## P4-T3 Combining packs
 
@@ -366,7 +371,7 @@ Tests first: a damaged download is found and removed; an incompatible pack is re
 Work items:
 
 * P4-T7a A damaged pack set aside (Sonnet). A pack that fails its checks at start-up is said, moved out of use, and TobyMap keeps running with the others (NFR-4).
-* P4-T7b Memory with two packs (Opus). Memory on the desktop with the world and Great Britain packs, over a set walk, held under 2 GB (NFR-3); the same walk in Chromium and Firefox, recorded. If over, the pack tile cache's size is the first thing tried.
+* P4-T7b Memory with two packs (Opus). Memory on the desktop with the world and England packs, over a set walk, held under 2 GB (NFR-3); the same walk in Chromium and Firefox, recorded. If over, the pack tile cache's size is the first thing tried.
 
 ## P4-T10 Languages of names on the desktop
 
@@ -382,20 +387,20 @@ Work items:
 
 From the implementation plan, section 7, and how each is met:
 
-* The street-level acceptance scripts pass for the UK test area (DAT-2): P4-T2c.
-* A point 2 km off the Brittany coast is announced as sea (DAT-3), and the S2 coastline checks pass on the Great Britain pack: P4-T2c.
-* Step timing meets NFR-1 on the Great Britain pack: P4-T2c.
+* The street-level acceptance scripts pass for the England test places (DAT-2): P4-T2d.
+* A point 2 km off the Cornish coast is announced as sea (DAT-3), and the S2 coastline checks that lie in England pass on the England pack: P4-T2d. (Planned as off the Brittany coast, when the regional pack was to be Great Britain; Brittany is checked on the world pack, P4-T12b.)
+* Step timing meets NFR-1 on the England pack: P4-T2d.
 * The world pack is published to a test release and installed from it by the pack manager (DP197): P4-T6h.
 * New: a bookmark made on the desktop and opened on the web goes to the same place (USR-5), replacing "a bookmark still resolves after the pack is rebuilt", as bookmarks are now points (DP219).
-* Also: built twice, identical, for both packs (DMT-1); memory under 2 GB with both packs (NFR-3); the installer installs, starts and uninstalls cleanly in continuous integration.
+* Also: built twice, identical, for both packs (DMT-1, P4-T2e for England); memory under 2 GB with both packs (NFR-3); the installer installs, starts and uninstalls cleanly in continuous integration.
 
 ## Your acceptance checklist
 
 docs/checklists/phase-4-desktop.md, phase-4-web.md and phase-4-sighted.md, made from the acceptance scripts. They will cover:
 
-1. Installing the new version, and installing the world and Great Britain packs with the pack manager; cancelling a download and carrying it on.
+1. Installing the new version, and installing the world and England packs with the pack manager; cancelling a download and carrying it on.
 2. Streets around a place you know, at a close zoom: streets, parks, school grounds, bus stops and parishes.
-3. Moving from the Great Britain pack's area out to sea and across to France, hearing nothing about detail.
+3. Moving from the England pack's area out to sea, across to France and into Scotland or Wales, hearing nothing about detail.
 4. Making bookmarks with Ctrl+Enter, into two bookmark lists; the Bookmarks group; going to one, hearing it, measuring from it; the bookmark manager; a list switched off.
 5. Saving a bookmark list to a file and opening it in the web version.
 6. Territorial waters off Brittany, and the Channel Islands as a group.
@@ -414,7 +419,7 @@ The sighted checklist covers the new layers' colours, the bookmark marks, territ
 
 ## Risks
 
-* The Great Britain pack may be over 1 GB with every footpath and point of interest. The rehearsal (P4-T1j) estimates it before the build, and splitting is proposed to you, not done without asking.
+* The England pack may be over 1 GB with every footpath and point of interest. The rehearsal (P4-T1j) and P4-T2a estimate it before the build, and splitting is proposed to you, not done without asking.
 * Matching regional features to the world pack's by name and overlap may join two features that are not the same, or miss two that are. The quality report lists every match made by name, for checking.
 * Two packs open together cost memory, and most in the browser. P4-T7b measures it; the browser's storage limit for packs of 200 MB or more is checked before a download starts (P4-T6c).
 * Hugging Face needs your sign-in once, for the first publish.

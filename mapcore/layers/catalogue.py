@@ -47,6 +47,7 @@ DEFAULTS = {
     "fill": None,              # land, water or none: how the map paints an area (P3-T1e); None: as before
     "outline": True,           # whether an area's outline is drawn (P3-T23)
     "names": None,             # whether an area's name is drawn on the map; None: when it is filled (P3-T23)
+    "say_type": False,         # its items are said with their type after their name: "Broadway (Stop E), bus stop"
 }
 # What the user can change in the layers list (SCP-7), and the outline (P3-T23).
 USER_FIELDS = ("on", "min_zoom_m", "max_zoom_m", "crossing_earcon", "sound", "outline")
@@ -71,6 +72,7 @@ class Layer:
     fill: str | None = None
     outline: bool = True
     names: bool | None = None
+    say_type: bool = False     # its items said with their type after their name (P4-T1f, mapcore.names)
     own: bool = False          # a layer of TobyMap's own, in no pack, such as Bookmarks (P4-T8f)
     changed: tuple = ()        # the fields the user has changed from the view's (or the pack's) layer
 
@@ -141,6 +143,7 @@ def from_definition(d: dict) -> Layer:
     values["on"] = bool(values.pop("switched_on"))
     values["outline"] = bool(values["outline"])
     values["names"] = None if values["names"] is None else bool(values["names"])
+    values["say_type"] = values["say_type"] is True
     by_type = values["crossing_earcons"]
     values["crossing_earcons"] = tuple(sorted((str(k), str(v)) for k, v in by_type.items())) \
         if isinstance(by_type, dict) else ()
@@ -176,6 +179,10 @@ class LayerCatalogue:
                     self._defined[d["id"]] = from_definition(d)
         for layer in own:   # TobyMap's own layers, after the packs' (own_layers())
             self._defined.setdefault(layer.id, layer)
+        # The layers whose items are said with their type after their name, wherever the core names them (P4-T1f).
+        from mapcore.names import say_type_layers
+
+        say_type_layers(k for k, layer in self._defined.items() if layer.say_type)
 
     def _viewed(self, layer: Layer) -> Layer:
         """The pack's layer as the map view in use has it (P3-T23)."""

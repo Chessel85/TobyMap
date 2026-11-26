@@ -1,0 +1,53 @@
+category,words,layer,tags,count in the rehearsal,count in the United Kingdom
+bus_stop,bus stop,stops,highway=bus_stop; or public_transport=platform and bus=yes,17877,283943
+tram_stop,tram stop,stops,railway=tram_stop,0,735
+railway_station,railway station,stops,railway=station; or railway=halt,162,3627
+crossing,crossing,stops,highway=crossing,23251,305951
+taxi_rank,taxi rank,stops,amenity=taxi,132,2313
+supermarket,supermarket,shops-food,shop=supermarket,519,10282
+convenience_shop,convenience shop,shops-food,shop=convenience,1922,32870
+bakery,bakery,shops-food,shop=bakery,203,4784
+butcher,butcher,shops-food,shop=butcher,139,3684
+chemist,chemist,shops-food,shop=chemist,82,2034
+hairdresser,hairdresser,shops-food,shop=hairdresser,1567,28525
+shop,shop,shops-food,shop=any value,12155,206481
+cafe,cafe,shops-food,amenity=cafe,2134,37221
+restaurant,restaurant,shops-food,amenity=restaurant,1951,36001
+pub,pub,shops-food,amenity=pub,2056,38717
+bar,bar,shops-food,amenity=bar,319,7084
+fast_food,fast food,shops-food,amenity=fast_food,2252,43541
+ice_cream,ice cream,shops-food,amenity=ice_cream,85,1282
+post_office,post office,services,amenity=post_office,487,8765
+pharmacy,pharmacy,services,amenity=pharmacy,472,8831
+doctors,doctors,services,amenity=doctors,380,6588
+dentist,dentist,services,amenity=dentist,390,6056
+hospital,hospital,services,amenity=hospital,99,1807
+clinic,clinic,services,amenity=clinic,168,2787
+bank,bank,services,amenity=bank,275,5196
+cash_machine,cash machine,services,amenity=atm,745,11524
+library,library,services,amenity=library,198,3917
+toilets,toilets,services,amenity=toilets,1023,13447
+police,police,services,amenity=police,74,1890
+fire_station,fire station,services,amenity=fire_station,113,2092
+community_centre,community centre,services,amenity=community_centre,926,15843
+town_hall,town hall,services,amenity=townhall,74,1201
+church,church,services,amenity=place_of_worship and religion=christian,1945,38512
+mosque,mosque,services,amenity=place_of_worship and religion=muslim,28,1273
+synagogue,synagogue,services,amenity=place_of_worship and religion=jewish,6,216
+temple,temple,services,amenity=place_of_worship and religion=hindu; or amenity=place_of_worship and religion=buddhist; or amenity=place_of_worship and religion=sikh,13,469
+place_of_worship,place of worship,services,amenity=place_of_worship,43,1172
+theatre,theatre,services,amenity=theatre,104,1551
+cinema,cinema,services,amenity=cinema,45,829
+museum,museum,services,tourism=museum,179,2983
+information_board,information board,services,tourism=information and information=board,1230,17979
+hotel,hotel,services,tourism=hotel,695,10836
+school,school,services,amenity=school (mapped as a point only),47,1010
+fuel_station,fuel station,services,amenity=fuel,433,8259
+car_park,car park,services,amenity=parking,21798,281591
+charging_point,charging point,services,amenity=charging_station,338,7339
+post_box,post box,street-furniture,amenity=post_box,6538,89074
+bench,bench,street-furniture,amenity=bench,9329,147286
+bin,bin,street-furniture,amenity=waste_basket,4187,73579
+recycling,recycling,street-furniture,amenity=recycling,937,12092
+drinking_water,drinking water,street-furniture,amenity=drinking_water,184,2153
+telephone,telephone,street-furniture,amenity=telephone,830,15093

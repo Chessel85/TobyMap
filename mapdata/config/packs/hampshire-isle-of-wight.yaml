@@ -123,8 +123,24 @@ stages:
     source: planet
     tolerance_m: 5
     meet_m: 1
-  # osm-pois: added by P4-T1f
-  # osm-places (villages): added by P4-T1f
+  # The points of interest within the coverage, in four layers (stops, shops-food, services, street-furniture), by
+  # the categories of mapdata/config/poi_categories.yaml: the first category that matches wins; an area becomes a
+  # place at a point inside it; an unnamed place is named by its category's words ("Bench") (P4-T1f).
+  - stage: osm-pois
+    source: planet
+  # Villages, suburbs, hamlets, neighbourhoods and quarters, as places, with their population from OSM and the areas
+  # each is in, read with the existing osm-places stage within the outline's box (P4-T1f).
+  - stage: osm-places
+    source: planet
+    layer: villages
+    box: [-2.06, 50.41, -0.63, 51.49]   # region:
+    queries:
+      - {query: "n[place=village][name]", type: village, population: true}
+      - {query: "n[place=suburb][name]", type: suburb, population: true}
+      - {query: "n[place=hamlet][name]", type: hamlet, population: true}
+      - {query: "n[place=neighbourhood][name]", type: neighbourhood, population: true}
+      - {query: "n[place=quarter][name]", type: quarter, population: true}
+    within: [countries, regions, counties, districts, parishes]
   # match: added by P4-T1h
   # Facts from Wikidata, read from the data folder where the world build already fetched them (same refresh label).
   - stage: wikidata

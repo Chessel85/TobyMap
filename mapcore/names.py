@@ -47,9 +47,29 @@ class Naming:
             from mapcore.describe import say
 
             name = Name(say("place.condominium", name=str(name), owners=record["sovereign"]), name.lang)
+        if record.get("layer") in _say_type and record.get("type"):
+            kind = str(record["type"])
+            if str(name).casefold() != kind.casefold():
+                # Said with its type after its name wherever its name is said, unless the name is already the
+                # type's words (P4-T1f): "Broadway (Stop E), bus stop", but "Bench".
+                from mapcore.describe import say
+
+                name = Name(say("poi_categories.with_type", name=str(name), type=kind), name.lang)
         if name.lang:
             hear(name)
         return name
+
+
+# The layers whose items are said with their type after their name: those whose definition says say_type, such as a
+# regional pack's points of interest (P4-T1f). The layer catalogue sets them from the packs' layer definitions when it
+# is made (mapcore/layers/catalogue.py), so every Naming follows them. A layer id means the same layer in every pack.
+_say_type: frozenset = frozenset()
+
+
+def say_type_layers(layer_ids) -> None:
+    """The layers whose items are said with their type, in place of those before."""
+    global _say_type
+    _say_type = frozenset(layer_ids)
 
 
 # The names in another language put into words since the shell last asked (P3-T12b). mapcore.describe.say notes

@@ -1079,3 +1079,65 @@ packs:
   damaged_record: "Part of {name} is damaged, and TobyMap is carrying on without it. Download the pack again. The damaged record is {record}."
   checksum_wrong: "{name} does not match its checksum, so it may be damaged or incomplete. Download it again."
 
+
+# The points of interest of a regional pack (P4-T1f, design docs/plan/p4-t1-design.md 3.10).
+poi_categories:
+  # An item of a layer whose definition says say_type, such as a bus stop, said with its type after its name wherever
+  # its name is said, unless its name is already its type's words: "Broadway (Stop E), bus stop", but "Bench".
+  with_type: "{name}, {type}"
+  # The words of each point of interest category of mapdata/config/poi_categories.yaml, by its key: the place's type,
+  # and, with a capital first letter, the name of one OpenStreetMap gives no name. The build writes them into the
+  # pack, so changing a word here makes the osm-pois stage run again.
+  words:
+    bus_stop: bus stop
+    tram_stop: tram stop
+    railway_station: railway station
+    crossing: crossing
+    taxi_rank: taxi rank
+    supermarket: supermarket
+    convenience_shop: convenience shop
+    bakery: bakery
+    butcher: butcher
+    chemist: chemist
+    hairdresser: hairdresser
+    shop: shop
+    cafe: cafe
+    restaurant: restaurant
+    pub: pub
+    bar: bar
+    fast_food: fast food
+    ice_cream: ice cream
+    post_office: post office
+    pharmacy: pharmacy
+    doctors: doctors
+    dentist: dentist
+    hospital: hospital
+    clinic: clinic
+    bank: bank
+    cash_machine: cash machine
+    library: library
+    toilets: toilets
+    police: police
+    fire_station: fire station
+    community_centre: community centre
+    town_hall: town hall
+    church: church
+    mosque: mosque
+    synagogue: synagogue
+    temple: temple
+    place_of_worship: place of worship
+    theatre: theatre
+    cinema: cinema
+    museum: museum
+    information_board: information board
+    hotel: hotel
+    school: school
+    fuel_station: fuel station
+    car_park: car park
+    charging_point: charging point
+    post_box: post box
+    bench: bench
+    bin: bin
+    recycling: recycling
+    drinking_water: drinking water
+    telephone: telephone

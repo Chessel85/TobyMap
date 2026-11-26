@@ -362,6 +362,14 @@ def test_contains_says_an_area_you_are_in_and_a_line_or_place_where_you_are():
     assert say("contains.here", name="River Itchen") == "River Itchen, here"
 
 
+def test_a_point_of_interest_is_said_with_its_type_after_its_name():
+    """The approved wording of an item of a say_type layer, such as a bus stop (P4-T1f, design 3.10)."""
+    from mapcore.describe import say
+    assert say("poi_categories.with_type", name="Broadway (Stop E)", type="bus stop") \
+        == "Broadway (Stop E), bus stop"
+    assert say("poi_categories.words.bench") == "bench"
+
+
 def test_overlapping_says_areas_lines_crossing_and_along_and_a_lines_areas():
     """The approved wording of Overlapping (P3-T29e, INF-5, INF-6), with the Crossing group's words moved in."""
     from mapcore.describe import say

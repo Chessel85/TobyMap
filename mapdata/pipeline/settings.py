@@ -149,7 +149,9 @@ def load_sources(config_dir: Path = CONFIG_DIR) -> dict[str, Source]:
 # layer (SCP-7, mapcore/layers/catalogue.py). These are written into the pack, and
 # only the write stage depends on them, so changing them does not build the areas again.
 SHOWN_FIELDS = ("group", "geometry", "switched_on", "min_zoom_m", "max_zoom_m", "min_size", "crossing_earcon",
-                "crossing_earcons", "sound", "line_style", "fill", "shown_name")
+                "crossing_earcons", "sound", "line_style", "fill", "shown_name", "say_type")
+# say_type: true for a layer whose items are said with their type after their name, such as a regional pack's points
+# of interest: "Broadway (Stop E), bus stop" (P4-T1f). Read by mapcore/layers/catalogue.py.
 # shown_name: the name the application shows and says for the layer, when it is not its name in the build. The
 # name is in every stage's fingerprint, so changing it builds every layer again from the planet file; changing
 # shown_name only writes the pack again (P3-T17: Regions shown as "Regions and constituent countries").

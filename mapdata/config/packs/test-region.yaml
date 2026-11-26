@@ -75,8 +75,25 @@ stages:
     source: sample-osm-raw
     tolerance_m: 5
     meet_m: 1
-  # osm-pois: added by P4-T1f
-  # osm-places (villages): added by P4-T1f
+  # The points of interest within the coverage, in four layers (stops, shops-food, services, street-furniture), by
+  # the categories of mapdata/config/poi_categories.yaml: the first category that matches wins; an area becomes a
+  # place at a point inside it; an unnamed place is named by its category's words ("Bench") (P4-T1f).
+  - stage: osm-pois
+    source: sample-osm-raw
+  # Villages, suburbs, hamlets, neighbourhoods and quarters, as places, with their population from OSM and the areas
+  # each is in. The osm-places stage reads only the planet file, so the test region reads the same places from the raw
+  # samples with the osm-pois stage's places setting (P4-T1f).
+  - stage: osm-pois
+    source: sample-osm-raw
+    places:
+      layer: villages
+      queries:
+        - {query: "n[place=village][name]", type: village, population: true}
+        - {query: "n[place=suburb][name]", type: suburb, population: true}
+        - {query: "n[place=hamlet][name]", type: hamlet, population: true}
+        - {query: "n[place=neighbourhood][name]", type: neighbourhood, population: true}
+        - {query: "n[place=quarter][name]", type: quarter, population: true}
+      within: [countries, regions, counties, districts, parishes]
   # match: added by P4-T1h
   - stage: relationships
     # relationships light_layers and crossing_areas: set by P4-T1k

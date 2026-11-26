@@ -1,0 +1,82 @@
+# The point of interest categories of the osm-pois stage (P4-T1f, design docs/plan/p4-t1-design.md 3.10): which
+# OpenStreetMap tags make a place in each of the four layers of points of interest.
+#
+# Each category has:
+#
+# * key: its name in this table, and the key of its words in mapcore/describe/templates.yaml, under poi_categories,
+#   words. The words are the place's type, and the name of a place OpenStreetMap gives no name, with a capital first
+#   letter: "Bus stop", "Bench".
+# * layer: stops, shops-food, services or street-furniture.
+# * tags: a list of alternatives; an object matches the category when it has every tag of one alternative. A value
+#   "*" means any value (but "no").
+# * kinds: optional, node, area or both; both if not given. A school mapped as an area is a school ground (the
+#   osm-land stage), so only a school mapped as a point is a point of interest.
+#
+# The categories are tried in this order and the first that matches wins, so one OpenStreetMap object is never in two
+# categories, and a particular kind of shop comes before shops of any kind. A node is a place where it is; an area,
+# such as a shop in a building or a car park, is a place at a point inside it.
+#
+# docs/plan/p4-t1f-poi-categories.csv lists this table for the product owner, made by tools/make_poi_categories_csv.py.
+# The table can grow from the product owner's notes without a change to the code. Changing this file reads the points
+# of interest again.
+
+categories:
+  # Stops and crossings.
+  - {key: bus_stop, layer: stops, tags: [{highway: bus_stop}, {public_transport: platform, bus: "yes"}]}
+  - {key: tram_stop, layer: stops, tags: [{railway: tram_stop}]}
+  - {key: railway_station, layer: stops, tags: [{railway: station}, {railway: halt}]}
+  - {key: crossing, layer: stops, tags: [{highway: crossing}]}
+  - {key: taxi_rank, layer: stops, tags: [{amenity: taxi}]}
+
+  # Shops, cafes and pubs. The kinds of shop named here come before shops of any kind.
+  - {key: supermarket, layer: shops-food, tags: [{shop: supermarket}]}
+  - {key: convenience_shop, layer: shops-food, tags: [{shop: convenience}]}
+  - {key: bakery, layer: shops-food, tags: [{shop: bakery}]}
+  - {key: butcher, layer: shops-food, tags: [{shop: butcher}]}
+  - {key: chemist, layer: shops-food, tags: [{shop: chemist}]}
+  - {key: hairdresser, layer: shops-food, tags: [{shop: hairdresser}]}
+  - {key: shop, layer: shops-food, tags: [{shop: "*"}]}
+  - {key: cafe, layer: shops-food, tags: [{amenity: cafe}]}
+  - {key: restaurant, layer: shops-food, tags: [{amenity: restaurant}]}
+  - {key: pub, layer: shops-food, tags: [{amenity: pub}]}
+  - {key: bar, layer: shops-food, tags: [{amenity: bar}]}
+  - {key: fast_food, layer: shops-food, tags: [{amenity: fast_food}]}
+  - {key: ice_cream, layer: shops-food, tags: [{amenity: ice_cream}]}
+
+  # Services and amenities. A place of worship of a religion named here is said by its building's word.
+  - {key: post_office, layer: services, tags: [{amenity: post_office}]}
+  - {key: pharmacy, layer: services, tags: [{amenity: pharmacy}]}
+  - {key: doctors, layer: services, tags: [{amenity: doctors}]}
+  - {key: dentist, layer: services, tags: [{amenity: dentist}]}
+  - {key: hospital, layer: services, tags: [{amenity: hospital}]}
+  - {key: clinic, layer: services, tags: [{amenity: clinic}]}
+  - {key: bank, layer: services, tags: [{amenity: bank}]}
+  - {key: cash_machine, layer: services, tags: [{amenity: atm}]}
+  - {key: library, layer: services, tags: [{amenity: library}]}
+  - {key: toilets, layer: services, tags: [{amenity: toilets}]}
+  - {key: police, layer: services, tags: [{amenity: police}]}
+  - {key: fire_station, layer: services, tags: [{amenity: fire_station}]}
+  - {key: community_centre, layer: services, tags: [{amenity: community_centre}]}
+  - {key: town_hall, layer: services, tags: [{amenity: townhall}]}
+  - {key: church, layer: services, tags: [{amenity: place_of_worship, religion: christian}]}
+  - {key: mosque, layer: services, tags: [{amenity: place_of_worship, religion: muslim}]}
+  - {key: synagogue, layer: services, tags: [{amenity: place_of_worship, religion: jewish}]}
+  - {key: temple, layer: services, tags: [{amenity: place_of_worship, religion: hindu}, {amenity: place_of_worship, religion: buddhist}, {amenity: place_of_worship, religion: sikh}]}
+  - {key: place_of_worship, layer: services, tags: [{amenity: place_of_worship}]}
+  - {key: theatre, layer: services, tags: [{amenity: theatre}]}
+  - {key: cinema, layer: services, tags: [{amenity: cinema}]}
+  - {key: museum, layer: services, tags: [{tourism: museum}]}
+  - {key: information_board, layer: services, tags: [{tourism: information, information: board}]}
+  - {key: hotel, layer: services, tags: [{tourism: hotel}]}
+  - {key: school, layer: services, kinds: [node], tags: [{amenity: school}]}
+  - {key: fuel_station, layer: services, tags: [{amenity: fuel}]}
+  - {key: car_park, layer: services, tags: [{amenity: parking}]}
+  - {key: charging_point, layer: services, tags: [{amenity: charging_station}]}
+
+  # Post boxes, benches and bins.
+  - {key: post_box, layer: street-furniture, tags: [{amenity: post_box}]}
+  - {key: bench, layer: street-furniture, tags: [{amenity: bench}]}
+  - {key: bin, layer: street-furniture, tags: [{amenity: waste_basket}]}
+  - {key: recycling, layer: street-furniture, tags: [{amenity: recycling}]}
+  - {key: drinking_water, layer: street-furniture, tags: [{amenity: drinking_water}]}
+  - {key: telephone, layer: street-furniture, tags: [{amenity: telephone}]}

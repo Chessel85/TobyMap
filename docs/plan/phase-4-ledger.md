@@ -159,6 +159,9 @@ Progress tonight:
 * Builds run from the snapshot worktree C:\Users\chess\github\Mapping-build (at f422b4e) under a supervisor script that restarts with 6, 3, then 2 workers, stops on a code error or continue.txt "no", and writes "<pack> console.txt" beside the output folders.
 * Western Europe trial rebuilt 16:32 to 17:02 (30 min 25 s, 6 workers), the rehearsal of both changes: 60 of 60 check places, pack 56.86 MB (55.19 before), peak 519 MB in the build's own process. Opens on the desktop with first place said in 1.3 to 1.8 s, 357 MB.
 * World rebuild started 17:02 (6 workers). The fingerprints rerun it from stage 4 (graticule) onwards, not only from the lakes: the pipeline code changed since 21 November (P4-T1l, P4-T1m, P4-T13b). Expected 6 to 7 hours.
+* World build, two stops, both fixed and pushed: (1) the lakes' sea step tested each of 13,149 lakes against 16.7 million points of oceans and seas, about a second each, about 4 hours on one core; stopped at 17:47, fixed (sea shapes prepared, cut to each lake's bounds; 4dbb412), the stage then took 4 min 37 s: 88 lakes left out, 99 cut. (2) The groups of islands stopped on Wikidata's 429 Too Many Requests; its requests now wait and try again (79a6528, two tests). Both fixes copied into the worktree.
+* World pack DONE, 27 November 23:50 (build time from the second restart 5 h 27 min; relationships 2 h 54 min, writing 1 h 39 min): world.pack 561.29 MB (552.46 before), format 5; check places 117 of 119 (Ceuta and Melilla, the known check fault of 21 November), other checks 7 of 7; 745 groups of islands; peak memory 10.4 GB all together in writing. Desktop: first place said in 2.0 s (6.9 s cold), 421 MB.
+* England rebuild started 23:55, alone. (A first start at 23:51 was stopped within a minute: the orchestrator's wait matched the earlier EXIT line of the 429 stop, so it began while the world build was still writing its report.) Its fingerprints rerun it from stage 1.
 
 ### Where things stand
 

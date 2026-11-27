@@ -91,6 +91,8 @@ commands:
   - {name: packs.manager_remove, label: Ask to remove the chosen pack, region: global, menu: "", pointer: true}
   - {name: packs.manager_remove_confirm, label: Remove the pack, region: global, menu: "", pointer: true}
   - {name: packs.first_run, label: Offer the world pack, region: global, menu: "", pointer: true}
+  - {name: packs.update_offer, label: Offer a newer pack, region: global, menu: "", pointer: true}
+  - {name: packs.update_offer_update, label: Update the pack offered, region: global, menu: "", pointer: true}
   - {name: packs.first_run_download, label: Download the world pack, region: global, menu: "", pointer: true}
   # Themes and isolate (VIS-2): your keys, from the key list. Escape is kept for the screen reader and the browser.
   - {name: theme.next, label: Next theme, region: map, menu: Map}

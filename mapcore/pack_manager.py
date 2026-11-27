@@ -28,6 +28,8 @@ class PackManager:
         self.note = ""                               # why the list is not shown, or ""
         self._lines: list[dict] = []                 # the lines as last shown, for the buttons' indexes
         self._removing: str | None = None            # the file to remove, until answered
+        self.declined: dict = {}                     # pack name -> the newest version offered, kept in the saved state
+        self._offered = None                         # the entry offered at start, until answered
 
     def handlers(self) -> dict:
         return {
@@ -39,6 +41,8 @@ class PackManager:
             "packs.manager_remove_confirm": self.remove,
             "packs.first_run": self.first_run,
             "packs.first_run_download": self.first_run_download,
+            "packs.update_offer": self.update_offer,
+            "packs.update_offer_update": self.update_offer_update,
         }
 
     # What is installed ----------------------------------------------------------------------------
@@ -207,6 +211,42 @@ class PackManager:
             "text": say("pack_manager.first_run", size=install._megabytes(entry.size, True)),
             "ok": say("pack_manager.first_run_ok"), "cancel": say("pack_manager.first_run_cancel"),
             "submit": "packs.first_run_download"})
+
+    # A newer pack at the start (P4-T6e) ------------------------------------------------------------
+
+    def update_offer(self, text=None, **_a):
+        """Once the shell has read the catalogue at start: a question about the first installed pack with a newer
+        version this TobyMap can use, unless that version, or a newer one, was offered before. Asking counts as
+        offering, so it is not repeated after Not now. Silent when the catalogue cannot be read."""
+        if not text:
+            return self.Response()
+        try:
+            catalogue = cat.parse(text)
+        except cat.CatalogueError:
+            return self.Response()
+        self.catalogue = catalogue
+        have = self.installed()
+        for e in catalogue.entries:
+            if catalogue.state(e, have, version()) != cat.UPDATE:
+                continue
+            seen = self.declined.get(e.name)
+            if seen is not None and (cat._order(seen) or ()) >= (cat._order(e.version) or ()):
+                continue
+            self.declined[e.name] = e.version
+            self._offered = e
+            return self.Response(dialog={
+                "kind": "confirm", "title": say("pack_manager.update_offer_title", name=install.label(e)),
+                "text": say("pack_manager.update_offer", name=install.label(e), version=e.version,
+                            size=install._megabytes(e.size, True), have=have[e.name]),
+                "ok": say("pack_manager.update_offer_ok"), "cancel": say("pack_manager.update_offer_cancel"),
+                "submit": "packs.update_offer_update"})
+        return self.Response()
+
+    def update_offer_update(self, **_a):
+        entry, self._offered = self._offered, None
+        if entry is None:
+            return self.Response()
+        return self.Response(install={"entry": entry.to_dict(), "update": True})
 
     def first_run_download(self, **_a):
         entry = self.catalogue.get(WORLD) if self.catalogue else None

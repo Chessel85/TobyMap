@@ -202,3 +202,35 @@ def test_the_first_start_with_no_world_pack_offers_to_download_it(qtbot, tmp_pat
     ask.ok_button.click()
     qtbot.waitUntil(lambda: bool(w.session.store.packs), timeout=10000)
     assert (storage.packs_folder(tmp_path) / "world.pack").read_bytes() == data
+
+
+def test_a_newer_pack_is_offered_at_start_and_update_replaces_the_pack(qtbot, tmp_path, monkeypatch, test_pack,
+                                                                        pack_name):
+    data = test_pack.read_bytes()
+    w = make_window(qtbot, tmp_path, monkeypatch, Internet({}), installed=test_pack)
+    w.offer_world = True
+    w.pack_opener = Internet({w.session.defaults["packs"]["catalogue_url_desktop"]:
+                              catalogue(data, pack_name, version="9999.1.1"),
+                              f"https://example.org/{pack_name}.pack": data})
+    old = w.session.store.packs[0]
+    w._offer_update(w.session.start().update_check)
+    qtbot.waitUntil(lambda: any(isinstance(d, ConfirmBox) for d in w._dialogs), timeout=10000)
+    (ask,) = [d for d in w._dialogs if isinstance(d, ConfirmBox)]
+    assert ask.ok_button.text() == "Update" and ask.cancel_button.text() == "Not now"
+    assert "version 9999.1.1" in ask.text()
+    ask.ok_button.click()
+    qtbot.waitUntil(lambda: w.session.store.packs and w.session.store.packs[0] is not old, timeout=10000)
+    folder = storage.packs_folder(tmp_path)
+    assert [p.name for p in folder.iterdir()] == ["test.pack"]
+
+
+def test_an_unreadable_catalogue_at_start_says_nothing(qtbot, tmp_path, monkeypatch, test_pack):
+    w = make_window(qtbot, tmp_path, monkeypatch, Internet({}), installed=test_pack)
+    w.offer_world = True
+    lines = []
+    original = w.handle
+    w.handle = lambda r, *a, **k: (lines.extend(x["text"] for x in r.announcements), original(r, *a, **k))[1]
+    w._offer_update(w.session.start().update_check)
+    w._catalogues.wait(10)
+    qtbot.wait(300)
+    assert not lines and not [d for d in w._dialogs if isinstance(d, ConfirmBox)]

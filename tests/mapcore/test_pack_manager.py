@@ -188,3 +188,51 @@ def test_first_run_without_a_readable_catalogue_says_how_to_get_one(bare):
 def test_first_run_does_not_offer_a_world_pack_this_version_cannot_use(bare):
     r = bare.run("packs.first_run", text=text(entry("world", title="World", app_versions={"from": "99.0.0"})))
     assert r.dialog is None and "needs TobyMap 99.0.0" in said(r)
+
+
+# A newer pack, offered once at start (P4-T6e) ------------------------------------------------------------
+
+def test_a_newer_pack_is_offered_at_start_with_its_version_and_size(s):
+    name = s.store.packs[0].manifest["name"]
+    assert s.start().update_check["catalogue_urls"]["desktop"].startswith("https:")
+    r = s.run("packs.update_offer", text=text(entry(name, version="9999.1.1", size=1_500_001, title="Local")))
+    d = r.dialog
+    assert d["kind"] == "confirm" and d["ok"] == "Update" and d["cancel"] == "Not now"
+    assert "version 9999.1.1" in d["text"] and "2 megabytes" in d["text"] and "Local" in d["text"]
+    r = s.run(d["submit"])
+    assert r.install["update"] is True and r.install["entry"]["name"] == name
+
+
+def test_the_offer_is_not_repeated_after_not_now_but_is_for_a_newer_version(s):
+    name = s.store.packs[0].manifest["name"]
+    assert s.run("packs.update_offer", text=text(entry(name, version="9999.1.1"))).dialog
+    # Not now runs nothing; the version is kept in the saved state, so a new session does not offer it again.
+    saved = s.save()
+    assert saved["state"]["packs_declined"] == {name: "9999.1.1"}
+    assert s.run("packs.update_offer", text=text(entry(name, version="9999.1.1"))).dialog is None
+    assert s.run("packs.update_offer", text=text(entry(name, version="9999.2.1"))).dialog is not None
+
+
+def test_the_declined_version_survives_a_new_session(test_pack):
+    first = MapSession(packs=[test_pack], saved_state=dict(HAMPSHIRE))
+    first.start()
+    name = first.store.packs[0].manifest["name"]
+    first.run("packs.update_offer", text=text(entry(name, version="9999.1.1")))
+    saved = first.save()["state"]
+    first.store.close()
+    second = MapSession(packs=[test_pack], saved_state=saved)
+    second.start()
+    assert second.run("packs.update_offer", text=text(entry(name, version="9999.1.1"))).dialog is None
+    second.store.close()
+
+
+def test_nothing_is_offered_for_an_incompatible_or_current_pack_or_an_unreadable_catalogue(s):
+    p = s.store.packs[0]
+    name = p.manifest["name"]
+    r = s.run("packs.update_offer", text=text(entry(name, version="9999.1.1", app_versions={"from": "99.0.0"})))
+    assert r.dialog is None and not r.announcements
+    assert s.run("packs.update_offer", text=text(entry(name, version=p.manifest["version"]))).dialog is None
+    for bad in ("", "not json"):
+        r = s.run("packs.update_offer", text=bad)
+        assert r.dialog is None and not r.announcements
+    assert s.save()["state"]["packs_declined"] == {}

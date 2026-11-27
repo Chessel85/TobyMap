@@ -147,3 +147,42 @@ def test_an_unreadable_catalogue_is_said_and_the_dialog_still_opens(page, manage
                           timeout=30_000)
     assert app.inner_text("#pm-close") == "Close"
     assert not _available(app, "install")
+
+
+def _reload(app):
+    app.reload()
+    app.wait_for_function("window.tobymap && (window.tobymap.ready || window.tobymap.error)", timeout=120_000)
+    assert app.evaluate("window.tobymap.error") is None
+
+
+def test_a_newer_pack_is_offered_once_at_start(page, manager_site):
+    url, handler, stand = manager_site
+    stand.whole = stand.ranges = 0
+    handler.catalogue = _catalogue(url, stand)
+    app = open_app(page, url, state=HAMPSHIRE, query=f"?catalogue={url}/catalogue.json")
+    _open_manager(app)
+    app.click("#pm-install")
+    _wait_text(app, "Test world is downloaded and open.")
+    assert _stored(app) == ["test.pack"] and stand.whole == 1
+    # The same version: no offer. A newer one: offered at the next start, with Update and Not now.
+    _reload(app)
+    app.wait_for_timeout(2000)
+    assert not app.evaluate("document.getElementById('messagebox').open")
+    handler.catalogue = _catalogue(url, stand, version="9999.1.1")
+    _reload(app)
+    app.wait_for_selector("#messagebox[open]", timeout=30_000)
+    assert app.inner_text("#messagebox-ok") == "Update" and app.inner_text("#messagebox-cancel") == "Not now"
+    assert "version 9999.1.1" in app.inner_text("#messagebox-text")
+    # Not now: not offered again for that version.
+    app.click("#messagebox-cancel")
+    _reload(app)
+    app.wait_for_timeout(2000)
+    assert not app.evaluate("document.getElementById('messagebox').open")
+    # A still newer version is offered, and Update replaces the pack.
+    handler.catalogue = _catalogue(url, stand, version="9999.2.1")
+    _reload(app)
+    app.wait_for_selector("#messagebox[open]", timeout=30_000)
+    app.click("#messagebox-ok")
+    app.wait_for_function("window.tobymap.announcements.some(a => a.text === 'Test world is downloaded and open.')",
+                          timeout=60_000)
+    assert _stored(app) == ["test.pack"] and stand.whole == 2

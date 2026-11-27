@@ -407,6 +407,13 @@ class MainWindow(QMainWindow):
         else:
             self.handle(self.session.run("packs.first_run", unset=True))
 
+    def _offer_update(self, check: dict) -> None:
+        """At start: the catalogue is read in the background, and the core offers a newer pack once. Nothing is said
+        when it cannot be read (P4-T6e)."""
+        url = check["catalogue_urls"]["desktop"]
+        if url:
+            self.fetch_catalogue(url, lambda text, ok: ok and self.handle(self.session.run("packs.update_offer", text=text)))
+
     def _delete_pack_files(self, names) -> None:
         """Packs just removed: their files go (the core has closed them). Only a file's own name, in the packs folder."""
         folder = storage.packs_folder(self.data_folder)
@@ -665,6 +672,8 @@ class MainWindow(QMainWindow):
             self.install_pack(Entry.from_dict(response.install["entry"]))
         if response.world_offer and self.offer_world:
             self._offer_world(response.world_offer)
+        if response.update_check and self.offer_world:
+            self._offer_update(response.update_check)
         if response.open_url:
             self.open_url(response.open_url)
         if response.action == "exit":

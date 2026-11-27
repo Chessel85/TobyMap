@@ -173,6 +173,9 @@ class Response:
     # At start: no pack named world is installed, so the shell may fetch the catalogue from catalogue_urls and run
     # packs.first_run (P4-T6d): {"catalogue_urls": {"desktop", "web"}}.
     world_offer: dict | None = None
+    # At start, when a pack is installed: the shell may read the catalogue from catalogue_urls and run packs.update_offer
+    # with its text; nothing is said if it cannot be read (P4-T6e).
+    update_check: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -286,6 +289,7 @@ class MapSession:
         # Every bookmark list (P4-T8a, USR-1, USR-3). A damaged file gives one empty list, and start() says so.
         self.bookmarks, self.bookmarks_damaged = bookmarks_mod.load(bookmarks)
         self._pack_manager = PackManager(self, Response)   # the pack manager and the world pack's offer (P4-T6d)
+        self._pack_manager.declined = dict((saved_state or {}).get("packs_declined") or {})   # newer packs offered (P4-T6e)
         self._bookmark_dialogs = BookmarkDialogs(self, Response)   # the bookmark manager and list dialog (P4-T8e)
         self.areas: list = []          # the areas at the last described place, smallest first
         self.last_spoken: str | None = None
@@ -506,6 +510,8 @@ class MapSession:
 
         r = Response(redraw=True, panel_stale=True, details_stale=True, bookmarks_damaged=self.bookmarks_damaged)
         r.packs_damaged = [e.pack for e in self.packs_failed if is_damage(e)]
+        if self.store.packs:
+            r.update_check = {"catalogue_urls": self._pack_manager.urls()}
         r.world_offer = None if self._pack_manager.has_world() else {"catalogue_urls": self._pack_manager.urls()}
         if not self.store.packs:
             r.speak(say("packs.none_installed"), ASSERTIVE)
@@ -3085,6 +3091,7 @@ class MapSession:
         bookmarks, which have a file of their own (bookmarks_changed())."""
         state = self.world.to_dict()
         state["jumps"] = {"back": self.back_places[-PLACE_LIMIT:], "forward": self.forward_places[-PLACE_LIMIT:]}
+        state["packs_declined"] = dict(self._pack_manager.declined)
         return {"settings": self.settings.to_dict(), "state": state}
 
     # Internals -------------------------------------------------------------

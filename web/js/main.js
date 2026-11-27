@@ -163,6 +163,7 @@ function handle(result, keyAt, held = false, named = false) {
   if (r.remove_files && r.remove_files.length) client.send({ type: "remove_files", names: r.remove_files }).catch(showError);   // P4-T6d
   if (r.install) installEntry(r.install.entry, r.install.update).catch(showError);
   if (r.world_offer) setTimeout(() => offerWorld(r.world_offer), 0);
+  if (r.update_check) setTimeout(() => offerUpdate(r.update_check), 0);
   if (r.action === "reset") ownSounds.clear().catch(() => {});   // your own sound files go too (P2-T18h)
   if (r.bookmarks_damaged) setAsideBookmarks();   // kept, renamed, before anything is written in its place
   if (r.bookmarks !== null && r.bookmarks !== undefined) {
@@ -1011,6 +1012,16 @@ function offerWorld(offer) {
     if (arg.unset) return;
     const { width, height } = mapSize();
     return client.send({ type: "run", commands: [["packs.first_run", arg]], width, height }).then((r) => handle(r));
+  }).catch(showError);
+}
+
+// At start with a pack installed: the catalogue is read, and the core offers a newer pack once (P4-T6e). Silent when
+// there is no address yet or it cannot be read.
+function offerUpdate(check) {
+  fetchCatalogue(check.catalogue_urls).then((arg) => {
+    if (!arg.text) return;
+    const { width, height } = mapSize();
+    return client.send({ type: "run", commands: [["packs.update_offer", arg]], width, height }).then((r) => handle(r));
   }).catch(showError);
 }
 

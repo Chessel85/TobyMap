@@ -1144,6 +1144,11 @@ pack_manager:
   first_run_cancel: "Not now"
   first_run_unreadable: "TobyMap needs the world pack to show the map, and the list of packs could not be read. Check the connection, then press P to try again."
   first_run_not_listed: "TobyMap needs the world pack to show the map, and there is no list of packs for this version yet. Press P to try again later."
+  # The offer of a newer pack at the start (P4-T6e): once for each version.
+  update_offer_title: "Update {name}"
+  update_offer: "A newer {name} is available: version {version}, {size} megabytes. You have version {have}. Update it now?"
+  update_offer_ok: "Update"
+  update_offer_cancel: "Not now"
   first_run_missing: "TobyMap needs the world pack to show the map, and the list of packs does not include it. Press P to see the packs there are."
 
 

@@ -229,12 +229,18 @@ def out_of_sea(records: list[dict], geoms: list, sea: list, share: float = SEA_S
     if len(parts) == 0 or not records:
         return list(records), list(geoms), [], []
     tree = shapely.STRtree(parts)
+    # The world's oceans hold millions of points: tested whole, each lake took about a second, 4 hours in all.
+    # Prepared, a sea shape is indexed once, so the test is quick; a lake that meets it is cut against only the
+    # part of it within the lake's bounds.
+    shapely.prepare(parts)
     keep_r, keep_g, left, cut = [], [], [], []
     for r, g in zip(records, geoms):
-        hits = tree.query(g, predicate="intersects")
+        hits = [i for i in tree.query(g).tolist() if shapely.intersects(parts[i], g)]
         wet = []
-        for i in hits.tolist():
-            wet.extend(_areas_only(_robust(shapely.intersection, g, parts[i])))
+        for i in hits:
+            near = shapely.clip_by_rect(parts[i], *g.bounds)
+            if not near.is_empty:
+                wet.extend(_areas_only(_robust(shapely.intersection, g, near)))
         if not wet:
             keep_r.append(r)
             keep_g.append(g)

@@ -51,6 +51,8 @@ keys:
   views.open: Ctrl+Shift+V
   # The bookmark manager (P4-T8e); the bookmark list dialog has no key.
   bookmark.manager_open: Ctrl+Shift+B
+  # The pack manager (P4-T6d, PCK-2).
+  packs.manager_open: P
   # Themes and isolate (VIS-2).
   theme.next: T
   theme.previous: Shift+T

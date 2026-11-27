@@ -19,6 +19,7 @@ slow drawing never delays a click.
 """
 from __future__ import annotations
 
+import os
 import threading
 import time
 from pathlib import Path
@@ -30,12 +31,13 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QHBoxLayout, 
 
 from desktop import storage
 from desktop.announcer import Announcer
-from desktop.dialogs import BookmarkDialog, BookmarkListDialog, BookmarkManagerDialog, ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, QueryDialog, save_text_file, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, ViewsDialog, WorldTreeDialog
+from desktop.dialogs import BookmarkDialog, BookmarkListDialog, BookmarkManagerDialog, ConfirmBox, HistoryDialog, InputDialog, LayersDialog, ListDialog, PackManagerDialog, QueryDialog, save_text_file, SearchDialog, SettingsDialog, SoundsDialog, TextDialog, ViewsDialog, WorldTreeDialog
 from desktop.keys import key_name, system
 from desktop.map_widget import MapWidget
 from desktop.panel_tree import PanelTree
 from desktop.scan import ScanPlayer
 from desktop.sounds import SoundPlayer
+from mapcore.packs import install
 from mapcore.session import HOLD_SILENCE_S, MapSession, Response
 
 ITEM_ID = Qt.ItemDataRole.UserRole
@@ -201,7 +203,7 @@ class MainWindow(QMainWindow):
     REGIONS = ("map", "panel", "details")  # Tab never goes to the menu bar (DP93)
 
     def __init__(self, session: MapSession | None = None, announcer=None, sounds=None, data_folder=None,
-                 install_filter: bool = True, start_at: str | None = None, spatial=None, voice=None):
+                 install_filter: bool = True, start_at: str | None = None, spatial=None, voice=None, offer_world: bool = False):
         super().__init__()
         self.data_folder = data_folder
         self.session = session or self._new_session(start_at)
@@ -239,6 +241,9 @@ class MainWindow(QMainWindow):
         self._background.done.connect(lambda job, found: self.handle(self.session.crossed_finish(job, found)))
         self.spoken_times: list[float] = []
         self._downloader = None   # made on the first install (P4-T6b)
+        self._catalogues = None   # made on the first fetch of the catalogue (P4-T6d)
+        self.offer_world = offer_world   # at start, offer the world pack if it is missing (P4-T6d): the program says yes
+        self.pack_opener = None   # the internet, for the catalogue and the packs; the tests give a stand-in (rule 5)
 
         self.map = MapWidget(self, self.session)
         # Our own tree accessibility, so NVDA says level 1 for a group and level 2
@@ -348,6 +353,7 @@ class MainWindow(QMainWindow):
             self._downloader = Downloader(self)
             self._downloader.said.connect(lambda text: self.handle(Response().speak(text)))
             self._downloader.finished.connect(self._pack_installed)
+        opener = opener or self.pack_opener
         if opener is not None:
             self._downloader.opener = opener
         refused = self._downloader.start(entry, storage.packs_folder(self.data_folder))
@@ -363,10 +369,58 @@ class MainWindow(QMainWindow):
             if text:
                 self.handle(Response().speak(text, ASSERTIVE))
             return
+        if path.name.endswith(install.PART):   # an update: the pack in use is closed, then replaced (P4-T6d)
+            final = path.with_name(path.name[:-len(install.PART)])
+            self.session.remove_packs([final.name])
+            try:
+                os.replace(path, final)
+            except OSError:
+                path.unlink(missing_ok=True)
+                self.handle(Response().speak(install.failed(entry), ASSERTIVE))
+                return
+            path = final
         response = self.session.add_packs([path])
         if not response.packs_damaged and len(response.announcements) == 0:
             response.speak(text, ASSERTIVE)
         self.handle(response)
+        self._refresh_pack_manager()
+
+    # The catalogue, read on a thread of its own (P4-T6d). The callback gets the text and whether it was read.
+
+    def fetch_catalogue(self, url: str, callback) -> None:
+        from desktop.downloads import CatalogueFetcher
+
+        if self._catalogues is None:
+            self._catalogues = CatalogueFetcher(self)
+            self._catalogues.done.connect(lambda cb, text, ok: cb(text, ok))
+        self._catalogues.opener = self.pack_opener
+        self._catalogues.start(url, callback)
+
+    def _offer_world(self, offer: dict) -> None:
+        """At the first start with no world pack: the catalogue is read, and the core offers it (P4-T6d)."""
+        def answer(text: str, ok: bool) -> None:
+            self.handle(self.session.run("packs.first_run", **({"text": text} if ok else {"failed": True})))
+
+        url = offer["catalogue_urls"]["desktop"]
+        if url:
+            self.fetch_catalogue(url, answer)
+        else:
+            self.handle(self.session.run("packs.first_run", unset=True))
+
+    def _delete_pack_files(self, names) -> None:
+        """Packs just removed: their files go (the core has closed them). Only a file's own name, in the packs folder."""
+        folder = storage.packs_folder(self.data_folder)
+        for name in names:
+            if name and Path(name).name == name:
+                try:
+                    (folder / name).unlink(missing_ok=True)
+                except OSError:
+                    pass
+
+    def _refresh_pack_manager(self) -> None:
+        for box in self._dialogs:
+            if isinstance(box, PackManagerDialog):
+                box.refresh()
 
     def closeEvent(self, event):
         if self._downloader is not None:
@@ -603,6 +657,14 @@ class MainWindow(QMainWindow):
             self._open_dialog(response.dialog)
         if response.save_file:
             self._save_file(response.save_file)
+        if response.remove_files:   # the pack manager's Remove (P4-T6d)
+            self._delete_pack_files(response.remove_files)
+        if response.install:   # the pack manager's Install and Update, and the world pack's offer (P4-T6d)
+            from mapcore.packs.catalogue import Entry
+
+            self.install_pack(Entry.from_dict(response.install["entry"]))
+        if response.world_offer and self.offer_world:
+            self._offer_world(response.world_offer)
         if response.open_url:
             self.open_url(response.open_url)
         if response.action == "exit":
@@ -769,6 +831,10 @@ class MainWindow(QMainWindow):
             box = (BookmarkManagerDialog if kind == "bookmark_manager" else BookmarkListDialog)(
                 self, dialog, run=self.session.run, handle=self.handle,
                 speak=lambda text: self.announcer.speak(text, "assertive"))
+        elif kind == "pack_manager":   # P (P4-T6d): the packs, each change kept at once
+            box = PackManagerDialog(self, dialog, run=self.session.run, handle=self.handle,
+                                    speak=lambda text: self.announcer.speak(text, "assertive"),
+                                    fetch=self.fetch_catalogue)
         elif kind == "confirm":   # a question, such as Reset all settings (P2-T18h)
             box = ConfirmBox(self, dialog)
             box.finished.connect(lambda _r, b=box: b.confirmed and self._carry_out_answer(

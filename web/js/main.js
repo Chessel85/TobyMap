@@ -17,7 +17,7 @@ import { WorkerClient } from "./worker_client.js";
 const $ = (id) => document.getElementById(id);
 const mapEl = $("map"), mapArea = $("map-area"), canvas = $("canvas"), treeEl = $("tree"), details = $("details");
 const dialog = $("dialog"), dialogTitle = $("dialog-title"), dialogText = $("dialog-text"), dialogClose = $("dialog-close");
-const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), viewsDialog = $("viewsdialog"), bookmarkDialog = $("bookmarkdialog"), bookmarkManagerDialog = $("bookmarkmanagerdialog"), bookmarkListDialog = $("bookmarklistdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
+const settingsDialog = $("settings"), keyDialog = $("keydialog"), inputDialog = $("inputdialog"), layersDialog = $("layersdialog"), viewsDialog = $("viewsdialog"), bookmarkDialog = $("bookmarkdialog"), bookmarkManagerDialog = $("bookmarkmanagerdialog"), bookmarkListDialog = $("bookmarklistdialog"), packManagerDialog = $("packmanagerdialog"), searchDialog = $("searchdialog"), treeDialog = $("treedialog"), queryDialog = $("querydialog"), messageBox = $("messagebox");
 const REGIONS = ["map", "panel", "details"];  // Tab never reaches the menu bar (DP93)
 const STORAGE_KEY = "tobymap";
 // The bookmarks file (P4-T8a, USR-5, DP219): all the bookmark lists, as the core's GeoJSON text, in the
@@ -39,7 +39,7 @@ window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.hea
   search: (text, scope) => client.send({ type: "search", text, scope }),
   // Installing a pack from a catalogue entry (P4-T6c): for the browser tests until the pack manager (P4-T6d) uses it.
   // Resolves once the pack is open, or refused; the download goes on, its progress said as notices.
-  install: (entry) => client.send({ type: "install", entry, ...mapSize() }).then((r) => { handle(r); return !!(r && r.opened); }),
+  install: (entry) => installEntry(entry, false),
   // The language the page marks a name with, or null (P3-T12b), for the browser tests.
   languageOf };
 const told = new Set();   // voice problems and own sound files that failed, each said once
@@ -160,6 +160,9 @@ function handle(result, keyAt, held = false, named = false) {
   beaconUpdate(r.beacon);
   if (r.scan) scan.start(r.scan);   // look around (P3-T11a)
   if (r.open_url) openUrl(r.open_url);
+  if (r.remove_files && r.remove_files.length) client.send({ type: "remove_files", names: r.remove_files }).catch(showError);   // P4-T6d
+  if (r.install) installEntry(r.install.entry, r.install.update).catch(showError);
+  if (r.world_offer) setTimeout(() => offerWorld(r.world_offer), 0);
   if (r.action === "reset") ownSounds.clear().catch(() => {});   // your own sound files go too (P2-T18h)
   if (r.bookmarks_damaged) setAsideBookmarks();   // kept, renamed, before anything is written in its place
   if (r.bookmarks !== null && r.bookmarks !== undefined) {
@@ -378,7 +381,7 @@ function moveRegion(step) {
 }
 
 function openModal() {
-  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || viewsDialog.open || bookmarkDialog.open || bookmarkManagerDialog.open || bookmarkListDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
+  return dialog.open || settingsDialog.open || keyDialog.open || inputDialog.open || layersDialog.open || viewsDialog.open || bookmarkDialog.open || bookmarkManagerDialog.open || bookmarkListDialog.open || packManagerDialog.open || searchDialog.open || treeDialog.open || queryDialog.open || messageBox.open;
 }
 
 document.addEventListener("keydown", (e) => {
@@ -447,7 +450,7 @@ function tabbable(container) {
 }
 
 function trapTab(e) {  // keep focus inside a dialog
-  const open = [messageBox, settingsDialog, inputDialog, layersDialog, viewsDialog, bookmarkListDialog, bookmarkManagerDialog, bookmarkDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
+  const open = [messageBox, settingsDialog, inputDialog, layersDialog, viewsDialog, bookmarkListDialog, bookmarkManagerDialog, packManagerDialog, bookmarkDialog, searchDialog, treeDialog, queryDialog, dialog].find((d) => d.open);   // the top one first
   const items = tabbable(open);
   const i = items.indexOf(document.activeElement);
   e.preventDefault();
@@ -495,6 +498,7 @@ function openDialog(d) {
   if (d.kind === "views") return openViews(d);
   if (d.kind === "bookmark") return openBookmark(d);
   if (d.kind === "bookmark_manager") return openBookmarkManager(d);
+  if (d.kind === "pack_manager") return openPackManager(d);
   if (d.kind === "bookmark_list") { bookmarkListAfter = null; return openBookmarkList(d); }
   if (d.kind === "search") return openSearch(d);
   if (d.kind === "tree") return openTree(d);
@@ -974,6 +978,89 @@ function openBookmark(d) {
   showForm();
   box.showModal();
   $("bookmark-name").focus();
+}
+
+// Installing a pack from a catalogue entry (P4-T6c, P4-T6d): the worker downloads it into private storage and opens it at
+// once. Resolves, once it is open or refused, with whether it opened; the download goes on, its progress said as notices.
+// An update (the pack in use is replaced) is closed and deleted first, by the worker. The pack manager's lines are
+// brought up to date when it has started.
+let packManagerRefresh = null;
+function installEntry(entry, update) {
+  return client.send({ type: "install", entry, update: !!update, ...mapSize() }).then((r) => {
+    handle(r);
+    if (packManagerRefresh) packManagerRefresh();
+    return !!(r && r.opened);
+  });
+}
+
+// The catalogue's text, from the address in the core's defaults or, for local serving and the tests, ?catalogue=. The
+// page reads it; the core makes everything of it. {text}, {failed} when it could not be read, or {unset} when this
+// version has no address yet (P4-T6h).
+function fetchCatalogue(urls) {
+  const url = new URLSearchParams(location.search).get("catalogue") || (urls && urls.web) || "";
+  if (!url) return Promise.resolve({ unset: true });
+  return fetch(url, { cache: "no-cache" })
+    .then((res) => { if (!res.ok) throw new Error(`${url}: ${res.status}`); return res.text(); })
+    .then((text) => ({ text }), () => ({ failed: true }));
+}
+
+// The first start with no world pack: the core offers to download it, once the catalogue is read. With no address
+// to read it from, nothing is said (the pack manager says so when it is opened).
+function offerWorld(offer) {
+  fetchCatalogue(offer.catalogue_urls).then((arg) => {
+    if (arg.unset) return;
+    const { width, height } = mapSize();
+    return client.send({ type: "run", commands: [["packs.first_run", arg]], width, height }).then((r) => handle(r));
+  }).catch(showError);
+}
+
+// The pack manager (P): the packs, each with its name, size, date and state, then Install, Update, Remove and Close.
+// A button that cannot act on the chosen line stays in the Tab order, aria-disabled (ACC-7). The catalogue is read
+// here and handed to the core, which builds every line; Remove asks first, in the message box. Every word is the core's.
+function openPackManager(d) {
+  const box = packManagerDialog;
+  const words = d.words, commands = d.commands;
+  let items = d.lines.items, current = d.lines.current;
+  let lines, note, install, update, remove;
+  const mark = (i) => {
+    const item = items[i] || {};
+    setAvailable(install, !!item.install);
+    setAvailable(update, !!item.update);
+    setAvailable(remove, !!item.remove);
+  };
+  const apply = (r) => {
+    if (!r.pack_manager) return;
+    items = r.pack_manager.items;
+    current = r.pack_manager.current;
+    note.textContent = r.pack_manager.note || r.pack_manager.none;
+    lines.fill(items, current, false);
+  };
+  const back = () => lines.el.children[lines.current]?.focus();
+  const command = (name, args) => bookmarkCommand(name, args, apply, back);
+
+  const body = focusModeBody(box);
+  box.setAttribute("aria-label", d.title);
+  const title = document.createElement("h2");
+  title.textContent = d.title;
+  const help = document.createElement("p");
+  help.id = "pm-help";
+  help.textContent = d.help;
+  lines = bookmarkListBox("pm-list", words.list, { checks: false, onChange: (i) => { current = Math.max(i, 0); mark(i); } });
+  lines.el.setAttribute("aria-describedby", help.id);
+  note = document.createElement("p");
+  note.id = "pm-note";
+  note.textContent = words.loading;
+  install = unavailableButton(words.install, () => command(commands.install, { index: current }), "pm-install");
+  update = unavailableButton(words.update, () => command(commands.update, { index: current }), "pm-update");
+  remove = unavailableButton(words.remove, () => command(commands.remove, { index: current }), "pm-remove");
+  const close = button(words.close, () => box.close(), "pm-close");
+  body.append(title, help, lines.el, note, install, update, remove, close);
+  lines.fill(items, current, false);
+  packManagerRefresh = () => { if (box.open) command(commands.listing, { index: current }); };
+  box.showModal();
+  lines.el.children[lines.current]?.focus();
+  if (!items.length) lines.el.focus();
+  fetchCatalogue(d.catalogue_urls).then((arg) => { if (box.open) command(commands.listing, { ...arg, index: current }); });
 }
 
 // The bookmark manager and the bookmark list dialog (P4-T8e, USR-3, DP219 point 7; ACC-7). Neither has OK: each change
@@ -1701,6 +1788,7 @@ layersDialog.addEventListener("close", afterClose);
 viewsDialog.addEventListener("close", afterClose);
 bookmarkDialog.addEventListener("close", afterClose);
 bookmarkManagerDialog.addEventListener("close", afterClose);
+packManagerDialog.addEventListener("close", (e) => { packManagerRefresh = null; afterClose(e); });
 // The bookmark list dialog opened from the manager returns to it, with the lines counted again; from the Map menu it
 // returns to the map (P4-T8e).
 bookmarkListDialog.addEventListener("close", (e) => {

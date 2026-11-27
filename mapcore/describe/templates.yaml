@@ -1114,6 +1114,39 @@ packs:
   install_no_room: "{name} needs {need} megabytes, and this browser has {left} megabytes left for TobyMap, so it was not downloaded. Free some space, then try again."
 
 
+# The pack manager (P4-T6d, PCK-2): the dialog on P, and the offer to download the world pack at the first start.
+pack_manager:
+  title: "Pack manager"
+  help: "The packs you can download. Choose a pack, then Install, Update or Remove. Close when you have finished."
+  list: "Packs"
+  install: "Install"
+  update: "Update"
+  remove: "Remove"
+  loading: "Reading the list of packs."
+  # A line: the pack's name, its size, its date and its state. A pack that is not in the list has no size.
+  item: "{name}, {size} megabytes, {date}, {state}"
+  item_local: "{name}, {date}, {state}"
+  none: "No packs are installed, and none are listed."
+  unreadable: "The list of packs could not be read. Only the packs you have installed are shown. Check the connection and try again."
+  not_listed: "There is no list of packs for this version yet. Only the packs you have installed are shown."
+  nothing_chosen: "Choose a pack first."
+  not_installable: "{name} is already installed. Use Update when an update is available."
+  not_updatable: "{name} has no update available."
+  not_installed: "{name} is not installed, so there is nothing to remove."
+  remove_title: "Remove {name}"
+  remove_question: "Remove {name}? Its file is deleted from this computer. You can download it again later."
+  remove_ok: "Remove"
+  removed: "{name} is removed."
+  # The first start with no world pack.
+  first_run_title: "Download the world pack"
+  first_run: "TobyMap needs the world pack to show the map. It is {size} megabytes. Download it now?"
+  first_run_ok: "Download"
+  first_run_cancel: "Not now"
+  first_run_unreadable: "TobyMap needs the world pack to show the map, and the list of packs could not be read. Check the connection, then press P to try again."
+  first_run_not_listed: "TobyMap needs the world pack to show the map, and there is no list of packs for this version yet. Press P to try again later."
+  first_run_missing: "TobyMap needs the world pack to show the map, and the list of packs does not include it. Press P to see the packs there are."
+
+
 # The points of interest of a regional pack (P4-T1f, design docs/plan/p4-t1-design.md 3.10).
 poi_categories:
   # An item of a layer whose definition says say_type, such as a bus stop, said with its type after its name wherever

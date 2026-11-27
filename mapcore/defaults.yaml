@@ -48,3 +48,9 @@ sound:
 beacon:
   silent_within_m: 100000
   fade_from_m: 200000
+
+# Where the list of packs that can be downloaded is read from (P4-T6d, PCK-2). The web address is left empty until
+# the web packs are hosted (P4-T6h); the page can be given one with ?catalogue= for local serving.
+packs:
+  catalogue_url_desktop: https://github.com/Chessel85/TobyMap/releases/download/packs-test/catalogue.json
+  catalogue_url_web: ""

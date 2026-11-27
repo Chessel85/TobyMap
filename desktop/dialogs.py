@@ -1725,3 +1725,109 @@ class SettingsDialog(QDialog):
             if value != self._opened.get(field_id):
                 self.responses.append(self.session.run("settings.set", field=field_id, value=value))
         self.accept()
+
+
+class PackManagerDialog(QDialog):
+    """P (P4-T6d; PCK-2, ACC-7): the packs, each with its name, size, date and state, and Install, Update, Remove and
+    Close, in that Tab order after the list. A button that cannot act on the chosen line is unavailable: it stays in
+    the Tab order and NVDA says "unavailable". The catalogue is read on a thread of its own from the address the core
+    gives, and the core builds every line and says what each button may do. Remove asks first, in a ConfirmBox with
+    Cancel the default. Every word comes from the core."""
+
+    def __init__(self, parent, dialog: dict, run, handle, speak=None, fetch=None):
+        super().__init__(parent)
+        self._dialog, self._run, self._handle, self._speak, self._fetch = dialog, run, handle, speak, fetch
+        self._commands = dialog["commands"]
+        self.items: list[dict] = []
+        self.child_box: QDialog | None = None
+        self._open = True
+        words = dialog["words"]
+        self.setWindowTitle(dialog["title"])
+        layout = QVBoxLayout(self)
+        self.help = QLabel(dialog["help"])
+        self.help.setWordWrap(True)
+        layout.addWidget(self.help)
+        self.list = QListWidget()
+        self.list.setAccessibleName(words["list"])
+        self.list.setAccessibleDescription(dialog["help"])
+        layout.addWidget(self.list)
+        self.note = QLabel(words["loading"])
+        self.note.setWordWrap(True)
+        layout.addWidget(self.note)
+        self.install_button, self.update_button, self.remove_button, self.close_button = button_row(
+            layout, [words["install"], words["update"], words["remove"], words["close"]], default=False,
+            cls=UnavailableButton)
+        for button, command in ((self.install_button, "install"), (self.update_button, "update"),
+                                (self.remove_button, "remove")):
+            button.on_press(lambda c=command: self._press(c))
+        self.close_button.clicked.connect(self.reject)
+        self.list.currentRowChanged.connect(self._mark)
+        self.resize(640, 420)
+        self.fill(dialog["lines"])
+        self.list.setFocus()
+        self._load()
+
+    # The lines ---------------------------------------------------------------------------------
+
+    def fill(self, listing: dict) -> None:
+        self.items = listing["items"]
+        self.list.blockSignals(True)
+        self.list.clear()
+        self.list.addItems([i["label"] for i in self.items])
+        if self.items:
+            self.list.setCurrentRow(listing["current"])
+        self.list.blockSignals(False)
+        self.note.setText(listing["note"] or listing["none"])
+        self._mark(self.list.currentRow())
+
+    def _mark(self, row: int) -> None:
+        item = self.items[row] if 0 <= row < len(self.items) else {}
+        self.install_button.set_available(bool(item.get("install")))
+        self.update_button.set_available(bool(item.get("update")))
+        self.remove_button.set_available(bool(item.get("remove")))
+
+    # The catalogue ------------------------------------------------------------------------------
+
+    def _load(self) -> None:
+        url = self._dialog["catalogue_urls"]["desktop"]
+        if not url or self._fetch is None:
+            self._apply(self._run(self._commands["listing"], unset=True))
+            return
+        self._fetch(url, self._got)
+
+    def _got(self, text: str, ok: bool) -> None:
+        if not self._open:   # closed while it was being read
+            return
+        self._apply(self._run(self._commands["listing"], **({"text": text} if ok else {"failed": True})))
+
+    def refresh(self) -> None:
+        """The lines again from the last catalogue, after a pack was installed or removed."""
+        if self._open:
+            self._apply(self._run(self._commands["listing"], index=self.list.currentRow()))
+
+    # The buttons --------------------------------------------------------------------------------
+
+    def _press(self, command: str) -> None:
+        response = self._run(self._commands[command], index=self.list.currentRow())
+        if response.dialog and response.dialog.get("kind") == "confirm":
+            box = ConfirmBox(self, response.dialog)
+            self.child_box = box
+            box.finished.connect(lambda _r, b=box, d=response.dialog: self._asked(b, d))
+            box.open()
+            return
+        self._apply(response)
+
+    def _asked(self, box, dialog: dict) -> None:
+        self.child_box = None
+        if box.confirmed:
+            self._apply(self._run(dialog["submit"]))
+        self.list.setFocus()
+
+    def _apply(self, response) -> None:
+        self._handle(response)
+        if response.pack_manager is not None:
+            self.fill(response.pack_manager)
+
+    def done(self, result):
+        self._open = False
+        super().done(result)

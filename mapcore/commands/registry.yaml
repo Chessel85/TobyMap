@@ -83,6 +83,15 @@ commands:
   # from the manager's Open list button and from the Map menu, on the list used last.
   - {name: bookmark.manager_open, label: Bookmark manager, region: global, menu: Map}
   - {name: bookmark.list_open, label: Bookmark list, region: global, menu: Map}
+  # The pack manager (P4-T6d; PCK-2): P. Its buttons and the offer of the world pack at the first start have no key.
+  - {name: packs.manager_open, label: Pack manager, region: global, menu: Map}
+  - {name: packs.manager_listing, label: The packs again, region: global, menu: "", pointer: true}
+  - {name: packs.manager_install, label: Install the chosen pack, region: global, menu: "", pointer: true}
+  - {name: packs.manager_update, label: Update the chosen pack, region: global, menu: "", pointer: true}
+  - {name: packs.manager_remove, label: Ask to remove the chosen pack, region: global, menu: "", pointer: true}
+  - {name: packs.manager_remove_confirm, label: Remove the pack, region: global, menu: "", pointer: true}
+  - {name: packs.first_run, label: Offer the world pack, region: global, menu: "", pointer: true}
+  - {name: packs.first_run_download, label: Download the world pack, region: global, menu: "", pointer: true}
   # Themes and isolate (VIS-2): your keys, from the key list. Escape is kept for the screen reader and the browser.
   - {name: theme.next, label: Next theme, region: map, menu: Map}
   - {name: theme.previous, label: Previous theme, region: map, menu: Map}

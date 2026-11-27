@@ -26,6 +26,7 @@ import yaml
 import mapcore
 from mapcore import bookmarks as bookmarks_mod
 from mapcore.bookmark_dialogs import BookmarkDialogs
+from mapcore.pack_manager import PackManager
 from mapcore import memory
 from mapcore import views as views_mod
 from mapcore import names as names_mod
@@ -162,6 +163,16 @@ class Response:
     # standard Open box with title and filter, the web version the browser's file chooser with accept. The shell reads
     # the file as UTF-8 text ("" if it cannot) and runs submit with text and file, the file's name; Cancel runs nothing.
     open_file: dict | None = None
+    # The pack manager's lines after the catalogue is read or a pack removed (P4-T6d): {"items", "current", "note", "none"}.
+    pack_manager: dict | None = None
+    # A catalogue entry for the shell to download (P4-T6d): {"entry", "update"}. The shell runs its own download, which
+    # opens the pack; an update replaces the pack in use.
+    install: dict | None = None
+    # File names, in the packs folder (or private storage), the shell deletes: packs just removed (P4-T6d).
+    remove_files: list = field(default_factory=list)
+    # At start: no pack named world is installed, so the shell may fetch the catalogue from catalogue_urls and run
+    # packs.first_run (P4-T6d): {"catalogue_urls": {"desktop", "web"}}.
+    world_offer: dict | None = None
 
     def speak(self, text: str, priority: str = POLITE) -> "Response":
         self.announcements.append({"text": text, "channel": SPEECH, "priority": priority})
@@ -274,6 +285,7 @@ class MapSession:
         self.clock = clock
         # Every bookmark list (P4-T8a, USR-1, USR-3). A damaged file gives one empty list, and start() says so.
         self.bookmarks, self.bookmarks_damaged = bookmarks_mod.load(bookmarks)
+        self._pack_manager = PackManager(self, Response)   # the pack manager and the world pack's offer (P4-T6d)
         self._bookmark_dialogs = BookmarkDialogs(self, Response)   # the bookmark manager and list dialog (P4-T8e)
         self.areas: list = []          # the areas at the last described place, smallest first
         self.last_spoken: str | None = None
@@ -454,6 +466,7 @@ class MapSession:
             "settings.reset_confirm": self._reset_all,
             "layers.open": self._layers_open,
             **self._bookmark_dialogs.handlers(),
+            **self._pack_manager.handlers(),
             "views.open": self._views_open,
             "views.add": self._views_add,
             "views.apply": self._views_apply,
@@ -493,6 +506,7 @@ class MapSession:
 
         r = Response(redraw=True, panel_stale=True, details_stale=True, bookmarks_damaged=self.bookmarks_damaged)
         r.packs_damaged = [e.pack for e in self.packs_failed if is_damage(e)]
+        r.world_offer = None if self._pack_manager.has_world() else {"catalogue_urls": self._pack_manager.urls()}
         if not self.store.packs:
             r.speak(say("packs.none_installed"), ASSERTIVE)
         else:
@@ -520,12 +534,14 @@ class MapSession:
             return r
         names = {p.name for p in opened}
         saved = self.save()
+        catalogue = self._pack_manager.catalogue   # the pack manager's list outlives the session made afresh (P4-T6d)
         keep = {"map_size": self.map_size, "trace": self.trace, "bookmarks": self.bookmarks}
         self.__init__(platform=self.platform, store=Store([p for p in self.store.packs if p.name not in names] + opened),
                       settings=saved["settings"], saved_state=saved["state"], clock=self.clock, system=self.system)
         for name, value in keep.items():
             setattr(self, name, value)
         self.areas = self._here()
+        self._pack_manager.catalogue = catalogue
         return r
 
     def remove_packs(self, names) -> Response:
@@ -540,12 +556,14 @@ class MapSession:
         if not gone:
             return r
         saved = self.save()
+        catalogue = self._pack_manager.catalogue   # the pack manager's list outlives the session made afresh (P4-T6d)
         keep = {"map_size": self.map_size, "trace": self.trace, "bookmarks": self.bookmarks}
         self.__init__(platform=self.platform, store=Store([p for p in self.store.packs if p.name not in names]),
                       settings=saved["settings"], saved_state=saved["state"], clock=self.clock, system=self.system)
         for name, value in keep.items():
             setattr(self, name, value)
         self.areas = self._here()
+        self._pack_manager.catalogue = catalogue
         for pack in gone:
             pack.close()
         return r
@@ -617,6 +635,9 @@ class MapSession:
             merged.bookmark_list = r.bookmark_list or merged.bookmark_list
             merged.save_file = r.save_file or merged.save_file   # the web version runs every command this way (P4-T9d)
             merged.open_file = r.open_file or merged.open_file
+            merged.pack_manager = r.pack_manager or merged.pack_manager
+            merged.install = r.install or merged.install
+            merged.remove_files += r.remove_files
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 

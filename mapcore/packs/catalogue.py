@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 
 from mapcore.describe import say
 from mapcore.packs.pack import _compare, version_tuple
@@ -54,6 +54,14 @@ class Entry:
     coverage: str = ""
     depends: list = field(default_factory=list)
     sources: dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        """The entry as the catalogue holds it, for a shell to hand back (P4-T6d)."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, raw: dict) -> "Entry":
+        return cls(**raw)
 
     def compatible(self, app_version: str) -> bool:
         have = version_tuple(app_version)

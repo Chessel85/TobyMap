@@ -202,7 +202,7 @@ async function moveIntoPlace(root, partName, fileName) {
   return root.getFileHandle(fileName);
 }
 
-async function installPack(raw, width, height) {
+async function installPack(raw, width, height, update) {
   let free = -1;
   try {
     const estimate = await navigator.storage.estimate();
@@ -215,6 +215,10 @@ async function installPack(raw, width, height) {
   let response;
   try {
     root = await navigator.storage.getDirectory();
+    if (update) {   // the pack in use is closed and its file deleted first (P4-T6d)
+      bridge.install_replace(plan.name);
+      await removeQuietly(root, plan.file);
+    }
     handle = await (await root.getFileHandle(plan.part, { create: true })).createSyncAccessHandle();
     handle.truncate(0);
     response = await fetch(plan.url, { signal: abort.signal });
@@ -298,7 +302,7 @@ function finish(result) {
 
 self.onmessage = async (event) => {
   const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs,
-          problem, samples, rate, factor, pitch, open, text, scope, index, system, bookmarks, entry, name } = event.data;
+          problem, samples, rate, factor, pitch, open, text, scope, index, system, bookmarks, entry, name, update, names } = event.data;
   try {
     await ready;
     let out;
@@ -326,7 +330,12 @@ self.onmessage = async (event) => {
     else if (type === "painted") { bridge.frame_painted(paintMs); out = { result: null, transfer: [] }; }
     else if (type === "shell_times") { bridge.shell_times(keyMs, handedMs); out = { result: null, transfer: [] }; }
     else if (type === "search") out = { result: bridge.search(text || "", JSON.stringify(scope || {})), transfer: [] };
-    else if (type === "install") out = await installPack(entry, width, height);   // a catalogue entry (P4-T6c)
+    else if (type === "install") out = await installPack(entry, width, height, update);   // a catalogue entry (P4-T6c)
+    else if (type === "remove_files") {   // packs just removed by the pack manager (P4-T6d): the core has closed them
+      const root = await navigator.storage.getDirectory();
+      for (const file of names || []) await removeQuietly(root, file);
+      out = { result: true, transfer: [] };
+    }
     else if (type === "install_cancel") {   // a download stopped, its .part file removed (P4-T6f will resume)
       const abort = downloads.get(name);
       if (abort) abort.abort();

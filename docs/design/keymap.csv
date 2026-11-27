@@ -29,6 +29,14 @@ Layers,anywhere,Ctrl+Shift+L,Shift+Cmd+L,Ctrl+Shift+L,Shift+Cmd+L,None known,No 
 Map views,anywhere,Ctrl+Shift+V,Shift+Cmd+V,Ctrl+Shift+V,Shift+Cmd+V,None known,No problem known.
 Bookmark manager,anywhere,Ctrl+Shift+B,Shift+Cmd+B,Ctrl+Shift+B,Shift+Cmd+B,None known,No problem known.
 Bookmark list,anywhere,No key,No key,No key,No key,None known,No problem known.
+Pack manager,anywhere,P,P,P,P,None known,No problem known.
+The packs again,anywhere,No key,No key,No key,No key,None known,No problem known.
+Install the chosen pack,anywhere,No key,No key,No key,No key,None known,No problem known.
+Update the chosen pack,anywhere,No key,No key,No key,No key,None known,No problem known.
+Ask to remove the chosen pack,anywhere,No key,No key,No key,No key,None known,No problem known.
+Remove the pack,anywhere,No key,No key,No key,No key,None known,No problem known.
+Offer the world pack,anywhere,No key,No key,No key,No key,None known,No problem known.
+Download the world pack,anywhere,No key,No key,No key,No key,None known,No problem known.
 Next theme,the map,T,T,T,T,None known,No problem known.
 Previous theme,the map,Shift+T,Shift+T,Shift+T,Shift+T,None known,No problem known.
 Isolate the current area,the map,Ctrl+I,Cmd+I,Ctrl+I,Cmd+I,None known,No problem known.

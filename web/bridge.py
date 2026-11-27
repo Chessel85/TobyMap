@@ -46,7 +46,13 @@ class HandleSource:
         return bytes(buffer.to_py())[:got]
 
     def close(self) -> None:
-        pass
+        """The browser's private storage will not delete a file whose handle is open (P4-T6d: Remove, Update)."""
+        close = getattr(self.handle, "close", None)
+        if close is not None:
+            try:
+                close()
+            except Exception:   # already closed
+                pass
 
 
 def _js(value):
@@ -317,6 +323,14 @@ def install_begin(entry_json: str, free: float):
     _installs[entry.name] = [install.Download(entry), None]
     return _js({"name": entry.name, "file": install.file_name(entry), "part": install.part_name(entry),
                 "url": entry.url_web, "size": entry.size})
+
+
+def install_replace(name: str) -> None:
+    """An update (P4-T6d): the pack in use of that name is taken out of use and closed, so the worker can delete its
+    file before the new one comes. The pack is then read from the internet while it downloads, as a new one is."""
+    from mapcore.packs import install
+
+    _session.remove_packs([install.file_name(_installs[name][0].entry)])
 
 
 def install_said(text: str, width: int, height: int):

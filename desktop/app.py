@@ -30,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
         os.environ[storage.PACK_ENV] = args.pack
     if args.self_test:
         return self_test(args.out)
-    window = MainWindow(start_at=args.at)
+    window = MainWindow(start_at=args.at, offer_world=True)
     window.session.startup_took((time.perf_counter() - started) * 1000)
     # The waiting Windows messages are read just before the window is shown. A first start after
     # an install can take more than 5 seconds without reading them, and Windows then calls the

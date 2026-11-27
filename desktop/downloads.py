@@ -23,6 +23,7 @@ from mapcore import version
 from mapcore.packs import install
 
 CHUNK = 1 << 20      # 1 MB at a time
+MAX_TEXT = 4 << 20    # the catalogue is text: never more than 4 MB
 TIMEOUT = 60         # seconds without a byte before the connection is given up
 
 
@@ -30,6 +31,45 @@ def open_url(url: str):
     """The real internet: a file-like object over the bytes at url."""
     request = urllib.request.Request(url, headers={"User-Agent": f"TobyMap/{version()}"})
     return urllib.request.urlopen(request, timeout=TIMEOUT)
+
+
+def read_text(url: str, opener=None) -> str:
+    """The text at url: the catalogue (P4-T6d). OSError or ValueError when it cannot be read."""
+    source = (opener or open_url)(url)
+    try:
+        return source.read(MAX_TEXT).decode("utf-8")
+    finally:
+        close = getattr(source, "close", None)
+        if close:
+            close()
+
+
+class CatalogueFetcher(QObject):
+    """The catalogue's text, fetched on a thread of its own. done(callback, text, ok) comes back on the window's
+    thread; ok is False when it could not be read at all."""
+
+    done = Signal(object, str, bool)
+
+    def __init__(self, parent=None, opener=None):
+        super().__init__(parent)
+        self.opener = opener
+        self.threads: list[threading.Thread] = []
+
+    def start(self, url: str, callback) -> None:
+        def run():
+            try:
+                text, ok = read_text(url, self.opener), True
+            except (OSError, ValueError):
+                text, ok = "", False
+            self.done.emit(callback, text, ok)
+
+        thread = threading.Thread(target=run, name="catalogue", daemon=True)
+        self.threads.append(thread)
+        thread.start()
+
+    def wait(self, timeout: float | None = None) -> None:
+        for thread in self.threads:
+            thread.join(timeout)
 
 
 class Downloader(QObject):
@@ -92,6 +132,11 @@ class Downloader(QObject):
         if not ok:
             self._remove(part)
             self.finished.emit(entry, None, install.damaged(entry))
+            return
+        if final.exists():
+            # An update (P4-T6d): the pack in use is open, and Windows cannot replace an open file, so the window,
+            # on its own thread, closes it and puts this one in its place. The checked file is left as .part.
+            self.finished.emit(entry, part, install.done(entry))
             return
         try:
             os.replace(part, final)

@@ -338,3 +338,47 @@ def test_the_world_and_the_trial_make_the_groups_just_after_the_territorial_wate
         assert "island-groups" in wikidata["match"]
     assert STAGES["island-groups"].module == "mapdata.stages.island_groups"
     assert np.all([m.startswith("mapdata.stages.") for m in STAGES["island-groups"].code])
+
+
+def test_a_busy_wikidata_is_asked_again_after_a_wait():
+    """The world build of 27 November stopped on Wikidata's 429, Too Many Requests: the links are asked for again,
+    after the wait it names."""
+    import email.message
+    import io
+    import urllib.error
+
+    calls, waits = [], []
+
+    class Answer(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def open_url(req, timeout):
+        calls.append(req.full_url)
+        if len(calls) < 3:
+            headers = email.message.Message()
+            headers["Retry-After"] = "7"
+            raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", headers, None)
+        return Answer(b'{"entities": {}}')
+
+    got = ig._get_json("https://example.org/w/api.php", sleep=waits.append, say=lambda t: None, open_url=open_url)
+    assert got == {"entities": {}}
+    assert len(calls) == 3
+    assert waits == [7.0, 14.0]
+
+
+def test_a_request_wikidata_refuses_is_not_asked_again():
+    import urllib.error
+
+    calls = []
+
+    def open_url(req, timeout):
+        calls.append(1)
+        raise urllib.error.HTTPError(req.full_url, 404, "Not Found", None, None)
+
+    with pytest.raises(urllib.error.HTTPError):
+        ig._get_json("https://example.org/w/api.php", sleep=lambda s: None, say=lambda t: None, open_url=open_url)
+    assert len(calls) == 1

@@ -208,14 +208,34 @@ def links_path(folder: Path, refresh: str) -> Path:
     return Path(folder) / f"groups-{refresh}.jsonl"
 
 
-def _get_json(url: str, timeout: float = 60.0) -> dict:
+def _get_json(url: str, timeout: float = 60.0, tries: int = 6, sleep=time.sleep, say=print, open_url=None) -> dict:
+    """One request to Wikidata's interface. Waits and tries again when it is busy (429) or failing for a moment,
+    as the wikidata stage's queries do: the world build of 27 November stopped on a 429 here."""
+    import urllib.error
     import urllib.request
 
     from mapdata.stages.wikidata import CLIENT
 
-    req = urllib.request.Request(url, headers={"User-Agent": CLIENT, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    open_url = open_url or urllib.request.urlopen
+    wait = 5.0
+    for attempt in range(1, tries + 1):
+        req = urllib.request.Request(url, headers={"User-Agent": CLIENT, "Accept": "application/json"})
+        try:
+            with open_url(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 500, 502, 503, 504) or attempt == tries:
+                raise
+            after = e.headers.get("Retry-After") if e.headers else None
+            wait = max(wait, float(after)) if after and after.isdigit() else wait
+            say(f"Wikidata said {e.code}; waiting {wait:.0f} seconds, then trying again.")
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            if attempt == tries:
+                raise
+            say(f"Wikidata could not be reached ({e}); waiting {wait:.0f} seconds, then trying again.")
+        sleep(wait)
+        wait = min(wait * 2, 300.0)
+    raise RuntimeError("unreachable")
 
 
 def _claim_ids(entity: dict, prop: str) -> list[str]:

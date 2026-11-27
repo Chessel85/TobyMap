@@ -21,7 +21,7 @@ class _FakeSession:
 
 
 class _FakeWindow:
-    def __init__(self, start_at=None):
+    def __init__(self, start_at=None, offer_world=False):
         self.session = _FakeSession()
         steps.append("built")
 

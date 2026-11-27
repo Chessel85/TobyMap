@@ -18,6 +18,9 @@ merge its records, the whole feature's record first (mapcore/store/packs_combine
 Bordering give one Hampshire, and a parish only the regional pack holds sits under the world pack's county. An
 identifier a regional feature had before matching, kept as an alias, finds it too.
 
+Search reads every pack's search records (P4-T3c), and a feature several packs found is one result, described by
+the pack holding the whole feature, with the best match and the greatest importance any pack gives it (_one_result).
+
 A damaged record is noted in `problems` and the store carries on without it
 (NFR-4).
 
@@ -29,6 +32,8 @@ shapes within the search box.
 """
 from __future__ import annotations
 
+import heapq
+import itertools
 import math
 import threading
 from dataclasses import dataclass, field, replace
@@ -1100,7 +1105,8 @@ class Store:
         Narrowing (SRB-2): `layers`, a collection of layer ids; `near`, (lat, lon, metres), the feature's point
         within that distance; `inside`, an identifier: the feature itself, or one the stored relationships put
         inside it, fully or partly, or crossing it. A pack written before the search index finds nothing.
-        One feature found by two of its names is listed once, by the better."""
+        One feature found by two of its names is listed once, by the better. A feature several packs hold is
+        listed once too (P4-T3c, _one_result)."""
         query = search.Query(text)
         if not query.key:
             return []
@@ -1139,16 +1145,68 @@ class Store:
                                                                           row[search.LON]))
                         order = search.rank_key(level, similar, row[search.IMPORTANCE], row[search.NAME],
                                                 row[search.ID], near_points)
-                        old = best.get(row[search.ID])
+                        mine = best.setdefault(row[search.ID], {})
+                        old = mine.get(p)
                         if old is None or order < old[0]:
-                            best[row[search.ID]] = (order, Found(
+                            mine[p] = (order, Found(
                                 p, row[search.ID], row[search.NAME], row[search.LAYER], row[search.IMPORTANCE],
                                 row[search.LAT], row[search.LON], row[search.DESCRIPTION], row[search.VIA],
-                                level, similar))
-        ranked = [f for _o, f in sorted(best.values(), key=lambda t: t[0])]
+                                level, similar), near_points)
+        ranked = self._ranked(best)
         if inside is None:
-            return ranked[:limit]
+            return list(itertools.islice(ranked, limit))
         return self._inside(ranked, inside, limit)
+
+    def _ranked(self, best: dict):
+        """The results, best first, from each feature's rows by pack, {id: {pack: (order, Found, nearness)}}
+        (P4-T3c). A feature one pack found is ranked by its row. A feature several packs found is made one
+        result (_one_result) only when it may come next: its place can be no better than the best its rows would
+        give with its best match and greatest importance, so the records of the features both packs hold are
+        read only for those near the top, and the order is the same as if all were read."""
+        ready, waiting = [], []
+        for by_pack in best.values():
+            if len(by_pack) == 1:
+                order, found, _near = next(iter(by_pack.values()))
+                ready.append((order, found))
+            else:
+                waiting.append((min(self._one_result(by_pack, p)[0] for p in by_pack), by_pack))
+        heapq.heapify(ready)   # orders end with the identifier, so no two are the same
+        waiting.sort(key=lambda t: t[0])
+        i = 0
+        while True:
+            while i < len(waiting) and (not ready or waiting[i][0] < ready[0][0]):
+                heapq.heappush(ready, self._one_result(waiting[i][1]))
+                i += 1
+            if not ready:
+                return
+            yield heapq.heappop(ready)[1]
+
+    def _one_result(self, by_pack: dict, pack: int | None = None) -> tuple[tuple, Found]:
+        """One feature's search result from the rows several packs matched, {pack: (order, Found, nearness)}, as
+        (order, Found) (P4-T3c, PLT-4). The match stage gave a feature both packs hold the world's identifier, so
+        the packs' rows of one feature share it; an alias is never a row's identifier, so it needs no lookup.
+
+        * Its name, description and point are from the row of the pack whose record is the whole feature, as
+          feature() takes (P4-T3b): the world's Hampshire, "Hampshire, England, United Kingdom", not the regional
+          pack's part of it; a regional pack's town it holds whole, with the regional pack's finer description.
+          Given `pack`, that pack's row instead, with no record read (for _ranked's bound).
+        * How well it matched, and the name it was found by, are the best any pack's row gives, so a name only
+          one pack has finds it as well as it would alone.
+        * Its importance is the most any pack gives it: a pack holding only part of the feature weighs only that
+          part, and a pack built without Wikidata gives no weight for Wikimedia sites."""
+        if pack is None:
+            packs = sorted(by_pack)   # most detailed first, as the store holds them
+            first = by_pack[packs[0]][1]
+            merged = self._merge(first.id, first.layer)   # cached: few features are in both packs
+            pack = merged[0] if merged is not None and merged[0] in by_pack else packs[0]
+        _order, found, near = by_pack[pack]
+        matched = min(by_pack.values(), key=lambda t: (-t[1].level, -t[1].similarity))[1]
+        importance = max(t[1].importance for t in by_pack.values())
+        if (matched.level, matched.similarity) > (found.level, found.similarity):
+            found = replace(found, level=matched.level, similarity=matched.similarity, via=matched.via)
+        found = replace(found, importance=importance)
+        order = search.rank_key(found.level, found.similarity, importance, found.name, found.id, near)
+        return order, found
 
     # The world tree and browsing by category (P3-T9; SRB-3, SRB-4) -------------------------------------------
 

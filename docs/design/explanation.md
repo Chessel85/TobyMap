@@ -478,7 +478,7 @@ The map is drawn from the pack, not from a separate picture. The core chooses wh
 
 ## How several packs work together
 
-This section explains what happens when more than one pack is installed: the world pack, and later regional packs such as Great Britain, and grid packs such as detailed elevation. The design is in architecture AD-13, AD-14 and section 6.8. Combining packs is built in Phase 4, task P4-T3. The first part, P4-T3a, which pack answers where, was built on 27 November 2026, and the second, P4-T3b, one feature from two packs, the same day; the rest of this section says which parts are still to come.
+This section explains what happens when more than one pack is installed: the world pack, and later regional packs such as Great Britain, and grid packs such as detailed elevation. The design is in architecture AD-13, AD-14 and section 6.8. Combining packs is built in Phase 4, task P4-T3. The first part, P4-T3a, which pack answers where, was built on 27 November 2026, the second, P4-T3b, one feature from two packs, the same day, and the third, P4-T3c, search across both packs, the same day too; the rest of this section says which parts are still to come.
 
 ### Words used in this section
 
@@ -537,7 +537,12 @@ Since P4-T3b, the application joins what both packs say about such a feature int
 * A feature only the regional pack has, such as a parish, sits inside its district, its county and its country, and then inside whatever holds the country in the world pack. So Within for a parish in Winchester ends with the United Kingdom and Europe.
 * Up in hierarchy mode from a district reaches the county, and Contains for the county lists the parishes.
 
-Search across both packs is the next part, P4-T3c.
+Since P4-T3c, one search reads both packs' search records, and a feature both packs hold is listed once:
+
+* Its name, description and point come from the pack that holds all of it, the same pack whose record speaks for it. So searching for Hampshire gives "Hampshire, England, United Kingdom", not a part of Hampshire, and a town the England pack holds whole is described by the England pack, which knows its district.
+* It is found as well as either pack's name for it allows: a name only one pack knows still finds it.
+* Its importance is the higher of the two. A pack that holds only part of a feature counts only that part, and a pack built without Wikidata knows nothing of its Wikimedia pages, so neither should push it down the list.
+* A world pack feature that the England pack leaves out where it covers the land is still found. Only 3 are left out over England: an unnamed railway line and the two Channel Tunnel lines, which carry on to France.
 
 Roads and paths that cross from one regional pack into the next join at the same OpenStreetMap points, so travelling along them carries on across the join.
 

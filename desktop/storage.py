@@ -40,6 +40,21 @@ def find_packs(folder: Path | None = None, override: str | None = None) -> list[
     return sorted(pack_folder(folder).glob("*.pack"))
 
 
+def set_aside_pack(path: Path) -> Path | None:
+    """A damaged pack renamed, never deleted: name.pack.damaged, or .damaged-2 and so on when taken, so
+    find_packs no longer sees it. Returns the new name, or None when the file is not there."""
+    path = Path(path)
+    if not path.is_file():
+        return None
+    aside = path.with_name(path.name + ".damaged")
+    n = 2
+    while aside.exists():
+        aside = path.with_name(f"{path.name}.damaged-{n}")
+        n += 1
+    os.replace(path, aside)
+    return aside
+
+
 def load(folder: Path | None = None) -> dict:
     """The saved settings, keys and place. A missing or damaged file gives nothing, and the defaults are used."""
     try:

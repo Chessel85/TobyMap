@@ -117,6 +117,26 @@ class ChecksumWrong(PackError):
     template = "packs.checksum_wrong"
 
 
+def is_damage(error: PackError) -> bool:
+    """A pack that is broken, which is set aside, as against one that only needs another version of TobyMap."""
+    return isinstance(error, (DamagedPack, ChecksumWrong, NotAPack))
+
+
+def open_packs(sources, **options) -> tuple[list, list[PackError]]:
+    """Open each pack, keeping those that pass their checks and returning the failures, so one bad pack
+    never stops the others (NFR-4). Sources may be Packs already open."""
+    opened, failed = [], []
+    for source in sources:
+        if isinstance(source, Pack):
+            opened.append(source)
+            continue
+        try:
+            opened.append(Pack(source, **options))
+        except PackError as error:
+            failed.append(error)
+    return opened, failed
+
+
 class PackWriteError(ValueError):
     """The builder asked for something the format does not allow. For the pipeline, not the user."""
 

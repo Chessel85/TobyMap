@@ -549,6 +549,10 @@ class MainWindow(QMainWindow):
             self._refresh_regions(response)
         if response.bookmarks_damaged:   # kept, renamed, before anything is written in its place (P4-T8a)
             storage.set_aside_bookmarks(self.data_folder)
+        for name in response.packs_damaged:   # kept, renamed, so it is not opened again (P4-T7a)
+            for path in storage.find_packs(self.data_folder):
+                if path.name == name:
+                    storage.set_aside_pack(path)
         if response.bookmarks is not None:
             storage.save_bookmarks(response.bookmarks, self.data_folder)
         if response.settings_changed:

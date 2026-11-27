@@ -145,6 +145,9 @@ class Response:
     # At start: the bookmarks file the shell gave could not be read. The shell renames it aside, so it is kept,
     # before writing anything; the session has started one empty "Bookmarks" list (P4-T8a).
     bookmarks_damaged: bool = False
+    # At start: the file names of packs that failed their checks by being damaged. The desktop shell renames
+    # each aside so it is kept and not opened again; the web shell has nothing to rename (P4-T7a, NFR-4).
+    packs_damaged: list = field(default_factory=list)
     # The bookmark dialog's list box after New list (P4-T8b): {"items": [name], "current"}.
     bookmark_lists: dict | None = None
     # The bookmark manager's and the bookmark list dialog's lines after a change (P4-T8e): {"items", "current", ...}.
@@ -233,7 +236,14 @@ class MapSession:
         self.platform = platform
         self.system = system if system in keymaps.SYSTEMS else "windows"   # "windows" or "mac", from the shell
         self.defaults = yaml.safe_load(DEFAULTS_FILE.read_text(encoding="utf-8"))
-        self.store = store or Store(list(packs or []))
+        # A pack that fails its checks is said at start and left out; the rest carry on (NFR-4, P4-T7a).
+        self.packs_failed: list = []
+        if store is None:
+            from mapcore.packs.pack import open_packs
+
+            opened, self.packs_failed = open_packs(list(packs or []))
+            store = Store(opened)
+        self.store = store
         self.settings = settings_mod.Settings.from_dict(settings)
         self._choose_first_keymap()
         self.store.set_names(self.settings["names"])   # English or local names (P3-T12a)
@@ -479,11 +489,16 @@ class MapSession:
     def start(self) -> Response:
         """The first announcement: the place the application starts at."""
         self.areas = self._here()
+        from mapcore.packs.pack import is_damage
+
         r = Response(redraw=True, panel_stale=True, details_stale=True, bookmarks_damaged=self.bookmarks_damaged)
+        r.packs_damaged = [e.pack for e in self.packs_failed if is_damage(e)]
         if not self.store.packs:
             r.speak(say("packs.none_installed"), ASSERTIVE)
         else:
             r.speak(say("start", place=self._place_text()), POLITE)
+        for e in self.packs_failed:
+            r.speak(say("packs.set_aside", message=e.message) if is_damage(e) else e.message, POLITE)
         if self.bookmarks_damaged:
             r.speak(say("bookmarks.damaged"), POLITE)
         return self._record("start", r)

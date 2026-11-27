@@ -1092,6 +1092,7 @@ packs:
   app_too_new: "{name} was made for versions of TobyMap before {before}, and this is TobyMap {have}, so it was not opened. Download the current pack instead."
   damaged_pack: "{name} is damaged, so it was not opened. Download it again. The damage is in its {record}."
   damaged_record: "Part of {name} is damaged, and TobyMap is carrying on without it. Download the pack again. The damaged record is {record}."
+  set_aside: "{message} It has been moved out of use, and TobyMap is carrying on with the other packs."
   checksum_wrong: "{name} does not match its checksum, so it may be damaged or incomplete. Download it again."
 
 

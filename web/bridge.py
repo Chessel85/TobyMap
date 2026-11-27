@@ -128,7 +128,7 @@ def start(width: int, height: int, startup_ms: float, packs, saved_json: str, st
     _slow_ms = float(slow_ms or 0)
     saved = json.loads(saved_json) if saved_json else {}
     sources = [HandleSource(p.handle, str(p.name)) for p in packs]
-    _session = MapSession(platform="web", system=system, packs=[_pack(s) for s in sources],
+    _session = MapSession(platform="web", system=system, packs=sources,
                           settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at or None,
                           bookmarks=bookmarks or None)
     _session.startup_took(startup_ms)
@@ -142,12 +142,6 @@ def start(width: int, height: int, startup_ms: float, packs, saved_json: str, st
     out["drawing"] = True
     out["controls"] = _session.controls()
     return _js(_extras_start(response, out))
-
-
-def _pack(source):
-    from mapcore.packs.pack import Pack
-
-    return Pack(source)
 
 
 def _extras_start(response, out: dict) -> dict:

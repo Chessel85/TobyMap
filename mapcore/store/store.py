@@ -32,6 +32,7 @@ shapes within the search box.
 """
 from __future__ import annotations
 
+import gc
 import heapq
 import itertools
 import math
@@ -391,6 +392,8 @@ class _PackIndex:
         self._layer_by_id = None
         self._layer_by_number = None
         self._aliases: dict[str, str] | None = None
+        self._table = None   # the pack's compact feature table, when it has one (P4-T3f)
+        self._layer_codes = None
         self._points: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
         self._tile_index: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
         by_kind: dict[tuple[str, int], list[tuple[int, int]]] = {}
@@ -435,13 +438,37 @@ class _PackIndex:
             self._read_table()
         return self._ids
 
-    @property
-    def layer_by_id(self) -> dict:
-        """Each feature's layer by its identifier, from the feature table, so a list of identifiers can be
-        narrowed to a layer without reading their records (P3-T10a)."""
+    def layer_of_id(self, identifier: str) -> str | None:
+        """A feature's layer by its identifier, from the feature table, so a list of identifiers can be narrowed
+        to a layer without reading their records (P3-T10a); None if the pack does not hold it. With a compact
+        feature table, a search of it (P4-T3f); otherwise from a dictionary of every identifier, made once."""
+        if self._boxes is None:
+            self._read_table()
+        if self._table is not None:
+            try:
+                number = self.pack.feature_number(identifier)
+            except DamagedRecord:
+                return None
+            return None if number is None else self._table.layer_of(number)
         if self._layer_by_id is None:
             self._layer_by_id = dict(zip(self.ids.tolist(), self.sizes[1].tolist()))
-        return self._layer_by_id
+        return self._layer_by_id.get(identifier)
+
+    def layer_codes(self) -> tuple[list[str], np.ndarray]:
+        """Each feature's layer as a small number, in the order of `boxes`, and the layer ids in that order, the
+        order first met (mapcore.layers.visible). Stored in a compact feature table; otherwise worked out once."""
+        if self._layer_codes is None:
+            if self._boxes is None:
+                self._read_table()
+            if self._table is not None:
+                self._layer_codes = (list(self._table.layer_names), self._table.layer_codes)
+            else:
+                # A dictionary, not np.unique: sorting the text of every layer id took about 0.7 s.
+                layer_of = self._sizes[1]
+                seen: dict = {}
+                inverse = np.fromiter((seen.setdefault(i, len(seen)) for i in layer_of), np.intp, len(layer_of))
+                self._layer_codes = ([str(i) for i in seen], inverse)
+        return self._layer_codes
 
     @property
     def aliases(self) -> dict:
@@ -452,33 +479,60 @@ class _PackIndex:
 
     def layer_of_number(self, number: int) -> str:
         """A feature's layer by its number, from the feature table, with no record read (P4-T3a)."""
+        if self._boxes is None:
+            self._read_table()
+        if self._table is not None:
+            return self._table.layer_of(number) if 0 <= number < self._table.count else ""
         if self._layer_by_number is None:
             numbers, _boxes = self.boxes
             self._layer_by_number = dict(zip(numbers.tolist(), self.sizes[1].tolist()))
         return self._layer_by_number.get(number, "")
 
     def _read_table(self) -> None:
+        found = self.pack.table()   # format 5: the compact feature table, read as a few records (P4-T3f)
+        if self.pack.table_problem is not None and self.pack.table_problem.message not in self.problems:
+            self.problems.append(self.pack.table_problem.message)
+        if found is not None:
+            self._table = found
+            self._aliases = found.aliases
+            self._ids = found.ids
+            self._sizes = (found.widths, found.layer_column())
+            self._boxes = (found.numbers, found.boxes)
+            return
+        # A pack of format 4 or before, or with its table damaged: made from every feature record, which are not kept.
+        # The records read are let go at once, so the garbage collector is paused meanwhile: with them no longer
+        # kept out of its full collections (P3-T24a), those collections took the reading from 4 to 9 seconds.
         numbers, box, widths, layer_of, ids = [], [], [], [], []
         aliases: dict[str, str] = {}
-        for g, start in enumerate(self.pack.group_starts):
-            try:
-                group = self.pack._group(g)
-            except DamagedRecord as exc:
-                self.problems.append(exc.message)
-                continue
-            for i, record in enumerate(group):
-                numbers.append(start + i)
-                box.append(record["bbox"])
-                width = record.get("width_km")
-                widths.append(math.inf if width is None else float(width))
-                layer_of.append(record.get("layer", ""))
-                ids.append(record.get("id"))
-                for alias in record.get("aliases") or ():   # only a regional pack's matched features have them
-                    aliases.setdefault(alias, record.get("id"))
+        was_on = gc.isenabled()
+        gc.disable()
+        try:
+            for g, start in enumerate(self.pack.group_starts):
+                try:
+                    group = self.pack.read_group(g)
+                except DamagedRecord as exc:
+                    self.problems.append(exc.message)
+                    continue
+                self._table_rows(start, group, numbers, box, widths, layer_of, ids, aliases)
+        finally:
+            if was_on:
+                gc.enable()
         self._aliases = aliases
         self._ids = np.array(ids, dtype=object)
         self._sizes = (np.array(widths, dtype=np.float64), np.array(layer_of, dtype=object))
         self._boxes = (np.array(numbers, dtype=np.intp), np.array(box, dtype=np.float64).reshape(-1, 4))
+
+    @staticmethod
+    def _table_rows(start, group, numbers, box, widths, layer_of, ids, aliases) -> None:
+        for i, record in enumerate(group):
+            numbers.append(start + i)
+            box.extend(record["bbox"])
+            width = record.get("width_km")
+            widths.append(math.inf if width is None else float(width))
+            layer_of.append(record.get("layer", ""))
+            ids.append(record.get("id"))
+            for alias in record.get("aliases") or ():   # only a regional pack's matched features have them
+                aliases.setdefault(alias, record.get("id"))
 
     def points_of(self, layer: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """The features of a layer that are one point: their numbers, latitudes and longitudes, worked out once
@@ -728,7 +782,7 @@ class Store:
     def layer_of(self, identifier: str) -> str | None:
         """A feature's layer, from the feature table held in memory, with no record read; None if not found."""
         for index in self._indexes:
-            found = index.layer_by_id.get(identifier)
+            found = index.layer_of_id(identifier)
             if found is not None:
                 return found
         return None
@@ -1394,8 +1448,7 @@ class Store:
         for index in self._indexes:
             pack = index.pack
             try:
-                known = index.layer_by_id   # held in memory: no feature record is read
-                mine = [i for i in left if i in known]
+                mine = [i for i in left if index.layer_of_id(i) is not None]   # no feature record is read
                 out.update(pack.relationships_passing(mine))
             except DamagedRecord as exc:
                 self._note(exc)

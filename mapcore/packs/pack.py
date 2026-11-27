@@ -1,4 +1,4 @@
-"""Pack format 4 (and reading formats 2 and 3): the writer and the reader (AD-5, architecture 6.2, PCK-5, DAT-9, NFR-4).
+"""Pack format 5 (and reading formats 2 to 4): the writer and the reader (AD-5, architecture 6.2, PCK-5, DAT-9, NFR-4).
 
 The specification is docs/developer/pack-format.md. In short:
 
@@ -14,6 +14,11 @@ is found when it is read, and the rest of the pack can still be used (NFR-4).
 The checksum of the whole file is SHA-256, kept beside it in a .sha256 file
 and later in the catalogue (PCK-5).
 
+Format 5 adds the compact feature table (table.py, P4-T3f, DP225): the store reads it as a few records in place
+of every feature record, and feature records are then read a group at a time as needed, the last GROUPS_KEPT
+groups and the last FEATURES_KEPT records asked for kept. A pack of format 4 or before has no table, and the store
+makes it from the feature records as before, without keeping them.
+
 Format 1 was the spike S2 pack. It is no longer read: a file with that
 number is not a TobyMap pack.
 
@@ -28,23 +33,29 @@ import json
 import math
 import re
 import struct
+import threading
 import zlib
 from collections import OrderedDict
 from pathlib import Path
 
 from mapcore import memory
 from mapcore.describe import say
-from mapcore.packs import coords, tiles
+from mapcore.packs import coords, table, tiles
 from mapcore.packs.source import FileSource
 
 MAGIC = b"TOBYPACK"
-FORMAT = 4          # written: format 4 adds facts and relationships (P3-T2b, P3-T3e); format 3 added line and point tile
-                    # entries (P2-T10a)
-OLDEST_FORMAT = 2   # read: formats 2 and 3 are format 4 without what it added, so they are read as they are
+FORMAT = 5          # written: format 5 adds the compact feature table (P4-T3f); format 4 added facts and relationships
+                    # (P3-T2b, P3-T3e); format 3 added line and point tile entries (P2-T10a)
+OLDEST_FORMAT = 2   # read: formats 2 to 4 are format 5 without what it added, so they are read as they are
+WRITABLE = (4, 5)   # the formats PackWriter writes: 4 only for tests of how an older pack is read
 _HEADER = struct.Struct("<8sHHIQQII")
 HEADER_SIZE = _HEADER.size  # 40
 GROUP_SIZE = 256  # feature records per group, on average
 SEARCH_KEPT = 32  # search records kept after reading (P3-T8b)
+GROUPS_KEPT = 64   # feature groups kept after reading, the least recently used let go first (P4-T3f): about 256
+                   # records each, so some tens of MB at most, where keeping every group read took 10.4 GB for England
+FEATURES_KEPT = 50_000   # feature records kept one by one, the least recently used let go first (P4-T3f): the
+                         # features of the views and places lately asked about, whose groups are scattered
 
 # What a feature record must hold in Phase 1 (architecture 6.4).
 FEATURE_FIELDS = ("id", "source", "layer", "type", "names", "rank", "area_km2", "bbox", "width_km",
@@ -244,7 +255,7 @@ def stored_tile(entries, level: int, count: int) -> tuple[bytes, int]:
 
 
 class PackWriter:
-    """Writes a pack in format 4.
+    """Writes a pack in format 5 (or, given format=4, in format 4 with no feature table, for tests).
 
     The order of calls is: add_features once, then any number of add_tile and
     add_drawing_tile, then finish. Given the same calls in the same order,
@@ -255,7 +266,11 @@ class PackWriter:
     checksum file is written beside it when the pack is finished.
     """
 
-    def __init__(self, target):
+    def __init__(self, target, format: int = FORMAT):
+        if format not in WRITABLE:
+            raise PackWriteError(f"format {format} is not written")
+        self.format = format
+        self.table = table.TableBuilder() if format >= 5 else None
         if isinstance(target, (str, Path)):
             self.path = Path(target)
             self.out = open(self.path, "wb")
@@ -331,6 +346,13 @@ class PackWriter:
                 if missing:
                     raise PackWriteError(f"feature {r.get('id', '?')} has no {', '.join(missing)}")
                 self.layers_used.add(r["layer"])
+                if self.table is not None:   # the compact feature table, row by row in feature number order (P4-T3f)
+                    if numbers[r["id"]] != self.table.count:
+                        raise PackWriteError(f"feature {r['id']} is not written in its feature number's place")
+                    try:
+                        self.table.add(g, r)
+                    except table.TableError as exc:
+                        raise PackWriteError(str(exc)) from None
             written += len(records)
             if records:
                 self._put(f"features/{g}", _json(records))
@@ -471,7 +493,7 @@ class PackWriter:
             raise PackWriteError("the writer sets search itself, from add_search")
         out = {
             **given,
-            "format": FORMAT,
+            "format": self.format,
             "built": max(s["date"] for s in sources),
             "layers": [layer["id"] for layer in layers],
             "tile_levels": sorted(self.tile_levels),
@@ -497,7 +519,11 @@ class PackWriter:
         unknown = sorted(self.layers_used - set(ids))
         if unknown:
             raise PackWriteError(f"features use layers not defined: {', '.join(unknown)}")
-        self._put("manifest", _json(self._manifest(manifest, layers)))
+        manifest = self._manifest(manifest, layers)
+        if self.table is not None:
+            for key, data in self.table.records():
+                self._put(key, data)
+        self._put("manifest", _json(manifest))
         self._put("attribution", attribution.encode("utf-8"))
         self._put("licence", licence.encode("utf-8"))
         self._put("layers", _json(layers))
@@ -505,7 +531,7 @@ class PackWriter:
         offset = self.out.tell() - self.start
         self.out.write(directory)
         end = self.out.tell()
-        head = _HEADER.pack(MAGIC, FORMAT, 0, 0, offset, len(directory), check_number(directory), 0)
+        head = _HEADER.pack(MAGIC, self.format, 0, 0, offset, len(directory), check_number(directory), 0)
         head = head[:-4] + struct.pack("<I", check_number(head[:-4]))
         self.out.seek(self.start)
         self.out.write(head)
@@ -549,9 +575,17 @@ class Pack:
         self.source = source
         self.name = getattr(source, "name", None) or "This pack"
         self.reads = 0
-        self._groups: dict[int, list[dict]] = {}
+        # The feature groups read, the least recently used first, at most GROUPS_KEPT (P4-T3f); and for a pack with
+        # no feature table, each group's identifiers to their place in it, let go with the group.
+        self._groups: OrderedDict[int, list[dict]] = OrderedDict()
+        self._group_ids: dict[int, dict[str, int]] = {}
+        self._records: OrderedDict[int, dict] = OrderedDict()   # by feature number, at most FEATURES_KEPT
+        self._groups_lock = threading.Lock()
         self._relations: dict[int, dict] = {}
-        self._group_ids: dict[int, dict[str, int]] = {}   # each group's identifiers, to their place in it
+        self._table: table.FeatureTable | None = None
+        self._table_tried = False
+        self._table_lock = threading.Lock()
+        self.table_problem: DamagedRecord | None = None   # set when the feature table is damaged
         self._search: OrderedDict[int, list] = OrderedDict()
         try:
             self._open(app_version, check_app)
@@ -676,36 +710,108 @@ class Pack:
 
     # Feature records -----------------------------------------------------------
 
+    @property
+    def has_table(self) -> bool:
+        """Whether the pack stores the compact feature table (format 5, P4-T3f)."""
+        return self.format >= 5 and all(k in self.directory for k in table.KEYS)
+
+    def table(self) -> table.FeatureTable | None:
+        """The compact feature table, read once and kept; None for a pack with none, or whose table is damaged (then
+        table_problem says which record), so the caller makes it from the feature records instead (NFR-4)."""
+        if self._table_tried:
+            return self._table
+        with self._table_lock:
+            if not self._table_tried:
+                if self.has_table:
+                    try:
+                        got = {}
+                        for key in table.KEYS:
+                            got[key] = self.get(key)
+                        try:
+                            self._table = table.FeatureTable(got)
+                        except (ValueError, KeyError, TypeError):
+                            raise DamagedRecord(self.name, "table") from None
+                        if self._table.count != self.feature_count:
+                            self._table = None
+                            raise DamagedRecord(self.name, "table")
+                    except DamagedRecord as exc:
+                        self.table_problem = exc
+                self._table_tried = True
+        return self._table
+
     def _group(self, g: int) -> list[dict]:
-        if g not in self._groups:
-            self._groups[g] = self.get_json(f"features/{g}") or []
-            memory.settle()   # kept for as long as TobyMap runs, so out of full garbage collections (P3-T24a)
-        return self._groups[g]
+        """Group g's feature records, kept among the last GROUPS_KEPT groups read (P4-T3f)."""
+        with self._groups_lock:
+            got = self._groups.get(g)
+            if got is not None:
+                self._groups.move_to_end(g)
+                return got
+        got = self.get_json(f"features/{g}") or []
+        with self._groups_lock:
+            self._groups[g] = got
+            self._groups.move_to_end(g)
+            while len(self._groups) > GROUPS_KEPT:
+                old, _records = self._groups.popitem(last=False)
+                self._group_ids.pop(old, None)
+        memory.settle()   # kept a while, so out of full garbage collections (P3-T24a)
+        return got
+
+    def read_group(self, g: int) -> list[dict]:
+        """Group g's feature records, from those kept or read afresh, without keeping them, for a reading of every
+        group such as scan's or the store's feature table for a pack with none."""
+        got = self._groups.get(g)
+        return got if got is not None else (self.get_json(f"features/{g}") or [])
+
+    @property
+    def groups_kept(self) -> int:
+        """How many feature groups are kept now (at most GROUPS_KEPT)."""
+        return len(self._groups)
+
+    @property
+    def records_kept(self) -> int:
+        """How many feature records are kept one by one now (at most FEATURES_KEPT)."""
+        return len(self._records)
 
     def feature(self, number: int) -> dict:
         """The feature record with this feature number, as tile entries give it."""
         if not 0 <= number < self.feature_count:
             raise IndexError(number)
+        with self._groups_lock:
+            got = self._records.get(number)
+            if got is not None:
+                self._records.move_to_end(number)
+                return got
         g = bisect.bisect_right(self.group_starts, number) - 1
-        return self._group(g)[number - self.group_starts[g]]
+        got = self._group(g)[number - self.group_starts[g]]
+        with self._groups_lock:
+            self._records[number] = got
+            while len(self._records) > FEATURES_KEPT:
+                self._records.popitem(last=False)
+        return got
 
     def scan(self, layers):
         """The feature records of these layers, group by group (P3-T9). A group is read again each time unless
         already held, and none is kept, so a scan of one layer does not fill the memory with the others."""
         wanted = set(layers)
         for g in range(len(self.group_starts)):
-            records = self._groups[g] if g in self._groups else (self.get_json(f"features/{g}") or [])
-            for record in records:
+            for record in self.read_group(g):
                 if record["layer"] in wanted:
                     yield record
 
     def feature_number(self, identifier: str) -> int | None:
         g = feature_group(identifier, len(self.group_starts))
+        found = self.table()
+        if found is not None:   # a binary search of the group's part of the table, with no record read (P4-T3f)
+            end = self.group_starts[g + 1] if g + 1 < len(self.group_starts) else self.feature_count
+            return found.ids.find(identifier, self.group_starts[g], end)
         ids = self._group_ids.get(g)
-        if ids is None:   # made once for each group, so a look-up is not a search through the group (P3-T20b)
-            ids = self._group_ids[g] = {}
+        if ids is None:   # made once for each group kept, so a look-up is not a search through the group (P3-T20b)
+            ids = {}
             for i, record in enumerate(self._group(g)):
                 ids.setdefault(record["id"], i)   # the first, as before, should an identifier be there twice
+            with self._groups_lock:
+                if g in self._groups:
+                    self._group_ids[g] = ids
         i = ids.get(identifier)
         return None if i is None else self.group_starts[g] + i
 

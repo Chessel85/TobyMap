@@ -1,6 +1,6 @@
 # Pack format specification
 
-Version 4, 13 November 2026 (P3-T2b). Version 3 was 5 November 2026 (P2-T10a), and version 2 3 November 2026 (P1-T2). The code is in `mapcore/packs`. Requirements: PCK-5, DAT-9, NFR-4, DMT-1, and the format for PCK-1. Decisions: AD-5, AD-17, architecture sections 6.1 to 6.4 and 6.9.
+Version 5, 27 November 2026 (P4-T3f). Version 4 was 13 November 2026 (P3-T2b), version 3 was 5 November 2026 (P2-T10a), and version 2 3 November 2026 (P1-T2). The code is in `mapcore/packs`. Requirements: PCK-5, DAT-9, NFR-4, DMT-1, and the format for PCK-1. Decisions: AD-5, AD-17, architecture sections 6.1 to 6.4 and 6.9.
 
 Words follow the glossary: pack, record, directory, manifest, feature record, pack tile, drawing tile, tile entry, covered note, compact coordinates, check number and checksum.
 
@@ -11,8 +11,8 @@ Every pack's header holds a format number.
 * Format 1 was the spike S2 pack. It was dropped on 3 November at the PO's request, and nothing reads it: a file with format 1 is not a TobyMap pack. The spike S2 stages now write the current format.
 * Format 2 was Phase 1's format. The Phase 1 plan calls it "pack format version 1"; it kept the number 2 so that an old spike pack left in a folder is never mistaken for it.
 * Format 3 is format 2 with two more kinds of tile entry, for lines and points (P2-T10a).
-* Format 4 is the format described here. It is format 3 with facts in the feature records: each feature's facts from Wikidata, with their sources and dates, and its Wikipedia article (P3-T2b); disputed areas' claimants and the source's view (P3-T2c); and each feature's relationships, in records of their own (P3-T3e). The writer always writes format 4. The reader reads formats 2 and 3 as well, since they are format 4 packs without what it added, so the Phase 1 and P3-T1 world packs still open.
-* A number above 4 is refused with packs.newer_format.
+* Format 4 is format 3 with facts in the feature records: each feature's facts from Wikidata, with their sources and dates, and its Wikipedia article (P3-T2b); disputed areas' claimants and the source's view (P3-T2c); and each feature's relationships, in records of their own (P3-T3e). * Format 5 is the format described here. It is format 4 with the compact feature table, the records table and table/... (P4-T3f, DP225). The writer writes format 5; `PackWriter(target, format=4)` writes format 4, without the table, only for tests of older packs. The reader reads formats 2 to 4 as well, since they are format 5 packs without what it added, so every pack built before still opens: the application then makes the feature table from the feature records, as before.
+* A number above 5 is refused with packs.newer_format.
 
 ## The file
 
@@ -197,6 +197,23 @@ From 17 November 2026, in format 4 (P3-T20c, DP194): what is inside each area, s
 
 `Pack.has_contents` says whether a pack has them, `Pack.tree()` gives the tree record, and `Pack.holds(identifier)` gives an area's feature numbers by layer, with the set of those only partly inside.
 
+### table and table/...
+
+From format 5 (P4-T3f, DP225): the compact feature table. The store needs every feature's identifier, layer, width and bounding box, for the drawing's visible rule, the places under a point and the merging of records across packs. Before format 5 it read every feature record to make them, which for the England pack took 10.4 GB and 37 seconds. Six records, all in feature number order:
+
+* table: JSON, `{"count": N, "layers": [layer ids, in the order first met], "aliases": {alias: identifier}, "boxes": how table/boxes is stored, "widths": how table/widths is stored}`. The aliases are those of the feature records (P4-T1h), the first feature's where two give the same alias.
+* table/boxes: each feature's bbox. Stored as "i4e7" when every value is a whole number of ten-millionths of a degree, as the pipeline gives them: four columns one after another, west, south, east minus west and north minus south, each a 4-byte whole number in ten-millionths of a degree. The two differences wrap round at 2^32, so a box across the 180 degree line, with east less than west, comes back exactly. Otherwise stored as "f8": west, south, east, north of each feature as 8-byte floats.
+* table/widths: each feature's width_km. Stored as "i4e3" when every width is a whole number of metres: a 4-byte whole number of metres, -1 where the record has none. Otherwise "f8": 8-byte floats, infinity where the record has none.
+* table/layers: each feature's layer, as its place in "layers": 1 byte, or 2 bytes when there are more than 256 layers.
+* table/ids: the identifiers, UTF-8, one after another with nothing between. At most 2^31 - 1 bytes in all, so the reader can hold where each ends as Pyodide's 32-bit np.intp.
+* table/id_lengths: each identifier's length in bytes, a 2-byte whole number.
+
+All numbers are little-endian. A record of numbers of more than one byte is stored byte-shuffled: the first byte of every number, then the second byte of every number, and so on, which zlib compresses far better. The values read back are exactly those of the feature records, so the application's answers are the same as from the records.
+
+Within each group the identifiers are in order (features/G), so an identifier's feature number is found by a binary search of its group's part of table/ids, with no feature record read. The writer refuses identifiers out of order in a group, and a feature record written out of its feature number's place.
+
+`Pack.has_table` says whether a pack has it, and `Pack.table()` reads it once and keeps it (mapcore/packs/table.py). A damaged table record is noted, and the store then makes the table from the feature records (NFR-4). Feature records are then read only as needed: `Pack` keeps the last GROUPS_KEPT groups read (64) and the last FEATURES_KEPT feature records asked for (50,000), letting the least recently used go.
+
 ### search/B
 
 From 13 November 2026, in format 4 (P3-T8a, architecture 7.9): the search index. The manifest's `search` is `{"buckets": N, "rows": R}`, set by the writer; a pack without it has no search index, and a search finds nothing. The rules are in `mapcore/search.py`, used by both the build and the application:
@@ -301,4 +318,5 @@ The same calls in the same order always give the same bytes (DMT-1). Cutting sha
 * Format 2, 3 November 2026: P1-T2. The directory's place and check number in the header, a check number for every record, the checksum file, version checks, feature records in groups with feature numbers, attribution, licence and layer definitions, drawing tiles, compact coordinates only, and the writer's limits.
 * Format 3, 5 November 2026: P2-T10a. Tile entry kinds 3 (lines) and 4 (points), the layer definitions' geometry and the other fields from P2-T3, and the reader still reads format 2.
 * Format 4, 13 November 2026: P3-T2b, P3-T2c, P3-T3e. Facts and the Wikipedia article, claimants, the source's view of a dispute and tier names in feature records; the relations records; and the reader still reads formats 2 and 3. The search records were added on 13 November 2026 (P3-T8a), optional, so the number did not change: no pack in format 4 had been published.
+* Format 5, 27 November 2026: P4-T3f, DP225. The compact feature table, records table and table/...; the reader still reads formats 2 to 4.
 * Format 4, 21 November 2026: P4-T1a. The manifest's coverage member has its regional form (tile_level, tiles, layers, draw_below_km), and feature records may have partial and aliases. All optional, so the number did not change: no regional pack had been published. An older application would read a regional pack as a world pack, so a regional pack's app_versions keeps older applications from opening it (P4-T3a).

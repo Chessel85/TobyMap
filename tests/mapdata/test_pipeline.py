@@ -329,7 +329,7 @@ def test_each_country_from_osm_is_one_area_with_natural_earth_beyond_its_box(tes
 def test_inspect_gives_the_manifest_and_a_feature(test_pack, capsys):
     assert main(["inspect", str(test_pack), "manifest"]) == 0
     out = capsys.readouterr().out
-    assert "Pack test, version 0.1.0, format 4" in out
+    assert "Pack test, version 0.1.0, format 5" in out
     assert ("Layers: Countries, Oceans and seas, Seas, bays and straits, Territorial waters, "
             "Regions and constituent countries, "
             "Counties, Rivers, Cities and towns, Enclaves and exclaves, Lakes, "

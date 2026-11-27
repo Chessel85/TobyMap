@@ -1,4 +1,4 @@
-"""Pack format 3 (and 2): writer, reader, check numbers, checksum and version checks (P1-T2).
+"""Pack format 5 (and 2 to 4): writer, reader, check numbers, checksum and version checks (P1-T2).
 
 Requirements: PCK-5, DAT-9, NFR-4 (detection), DMT-1, and the format for PCK-1.
 """
@@ -7,7 +7,7 @@ import io
 import numpy as np
 import pytest
 
-from mapcore.packs import coords, pack, selfcheck, tiles
+from mapcore.packs import coords, pack, selfcheck, table, tiles
 from mapcore.packs.source import MemorySource
 
 
@@ -38,7 +38,7 @@ def test_selfcheck_finds_no_problems():
 
 def test_every_kind_of_record_comes_back(data):
     p = open_bytes(data)
-    assert p.manifest["format"] == 4
+    assert p.manifest["format"] == 5
     assert p.manifest["name"] == "selfcheck"
     assert p.manifest["sources"] == selfcheck.MANIFEST["sources"]
     assert p.manifest["coordinates"] == {"encoding": "compact", "scale": 10_000_000}
@@ -51,8 +51,9 @@ def test_every_kind_of_record_comes_back(data):
     for f in selfcheck.sample_features():
         assert p.feature_by_id(f["id"]) == f
     assert p.feature_by_id("test:nowhere") is None
-    assert sorted(k for k in p.keys() if not k.startswith(("features/", "tile/", "draw/"))) == \
+    assert sorted(k for k in p.keys() if not k.startswith(("features/", "tile/", "draw/", "table"))) == \
         ["attribution", "layers", "licence", "manifest"]
+    assert sorted(k for k in p.keys() if k.startswith("table")) == sorted(table.KEYS)   # P4-T3f
 
 
 def test_feature_records_are_grouped_and_numbered(data):
@@ -160,7 +161,7 @@ def test_a_format_2_pack_is_still_read(data):
     older[36:40] = pack.check_number(bytes(older[:36])).to_bytes(4, "little")
     p = open_bytes(bytes(older), "phase1.pack")
     assert p.format == 2 and p.manifest["name"] == "selfcheck"
-    assert open_bytes(data).format == 4
+    assert open_bytes(data).format == 5
 
 
 def test_a_format_3_pack_is_still_read(data):
@@ -170,6 +171,16 @@ def test_a_format_3_pack_is_still_read(data):
     older[36:40] = pack.check_number(bytes(older[:36])).to_bytes(4, "little")
     p = open_bytes(bytes(older), "p3t1.pack")
     assert p.format == 3 and p.manifest["name"] == "selfcheck"
+
+
+def test_a_format_4_pack_is_still_read(data):
+    """Format 5 only adds the compact feature table (P4-T3f), so the packs built before it are read as they are."""
+    older = bytearray(data)
+    older[8:10] = (4).to_bytes(2, "little")
+    older[36:40] = pack.check_number(bytes(older[:36])).to_bytes(4, "little")
+    p = open_bytes(bytes(older), "p4t2.pack")
+    assert p.format == 4 and not p.has_table and p.table() is None
+    assert p.feature_by_id("test:regions:7")["id"] == "test:regions:7"
 
 
 def test_something_else_is_not_a_pack():

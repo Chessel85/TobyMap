@@ -486,6 +486,7 @@ A pack contains these kinds of piece, each named by a key:
 * Attribution text (DAT-9) and the ODbL licence notice (SCP-4).
 * Layer definitions (SCP-7).
 * Feature records, grouped into buckets by identifier.
+* From pack format 5, the compact feature table: every feature's identifier, layer, width and bounding box as a few records of fixed-size numbers, which the application reads in place of every feature record; feature records are then read a group at a time as needed, and only the last 64 groups and 50,000 feature records are kept (P4-T3f, DP225; specification in docs/developer/pack-format.md). Packs of format 4 and before are still read, the old way.
 * Geometry tiles: exact shapes, cut into tile pieces, used for "what is at this point" and for distances.
 * Drawing tiles: simplified shapes for each zoom tier, used for drawing and for the visible lists.
 * Relations, grouped into buckets by identifier.

@@ -230,10 +230,8 @@ class VisibleRule:
         layer_of = self._table(p)[3]
         got = codes.get(p)
         if got is None or got[0] is not layer_of:
-            # A dictionary, not np.unique: sorting the text of every layer id took about 0.7 s.
-            seen: dict = {}
-            inverse = np.fromiter((seen.setdefault(i, len(seen)) for i in layer_of), np.intp, len(layer_of))
-            got = codes[p] = (layer_of, [str(i) for i in seen], inverse)
+            names, inverse = self.store._indexes[p].layer_codes()   # stored in a format 5 pack (P4-T3f)
+            got = codes[p] = (layer_of, names, inverse)
         return got[1], got[2]
 
     def _by_layer(self, p: int) -> list:

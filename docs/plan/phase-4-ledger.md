@@ -106,6 +106,7 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 * P4-T6c DONE (Opus, 27 Nov, one fix round), 1b1d9d6. DownloadingSource (mapcore/packs/source.py), install.no_room and install.Download; bridge install_begin/said/open/chunk/end/stored/failed; worker messages install and install_cancel (abort hook for T6f), range reads by synchronous XHR, packs installed earlier open at start; window.tobymap.install(entry) in main.js; MapSession.remove_packs(names) added (fix round). Tests: test_pack_download_page.py 3 x 2 browsers, test_session_packs.py 3, test_install extended; 32 targeted Python pass.
 * P4-T6d DONE (Sonnet, 27 Nov), c49410e. mapcore/pack_manager.py; 8 commands packs.* (P = packs.manager_open, Map menu; the rest keyless pointer commands); catalogue addresses in mapcore/defaults.yaml packs:; desktop dialog in desktop/dialogs.py; web dialog in main.js and worker; HandleSource.close now closes the OPFS handle. Tests: test_pack_manager (core), test_pack_manager_desktop, test_pack_manager_page (6, both browsers); 95 targeted Python pass; keymap.csv regenerated (8 rows).
 * P4-T6e DONE (Sonnet, 27 Nov, same subagent as T6d), c074eee. Commands packs.update_offer and packs.update_offer_update (keyless); Response.update_check at start; saved state packs_declined. Tests: core 20, desktop 9, browser 8 (both); 86 targeted Python pass on check.
+* P4-T6f DONE (Opus, 27 Nov), eafc5c4. Cancel download command and button (keyless); part kept on cancel or lost connection, removed only on checksum mismatch; sidecar name.pack.part.json; resume by Range bytes=N-, 200 reply restarts; web pack manager now refreshes when a download ends. Tests: 87 Python (90 on check), browser 16 (both browsers, after one fix by the agent); keymap.csv regenerated. Could be Sonnet? No: resume and hashing across shells was subtle.
 
 ## Overnight choices for the PO
 
@@ -132,6 +133,7 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 * P4-T6c: the browser's persistent storage (navigator.storage.persist) is not asked for yet; when a download is done and checked, the open pack switches to the stored file in place, without rebuilding the session.
 * P4-T6d: P opens the pack manager (free in every key map); Remove asks first with Cancel the default; catalogue_url_desktop is https://github.com/Chessel85/TobyMap/releases/download/packs-test/catalogue.json (the DP171 pre-release name), catalogue_url_web empty until P4-T6h (so the web first-start offer is silent; ?catalogue= sets one for local serving); the desktop first-start offer runs only when desktop/app.py asks (offer_world=True), so tests and the self-test do not fetch.
 * P4-T6e: one pack offered per start (the first with a newer compatible version); the offer counts as made when asked, so Not now needs no handler.
+* P4-T6f: Install and Update keep their names; the pack's line says 'N percent downloaded' rather than the button reading 'Carry on downloading'. A lost connection keeps the part, as Cancel does.
 
 ## Current state
 

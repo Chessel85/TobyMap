@@ -153,7 +153,8 @@ The PO's answers: the points of interest list (p4-t1f-poi-categories.csv) is kep
 
 Progress tonight:
 
-* (filled in as each step ends)
+* P4-T1n DONE, e24c715 (Opus subagent; report docs/plan/p4-t1n-lakes-report.md). The osm-layer stage's in_sea setting, share 0.5. Trial: 9 of 550 lakes left out, 5 cut. Orchestrator's choice: the setting added to England and Hampshire too (DP224 applies to them; they read lagoons); Hampshire rehearsal left out 5 tidal harbours (Bembridge Harbour, Wootton Creek and others). Rebuilds rerun from osm-layer onwards.
+* P4-T3f the compact feature table: started (Opus subagent).
 
 ### Where things stand
 

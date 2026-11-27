@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import shutil
+import sys
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -196,7 +197,8 @@ def test_the_first_start_with_no_world_pack_offers_to_download_it(qtbot, tmp_pat
     w._offer_world(w.session.start().world_offer)
     qtbot.waitUntil(lambda: any(isinstance(d, ConfirmBox) for d in w._dialogs), timeout=10000)
     (ask,) = [d for d in w._dialogs if isinstance(d, ConfirmBox)]
-    assert ask.windowTitle() == "Download the world pack" and "world pack" in ask.text()
+    assert ask.windowTitle() == ("" if sys.platform == "darwin" else "Download the world pack")   # a Mac message box has no title
+    assert "world pack" in ask.text()
     assert ask.ok_button.text() == "Download" and ask.cancel_button.text() == "Not now"
     internet.files["https://example.org/world.pack"] = data
     ask.ok_button.click()
@@ -276,7 +278,11 @@ def test_cancel_download_keeps_the_part_and_install_carries_on(qtbot, tmp_path, 
     box = open_manager(w, qtbot)
     assert box.cancel_button.text() == "Cancel download" and not box.cancel_button.available
     box.install_button.click()
-    assert reached.wait(10)
+    try:   # the window's thread keeps running while it waits, so the queued signals are delivered
+        qtbot.waitUntil(reached.is_set, timeout=30000)
+    except Exception:
+        gate.set()
+        raise AssertionError(f"the download never reached half; asked {asked}, said {w.announcer.spoken}")
     qtbot.waitUntil(lambda: box.items[0]["label"].endswith("downloading"), timeout=10000)
     assert box.cancel_button.available and not box.install_button.available
     box.cancel_button.click()

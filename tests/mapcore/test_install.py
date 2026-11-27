@@ -1,5 +1,6 @@
 """Installing a pack from the catalogue: the core's part (P4-T6b, PCK-5)."""
 import hashlib
+import json
 
 import pytest
 
@@ -145,3 +146,55 @@ def test_a_downloading_pack_opens_and_reads_records_before_it_is_stored(test_pac
     remote = _Counting(data)
     pack = Pack(DownloadingSource(len(data), "test.pack", remote, MemorySource(b"")))
     assert pack.name == "test.pack" and remote.reads > 0
+
+
+# Cancel and resume (P4-T6f, PCK-5) ----------------------------------------------------------------------------
+
+def test_a_part_carries_on_only_when_its_record_is_for_this_very_version():
+    e = entry(b"x" * 1000)
+    record = install.part_record(e)
+    assert install.record_name(e) == "world.pack.part.json"
+    assert install.resume_from(e, record, 400) == 400
+    assert install.resume_from(e, json.loads(record), 400) == 400
+    assert install.resume_from(e, None, 400) == 0                       # no record: started again
+    assert install.resume_from(e, "not json", 400) == 0
+    assert install.resume_from(e, install.part_record(entry(b"y" * 1000, version="2026.11.2")), 400) == 0
+    assert install.resume_from(e, install.part_record(entry(b"y" * 1000)), 400) == 0   # another checksum
+    assert install.resume_from(e, record, 0) == 0
+    assert install.resume_from(e, record, 1000) == 0                    # whole, or more: it was not the pack
+    assert install.resume_from(e, record, 1500) == 0
+
+
+def test_the_reply_says_whether_the_part_is_carried_on_or_started_again():
+    assert install.reply_start(400, 206) == 400
+    assert install.reply_start(400, 200) == 0       # the server ignored the range: the whole file comes again
+    assert install.reply_start(0, 200) == 0
+    assert install.reply_start(400, 416) is None
+    assert install.reply_start(0, 404) is None
+
+
+def test_a_download_that_carries_on_hashes_the_whole_file_and_says_only_what_is_new():
+    data = bytes(range(256)) * 40
+    e = entry(data)
+    held = len(data) * 45 // 100
+    d = install.Download(e)
+    for i in range(0, held, 300):
+        d.held(data[i:min(i + 300, held)])
+    assert d.received == held
+    said = [d.add(data[i:i + 1024]) for i in range(held, len(data), 1024)]
+    assert [s for s in said if s] == [f"Downloading World: {p} percent." for p in range(50, 100, 10)]
+    assert d.end() == (True, "World is downloaded and open.")
+    d.restart()
+    assert d.received == 0 and not d.too_long
+    d.add(data + b"!")
+    assert d.too_long
+
+
+def test_the_cancel_and_carry_on_words():
+    e = entry(b"x" * 1000)
+    assert install.cancelled(e) == ("The download of World is cancelled. Install or Update it again to carry on "
+                                    "from where it stopped.")
+    assert install.carrying_on(e, 456) == "Carrying on downloading World from 45 percent."
+    assert install.part_held(e, {"world": {"record": install.part_record(e), "size": 300}}) == 300
+    assert install.part_held(e, {"other": {"record": install.part_record(e), "size": 300}}) == 0
+    assert install.part_held(e, None) == 0

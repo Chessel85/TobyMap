@@ -322,7 +322,33 @@ def install_begin(entry_json: str, free: float):
         return _js({"refused": refused})
     _installs[entry.name] = [install.Download(entry), None]
     return _js({"name": entry.name, "file": install.file_name(entry), "part": install.part_name(entry),
-                "url": entry.url_web, "size": entry.size})
+                "record": install.record_name(entry), "url": entry.url_web, "size": entry.size})
+
+
+def install_resume(name: str, record, held: int) -> int:
+    """Where the download starts (P4-T6f): the bytes of the .part file already held, when the record beside it (its
+    text, or None) says it is this very version, else 0. The worker then hands those bytes over with install_held."""
+    from mapcore.packs import install
+
+    return install.resume_from(_installs[name][0].entry, record, int(held))
+
+
+def install_held(name: str, chunk) -> None:
+    """Bytes already held in the .part file, hashed first so the checksum covers the whole pack (P4-T6f)."""
+    _installs[name][0].held(bytes(chunk.to_py()))
+
+
+def install_reply(name: str, asked: int, status: int):
+    """The reply to the download's request: {"start"}, where its bytes go in the .part file (None: no use), "record",
+    the text to write beside a part started afresh, and "words", said when it carries on (P4-T6f)."""
+    from mapcore.packs import install
+
+    download = _installs[name][0]
+    start = install.reply_start(int(asked), int(status))
+    if start == 0 and download.received:
+        download.restart()   # the server sent the whole file after all
+    words = install.carrying_on(download.entry, start) if start else None
+    return _js({"start": start, "record": install.part_record(download.entry), "words": words})
 
 
 def install_replace(name: str) -> None:
@@ -355,6 +381,7 @@ def install_open(name: str, stored, remote, width: int, height: int):
     response = _session.add_packs([source])
     opened = any(getattr(p, "source", None) is source for p in _session.store.packs)
     record[1] = source if opened else None
+    source.have = record[0].received   # a download that carries on: what is held is read from the .part file
     return _js(_extras(response, {"opened": opened}, width, height))
 
 
@@ -404,7 +431,7 @@ def install_stored(name: str, stored) -> None:
 
 def install_failed(name: str, width: int, height: int, quiet: bool = False):
     """The download stopped (no connection, storage that could not be written, or cancelled when quiet): the pack
-    is taken out of use, and the answer for the page says so. The worker removes its .part file."""
+    is taken out of use, and the answer for the page says so. The worker keeps its .part file to carry on (P4-T6f)."""
     from mapcore.packs import install
 
     entry = _installs[name][0].entry

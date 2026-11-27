@@ -362,12 +362,20 @@ class MainWindow(QMainWindow):
             return False
         return True
 
+    def download_status(self) -> dict:
+        """For the pack manager's lines (P4-T6f): the pack downloading now and the .part files in the packs folder."""
+        from desktop.downloads import parts
+
+        downloading = self._downloader.downloading if self._downloader is not None else []
+        return {"downloading": downloading, "parts": parts(storage.packs_folder(self.data_folder))}
+
     def _pack_installed(self, entry, path, text: str) -> None:
         from mapcore.session import ASSERTIVE
 
-        if path is None:
+        if path is None:   # failed or cancelled: the pack manager shows what is held (P4-T6f)
             if text:
                 self.handle(Response().speak(text, ASSERTIVE))
+            self._refresh_pack_manager()
             return
         if path.name.endswith(install.PART):   # an update: the pack in use is closed, then replaced (P4-T6d)
             final = path.with_name(path.name[:-len(install.PART)])
@@ -670,6 +678,9 @@ class MainWindow(QMainWindow):
             from mapcore.packs.catalogue import Entry
 
             self.install_pack(Entry.from_dict(response.install["entry"]))
+            self._refresh_pack_manager()
+        if response.cancel_download and self._downloader is not None:   # Cancel download (P4-T6f): the part is kept
+            self._downloader.cancel(response.cancel_download)
         if response.world_offer and self.offer_world:
             self._offer_world(response.world_offer)
         if response.update_check and self.offer_world:
@@ -843,7 +854,7 @@ class MainWindow(QMainWindow):
         elif kind == "pack_manager":   # P (P4-T6d): the packs, each change kept at once
             box = PackManagerDialog(self, dialog, run=self.session.run, handle=self.handle,
                                     speak=lambda text: self.announcer.speak(text, "assertive"),
-                                    fetch=self.fetch_catalogue)
+                                    fetch=self.fetch_catalogue, status=self.download_status)
         elif kind == "confirm":   # a question, such as Reset all settings (P2-T18h)
             box = ConfirmBox(self, dialog)
             box.finished.connect(lambda _r, b=box: b.confirmed and self._carry_out_answer(

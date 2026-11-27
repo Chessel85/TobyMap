@@ -234,3 +234,60 @@ def test_an_unreadable_catalogue_at_start_says_nothing(qtbot, tmp_path, monkeypa
     w._catalogues.wait(10)
     qtbot.wait(300)
     assert not lines and not [d for d in w._dialogs if isinstance(d, ConfirmBox)]
+
+
+def test_cancel_download_keeps_the_part_and_install_carries_on(qtbot, tmp_path, monkeypatch, test_pack, pack_name,
+                                                               pack_version):
+    """P4-T6f: Cancel download is available only while the pack downloads; the line then says how much is held, and
+    Install asks only for the rest."""
+    import threading
+
+    data = test_pack.read_bytes()
+    url = f"https://example.org/{pack_name}.pack"
+    gate, reached = threading.Event(), threading.Event()
+    step = max(1, len(data) // 20)
+
+    class Slow(io.BytesIO):
+        status = 200
+
+        def read(self, n=-1):
+            if self.tell() >= len(data) // 2:
+                reached.set()
+                gate.wait(10)
+            return super().read(min(n, step))
+
+    asked = []
+    w = make_window(qtbot, tmp_path, monkeypatch, None)
+    listing = w.session.defaults["packs"]["catalogue_url_desktop"]
+
+    def internet(u, start=0):
+        asked.append((u, start))
+        if u == url:
+            if start:
+                rest = io.BytesIO(data[start:])
+                rest.status = 206
+                return rest
+            return Slow(data)
+        if u == listing:
+            return io.BytesIO(catalogue(data, pack_name, version=pack_version))
+        raise OSError("no connection")
+
+    w.pack_opener = internet
+    box = open_manager(w, qtbot)
+    assert box.cancel_button.text() == "Cancel download" and not box.cancel_button.available
+    box.install_button.click()
+    assert reached.wait(10)
+    qtbot.waitUntil(lambda: box.items[0]["label"].endswith("downloading"), timeout=10000)
+    assert box.cancel_button.available and not box.install_button.available
+    box.cancel_button.click()
+    gate.set()
+    qtbot.waitUntil(lambda: "percent downloaded" in box.items[0]["label"], timeout=10000)
+    assert box.install_button.available and not box.cancel_button.available
+    assert any("is cancelled" in text for text, _p in w.announcer.spoken)
+    held = (storage.packs_folder(tmp_path) / f"{pack_name}.pack.part").stat().st_size
+    assert 0 < held < len(data)
+    box.install_button.click()
+    qtbot.waitUntil(lambda: bool(w.session.store.packs), timeout=10000)
+    assert asked[-1] == (url, held)
+    assert (storage.packs_folder(tmp_path) / f"{pack_name}.pack").read_bytes() == data
+    qtbot.waitUntil(lambda: box.items and box.items[0]["state"] == "installed", timeout=10000)

@@ -34,6 +34,7 @@ class _Stand:
         self.release.set()
         self.whole = 0
         self.ranges = 0
+        self.resumes: list[int] = []   # the start of each request for the rest of the pack (P4-T6f)
 
 
 class _DownloadHandler(_TwoPacksHandler):
@@ -43,6 +44,20 @@ class _DownloadHandler(_TwoPacksHandler):
         if not self.path.startswith("/dl/"):
             return super().do_GET()
         data, stand = self.stand.data, self.stand
+        rest = re.fullmatch(r"bytes=(\d+)-", self.headers.get("Range", ""))
+        if rest:   # a download that carries on (P4-T6f): everything from there, at once
+            start = int(rest[1])
+            stand.resumes.append(start)
+            self.send_response(206)
+            self.send_header("Content-Range", f"bytes {start}-{len(data) - 1}/{len(data)}")
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(len(data) - start))
+            self.end_headers()
+            try:
+                self.wfile.write(data[start:])
+            except OSError:
+                pass
+            return
         match = re.fullmatch(r"bytes=(\d+)-(\d+)", self.headers.get("Range", ""))
         if match:
             stand.ranges += 1
@@ -91,6 +106,7 @@ def download_site_url(site_url, test_pack, stand, tmp_path_factory):
 def entry(download_site_url, stand):
     stand.release.set()
     stand.whole = stand.ranges = 0
+    stand.resumes.clear()
     return {"name": "test", "title": "Test world", "version": "2026.11.1", "date": "2026-11-27",
             "size": len(stand.data), "sha256": hashlib.sha256(stand.data).hexdigest(),
             "url_desktop": "https://example.org/test.pack", "url_web": f"{download_site_url}/dl/test.pack",
@@ -135,7 +151,7 @@ def test_a_pack_is_read_while_downloading_then_stored_and_opened_from_storage(pa
     assert "Hampshire" in map_label
     assert stand.ranges > 0 and stand.whole == 1
     assert not [t for t in _texts(app) if "is downloaded" in t]
-    assert _stored(app) == ["test.pack.part"]
+    assert _stored(app) == ["test.pack.part", "test.pack.part.json"]
     stand.release.set()
     app.wait_for_function("window.tobymap.announcements.some(a => a.text === 'Test world is downloaded and open.')",
                           timeout=60_000)

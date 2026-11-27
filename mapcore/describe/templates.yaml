@@ -1102,6 +1102,9 @@ packs:
   state_installed: "installed"
   state_not_installed: "not installed"
   state_update: "update available"
+  # P4-T6f: a pack downloading now, and one whose download stopped part way and carries on next time.
+  state_downloading: "downloading"
+  state_partial: "{state}, {percent} percent downloaded"
   # Installing a pack from the catalogue (P4-T6b, PCK-5). {name} is the pack's title, or its name when it has none.
   install_progress: "Downloading {name}: {percent} percent."
   install_done: "{name} is downloaded and open."
@@ -1110,6 +1113,9 @@ packs:
   install_damaged: "{name} did not match its checksum after downloading, so it may be damaged or incomplete. It has been removed. Download it again."
   install_failed: "{name} could not be downloaded, so nothing was changed. Check the connection and try again."
   install_busy: "{name} is still downloading. Wait for it to finish, then try again."
+  # Cancel and resume (P4-T6f): the part already downloaded is kept, and the next Install or Update carries on from it.
+  install_cancelled: "The download of {name} is cancelled. Install or Update it again to carry on from where it stopped."
+  install_carry_on: "Carrying on downloading {name} from {percent} percent."
   # The web version (P4-T6c): the space the browser has left for TobyMap, in whole megabytes, is too small.
   install_no_room: "{name} needs {need} megabytes, and this browser has {left} megabytes left for TobyMap, so it was not downloaded. Free some space, then try again."
 
@@ -1117,11 +1123,12 @@ packs:
 # The pack manager (P4-T6d, PCK-2): the dialog on P, and the offer to download the world pack at the first start.
 pack_manager:
   title: "Pack manager"
-  help: "The packs you can download. Choose a pack, then Install, Update or Remove. Close when you have finished."
+  help: "The packs you can download. Choose a pack, then Install, Update or Remove, or Cancel download while it downloads. Close when you have finished."
   list: "Packs"
   install: "Install"
   update: "Update"
   remove: "Remove"
+  cancel: "Cancel download"
   loading: "Reading the list of packs."
   # A line: the pack's name, its size, its date and its state. A pack that is not in the list has no size.
   item: "{name}, {size} megabytes, {date}, {state}"
@@ -1130,6 +1137,7 @@ pack_manager:
   unreadable: "The list of packs could not be read. Only the packs you have installed are shown. Check the connection and try again."
   not_listed: "There is no list of packs for this version yet. Only the packs you have installed are shown."
   nothing_chosen: "Choose a pack first."
+  not_downloading: "{name} is not downloading, so there is nothing to cancel."
   not_installable: "{name} is already installed. Use Update when an update is available."
   not_updatable: "{name} has no update available."
   not_installed: "{name} is not installed, so there is nothing to remove."

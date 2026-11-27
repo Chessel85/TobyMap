@@ -149,3 +149,129 @@ def test_the_packs_folder_is_a_setting_kept_when_the_session_saves(tmp_path):
     assert storage.packs_folder(tmp_path) == chosen
     storage.set_packs_folder(None, tmp_path)
     assert storage.packs_folder(tmp_path) == storage.pack_folder(tmp_path)
+
+
+# Cancel and resume (P4-T6f, PCK-5) ------------------------------------------------------------------------------
+
+class RangeInternet:
+    """A stand-in that honours range requests (206), or ignores them (200) when honour is False. Each request is
+    kept as (url, start). With stop_after, it waits at that byte until the gate is set."""
+
+    def __init__(self, data: bytes, chunk: int = 4096, honour: bool = True, stop_after: int | None = None):
+        self.data, self.chunk, self.honour, self.stop_after = data, chunk, honour, stop_after
+        self.gate = threading.Event()
+        self.reached = threading.Event()
+        self.asked: list[tuple[str, int]] = []
+
+    def __call__(self, url, start=0):
+        self.asked.append((url, start))
+        internet = self
+        honoured = bool(start and self.honour)
+        offset = start if honoured else 0
+
+        class Source(io.BytesIO):
+            status = 206 if honoured else 200
+
+            def read(self, n=-1):
+                if internet.stop_after is not None and self.tell() + offset >= internet.stop_after:
+                    internet.reached.set()
+                    internet.gate.wait(10)
+                return super().read(min(n, internet.chunk))
+
+        return Source(self.data[offset:])
+
+
+def cancel_midway(qtbot, folder, entry, data, at) -> RangeInternet:
+    internet = RangeInternet(data, chunk=1024, stop_after=at)
+    d = Downloader(folder=folder, opener=internet, app_version="0.1.1")
+    with qtbot.waitSignal(d.finished, timeout=10000) as signal:
+        assert d.start(entry) is None
+        assert internet.reached.wait(10)
+        d.cancel()
+        internet.gate.set()
+    assert signal.args[1] is None and signal.args[2] == ""
+    return internet
+
+
+def test_a_cancelled_download_keeps_its_part_and_resumes_asking_only_for_the_rest(qtbot, tmp_path):
+    data = bytes(range(256)) * 200
+    e = entry_for(data)
+    cancel_midway(qtbot, tmp_path, e, data, 20 * 1024)
+    part = tmp_path / "test.pack.part"
+    held = part.stat().st_size
+    assert 0 < held < len(data) and part.read_bytes() == data[:held]
+    assert (tmp_path / "test.pack.part.json").exists()
+    rest = RangeInternet(data, chunk=1024)
+    d = Downloader(folder=tmp_path, opener=rest, app_version="0.1.1")
+    said = []
+    d.said.connect(said.append)
+    with qtbot.waitSignal(d.finished, timeout=10000) as signal:
+        assert d.start(e) is None
+    assert rest.asked == [("https://example.org/test.pack", held)]
+    assert signal.args[1] == tmp_path / "test.pack" and (tmp_path / "test.pack").read_bytes() == data
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["test.pack"]
+    percent = held * 100 // len(data)
+    assert said[0] == f"Carrying on downloading Test map from {percent} percent."
+    assert said[1:] and all(int(s.split()[-2]) > percent for s in said[1:])
+
+
+def test_a_server_that_ignores_the_range_starts_again(qtbot, tmp_path):
+    data = bytes(range(256)) * 200
+    e = entry_for(data)
+    cancel_midway(qtbot, tmp_path, e, data, 20 * 1024)
+    whole = RangeInternet(data, honour=False)
+    d = Downloader(folder=tmp_path, opener=whole, app_version="0.1.1")
+    with qtbot.waitSignal(d.finished, timeout=10000) as signal:
+        d.start(e)
+    assert whole.asked[0][1] > 0   # asked for the rest, and given everything
+    assert signal.args[1] is not None and (tmp_path / "test.pack").read_bytes() == data
+
+
+def test_a_part_from_another_version_is_started_again(qtbot, tmp_path):
+    old = bytes(range(256)) * 200
+    cancel_midway(qtbot, tmp_path, entry_for(old, version="2026.10.1"), old, 20 * 1024)
+    new = bytes(reversed(old))
+    fresh = RangeInternet(new)
+    d = Downloader(folder=tmp_path, opener=fresh, app_version="0.1.1")
+    with qtbot.waitSignal(d.finished, timeout=10000) as signal:
+        d.start(entry_for(new))
+    assert fresh.asked == [("https://example.org/test.pack", 0)]
+    assert signal.args[1] is not None and (tmp_path / "test.pack").read_bytes() == new
+
+
+def test_a_resumed_download_that_does_not_match_is_removed(qtbot, tmp_path):
+    data = bytes(range(256)) * 200
+    e = entry_for(data)
+    cancel_midway(qtbot, tmp_path, e, data, 20 * 1024)
+    damaged = bytearray(data)
+    damaged[-10] ^= 0xFF
+    d = Downloader(folder=tmp_path, opener=RangeInternet(bytes(damaged)), app_version="0.1.1")
+    with qtbot.waitSignal(d.finished, timeout=10000) as signal:
+        d.start(e)
+    assert signal.args[1] is None and "checksum" in signal.args[2]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_the_window_cancels_for_the_core_and_the_pack_opens_on_resume(window, qtbot, tmp_path, test_pack):
+    from mapcore.session import Response
+
+    data = test_pack.read_bytes()
+    e = entry_for(data)
+    first = RangeInternet(data, chunk=max(1, len(data) // 40), stop_after=len(data) // 2)
+    assert window.install_pack(e, opener=first)
+    assert first.reached.wait(10)
+    assert window.download_status()["downloading"] == ["test"]
+    window.handle(Response(cancel_download="other"))   # another pack's name: nothing is stopped
+    assert window._downloader.downloading == ["test"]
+    window.handle(Response(cancel_download="test"))
+    first.gate.set()
+    qtbot.waitUntil(lambda: not window._downloader.busy, timeout=10000)
+    folder = storage.packs_folder(tmp_path)
+    assert not window.session.store.packs and (folder / "test.pack.part").exists()
+    status = window.download_status()
+    assert status["downloading"] == [] and 0 < status["parts"]["test"]["size"] < len(data)
+    rest = RangeInternet(data, chunk=max(1, len(data) // 40))
+    assert window.install_pack(e, opener=rest)
+    qtbot.waitUntil(lambda: bool(window.session.store.packs), timeout=10000)
+    assert rest.asked[0][1] == status["parts"]["test"]["size"]
+    assert (folder / "test.pack").read_bytes() == data

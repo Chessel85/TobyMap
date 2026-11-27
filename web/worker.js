@@ -10,10 +10,11 @@
 //
 // Installing a pack from the catalogue (P4-T6c, PCK-4): the message "install" with the catalogue entry. The
 // core says whether it may be installed, including whether it fits in the space the browser has left. The
-// pack is then downloaded whole into name.pack.part in private storage, written as it comes so a later
-// version can resume it (P4-T6f), and opened at once: records already stored are read from there, the rest
+// pack is then downloaded whole into name.pack.part in private storage, written as it comes, and opened at once: records already stored are read from there, the rest
 // by range requests, until the download is complete and checked, when it is moved into place as name.pack.
 // The core hashes the bytes and gives every word; the worker only moves bytes.
+// Cancel and resume (P4-T6f): "install_cancel" stops a download and keeps its .part file, with name.pack.part.json
+// beside it saying which version it holds; the next install of the same entry carries on with a range request.
 import { loadPyodide } from "./vendor/pyodide/pyodide.mjs";
 
 const ARRAY_TYPES = { f32: Float32Array, i32: Int32Array, u8: Uint8Array };
@@ -21,7 +22,7 @@ const PROGRESS_EVERY_MS = 10_000;
 let bridge = null;
 let startupMs = 0;
 let packs = [];
-const downloads = new Map();   // the downloads in progress, by pack name: each one's AbortController (P4-T6f cancels)
+const downloads = new Map();   // the downloads in progress, by pack name: {abort, ending} (P4-T6f cancels)
 
 const ready = (async () => {
   const t0 = performance.now();
@@ -202,6 +203,55 @@ async function moveIntoPlace(root, partName, fileName) {
   return root.getFileHandle(fileName);
 }
 
+// The text of a small file in private storage, or null when it is not there.
+async function readText(root, name) {
+  try { return await (await (await root.getFileHandle(name)).getFile()).text(); } catch (e) { return null; }
+}
+
+async function writeText(root, name, text) {
+  const handle = await (await root.getFileHandle(name, { create: true })).createSyncAccessHandle();
+  try {
+    const bytes = new TextEncoder().encode(text);
+    handle.truncate(0);
+    handle.write(bytes, { at: 0 });
+    handle.flush();
+  } finally {
+    handle.close();
+  }
+}
+
+// The .part files in private storage (P4-T6f), for the pack manager: {downloading: names, parts: {name: {record,
+// size}}}. A part still being written is left out: its pack is downloading.
+async function packStatus() {
+  const parts = {};
+  try {
+    const root = await navigator.storage.getDirectory();
+    for await (const [file, handle] of root.entries()) {
+      if (handle.kind !== "file" || !file.endsWith(".pack.part")) continue;
+      const name = file.slice(0, -".pack.part".length);
+      if (downloads.has(name)) continue;
+      try {
+        parts[name] = { record: await readText(root, `${file}.json`), size: (await handle.getFile()).size };
+      } catch (e) { /* being written */ }
+    }
+  } catch (e) { /* no private storage */ }
+  return { downloading: [...downloads.keys()], parts };
+}
+
+// The bytes already held in the .part file, handed to the core a megabyte at a time, so the checksum covers the
+// whole pack when the download carries on (P4-T6f).
+function hashHeld(name, handle, upTo) {
+  const buffer = new Uint8Array(1 << 20);
+  let at = 0;
+  while (at < upTo) {
+    const n = handle.read(buffer.subarray(0, Math.min(buffer.length, upTo - at)), { at });
+    if (!n) break;
+    bridge.install_held(name, buffer.subarray(0, n));
+    at += n;
+  }
+  return at;
+}
+
 async function installPack(raw, width, height, update) {
   let free = -1;
   try {
@@ -210,7 +260,7 @@ async function installPack(raw, width, height, update) {
   } catch (e) { /* not known: the download is tried */ }
   const plan = bridge.install_begin(JSON.stringify(raw), free);
   if (plan.refused) return finish(bridge.install_said(plan.refused, width, height));
-  let root = null, handle = null;
+  let root = null, handle = null, start = 0;
   const abort = new AbortController();
   let response;
   try {
@@ -219,36 +269,49 @@ async function installPack(raw, width, height, update) {
       bridge.install_replace(plan.name);
       await removeQuietly(root, plan.file);
     }
+    // A .part file of this very version carries on from where it stopped (P4-T6f): the core decides from its record.
+    const record = await readText(root, plan.record);
     handle = await (await root.getFileHandle(plan.part, { create: true })).createSyncAccessHandle();
-    handle.truncate(0);
-    response = await fetch(plan.url, { signal: abort.signal });
-    if (!response.ok || !response.body) throw new Error(`Could not download ${plan.url}`);
+    let asked = bridge.install_resume(plan.name, record, handle.getSize());
+    if (asked) asked = hashHeld(plan.name, handle, asked);
+    const headers = asked ? { Range: `bytes=${asked}-` } : {};
+    response = await fetch(plan.url, { signal: abort.signal, headers, cache: "no-store" });
+    const reply = bridge.install_reply(plan.name, asked, response.status);
+    if (reply.start === null || reply.start === undefined || !response.body) throw new Error(`Could not download ${plan.url}`);
+    start = reply.start;
+    handle.truncate(start);
+    if (!start) await writeText(root, plan.record, reply.record);
+    if (reply.words) say(reply.words);
   } catch (e) {
     console.warn("The pack could not be downloaded:", e);
-    if (handle) closeQuietly(handle);
-    if (root) await removeQuietly(root, plan.part);
+    if (handle) closeQuietly(handle);   // what came is kept, to carry on next time (P4-T6f)
     return finish(bridge.install_failed(plan.name, width, height));
   }
-  downloads.set(plan.name, abort);
+  let ended;
+  const ending = new Promise((resolve) => { ended = resolve; });
+  downloads.set(plan.name, { abort, ending });
   const result = bridge.install_open(plan.name, handle, rangeHandle(plan.url, plan.size), width, height);
   if (!result.opened) {   // not a pack this version can open: the core has said why
     abort.abort();
     closeQuietly(handle);
     await removeQuietly(root, plan.part);
+    await removeQuietly(root, plan.record);
     bridge.install_failed(plan.name, width, height, true);
     downloads.delete(plan.name);
+    ended();
     return finish(result);
   }
-  receive(plan, root, handle, response, abort, { width, height }).finally(() => downloads.delete(plan.name));
+  receive(plan, root, handle, response, abort, start, { width, height }).finally(() => { downloads.delete(plan.name); ended(); });
   return finish(result);
 }
 
 // The rest of the download, while the worker answers the page as usual between the pieces of data that come.
-// A download that went wrong takes its pack out of use: the core's answer goes to the page as an update.
-async function receive(plan, root, handle, response, abort, size) {
+// A download that went wrong takes its pack out of use: the core's answer goes to the page as an update. One that
+// was cancelled or lost its connection keeps its .part file, to carry on next time (P4-T6f).
+async function receive(plan, root, handle, response, abort, start, size) {
   try {
     const reader = response.body.getReader();
-    let at = 0;
+    let at = start;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -259,22 +322,24 @@ async function receive(plan, root, handle, response, abort, size) {
     }
     handle.flush();
   } catch (e) {
+    try { handle.flush(); } catch (e2) { /* closed */ }
     closeQuietly(handle);
-    await removeQuietly(root, plan.part);
-    update(bridge.install_failed(plan.name, size.width, size.height, abort.signal.aborted));   // cancelled: nothing said (P4-T6f)
+    update(bridge.install_failed(plan.name, size.width, size.height, abort.signal.aborted));   // cancelled: said by the core
     return;
   }
   const end = bridge.install_end(plan.name, size.width, size.height);
   closeQuietly(handle);
   if (!end.ok) {
     await removeQuietly(root, plan.part);
+    await removeQuietly(root, plan.record);
     update(end.update);
     return;
   }
   try {
+    await removeQuietly(root, plan.record);
     const file = await moveIntoPlace(root, plan.part, plan.file);
     bridge.install_stored(plan.name, await file.createSyncAccessHandle());
-    say(end.text);
+    update(bridge.install_said(end.text, size.width, size.height));   // an answer, so the pack manager's lines follow
   } catch (e) {
     console.warn("The pack could not be moved into place:", e);
     await removeQuietly(root, plan.part);
@@ -336,11 +401,15 @@ self.onmessage = async (event) => {
       for (const file of names || []) await removeQuietly(root, file);
       out = { result: true, transfer: [] };
     }
-    else if (type === "install_cancel") {   // a download stopped, its .part file removed (P4-T6f will resume)
-      const abort = downloads.get(name);
-      if (abort) abort.abort();
-      out = { result: !!abort, transfer: [] };
+    else if (type === "install_cancel") {   // a download stopped, its .part file kept to carry on (P4-T6f)
+      const running = downloads.get(name);
+      if (running) {
+        running.abort.abort();
+        await running.ending;
+      }
+      out = { result: !!running, transfer: [] };
     }
+    else if (type === "pack_status") out = { result: await packStatus(), transfer: [] };   // for the pack manager (P4-T6f)
     else if (type === "packcheck") out = { result: bridge.pack_selfcheck(), transfer: [] };
     else if (type === "storecheck") out = { result: bridge.store_selfcheck(), transfer: [] };
     else throw new Error(`Unknown message ${type}`);

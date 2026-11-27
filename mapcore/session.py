@@ -170,6 +170,8 @@ class Response:
     install: dict | None = None
     # File names, in the packs folder (or private storage), the shell deletes: packs just removed (P4-T6d).
     remove_files: list = field(default_factory=list)
+    # A pack's name, for the shell to stop its download and keep its .part file to carry on next time (P4-T6f).
+    cancel_download: str | None = None
     # At start: no pack named world is installed, so the shell may fetch the catalogue from catalogue_urls and run
     # packs.first_run (P4-T6d): {"catalogue_urls": {"desktop", "web"}}.
     world_offer: dict | None = None
@@ -540,14 +542,14 @@ class MapSession:
             return r
         names = {p.name for p in opened}
         saved = self.save()
-        catalogue = self._pack_manager.catalogue   # the pack manager's list outlives the session made afresh (P4-T6d)
+        manager = self._pack_manager   # the pack manager's list outlives the session made afresh (P4-T6d, P4-T6f)
         keep = {"map_size": self.map_size, "trace": self.trace, "bookmarks": self.bookmarks}
         self.__init__(platform=self.platform, store=Store([p for p in self.store.packs if p.name not in names] + opened),
                       settings=saved["settings"], saved_state=saved["state"], clock=self.clock, system=self.system)
         for name, value in keep.items():
             setattr(self, name, value)
         self.areas = self._here()
-        self._pack_manager.catalogue = catalogue
+        self._pack_manager.keep(manager)
         return r
 
     def remove_packs(self, names) -> Response:
@@ -562,14 +564,14 @@ class MapSession:
         if not gone:
             return r
         saved = self.save()
-        catalogue = self._pack_manager.catalogue   # the pack manager's list outlives the session made afresh (P4-T6d)
+        manager = self._pack_manager   # the pack manager's list outlives the session made afresh (P4-T6d, P4-T6f)
         keep = {"map_size": self.map_size, "trace": self.trace, "bookmarks": self.bookmarks}
         self.__init__(platform=self.platform, store=Store([p for p in self.store.packs if p.name not in names]),
                       settings=saved["settings"], saved_state=saved["state"], clock=self.clock, system=self.system)
         for name, value in keep.items():
             setattr(self, name, value)
         self.areas = self._here()
-        self._pack_manager.catalogue = catalogue
+        self._pack_manager.keep(manager)
         for pack in gone:
             pack.close()
         return r
@@ -644,6 +646,7 @@ class MapSession:
             merged.pack_manager = r.pack_manager or merged.pack_manager
             merged.install = r.install or merged.install
             merged.remove_files += r.remove_files
+            merged.cancel_download = r.cancel_download or merged.cancel_download
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 

@@ -236,3 +236,42 @@ def test_nothing_is_offered_for_an_incompatible_or_current_pack_or_an_unreadable
         r = s.run("packs.update_offer", text=bad)
         assert r.dialog is None and not r.announcements
     assert s.save()["state"]["packs_declined"] == {}
+
+
+# Cancel and resume (P4-T6f, PCK-5) ------------------------------------------------------------------------------
+
+def test_a_pack_downloading_can_be_cancelled_and_nothing_else(bare):
+    from mapcore.packs import install
+    from mapcore.packs.catalogue import Entry
+
+    d = bare.run("packs.manager_open").dialog
+    assert d["words"]["cancel"] == "Cancel download" and d["commands"]["cancel"] == "packs.manager_cancel"
+    assert registry.by_name("packs.manager_cancel").pointer
+    world = entry("world", title="World", size=1000)
+    r = bare.run("packs.manager_listing", text=text(world, entry("extra", size=1000)), downloading=["world"])
+    first, second = r.pack_manager["items"]
+    assert first["label"] == "World, 1 megabytes, 2026-11-20, downloading"
+    assert first["cancel"] and not first["install"] and not first["update"] and not first["remove"]
+    assert not second["cancel"] and second["install"]
+    assert "extra is not downloading, so there is nothing to cancel" in said(bare.run("packs.manager_cancel", index=1))
+    r = bare.run("packs.manager_cancel", index=0)
+    assert r.cancel_download == "world"
+    assert said(r) == install.cancelled(Entry.from_dict(world))
+    r = bare.run("packs.manager_listing", downloading=[], parts={
+        "world": {"record": install.part_record(Entry.from_dict(world)), "size": 456}})
+    first = r.pack_manager["items"][0]
+    assert first["label"] == "World, 1 megabytes, 2026-11-20, not installed, 45 percent downloaded"
+    assert first["install"] and not first["cancel"] and first["held"] == 456
+    r = bare.run("packs.manager_install", index=0)
+    assert r.install["entry"]["name"] == "world"
+
+
+def test_a_part_from_another_version_is_not_shown_as_downloaded(bare):
+    from mapcore.packs import install
+    from mapcore.packs.catalogue import Entry
+
+    old = Entry.from_dict(entry("world", version="2026.10.1", size=1000))
+    bare.run("packs.manager_open")
+    r = bare.run("packs.manager_listing", text=text(entry("world", size=1000)),
+                 parts={"world": {"record": install.part_record(old), "size": 456}})
+    assert r.pack_manager["items"][0]["label"].endswith("not installed") and r.pack_manager["items"][0]["held"] == 0

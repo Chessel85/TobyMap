@@ -1728,15 +1728,16 @@ class SettingsDialog(QDialog):
 
 
 class PackManagerDialog(QDialog):
-    """P (P4-T6d; PCK-2, ACC-7): the packs, each with its name, size, date and state, and Install, Update, Remove and
-    Close, in that Tab order after the list. A button that cannot act on the chosen line is unavailable: it stays in
+    """P (P4-T6d; PCK-2, ACC-7): the packs, each with its name, size, date and state, and Install, Update, Remove,
+    Cancel download (P4-T6f) and Close, in that Tab order after the list. A button that cannot act on the chosen line is unavailable: it stays in
     the Tab order and NVDA says "unavailable". The catalogue is read on a thread of its own from the address the core
     gives, and the core builds every line and says what each button may do. Remove asks first, in a ConfirmBox with
     Cancel the default. Every word comes from the core."""
 
-    def __init__(self, parent, dialog: dict, run, handle, speak=None, fetch=None):
+    def __init__(self, parent, dialog: dict, run, handle, speak=None, fetch=None, status=None):
         super().__init__(parent)
         self._dialog, self._run, self._handle, self._speak, self._fetch = dialog, run, handle, speak, fetch
+        self._status = status   # the shell's downloads and .part files, handed with every listing (P4-T6f)
         self._commands = dialog["commands"]
         self.items: list[dict] = []
         self.child_box: QDialog | None = None
@@ -1754,11 +1755,12 @@ class PackManagerDialog(QDialog):
         self.note = QLabel(words["loading"])
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
-        self.install_button, self.update_button, self.remove_button, self.close_button = button_row(
-            layout, [words["install"], words["update"], words["remove"], words["close"]], default=False,
-            cls=UnavailableButton)
+        (self.install_button, self.update_button, self.remove_button, self.cancel_button,
+         self.close_button) = button_row(
+            layout, [words["install"], words["update"], words["remove"], words["cancel"], words["close"]],
+            default=False, cls=UnavailableButton)
         for button, command in ((self.install_button, "install"), (self.update_button, "update"),
-                                (self.remove_button, "remove")):
+                                (self.remove_button, "remove"), (self.cancel_button, "cancel")):
             button.on_press(lambda c=command: self._press(c))
         self.close_button.clicked.connect(self.reject)
         self.list.currentRowChanged.connect(self._mark)
@@ -1785,25 +1787,29 @@ class PackManagerDialog(QDialog):
         self.install_button.set_available(bool(item.get("install")))
         self.update_button.set_available(bool(item.get("update")))
         self.remove_button.set_available(bool(item.get("remove")))
+        self.cancel_button.set_available(bool(item.get("cancel")))
 
     # The catalogue ------------------------------------------------------------------------------
+
+    def _listing(self, **args) -> None:
+        self._apply(self._run(self._commands["listing"], **args, **(self._status() if self._status else {})))
 
     def _load(self) -> None:
         url = self._dialog["catalogue_urls"]["desktop"]
         if not url or self._fetch is None:
-            self._apply(self._run(self._commands["listing"], unset=True))
+            self._listing(unset=True)
             return
         self._fetch(url, self._got)
 
     def _got(self, text: str, ok: bool) -> None:
         if not self._open:   # closed while it was being read
             return
-        self._apply(self._run(self._commands["listing"], **({"text": text} if ok else {"failed": True})))
+        self._listing(**({"text": text} if ok else {"failed": True}), index=self.list.currentRow())
 
     def refresh(self) -> None:
-        """The lines again from the last catalogue, after a pack was installed or removed."""
+        """The lines again from the last catalogue, after a pack was installed, removed or its download stopped."""
         if self._open:
-            self._apply(self._run(self._commands["listing"], index=self.list.currentRow()))
+            self._listing(index=self.list.currentRow())
 
     # The buttons --------------------------------------------------------------------------------
 

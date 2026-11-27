@@ -162,6 +162,7 @@ function handle(result, keyAt, held = false, named = false) {
   if (r.open_url) openUrl(r.open_url);
   if (r.remove_files && r.remove_files.length) client.send({ type: "remove_files", names: r.remove_files }).catch(showError);   // P4-T6d
   if (r.install) installEntry(r.install.entry, r.install.update).catch(showError);
+  if (r.cancel_download) cancelDownload(r.cancel_download).catch(showError);   // Cancel download (P4-T6f)
   if (r.world_offer) setTimeout(() => offerWorld(r.world_offer), 0);
   if (r.update_check) setTimeout(() => offerUpdate(r.update_check), 0);
   if (r.action === "reset") ownSounds.clear().catch(() => {});   // your own sound files go too (P2-T18h)
@@ -994,6 +995,12 @@ function installEntry(entry, update) {
   });
 }
 
+// Cancel download (P4-T6f): the worker stops it, keeping its .part file to carry on next time; the pack manager's
+// lines then say how much is held.
+function cancelDownload(name) {
+  return client.send({ type: "install_cancel", name }).then(() => { if (packManagerRefresh) packManagerRefresh(); });
+}
+
 // The catalogue's text, from the address in the core's defaults or, for local serving and the tests, ?catalogue=. The
 // page reads it; the core makes everything of it. {text}, {failed} when it could not be read, or {unset} when this
 // version has no address yet (P4-T6h).
@@ -1025,19 +1032,21 @@ function offerUpdate(check) {
   }).catch(showError);
 }
 
-// The pack manager (P): the packs, each with its name, size, date and state, then Install, Update, Remove and Close.
+// The pack manager (P): the packs, each with its name, size, date and state, then Install, Update, Remove, Cancel
+// download (P4-T6f) and Close.
 // A button that cannot act on the chosen line stays in the Tab order, aria-disabled (ACC-7). The catalogue is read
 // here and handed to the core, which builds every line; Remove asks first, in the message box. Every word is the core's.
 function openPackManager(d) {
   const box = packManagerDialog;
   const words = d.words, commands = d.commands;
   let items = d.lines.items, current = d.lines.current;
-  let lines, note, install, update, remove;
+  let lines, note, install, update, remove, cancel;
   const mark = (i) => {
     const item = items[i] || {};
     setAvailable(install, !!item.install);
     setAvailable(update, !!item.update);
     setAvailable(remove, !!item.remove);
+    setAvailable(cancel, !!item.cancel);
   };
   const apply = (r) => {
     if (!r.pack_manager) return;
@@ -1048,6 +1057,9 @@ function openPackManager(d) {
   };
   const back = () => lines.el.children[lines.current]?.focus();
   const command = (name, args) => bookmarkCommand(name, args, apply, back);
+  // Every listing is handed the worker's downloads and .part files (P4-T6f).
+  const listing = (args) => client.send({ type: "pack_status" })
+    .then((status) => command(commands.listing, { ...args, ...status }), showError);
 
   const body = focusModeBody(box);
   box.setAttribute("aria-label", d.title);
@@ -1064,14 +1076,15 @@ function openPackManager(d) {
   install = unavailableButton(words.install, () => command(commands.install, { index: current }), "pm-install");
   update = unavailableButton(words.update, () => command(commands.update, { index: current }), "pm-update");
   remove = unavailableButton(words.remove, () => command(commands.remove, { index: current }), "pm-remove");
+  cancel = unavailableButton(words.cancel, () => command(commands.cancel, { index: current }), "pm-cancel");
   const close = button(words.close, () => box.close(), "pm-close");
-  body.append(title, help, lines.el, note, install, update, remove, close);
+  body.append(title, help, lines.el, note, install, update, remove, cancel, close);
   lines.fill(items, current, false);
-  packManagerRefresh = () => { if (box.open) command(commands.listing, { index: current }); };
+  packManagerRefresh = () => { if (box.open) listing({ index: current }); };
   box.showModal();
   lines.el.children[lines.current]?.focus();
   if (!items.length) lines.el.focus();
-  fetchCatalogue(d.catalogue_urls).then((arg) => { if (box.open) command(commands.listing, { ...arg, index: current }); });
+  fetchCatalogue(d.catalogue_urls).then((arg) => { if (box.open) listing({ ...arg, index: current }); });
 }
 
 // The bookmark manager and the bookmark list dialog (P4-T8e, USR-3, DP219 point 7; ACC-7). Neither has OK: each change
@@ -2329,7 +2342,10 @@ async function boot() {
   mapArea.hidden = false;
   $("side").hidden = false;
   client.onNotice = (text) => speak(text, "polite");   // the map download's progress
-  client.onUpdate = (result) => handle(result);   // a pack download that went wrong, taken out of use (P4-T6c)
+  client.onUpdate = (result) => {   // a pack download that ended, or went wrong and was taken out of use (P4-T6c)
+    handle(result);
+    if (packManagerRefresh) packManagerRefresh();   // its line follows (P4-T6f)
+  };
   const { width, height } = mapSize();
   let saved = "";
   try { saved = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) { saved = ""; }

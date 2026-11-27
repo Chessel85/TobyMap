@@ -6,6 +6,11 @@ hands it back with packs.manager_listing; the core builds every line and says wh
 Update answer with `install`, the catalogue entry for the shell to download (the shells' downloads are P4-T6b and
 P4-T6c); Remove asks first, takes the pack out of use and answers with `remove_files`, the file names for the shell to
 delete. Every word is from the templates (rule 4).
+
+Cancel and resume (P4-T6f): the shell hands each listing the packs it is downloading now and the .part files it holds
+(their records and sizes); a pack downloading has Cancel download, which answers with `cancel_download`, its name,
+for the shell to stop it, keeping its .part file; a pack partly downloaded says how much, and Install or Update
+carries on from there.
 """
 from __future__ import annotations
 
@@ -30,6 +35,14 @@ class PackManager:
         self._removing: str | None = None            # the file to remove, until answered
         self.declined: dict = {}                     # pack name -> the newest version offered, kept in the saved state
         self._offered = None                         # the entry offered at start, until answered
+        self.downloading: list = []                  # the packs the shell is downloading now, by name (P4-T6f)
+        self.parts: dict = {}                        # name -> {"record", "size"}: the .part files the shell holds
+
+    def keep(self, earlier: "PackManager") -> None:
+        """What a session made afresh keeps from the one before (add_packs, remove_packs): the list and the shell's
+        downloads."""
+        self.catalogue = earlier.catalogue
+        self.downloading, self.parts = list(earlier.downloading), dict(earlier.parts)
 
     def handlers(self) -> dict:
         return {
@@ -39,6 +52,7 @@ class PackManager:
             "packs.manager_update": self.update,
             "packs.manager_remove": self.remove_ask,
             "packs.manager_remove_confirm": self.remove,
+            "packs.manager_cancel": self.cancel,
             "packs.first_run": self.first_run,
             "packs.first_run_download": self.first_run_download,
             "packs.update_offer": self.update_offer,
@@ -85,19 +99,27 @@ class PackManager:
             pack = files.get(e.name)
             words = say({cat.INSTALLED: "packs.state_installed", cat.NOT_INSTALLED: "packs.state_not_installed",
                          cat.UPDATE: "packs.state_update"}[state])
+            downloading = e.name in self.downloading
+            held = install.part_held(e, self.parts) if state != cat.INSTALLED else 0
+            if downloading:
+                words = say("packs.state_downloading")
+            elif held:
+                words = say("packs.state_partial", state=words, percent=install.percent(e, held))
             items.append({
                 "label": say("pack_manager.item", name=install.label(e), size=install._megabytes(e.size, True),
                              date=e.date, state=words),
                 "name": e.name, "state": state, "entry": e.to_dict(),
                 "file": pack.name if pack is not None else None,
-                "install": state == cat.NOT_INSTALLED, "update": state == cat.UPDATE, "remove": pack is not None})
+                "install": state == cat.NOT_INSTALLED and not downloading,
+                "update": state == cat.UPDATE and not downloading, "remove": pack is not None and not downloading,
+                "cancel": downloading, "held": held})
         for name, pack in files.items():   # packs in use that the catalogue does not list
             if name in seen:
                 continue
             items.append({"label": say("pack_manager.item_local", name=name,
                                        date=str(pack.manifest.get("built", "")), state=say("packs.state_installed")),
                           "name": name, "state": cat.INSTALLED, "entry": None, "file": pack.name,
-                          "install": False, "update": False, "remove": True})
+                          "install": False, "update": False, "remove": True, "cancel": False, "held": 0})
         return items
 
     def _listing(self, current: int = 0) -> dict:
@@ -107,18 +129,25 @@ class PackManager:
                 "none": say("pack_manager.none") if not n else ""}
 
     def open(self, **_a):
-        keys = ("title", "help", "list", "install", "update", "remove", "loading")
+        keys = ("title", "help", "list", "install", "update", "remove", "cancel", "loading")
         w = {k: say(f"pack_manager.{k}") for k in keys} | {"close": say("ui.close")}
         self.note = ""
         return self.Response(dialog={
             "kind": "pack_manager", "title": w["title"], "help": w["help"], "words": w,
             "catalogue_urls": self.urls(), "lines": self._listing(),
             "commands": {"listing": "packs.manager_listing", "install": "packs.manager_install",
-                         "update": "packs.manager_update", "remove": "packs.manager_remove"}})
+                         "update": "packs.manager_update", "remove": "packs.manager_remove",
+                         "cancel": "packs.manager_cancel"}})
 
-    def listing(self, text=None, failed: bool = False, index: int = 0, unset: bool = False, **_a):
+    def listing(self, text=None, failed: bool = False, index: int = 0, unset: bool = False, downloading=None,
+                parts=None, **_a):
         """The lines again. With the catalogue's text, from the shell; failed when it could not be fetched; unset
-        when this version has no address for it yet."""
+        when this version has no address for it yet. downloading (names) and parts (name -> {"record", "size"})
+        are the shell's downloads and .part files now (P4-T6f); left out, the last ones given are kept."""
+        if downloading is not None:
+            self.downloading = [str(n) for n in downloading]
+        if isinstance(parts, dict):
+            self.parts = dict(parts)
         if unset:
             self.catalogue, self.note = None, say("pack_manager.not_listed")
         else:
@@ -161,6 +190,18 @@ class PackManager:
         if not item["update"]:
             return self.Response().speak(say("pack_manager.not_updatable", name=item["name"]), ASSERTIVE)
         return self._download(item, True)
+
+    def cancel(self, index: int = -1, **_a):
+        """Cancel download (P4-T6f): the shell stops the download and keeps what has come, to carry on next time."""
+        item = self._chosen(index)
+        if item is None:
+            return self.Response().speak(say("pack_manager.nothing_chosen"), ASSERTIVE)
+        if not item.get("cancel"):
+            return self.Response().speak(say("pack_manager.not_downloading", name=item["name"]), ASSERTIVE)
+        entry = cat.Entry.from_dict(item["entry"])
+        self.downloading = [n for n in self.downloading if n != entry.name]
+        r = self.Response(cancel_download=entry.name)
+        return r.speak(install.cancelled(entry), ASSERTIVE)
 
     def remove_ask(self, index: int = -1, **_a):
         item = self._chosen(index)

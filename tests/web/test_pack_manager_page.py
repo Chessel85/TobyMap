@@ -186,3 +186,47 @@ def test_a_newer_pack_is_offered_once_at_start(page, manager_site):
     app.wait_for_function("window.tobymap.announcements.some(a => a.text === 'Test world is downloaded and open.')",
                           timeout=60_000)
     assert _stored(app) == ["test.pack"] and stand.whole == 2
+
+
+def _part_size(app):
+    return app.evaluate("""async () => {
+        try {
+            const root = await navigator.storage.getDirectory();
+            return (await (await root.getFileHandle('test.pack.part')).getFile()).size;
+        } catch (e) { return -1; }
+    }""")
+
+
+def test_a_cancelled_download_carries_on_from_where_it_stopped(page, manager_site):
+    """P4-T6f: Cancel download keeps the part; Install asks only for the rest, and the pack opens."""
+    url, handler, stand = manager_site
+    stand.whole = stand.ranges = 0
+    stand.resumes = []
+    handler.catalogue = _catalogue(url, stand)
+    app = open_app(page, url, state=HAMPSHIRE, query=f"?catalogue={url}/catalogue.json")
+    _open_manager(app)
+    assert app.inner_text("#pm-cancel") == "Cancel download" and not _available(app, "cancel")
+    stand.release.clear()   # the download waits after its first bytes
+    try:
+        app.click("#pm-install")
+        app.wait_for_function("document.querySelector('#pm-list li').textContent.endsWith(', downloading')",
+                              timeout=60_000)
+        assert _available(app, "cancel") and not _available(app, "install")
+        app.click("#pm-cancel")
+        _wait_text(app, "The download of Test world is cancelled. Install or Update it again to carry on from where "
+                        "it stopped.")
+        app.wait_for_function("document.querySelector('#pm-list li').textContent.includes('percent downloaded')",
+                              timeout=30_000)
+    finally:
+        stand.release.set()
+    assert _available(app, "install") and not _available(app, "cancel")
+    assert _stored(app) == ["test.pack.part", "test.pack.part.json"]
+    held = _part_size(app)
+    assert 0 < held < len(stand.data)
+    app.click("#pm-install")
+    _wait_text(app, "Test world is downloaded and open.")
+    assert stand.resumes == [held] and stand.whole == 1
+    assert any(t.startswith("Carrying on downloading Test world from ") for t in _texts(app))
+    assert _stored(app) == ["test.pack"]
+    assert app.evaluate("window.tobymap.search('Hampshire')")["results"]
+    app.wait_for_function("document.querySelector('#pm-list li').textContent.endsWith(', installed')")

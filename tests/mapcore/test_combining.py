@@ -19,6 +19,8 @@ WINCHESTER = (51.0590, -1.3074)       # the middle of the Winchester sample's co
 LYMINGTON = (50.7458, -1.5381)        # in the Lymington sample's covered pack tiles
 OUTSIDE = (51.2000, -1.4000)          # Hampshire, but in no covered pack tile
 REPO = Path(__file__).resolve().parents[2]
+# Held only in part by the regional pack, so given with the world pack's whole record (P4-T3b)
+PARTIAL = {"osm:r172799", "osm:r58447", "osm:r62149", "vliz:goas:north-atlantic-ocean"}
 
 
 @pytest.fixture(scope="module")
@@ -86,8 +88,8 @@ def test_a_point_in_the_regional_packs_tiles_is_answered_by_it(both):
     assert "osm:r127238" in ids                 # the City of Winchester district, only in the regional pack
     assert ids.count("osm:r172799") == 1        # Hampshire, once
     assert ids.count("osm:r62149") == 1         # the United Kingdom, once
-    for a in found:
-        assert a.pack == region, (a.id, a.layer)
+    for a in found:   # found through the regional pack; one it holds only part of has the world's record (P4-T3b)
+        assert a.pack == (both._world if a.id in PARTIAL else region), (a.id, a.layer)
 
 
 def test_a_point_outside_is_answered_by_the_world_pack(both, world_only):
@@ -146,7 +148,7 @@ def test_nearby_gives_each_feature_once(both):
     region = _regional(both)
     for n in near:
         if n.area.layer == "counties" and both.coverage(region).covers(n.lat, n.lon):
-            assert n.area.pack == region
+            assert n.area.pack == (both._world if n.area.id in PARTIAL else region)
 
 
 def test_places_of_a_world_only_layer_come_from_the_world_pack(both, world_only):

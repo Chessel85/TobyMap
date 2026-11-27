@@ -13,6 +13,11 @@ layers, and the world pack's features of those layers are left out there, for wh
 near a point, and Crossed and passed. Elsewhere, and for every other layer, the world pack answers, and nothing
 is said about missing detail (PLT-4). A feature both packs hold, by the same identifier, is given once.
 
+A feature both packs hold is one feature (P4-T3b): feature(), relationships() and every Area the store gives
+merge its records, the whole feature's record first (mapcore/store/packs_combined.py), so Within, Contains and
+Bordering give one Hampshire, and a parish only the regional pack holds sits under the world pack's county. An
+identifier a regional feature had before matching, kept as an alias, finds it too.
+
 A damaged record is noted in `problems` and the store carries on without it
 (NFR-4).
 
@@ -38,7 +43,7 @@ from mapcore.geo import geodesy
 from mapcore.packs import tiles
 from mapcore.packs.pack import DamagedRecord, Pack
 from mapcore.store import contents
-from mapcore.store.packs_combined import coverage_of, detail_order
+from mapcore.store.packs_combined import coverage_of, detail_order, merge_records, merge_relationships
 from mapcore.store.contents import TREE_LAYERS, special_kind  # noqa: F401 (special_kind is used by the session)
 from mapcore.store.cache import TileCache, TileData
 from mapcore.store.projection import Flat
@@ -54,6 +59,7 @@ JOIN_M = 100.0   # parts of a shared border whose ends are closer than this are 
 PARTED_M = 100.0   # an unnamed island bigger land comes this close to is barely parted from it (P3-T32e)
 MAINLAND_KM2 = 1.0   # land with no island, this big within MAINLAND_M of the gap, is a continent's (P3-T32e, DP169)
 MAINLAND_M = 1_500.0
+MERGED_KEPT = 4096   # the merged relationships kept, the oldest let go first (P4-T3b)
 
 
 @dataclass(frozen=True)
@@ -379,6 +385,7 @@ class _PackIndex:
         self._ids = None
         self._layer_by_id = None
         self._layer_by_number = None
+        self._aliases: dict[str, str] | None = None
         self._points: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
         self._tile_index: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
         by_kind: dict[tuple[str, int], list[tuple[int, int]]] = {}
@@ -431,6 +438,13 @@ class _PackIndex:
             self._layer_by_id = dict(zip(self.ids.tolist(), self.sizes[1].tolist()))
         return self._layer_by_id
 
+    @property
+    def aliases(self) -> dict:
+        """Each alias in the pack's feature records, with the identifier it stands for (P4-T3b)."""
+        if self._aliases is None:
+            self._read_table()
+        return self._aliases
+
     def layer_of_number(self, number: int) -> str:
         """A feature's layer by its number, from the feature table, with no record read (P4-T3a)."""
         if self._layer_by_number is None:
@@ -440,6 +454,7 @@ class _PackIndex:
 
     def _read_table(self) -> None:
         numbers, box, widths, layer_of, ids = [], [], [], [], []
+        aliases: dict[str, str] = {}
         for g, start in enumerate(self.pack.group_starts):
             try:
                 group = self.pack._group(g)
@@ -453,6 +468,9 @@ class _PackIndex:
                 widths.append(math.inf if width is None else float(width))
                 layer_of.append(record.get("layer", ""))
                 ids.append(record.get("id"))
+                for alias in record.get("aliases") or ():   # only a regional pack's matched features have them
+                    aliases.setdefault(alias, record.get("id"))
+        self._aliases = aliases
         self._ids = np.array(ids, dtype=object)
         self._sizes = (np.array(widths, dtype=np.float64), np.array(layer_of, dtype=object))
         self._boxes = (np.array(numbers, dtype=np.intp), np.array(box, dtype=np.float64).reshape(-1, 4))
@@ -510,6 +528,14 @@ class Store:
         self._coverages = [coverage_of(i.pack) for i in self._indexes]
         world = [p for p, cov in enumerate(self._coverages) if cov is None]
         self._world = world[0] if world else None   # the world pack that answers where no regional pack does
+        # Each layer's packs, so a feature of a layer only one pack holds is never looked for in another (P4-T3b).
+        self._layer_packs: dict[str, list[int]] = {}
+        for p, index in enumerate(self._indexes):
+            for layer in (index.pack.manifest or {}).get("layers") or ():
+                self._layer_packs.setdefault(layer, []).append(p)
+        # A feature several packs hold: its merged record, by id; and the merged relationships given, by id.
+        self._merged: dict[str, tuple] = {}
+        self._merged_rel: dict[str, dict] = {}
 
     @property
     def packs(self) -> list[Pack]:
@@ -625,17 +651,74 @@ class Store:
 
     # Feature records -------------------------------------------------------------
 
-    def feature(self, identifier: str) -> Area | None:
-        """The area with this identifier, or None."""
-        for p in range(len(self._indexes)):
-            pack = self._indexes[p].pack
+    def _holding(self, identifier: str, layer: str | None = None) -> list[tuple[int, int]]:
+        """Every pack holding a feature, most detailed first, as (pack, feature number). With its layer known,
+        only the packs that have that layer are asked."""
+        out = []
+        packs = self._layer_packs.get(layer, ()) if layer is not None else range(len(self._indexes))
+        for p in packs:
             try:
-                number = pack.feature_number(identifier)
-                if number is not None:
-                    return Area(p, number, pack.feature(number), self.naming)
+                number = self._indexes[p].pack.feature_number(identifier)
             except DamagedRecord as exc:
                 self._note(exc)
+                continue
+            if number is not None:
+                out.append((p, number))
+        return out
+
+    def _merge(self, identifier: str, layer: str | None = None):
+        """A feature from every pack holding it (P4-T3b), as (pack, number, record, others), or None. The first
+        is the most detailed pack's whole record (not partial), else the world pack's, else the most detailed
+        pack's; `record` is it merged with the others (packs_combined.merge_records); `others` are the other
+        packs' records, as (pack, record), empty when one pack holds it."""
+        got = self._merged.get(identifier)
+        if got is not None:
+            return got
+        records = []
+        for p, number in self._holding(identifier, layer):
+            try:
+                records.append((p, number, self._indexes[p].pack.feature(number)))
+            except DamagedRecord as exc:
+                self._note(exc)
+        if not records:
+            return None
+        whole = [r for r in records if not r[2].get("partial")]
+        world = [r for r in records if r[0] == self._world]
+        first = (whole or world or records)[0]
+        others = [(p, rec) for p, _n, rec in records if p != first[0]]
+        record = merge_records(first[2], [rec for _p, rec in others]) if others else first[2]
+        got = (first[0], first[1], record, others)
+        if others:
+            self._merged[identifier] = got   # few: the features both packs hold
+        return got
+
+    def _alias(self, identifier: str) -> str | None:
+        """The identifier an alias stands for, or None (P4-T3b)."""
+        for p, index in enumerate(self._indexes):
+            if self._coverages[p] is None:
+                continue   # a world pack's features have no aliases
+            real = index.aliases.get(identifier)
+            if real is not None:
+                return real
         return None
+
+    def _merge_or_alias(self, identifier: str):
+        got = self._merge(identifier)
+        if got is None:
+            real = self._alias(identifier)
+            if real is not None:
+                got = self._merge(real)
+                return (real, got) if got is not None else (identifier, None)
+        return identifier, got
+
+    def feature(self, identifier: str) -> Area | None:
+        """The area with this identifier, or None: one feature, merged from every pack holding it (P4-T3b). An
+        alias, a regional feature's own identifier before matching, finds it too."""
+        _identifier, got = self._merge_or_alias(identifier)
+        if got is None:
+            return None
+        p, number, record, _others = got
+        return Area(p, number, record, self.naming)
 
     def layer_of(self, identifier: str) -> str | None:
         """A feature's layer, from the feature table held in memory, with no record read; None if not found."""
@@ -646,26 +729,86 @@ class Store:
         return None
 
     def relationships(self, identifier: str) -> dict:
-        """A feature's stored relationships (P3-T3e, architecture 6.5), from the first pack that has the
-        feature: in, same, overlaps, partly, next, near, crosses, crossed_by, along, water_in and counts, by
-        the other features' identifiers. docs/developer/pack-format.md, relations/G, says what each holds.
-        Empty for a feature with none, one not found, or a pack written before format 4."""
-        for p in range(len(self._indexes)):
-            pack = self._indexes[p].pack
-            try:
-                if pack.feature_number(identifier) is not None:
-                    return pack.relationships(identifier)
-            except DamagedRecord as exc:
-                self._note(exc)
-                return {}
-        return {}
+        """A feature's stored relationships (P3-T3e, architecture 6.5): in, same, overlaps, partly, next, near,
+        crosses, crossed_by, along, water_in and counts, by the other features' identifiers.
+        docs/developer/pack-format.md, relations/G, says what each holds. Empty for a feature with none, one not
+        found, or a pack written before format 4.
 
-    def _area(self, p: int, number: int) -> Area | None:
+        A feature several packs hold has their relationships merged (P4-T3b, packs_combined.merge_relationships):
+        the whole record's pack answers for the layers it is the authority on, and the others add what concerns
+        other layers. A regional pack's feature is put inside the world's holders of the top of its "in": a parish
+        is in its district, its county and its country, then in whatever holds the country in the world pack."""
+        got = self._merged_rel.get(identifier)
+        if got is not None:
+            return got
+        asked = identifier
+        identifier, merged = self._merge_or_alias(identifier)
+        if merged is None:
+            return {}
+        p, _number, record, others = merged
         try:
-            return Area(p, number, self._indexes[p].pack.feature(number), self.naming)
+            rel = self._indexes[p].pack.relationships(identifier)
+        except DamagedRecord as exc:
+            self._note(exc)
+            return {}
+        cov = self._coverages[p]
+        if not others and cov is None:
+            return rel   # a feature of the world pack alone, as before Phase 4
+        if others:
+            authority = self._authority(p, record)
+            rest = []
+            for q, rec in others:
+                try:
+                    rest.append((self._indexes[q].pack.relationships(identifier), bool(rec.get("partial"))))
+                except DamagedRecord as exc:
+                    self._note(exc)
+            rel = merge_relationships(rel, rest, authority, self.layer_of)
+        if cov is not None:
+            rel = self._held_above(identifier, rel)
+        with self._lock:
+            if len(self._merged_rel) >= MERGED_KEPT:
+                self._merged_rel.pop(next(iter(self._merged_rel)))   # the oldest
+            self._merged_rel[asked] = rel
+        return rel
+
+    def _authority(self, p: int, record: dict) -> frozenset:
+        """The layers pack p answers for alone about its feature (P4-T3b): a regional pack holding all of it, its
+        coverage's layers; the world pack, or a pack holding only part of it, every layer it has."""
+        cov = self._coverages[p]
+        if cov is not None and not record.get("partial"):
+            return cov.layers
+        return frozenset((self._indexes[p].pack.manifest or {}).get("layers") or ())
+
+    def _held_above(self, identifier: str, rel: dict) -> dict:
+        """A regional pack's feature's relationships with "in" carried on above the pack's own areas (P4-T3b): the
+        merged "in" of the top of its own "in", such as the world's holders of the United Kingdom, added after
+        it. The top's own "in" is carried on in the same way, so this reaches the top of the world's."""
+        held = rel.get("in")
+        if not held or held[-1] == identifier:
+            return rel
+        above = self.relationships(held[-1]).get("in", ())
+        mentioned = {i if isinstance(i, str) else i[0] for k in ("in", "same", "overlaps", "partly")
+                     for i in rel.get(k, ())}
+        more = [i for i in above if i not in mentioned and i != identifier]
+        if not more:
+            return rel
+        rel = dict(rel)
+        rel["in"] = [*held, *more]
+        return rel
+
+    def _area(self, p: int, number: int, merged: bool = True) -> Area | None:
+        """Pack p's feature: one feature, its records merged when other packs hold it too (P4-T3b), so its pack
+        and number may be another pack's. With merged False, pack p's own, to measure on pack p's shapes."""
+        try:
+            record = self._indexes[p].pack.feature(number)
         except DamagedRecord as exc:
             self._note(exc)
             return None
+        if merged and len(self._layer_packs.get(record.get("layer"), ())) > 1:   # another pack has its layer
+            got = self._merge(record["id"], record.get("layer"))
+            if got is not None and got[3]:
+                return Area(got[0], got[1], got[2], self.naming)
+        return Area(p, number, record, self.naming)
 
     # What is at a point ------------------------------------------------------------
 
@@ -899,13 +1042,14 @@ class Store:
                     break
                 if len(results) >= limit and results[limit - 1].distance_m <= bound[k]:
                     break
-                area = self._area(p, int(numbers[k]))
+                area = self._area(p, int(numbers[k]), merged=False)   # measured on pack p's own shapes
                 if area is None or area.id in exclude or (layers is not None and area.layer not in layers) \
                         or (accept is not None and not accept(area)):
                     continue
                 found = self._nearest(p, area, flat, lat, lon, float(bound[k]), radius_m)
                 if found is not None and not self._hidden(p, area.layer, found.lat, found.lon):
-                    results.append(found)
+                    whole = self._area(p, int(numbers[k]))   # given as one feature (P4-T3b)
+                    results.append(replace(found, area=whole) if whole is not None else found)
                     results.sort(key=lambda n: (n.distance_m, n.area.id))
             for found in results[:limit]:
                 old = best.get(found.area.id)
@@ -1129,8 +1273,14 @@ class Store:
             if not self.relationships(identifier).get("counts", {}).get(layer):
                 out.sort(key=lambda f: (f.name.casefold(), f.id))
                 return out
+        # Another pack's features of a layer the holder's own pack answers for are not listed (P4-T3b): what
+        # Contains counts is what browsing lists.
+        others = len(self._holding(identifier)) > 1
+        authority = self._authority(holder.pack, holder.record) if others else frozenset()
         for p, index in enumerate(self._indexes):
             pack = index.pack
+            if p != holder.pack and layer in authority:
+                continue
             try:
                 held = pack.holds(identifier) if holder.layer in contents.HOLDER_LAYERS else None
                 if held is not None:
@@ -1181,6 +1331,8 @@ class Store:
         """relationships() of many features, without keeping every pack record they are in (Pack.relationships_passing)."""
         out: dict[str, dict] = {}
         left = list(identifiers)
+        if len(self._indexes) > 1:   # several packs: each as relationships() gives it, merged (P4-T3b)
+            return {i: self.relationships(i) for i in left}
         for index in self._indexes:
             pack = index.pack
             try:
@@ -1231,18 +1383,20 @@ class Store:
         reach = _grown_boxes(holder.record["bbox"], metres)
         point_layer = self._geometry_of(layer) == "point"
         out: list[tuple[Found, float]] = []
+        seen: set = set()   # a feature both packs hold, once (P4-T3b)
         for p, index in enumerate(self._indexes):
             numbers, boxes = index.boxes
             _widths, layers = index.sizes
             keep = (layers == layer) & _boxes_reach(boxes, reach)
             for k in np.nonzero(keep)[0].tolist():
-                area = self._area(p, int(numbers[k]))
-                if area is None or area.id == identifier:
+                area = self._area(p, int(numbers[k]), merged=False)   # measured on pack p's own shapes
+                if area is None or area.id == identifier or area.id in seen:
                     continue
+                seen.add(area.id)
                 distance = self._distance_to(p, holder, area, metres, touching, near_km, point_layer, reach)
                 if distance is None or distance > metres:
                     continue
-                rec = area.record
+                rec = (self._area(p, int(numbers[k])) or area).record   # one feature's record (P4-T3b)
                 point = rec.get("point")
                 name = self._name(rec)
                 out.append((Found(p, area.id, name, layer, 0, point[1] if point else None,

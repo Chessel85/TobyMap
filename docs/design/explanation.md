@@ -478,7 +478,7 @@ The map is drawn from the pack, not from a separate picture. The core chooses wh
 
 ## How several packs work together
 
-This section explains what happens when more than one pack is installed: the world pack, and later regional packs such as Great Britain, and grid packs such as detailed elevation. The design is in architecture AD-13, AD-14 and section 6.8. Combining packs is built in Phase 4, task P4-T3. The first part, P4-T3a, which pack answers where, was built on 27 November 2026; the rest of this section says which parts are still to come.
+This section explains what happens when more than one pack is installed: the world pack, and later regional packs such as Great Britain, and grid packs such as detailed elevation. The design is in architecture AD-13, AD-14 and section 6.8. Combining packs is built in Phase 4, task P4-T3. The first part, P4-T3a, which pack answers where, was built on 27 November 2026, and the second, P4-T3b, one feature from two packs, the same day; the rest of this section says which parts are still to come.
 
 ### Words used in this section
 
@@ -527,7 +527,17 @@ Hampshire is in the base pack, and it would also be in the Great Britain pack. I
 * Every feature keeps one identifier in every pack, such as osm:r172799 for Hampshire (AD-13).
 * When a regional pack is built, its features are matched to the base pack's, mostly by their Wikidata identifier, and keep the base pack's identifier.
 * So Hampshire is announced once, and a bookmark on it keeps working whichever packs are installed.
-* Joining its facts and relationships from both packs, so that Within, Contains and Bordering list it once, is the next part, P4-T3b. Search across both packs is P4-T3c.
+* A feature that had a different identifier in the regional pack, such as a river read from a different OpenStreetMap way, keeps that one too, as an alias. Either identifier finds it.
+
+Since P4-T3b, the application joins what both packs say about such a feature into one record, so Within, Contains and Bordering list Hampshire once:
+
+* The record that speaks for the feature is the one that holds all of it. The England pack holds the whole of Hampshire, so its record gives Hampshire's area, outline length and neighbours. The England pack holds only part of the United Kingdom, so the world pack's record speaks for the United Kingdom.
+* That pack answers alone for the layers it knows in detail there. The other pack adds only what it alone knows: the world pack adds the towns, railways and islands in Hampshire, and the England pack adds the districts and parishes in the United Kingdom.
+* A pack that holds only part of a feature says nothing about where the whole of it lies, or how long its outline is.
+* A feature only the regional pack has, such as a parish, sits inside its district, its county and its country, and then inside whatever holds the country in the world pack. So Within for a parish in Winchester ends with the United Kingdom and Europe.
+* Up in hierarchy mode from a district reaches the county, and Contains for the county lists the parishes.
+
+Search across both packs is the next part, P4-T3c.
 
 Roads and paths that cross from one regional pack into the next join at the same OpenStreetMap points, so travelling along them carries on across the join.
 

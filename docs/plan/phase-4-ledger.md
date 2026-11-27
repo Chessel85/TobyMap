@@ -107,6 +107,7 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 * P4-T6d DONE (Sonnet, 27 Nov), c49410e. mapcore/pack_manager.py; 8 commands packs.* (P = packs.manager_open, Map menu; the rest keyless pointer commands); catalogue addresses in mapcore/defaults.yaml packs:; desktop dialog in desktop/dialogs.py; web dialog in main.js and worker; HandleSource.close now closes the OPFS handle. Tests: test_pack_manager (core), test_pack_manager_desktop, test_pack_manager_page (6, both browsers); 95 targeted Python pass; keymap.csv regenerated (8 rows).
 * P4-T6e DONE (Sonnet, 27 Nov, same subagent as T6d), c074eee. Commands packs.update_offer and packs.update_offer_update (keyless); Response.update_check at start; saved state packs_declined. Tests: core 20, desktop 9, browser 8 (both); 86 targeted Python pass on check.
 * P4-T6f DONE (Opus, 27 Nov), eafc5c4. Cancel download command and button (keyless); part kept on cancel or lost connection, removed only on checksum mismatch; sidecar name.pack.part.json; resume by Range bytes=N-, 200 reply restarts; web pack manager now refreshes when a download ends. Tests: 87 Python (90 on check), browser 16 (both browsers, after one fix by the agent); keymap.csv regenerated. Could be Sonnet? No: resume and hashing across shells was subtle.
+* P4-T6g DONE (Sonnet, 27 Nov), a784b2f. Free space measured by the shell, worded by the core; Move packs folder (desktop only, keyless) with refusals in the core (same, inside, unwritable, clash, busy, no room); only name.pack, .part and .part.json files moved. Tests: 73 Python, browser 12 (both). keymap.csv regenerated.
 
 ## Overnight choices for the PO
 
@@ -134,6 +135,7 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 * P4-T6d: P opens the pack manager (free in every key map); Remove asks first with Cancel the default; catalogue_url_desktop is https://github.com/Chessel85/TobyMap/releases/download/packs-test/catalogue.json (the DP171 pre-release name), catalogue_url_web empty until P4-T6h (so the web first-start offer is silent; ?catalogue= sets one for local serving); the desktop first-start offer runs only when desktop/app.py asks (offer_world=True), so tests and the self-test do not fetch.
 * P4-T6e: one pack offered per start (the first with a newer compatible version); the offer counts as made when asked, so Not now needs no handler.
 * P4-T6f: Install and Update keep their names; the pack's line says 'N percent downloaded' rather than the button reading 'Carry on downloading'. A lost connection keeps the part, as Cancel does.
+* P4-T6g: no Default button; Move creates the chosen folder if it is missing; on the web the free-space line names no folder.
 
 ## Current state
 

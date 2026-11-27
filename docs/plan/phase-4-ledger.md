@@ -103,6 +103,7 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 * P4-T7a DONE (Sonnet, 27 Nov), 70ffe91. Packs opened through mapcore.packs.pack.open_packs (MapSession); a failure is said at start (new template packs.set_aside, or the version message alone); Response.packs_damaged lists damaged files, which the desktop renames name.pack.damaged (desktop/storage.py set_aside_pack). Tests: tests/desktop/test_pack_set_aside.py (5); 122 targeted passed.
 * P4-T6a DONE (Sonnet, 27 Nov), 1cffbd9. mapcore/packs/catalogue.py: parse(text) -> Catalogue (entries, get, state); Entry.compatible; CatalogueError; sample tests/samples/catalogue.json; 23 tests in tests/mapcore/test_catalogue.py. Architecture 6.10 'As built' added.
 * P4-T6b DONE (Opus, 27 Nov), da0875e. mapcore/packs/install.py (refusal, file names, size and checksum check, Progress at 10 percent, words); desktop/downloads.py Downloader (thread, Qt signals, injectable opener, cancel() for T6f); MainWindow.install_pack(entry, opener) for T6d; MapSession.add_packs rebuilds the session round the new store, keeping settings, place and bookmarks; storage.packs_folder/set_packs_folder. 48 targeted tests pass, 154 storage-related desktop tests pass. Gap for T6d/T6e: an update replaces name.pack while the old one is open; on Windows the rename fails unless the old pack is closed first.
+* P4-T6c DONE (Opus, 27 Nov, one fix round), 1b1d9d6. DownloadingSource (mapcore/packs/source.py), install.no_room and install.Download; bridge install_begin/said/open/chunk/end/stored/failed; worker messages install and install_cancel (abort hook for T6f), range reads by synchronous XHR, packs installed earlier open at start; window.tobymap.install(entry) in main.js; MapSession.remove_packs(names) added (fix round). Tests: test_pack_download_page.py 3 x 2 browsers, test_session_packs.py 3, test_install extended; 32 targeted Python pass.
 
 ## Overnight choices for the PO
 
@@ -126,6 +127,7 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 * P4-T7a: only damage (DamagedPack, ChecksumWrong, NotAPack) is renamed aside; a pack for another TobyMap version is said and skipped but left in place, so it works again after an update. On the web nothing is renamed: a damaged pack in browser storage is said and skipped at each start, until P4-T6d's pack manager can remove it.
 * P4-T6a: catalogue shape {"format": 1, "packs": [...]}, with url_desktop and url_web per pack; pack versions compared by the numbers in them (dates or dotted); an installed version with no numbers counts as update available.
 * P4-T6b: a download larger than the catalogue size counts as damaged; one download at a time, a second is refused with a spoken message; the packs folder chosen is kept in settings.json as packs_folder (desktop only), and kept when the session saves or settings are imported.
+* P4-T6c: the browser's persistent storage (navigator.storage.persist) is not asked for yet; when a download is done and checked, the open pack switches to the stored file in place, without rebuilding the session.
 
 ## Current state
 

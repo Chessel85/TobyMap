@@ -154,7 +154,10 @@ The PO's answers: the points of interest list (p4-t1f-poi-categories.csv) is kep
 Progress tonight:
 
 * P4-T1n DONE, e24c715 (Opus subagent; report docs/plan/p4-t1n-lakes-report.md). The osm-layer stage's in_sea setting, share 0.5. Trial: 9 of 550 lakes left out, 5 cut. Orchestrator's choice: the setting added to England and Hampshire too (DP224 applies to them; they read lagoons); Hampshire rehearsal left out 5 tidal harbours (Bembridge Harbour, Wootton Creek and others). Rebuilds rerun from osm-layer onwards.
-* P4-T3f the compact feature table: started (Opus subagent).
+* P4-T1n follow-up 5070f1b: great-britain.yaml given the same setting (test_coverage keeps it equal to England and the rehearsal).
+* P4-T3f DONE, f422b4e (Opus subagent; report docs/plan/p4-t3f-feature-table-report.md). Pack format 5 with the compact feature table; 64 feature groups and 50,000 feature records kept. Hampshire: first place said 5.0 to 1.6 s, memory 898 to 370 MB, pack 43.2 to 48.1 MB, written identical twice. Estimate England about 540 MB of table in memory (over the 300 to 400 aim), world about 50 MB. Full Python suite 2,974 passed after the Great Britain fix (one espeak voice test failed once in the long run and passed alone).
+* Builds run from the snapshot worktree C:\Users\chess\github\Mapping-build (at f422b4e) under a supervisor script that restarts with 6, 3, then 2 workers, stops on a code error or continue.txt "no", and writes "<pack> console.txt" beside the output folders.
+* Western Europe trial rebuild from osm-layer started 16:32, as the rehearsal of both changes.
 
 ### Where things stand
 

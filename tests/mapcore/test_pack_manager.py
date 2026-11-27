@@ -275,3 +275,47 @@ def test_a_part_from_another_version_is_not_shown_as_downloaded(bare):
     r = bare.run("packs.manager_listing", text=text(entry("world", size=1000)),
                  parts={"world": {"record": install.part_record(old), "size": 456}})
     assert r.pack_manager["items"][0]["label"].endswith("not installed") and r.pack_manager["items"][0]["held"] == 0
+
+
+# The packs folder and its free space (P4-T6g, PCK-4, AD-18) ----------------------------------------
+
+def test_the_desktop_says_the_packs_folder_and_its_free_space(bare):
+    bare.run("packs.manager_open")
+    r = bare.run("packs.manager_listing", free=12_345_000_000, folder="D:/Maps", unset=True)
+    assert r.pack_manager["space"] == "Packs folder: D:/Maps. 12.3 gigabytes free."
+    r = bare.run("packs.manager_listing", free=250_999_999)
+    assert r.pack_manager["space"] == "Packs folder: D:/Maps. 250 megabytes free."
+    r = bare.run("packs.manager_listing", free=None)
+    assert r.pack_manager["space"] == "Packs folder: D:/Maps. The free space is not known."
+
+
+def test_the_browser_says_the_space_left_and_has_no_move():
+    s = MapSession(platform="browser", packs=[], saved_state=dict(HAMPSHIRE))
+    s.start()
+    d = s.run("packs.manager_open").dialog
+    assert d["can_move"] is False
+    r = s.run("packs.manager_listing", free=3_000_000_000, unset=True)
+    assert r.pack_manager["space"] == "Space left in this browser: 3.0 gigabytes."
+    said_ = said(s.run("packs.manager_move", folder="x"))
+    assert said_ == "The packs are kept in this browser, so there is no folder to move."
+
+
+def test_the_desktop_can_move_and_the_core_checks_the_folder(bare):
+    assert bare.run("packs.manager_open").dialog["can_move"] is True
+    assert registry.by_name("packs.manager_move").pointer
+    ok = bare.run("packs.manager_move", folder="E:/New", free=5_000_000_000, need=900_000_000)
+    assert ok.move_packs == {"folder": "E:/New"} and not ok.announcements
+    r = bare.run("packs.manager_move", folder="E:/New", free=400_000_000, need=900_000_000)
+    assert r.move_packs is None
+    assert said(r) == "E:/New has 400 megabytes free, and the packs need 900 megabytes, so nothing was moved. Choose a folder with more room."
+    for code, start in (("same", "is the packs folder already"), ("inside", "is inside the packs folder"),
+                        ("unwritable", "cannot write to"), ("clash", "already holds a pack"),
+                        ("busy", "A pack is downloading")):
+        r = bare.run("packs.manager_move", folder="E:/New", problem=code)
+        assert r.move_packs is None and start in said(r)
+
+
+def test_the_core_says_the_move_is_done_or_undone(bare):
+    assert said(bare.run("packs.manager_moved", folder="E:/New", ok=True)) == "The packs are now in E:/New."
+    assert bare.run("packs.manager_listing", unset=True).pack_manager["space"].startswith("Packs folder: E:/New.")
+    assert "back where they were" in said(bare.run("packs.manager_moved", folder="E:/New", ok=False))

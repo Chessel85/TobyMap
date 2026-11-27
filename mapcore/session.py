@@ -172,6 +172,8 @@ class Response:
     remove_files: list = field(default_factory=list)
     # A pack's name, for the shell to stop its download and keep its .part file to carry on next time (P4-T6f).
     cancel_download: str | None = None
+    # The desktop is to move its packs folder (P4-T6g): {"folder"}, once the core has accepted the folder.
+    move_packs: dict | None = None
     # At start: no pack named world is installed, so the shell may fetch the catalogue from catalogue_urls and run
     # packs.first_run (P4-T6d): {"catalogue_urls": {"desktop", "web"}}.
     world_offer: dict | None = None
@@ -647,6 +649,7 @@ class MapSession:
             merged.install = r.install or merged.install
             merged.remove_files += r.remove_files
             merged.cancel_download = r.cancel_download or merged.cancel_download
+            merged.move_packs = r.move_packs or merged.move_packs
             merged.scan = r.scan if r.stop_voice else (r.scan or merged.scan)   # a later key stops an earlier scan
         return merged
 

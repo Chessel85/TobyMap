@@ -230,3 +230,13 @@ def test_a_cancelled_download_carries_on_from_where_it_stopped(page, manager_sit
     assert _stored(app) == ["test.pack"]
     assert app.evaluate("window.tobymap.search('Hampshire')")["results"]
     app.wait_for_function("document.querySelector('#pm-list li').textContent.endsWith(', installed')")
+
+
+def test_the_browser_says_the_space_left_and_has_no_move_button(page, manager_site):
+    url, handler, stand = manager_site
+    handler.catalogue = _catalogue(url, stand)
+    app = open_app(page, url, state=HAMPSHIRE, query=f"?catalogue={url}/catalogue.json")
+    _open_manager(app)
+    app.wait_for_function("document.getElementById('pm-space').textContent.startsWith('Space left in this browser: ')")
+    assert app.query_selector("#pm-move") is None
+    assert "Move packs folder" not in app.inner_text("#packmanagerdialog")

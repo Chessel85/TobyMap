@@ -235,7 +235,12 @@ async function packStatus() {
       } catch (e) { /* being written */ }
     }
   } catch (e) { /* no private storage */ }
-  return { downloading: [...downloads.keys()], parts };
+  let free = null;   // the space left in this browser for TobyMap, for the pack manager (P4-T6g)
+  try {
+    const estimate = await navigator.storage.estimate();
+    if (estimate && estimate.quota) free = Math.max(0, estimate.quota - (estimate.usage || 0));
+  } catch (e) { /* not known */ }
+  return { downloading: [...downloads.keys()], parts, free };
 }
 
 // The bytes already held in the .part file, handed to the core a megabyte at a time, so the checksum covers the

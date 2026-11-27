@@ -1734,9 +1734,10 @@ class PackManagerDialog(QDialog):
     gives, and the core builds every line and says what each button may do. Remove asks first, in a ConfirmBox with
     Cancel the default. Every word comes from the core."""
 
-    def __init__(self, parent, dialog: dict, run, handle, speak=None, fetch=None, status=None):
+    def __init__(self, parent, dialog: dict, run, handle, speak=None, fetch=None, status=None, choose=None, move=None):
         super().__init__(parent)
         self._dialog, self._run, self._handle, self._speak, self._fetch = dialog, run, handle, speak, fetch
+        self._choose, self._move = choose, move   # the folder box and the move itself, for Move packs folder (P4-T6g)
         self._status = status   # the shell's downloads and .part files, handed with every listing (P4-T6f)
         self._commands = dialog["commands"]
         self.items: list[dict] = []
@@ -1755,10 +1756,18 @@ class PackManagerDialog(QDialog):
         self.note = QLabel(words["loading"])
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
-        (self.install_button, self.update_button, self.remove_button, self.cancel_button,
-         self.close_button) = button_row(
-            layout, [words["install"], words["update"], words["remove"], words["cancel"], words["close"]],
-            default=False, cls=UnavailableButton)
+        self.space = QLabel(dialog["lines"].get("space", ""))   # the packs folder and its free space (P4-T6g)
+        self.space.setWordWrap(True)
+        layout.addWidget(self.space)
+        labels = [words["install"], words["update"], words["remove"], words["cancel"]]
+        if dialog.get("can_move"):
+            labels.append(words["move"])
+        buttons = button_row(layout, labels + [words["close"]], default=False, cls=UnavailableButton)
+        self.install_button, self.update_button, self.remove_button, self.cancel_button = buttons[:4]
+        self.close_button = buttons[-1]
+        self.move_button = buttons[4] if dialog.get("can_move") else None
+        if self.move_button is not None:
+            self.move_button.on_press(self._move_folder)
         for button, command in ((self.install_button, "install"), (self.update_button, "update"),
                                 (self.remove_button, "remove"), (self.cancel_button, "cancel")):
             button.on_press(lambda c=command: self._press(c))
@@ -1780,6 +1789,7 @@ class PackManagerDialog(QDialog):
             self.list.setCurrentRow(listing["current"])
         self.list.blockSignals(False)
         self.note.setText(listing["note"] or listing["none"])
+        self.space.setText(listing.get("space", ""))
         self._mark(self.list.currentRow())
 
     def _mark(self, row: int) -> None:
@@ -1822,6 +1832,16 @@ class PackManagerDialog(QDialog):
             box.open()
             return
         self._apply(response)
+
+    def _move_folder(self) -> None:
+        """Move packs folder: the standard folder box, then the window does the move (P4-T6g)."""
+        if self._choose is None or self._move is None:
+            return
+        chosen = self._choose(self, self._dialog["words"]["move_choose"], str(self._dialog.get("start", "")))
+        if chosen:
+            self._move(chosen)
+            self.refresh()
+        self.list.setFocus()
 
     def _asked(self, box, dialog: dict) -> None:
         self.child_box = None

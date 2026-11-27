@@ -37,12 +37,15 @@ class PackManager:
         self._offered = None                         # the entry offered at start, until answered
         self.downloading: list = []                  # the packs the shell is downloading now, by name (P4-T6f)
         self.parts: dict = {}                        # name -> {"record", "size"}: the .part files the shell holds
+        self.free: int | None = None                 # bytes free for packs, as the shell measured them (P4-T6g)
+        self.folder: str = ""                        # the packs folder (desktop only), as the shell names it
 
     def keep(self, earlier: "PackManager") -> None:
         """What a session made afresh keeps from the one before (add_packs, remove_packs): the list and the shell's
         downloads."""
         self.catalogue = earlier.catalogue
         self.downloading, self.parts = list(earlier.downloading), dict(earlier.parts)
+        self.free, self.folder = earlier.free, earlier.folder
 
     def handlers(self) -> dict:
         return {
@@ -53,6 +56,8 @@ class PackManager:
             "packs.manager_remove": self.remove_ask,
             "packs.manager_remove_confirm": self.remove,
             "packs.manager_cancel": self.cancel,
+            "packs.manager_move": self.move,
+            "packs.manager_moved": self.moved,
             "packs.first_run": self.first_run,
             "packs.first_run_download": self.first_run_download,
             "packs.update_offer": self.update_offer,
@@ -126,21 +131,71 @@ class PackManager:
         self._lines = self._items()
         n = len(self._lines)
         return {"items": self._lines, "current": max(0, min(n - 1, current)), "note": self.note,
-                "none": say("pack_manager.none") if not n else ""}
+                "none": say("pack_manager.none") if not n else "", "space": self.space()}
+
+    # The packs folder and its free space (P4-T6g, PCK-4, AD-18) -----------------------------------
+
+    @staticmethod
+    def size_words(size: int) -> str:
+        """A size for people: gigabytes with one decimal from 1 GB up, else whole megabytes (rounded down)."""
+        size = max(int(size), 0)
+        if size >= 1_000_000_000:
+            return say("pack_manager.gigabytes", n=f"{size / 1_000_000_000:.1f}")
+        return say("pack_manager.megabytes", n=size // 1_000_000)
+
+    def can_move(self) -> bool:
+        return self.s.platform == "desktop"
+
+    def space(self) -> str:
+        """The folder's free space in words: the desktop names the folder, the browser has none."""
+        known = self.free is not None
+        if self.can_move():
+            if not self.folder:
+                return ""
+            if known:
+                return say("pack_manager.space_folder", folder=self.folder, free=self.size_words(self.free))
+            return say("pack_manager.space_folder_unknown", folder=self.folder)
+        return say("pack_manager.space_browser", free=self.size_words(self.free)) if known else ""
+
+    def move(self, folder=None, free=None, need=0, problem=None, **_a):
+        """Move packs folder (desktop). The shell has chosen the folder and measured it: free space there, the bytes to
+        move, and a problem code when it cannot be used (same, inside, unwritable, clash, busy). The core says why not,
+        or answers move_packs for the shell to carry out and report with packs.manager_moved."""
+        if not self.can_move():
+            return self.Response().speak(say("pack_manager.move_not_here"), ASSERTIVE)
+        folder = str(folder or "")
+        if not folder:
+            return self.Response()
+        if problem in ("same", "inside", "unwritable", "clash", "busy"):
+            return self.Response().speak(say(f"pack_manager.move_{problem}", folder=folder), ASSERTIVE)
+        need = max(int(need or 0), 0)
+        if free is not None and int(free) < need:
+            return self.Response().speak(say("pack_manager.move_no_room", folder=folder, need=self.size_words(need),
+                                             left=self.size_words(free)), ASSERTIVE)
+        return self.Response(move_packs={"folder": folder})
+
+    def moved(self, folder=None, ok: bool = True, **_a):
+        """The shell's report: the packs are in the new folder, or are back where they were."""
+        folder = str(folder or "")
+        if ok:
+            self.folder = folder
+            return self.Response().speak(say("pack_manager.moved", folder=folder), ASSERTIVE)
+        return self.Response().speak(say("pack_manager.move_failed", folder=folder), ASSERTIVE)
 
     def open(self, **_a):
-        keys = ("title", "help", "list", "install", "update", "remove", "cancel", "loading")
+        keys = ("title", "help", "list", "install", "update", "remove", "cancel", "loading", "move", "move_choose")
         w = {k: say(f"pack_manager.{k}") for k in keys} | {"close": say("ui.close")}
         self.note = ""
         return self.Response(dialog={
             "kind": "pack_manager", "title": w["title"], "help": w["help"], "words": w,
-            "catalogue_urls": self.urls(), "lines": self._listing(),
+            "catalogue_urls": self.urls(), "lines": self._listing(), "can_move": self.can_move(),
             "commands": {"listing": "packs.manager_listing", "install": "packs.manager_install",
                          "update": "packs.manager_update", "remove": "packs.manager_remove",
-                         "cancel": "packs.manager_cancel"}})
+                         "cancel": "packs.manager_cancel", "move": "packs.manager_move",
+                         "moved": "packs.manager_moved"}})
 
     def listing(self, text=None, failed: bool = False, index: int = 0, unset: bool = False, downloading=None,
-                parts=None, **_a):
+                parts=None, **a):
         """The lines again. With the catalogue's text, from the shell; failed when it could not be fetched; unset
         when this version has no address for it yet. downloading (names) and parts (name -> {"record", "size"})
         are the shell's downloads and .part files now (P4-T6f); left out, the last ones given are kept."""
@@ -148,6 +203,11 @@ class PackManager:
             self.downloading = [str(n) for n in downloading]
         if isinstance(parts, dict):
             self.parts = dict(parts)
+        if "free" in a:   # the space left for packs and the folder, as the shell measured them (P4-T6g)
+            free = a["free"]
+            self.free = int(free) if isinstance(free, (int, float)) and free >= 0 else None
+        if a.get("folder"):
+            self.folder = str(a["folder"])
         if unset:
             self.catalogue, self.note = None, say("pack_manager.not_listed")
         else:

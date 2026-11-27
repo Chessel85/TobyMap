@@ -291,3 +291,82 @@ def test_cancel_download_keeps_the_part_and_install_carries_on(qtbot, tmp_path, 
     assert asked[-1] == (url, held)
     assert (storage.packs_folder(tmp_path) / f"{pack_name}.pack").read_bytes() == data
     qtbot.waitUntil(lambda: box.items and box.items[0]["state"] == "installed", timeout=10000)
+
+
+# The packs folder and its free space (P4-T6g) ---------------------------------------------------
+
+def move_setup(qtbot, tmp_path, monkeypatch, test_pack, free=10_000_000_000):
+    w = make_window(qtbot, tmp_path, monkeypatch, Internet({}), installed=test_pack)
+    old = storage.packs_folder(tmp_path)
+    new = tmp_path / "elsewhere" / "packs"
+    new.mkdir(parents=True)
+    w.free_space = lambda folder: free
+    w.folder_chooser = lambda parent, title, start: str(new)
+    said_ = []
+    original = w.handle
+    w.handle = lambda r, *a, **k: (said_.extend(x["text"] for x in r.announcements), original(r, *a, **k))[1]
+    return w, old, new, said_
+
+
+def test_the_pack_manager_says_the_free_space_in_the_packs_folder(qtbot, tmp_path, monkeypatch, test_pack):
+    w, old, new, said_ = move_setup(qtbot, tmp_path, monkeypatch, test_pack, free=12_300_000_000)
+    box = open_manager(w, qtbot)
+    assert box.space.text() == f"Packs folder: {old}. 12.3 gigabytes free."
+    assert box.move_button.text() == "Move packs folder"
+
+
+def test_move_puts_the_packs_in_the_new_folder_and_saves_the_choice(qtbot, tmp_path, monkeypatch, test_pack):
+    w, old, new, said_ = move_setup(qtbot, tmp_path, monkeypatch, test_pack)
+    (old / "test.pack.part").write_bytes(b"half")
+    (old / "test.pack.part.json").write_text("{}")
+    (old / "notes.txt").write_text("not ours")
+    box = open_manager(w, qtbot)
+    box.move_button.click()
+    assert sorted(p.name for p in new.iterdir()) == ["test.pack", "test.pack.part", "test.pack.part.json"]
+    assert [p.name for p in old.iterdir()] == ["notes.txt"]   # only our files moved
+    assert storage.load(tmp_path)["packs_folder"] == str(new)
+    assert storage.packs_folder(tmp_path) == new
+    assert len(w.session.store.packs) == 1 and w.session.store.packs[0].name == 'test.pack'
+    assert said_[-1] == f"The packs are now in {new}."
+    assert box.space.text().startswith(f"Packs folder: {new}.")
+
+
+def test_move_is_refused_when_the_new_folder_has_no_room(qtbot, tmp_path, monkeypatch, test_pack):
+    w, old, new, said_ = move_setup(qtbot, tmp_path, monkeypatch, test_pack, free=1000)
+    box = open_manager(w, qtbot)
+    box.move_button.click()
+    assert any("so nothing was moved" in t and "Choose a folder with more room" in t for t in said_)
+    assert (old / "test.pack").exists() and not list(new.iterdir())
+    assert "packs_folder" not in storage.load(tmp_path)
+    assert len(w.session.store.packs) == 1
+
+
+def test_move_into_the_same_or_an_inner_folder_is_refused(qtbot, tmp_path, monkeypatch, test_pack):
+    w, old, new, said_ = move_setup(qtbot, tmp_path, monkeypatch, test_pack)
+    assert not w.move_packs_folder(old)
+    assert "is the packs folder already" in said_[-1]
+    inner = old / "inner"
+    assert not w.move_packs_folder(inner)
+    assert "is inside the packs folder" in said_[-1]
+    assert not inner.exists() and (old / "test.pack").exists()
+
+
+def test_a_failure_part_way_puts_the_packs_back(qtbot, tmp_path, monkeypatch, test_pack):
+    w, old, new, said_ = move_setup(qtbot, tmp_path, monkeypatch, test_pack)
+    (old / "test.pack.part").write_bytes(b"half")
+    real = shutil.move
+    calls = []
+
+    def flaky(src, dst):
+        calls.append(src)
+        if str(src).endswith(".part") and str(dst).startswith(str(new)):
+            raise OSError("disk full")
+        return real(src, dst)
+
+    monkeypatch.setattr(storage.shutil, "move", flaky)
+    assert not w.move_packs_folder(new)
+    assert sorted(p.name for p in old.iterdir()) == ["test.pack", "test.pack.part"]
+    assert not list(new.iterdir())
+    assert "packs_folder" not in storage.load(tmp_path)
+    assert len(w.session.store.packs) == 1 and w.session.store.packs[0].name == 'test.pack'
+    assert "back where they were" in said_[-1]

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -47,6 +48,76 @@ def set_packs_folder(path: Path | None, folder: Path | None = None) -> None:
     else:
         data[PACKS_KEY] = str(path)
     save(data, folder, keep_packs_folder=False)
+
+
+# Moving the packs folder (P4-T6g) ------------------------------------------------------------------
+# A pack's own files only: name.pack, its unfinished download name.pack.part and that download's record
+# name.pack.part.json. Nothing else in either folder is read, moved or deleted.
+
+PACK_FILE_SUFFIXES = (".pack", ".pack.part", ".pack.part.json")
+
+
+def pack_files(folder: Path) -> list[Path]:
+    """The pack files in a folder, as above, packs first."""
+    try:
+        found = [p for p in Path(folder).iterdir() if p.is_file() and p.name.endswith(PACK_FILE_SUFFIXES)]
+    except OSError:
+        return []
+    return sorted(found, key=lambda p: (not p.name.endswith(".pack"), p.name))
+
+
+def free_space(folder: Path) -> int | None:
+    """Bytes free on the drive that holds the folder (or its nearest folder that exists), None when not known."""
+    path = Path(folder)
+    for candidate in (path, *path.parents):
+        if candidate.exists():
+            try:
+                return shutil.disk_usage(candidate).free
+            except OSError:
+                return None
+    return None
+
+
+def move_problem(old: Path, new: Path) -> str | None:
+    """Why the packs cannot go to the new folder, as a code for the core's words: same, inside (it is inside the old
+    folder or the old one is inside it), unwritable, clash (a pack file of the same name is already there), or None."""
+    old, new = Path(os.path.abspath(old)), Path(os.path.abspath(new))
+    if os.path.normcase(old) == os.path.normcase(new):
+        return "same"
+    a, b = os.path.normcase(old), os.path.normcase(new)
+    if a.startswith(b.rstrip(os.sep) + os.sep) or b.startswith(a.rstrip(os.sep) + os.sep):
+        return "inside"
+    try:
+        new.mkdir(parents=True, exist_ok=True)
+        probe = new / ".tobymap-write-test"
+        probe.write_bytes(b"")
+        probe.unlink()
+    except OSError:
+        return "unwritable"
+    if any((new / p.name).exists() for p in pack_files(old)):
+        return "clash"
+    return None
+
+
+def move_pack_files(old: Path, new: Path) -> bool:
+    """Move the pack files from old to new (copied and then deleted across drives). When one fails, the ones already
+    moved are moved back, the part copied is removed, and False is returned: the old folder is as it was."""
+    done: list[tuple[Path, Path]] = []
+    for source in pack_files(old):
+        target = Path(new) / source.name
+        try:
+            shutil.move(str(source), str(target))
+            done.append((source, target))
+        except OSError:
+            if source.exists():   # the copy that did not finish
+                target.unlink(missing_ok=True)
+            for src, dst in reversed(done):
+                try:
+                    shutil.move(str(dst), str(src))
+                except OSError:
+                    pass
+            return False
+    return True
 
 
 def find_packs(folder: Path | None = None, override: str | None = None) -> list[Path]:

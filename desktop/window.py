@@ -241,6 +241,8 @@ class MainWindow(QMainWindow):
         self._background.done.connect(lambda job, found: self.handle(self.session.crossed_finish(job, found)))
         self.spoken_times: list[float] = []
         self._downloader = None   # made on the first install (P4-T6b)
+        self.free_space = storage.free_space   # the tests give a stand-in (P4-T6g)
+        self.folder_chooser = None   # asks for a folder: (parent, title, start) -> path or ""; the tests give a stand-in
         self._catalogues = None   # made on the first fetch of the catalogue (P4-T6d)
         self.offer_world = offer_world   # at start, offer the world pack if it is missing (P4-T6d): the program says yes
         self.pack_opener = None   # the internet, for the catalogue and the packs; the tests give a stand-in (rule 5)
@@ -367,7 +369,37 @@ class MainWindow(QMainWindow):
         from desktop.downloads import parts
 
         downloading = self._downloader.downloading if self._downloader is not None else []
-        return {"downloading": downloading, "parts": parts(storage.packs_folder(self.data_folder))}
+        folder = storage.packs_folder(self.data_folder)
+        return {"downloading": downloading, "parts": parts(folder), "free": self.free_space(folder),
+                "folder": str(folder)}
+
+    def choose_packs_folder(self, parent, title: str, start: str) -> str:
+        """The standard folder box (the words are the core's), or the stand-in the tests give."""
+        if self.folder_chooser is not None:
+            return self.folder_chooser(parent, title, start)
+        return QFileDialog.getExistingDirectory(parent, title, start)
+
+    def move_packs_folder(self, chosen) -> bool:
+        """Move packs folder (P4-T6g): the core accepts the folder, the packs are closed, their files moved, the choice
+        saved and the packs opened again. A failure part way puts everything back and says so. True when moved."""
+        new, old = Path(chosen), storage.packs_folder(self.data_folder)
+        busy = self._downloader is not None and bool(self._downloader.downloading)
+        problem = "busy" if busy else storage.move_problem(old, new)
+        files = storage.pack_files(old)
+        r = self.session.run("packs.manager_move", folder=str(new), problem=problem,
+                             need=sum(f.stat().st_size for f in files), free=self.free_space(new))
+        self.handle(r)
+        if not r.move_packs:
+            return False
+        names = [f.name for f in files if f.name.endswith(".pack")]
+        self.session.remove_packs(names)
+        ok = storage.move_pack_files(old, new)
+        if ok:
+            storage.set_packs_folder(new, self.data_folder)
+        self.handle(self.session.add_packs(storage.find_packs(self.data_folder)))
+        self.handle(self.session.run("packs.manager_moved", folder=str(new), ok=ok))
+        self._refresh_pack_manager()
+        return ok
 
     def _pack_installed(self, entry, path, text: str) -> None:
         from mapcore.session import ASSERTIVE
@@ -854,7 +886,8 @@ class MainWindow(QMainWindow):
         elif kind == "pack_manager":   # P (P4-T6d): the packs, each change kept at once
             box = PackManagerDialog(self, dialog, run=self.session.run, handle=self.handle,
                                     speak=lambda text: self.announcer.speak(text, "assertive"),
-                                    fetch=self.fetch_catalogue, status=self.download_status)
+                                    fetch=self.fetch_catalogue, status=self.download_status,
+                                    choose=self.choose_packs_folder, move=self.move_packs_folder)
         elif kind == "confirm":   # a question, such as Reset all settings (P2-T18h)
             box = ConfirmBox(self, dialog)
             box.finished.connect(lambda _r, b=box: b.confirmed and self._carry_out_answer(

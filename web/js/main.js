@@ -1040,7 +1040,7 @@ function openPackManager(d) {
   const box = packManagerDialog;
   const words = d.words, commands = d.commands;
   let items = d.lines.items, current = d.lines.current;
-  let lines, note, install, update, remove, cancel;
+  let lines, note, space, install, update, remove, cancel;
   const mark = (i) => {
     const item = items[i] || {};
     setAvailable(install, !!item.install);
@@ -1053,6 +1053,7 @@ function openPackManager(d) {
     items = r.pack_manager.items;
     current = r.pack_manager.current;
     note.textContent = r.pack_manager.note || r.pack_manager.none;
+    space.textContent = r.pack_manager.space || "";
     lines.fill(items, current, false);
   };
   const back = () => lines.el.children[lines.current]?.focus();
@@ -1073,12 +1074,15 @@ function openPackManager(d) {
   note = document.createElement("p");
   note.id = "pm-note";
   note.textContent = words.loading;
+  space = document.createElement("p");   // the space left for packs (P4-T6g); the browser has no folder to move
+  space.id = "pm-space";
+  space.textContent = d.lines.space || "";
   install = unavailableButton(words.install, () => command(commands.install, { index: current }), "pm-install");
   update = unavailableButton(words.update, () => command(commands.update, { index: current }), "pm-update");
   remove = unavailableButton(words.remove, () => command(commands.remove, { index: current }), "pm-remove");
   cancel = unavailableButton(words.cancel, () => command(commands.cancel, { index: current }), "pm-cancel");
   const close = button(words.close, () => box.close(), "pm-close");
-  body.append(title, help, lines.el, note, install, update, remove, cancel, close);
+  body.append(title, help, lines.el, note, space, install, update, remove, cancel, close);
   lines.fill(items, current, false);
   packManagerRefresh = () => { if (box.open) listing({ index: current }); };
   box.showModal();

@@ -15,6 +15,7 @@ export class WorkerClient {
     this.latestOnly = new Set();
     this.waiting = new Map();   // background work, by type, sent only when nothing else is waiting (P2-T5, P3-T24a)
     this.onNotice = () => {};   // progress messages from the worker, such as the map download
+    this.onUpdate = () => {};   // the core's answers the worker sends of its own, such as a download that went wrong
   }
 
   send(message) {
@@ -66,6 +67,7 @@ export class WorkerClient {
 
   _answer(data) {
     if (data.notice !== undefined) { this.onNotice(data.notice); return; }
+    if (data.update !== undefined) { this.onUpdate(data.update); return; }   // an answer nothing asked for (P4-T6c)
     const entry = this.inFlight;
     this.inFlight = null;
     if (entry) {

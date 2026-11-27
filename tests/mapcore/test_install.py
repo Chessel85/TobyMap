@@ -5,6 +5,7 @@ import pytest
 
 from mapcore.packs import install
 from mapcore.packs.catalogue import CatalogueError, Entry
+from mapcore.packs.source import DownloadingSource, MemorySource
 
 
 def entry(data: bytes = b"x" * 1000, **change) -> Entry:
@@ -72,3 +73,75 @@ def test_the_words():
     assert "removed" in install.damaged(e) and "checksum" in install.damaged(e)
     assert "could not be downloaded" in install.failed(e)
     assert install.label(entry(title="")) == "world"
+
+
+# The web version (P4-T6c, PCK-4) ------------------------------------------------------------------------------
+
+def test_a_pack_that_fits_or_space_not_known_is_not_refused():
+    e = entry(b"x" * 5_000_000)
+    assert install.no_room(e, None) is None
+    assert install.no_room(e, 5_000_000) is None
+    assert install.no_room(e, 9_000_000_000) is None
+
+
+def test_a_pack_too_big_for_the_space_left_is_refused_saying_what_is_left():
+    e = entry(b"x" * 5_000_001)
+    assert install.no_room(e, 2_999_999) == (
+        "World needs 6 megabytes, and this browser has 2 megabytes left for TobyMap, so it was not downloaded. "
+        "Free some space, then try again.")
+    assert "has 0 megabytes left" in install.no_room(e, -10)
+
+
+def test_a_download_hashes_and_says_its_progress_as_the_bytes_come():
+    data = bytes(range(256)) * 40
+    d = install.Download(entry(data))
+    said = [d.add(data[i:i + 1024]) for i in range(0, len(data), 1024)]
+    assert [s for s in said if s] == [f"Downloading World: {p} percent." for p in range(10, 100, 10)]
+    assert d.end() == (True, "World is downloaded and open.")
+
+
+def test_a_download_that_does_not_match_is_damaged():
+    data = b"x" * 1000
+    d = install.Download(entry(data))
+    d.add(b"y" * 1000)
+    ok, text = d.end()
+    assert not ok and text == install.damaged(entry(data))
+    short = install.Download(entry(data))
+    short.add(data[:999])
+    assert short.end()[0] is False
+
+
+class _Counting(MemorySource):
+    def __init__(self, data):
+        super().__init__(data)
+        self.reads = 0
+
+    def read(self, offset, length):
+        self.reads += 1
+        return super().read(offset, length)
+
+
+def test_a_downloading_pack_reads_what_is_stored_from_there_and_the_rest_by_range_requests():
+    data = bytes(range(256)) * 4
+    remote, stored = _Counting(data), _Counting(data[:100] + bytes(len(data) - 100))
+    source = DownloadingSource(len(data), "world.pack", remote, stored)
+    assert source.size == len(data) and source.name == "world.pack" and not source.complete
+    assert source.read(0, 10) == data[:10] and remote.reads == 1   # nothing is stored yet
+    source.have = 100
+    assert source.read(0, 100) == data[:100] and stored.reads == 1
+    assert source.read(90, 20) == data[90:110] and remote.reads == 2   # partly stored: from the internet
+    source.stored_as(None)   # being moved into place
+    assert source.read(0, 10) == data[:10] and remote.reads == 3 and stored.reads == 1
+    finished = _Counting(data)
+    source.stored_as(finished)
+    assert source.complete
+    assert source.read(1000, 24) == data[1000:] and finished.reads == 1 and remote.reads == 3
+
+
+def test_a_downloading_pack_opens_and_reads_records_before_it_is_stored(test_pack):
+    from mapcore.packs.pack import Pack
+
+    data = test_pack.read_bytes()
+    remote = _Counting(data)
+    pack = Pack(DownloadingSource(len(data), "test.pack", remote, MemorySource(b"")))
+    assert pack.name == "test.pack" and remote.reads > 0

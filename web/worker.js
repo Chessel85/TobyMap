@@ -6,6 +6,14 @@
 // on the first visit into the browser's private storage (OPFS), with progress
 // sent to the page at most every 10 seconds, and read from there afterwards.
 // Where private storage is not available, the pack is held in memory instead.
+// Packs installed from the catalogue (P4-T6c), name.pack in private storage, are opened too.
+//
+// Installing a pack from the catalogue (P4-T6c, PCK-4): the message "install" with the catalogue entry. The
+// core says whether it may be installed, including whether it fits in the space the browser has left. The
+// pack is then downloaded whole into name.pack.part in private storage, written as it comes so a later
+// version can resume it (P4-T6f), and opened at once: records already stored are read from there, the rest
+// by range requests, until the download is complete and checked, when it is moved into place as name.pack.
+// The core hashes the bytes and gives every word; the worker only moves bytes.
 import { loadPyodide } from "./vendor/pyodide/pyodide.mjs";
 
 const ARRAY_TYPES = { f32: Float32Array, i32: Int32Array, u8: Uint8Array };
@@ -13,6 +21,7 @@ const PROGRESS_EVERY_MS = 10_000;
 let bridge = null;
 let startupMs = 0;
 let packs = [];
+const downloads = new Map();   // the downloads in progress, by pack name: each one's AbortController (P4-T6f cancels)
 
 const ready = (async () => {
   const t0 = performance.now();
@@ -40,6 +49,12 @@ const ready = (async () => {
 
 function say(text) {
   self.postMessage({ notice: text });
+}
+
+// An answer from the core that no message of the page's asked for, such as a download that went wrong (P4-T6c).
+function update(result) {
+  const out = finish(result);
+  self.postMessage({ update: out.result }, out.transfer);
 }
 
 // A handle over bytes in memory, with the same two methods as OPFS's synchronous handle.
@@ -114,7 +129,153 @@ async function openPacks() {
     for (const c of chunks) { bytes.set(c, at); at += c.length; }
     opened.push({ name: entry.file, handle: memoryHandle(bytes) });
   }
+  if (root) {   // packs installed from the catalogue (P4-T6c)
+    try {
+      for await (const [name, file] of root.entries()) {
+        if (file.kind !== "file" || !name.endsWith(".pack") || opened.some((p) => p.name === name)) continue;
+        try {
+          opened.push({ name, handle: await file.createSyncAccessHandle() });
+        } catch (e) {
+          console.warn(`${name} could not be opened:`, e);
+        }
+      }
+    } catch (e) {
+      console.warn("Private storage could not be listed:", e);
+    }
+  }
   return opened;
+}
+
+// A handle that reads a pack's bytes over the internet with range requests (PCK-4), with the same two methods
+// as OPFS's synchronous handle. A worker may make a synchronous request, which the core's reads need.
+function rangeHandle(url, size) {
+  return {
+    getSize: () => size,
+    read: (buffer, { at }) => {
+      if (!buffer.length) return 0;
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", url, false);
+      xhr.responseType = "arraybuffer";
+      xhr.setRequestHeader("Range", `bytes=${at}-${at + buffer.length - 1}`);
+      xhr.send();
+      if (xhr.status !== 206 && xhr.status !== 200) throw new Error(`Range request failed: ${xhr.status}`);
+      let bytes = new Uint8Array(xhr.response);
+      if (xhr.status === 200) bytes = bytes.subarray(at, at + buffer.length);   // a server that ignored the range
+      const n = Math.min(bytes.length, buffer.length);
+      buffer.set(bytes.subarray(0, n));
+      return n;
+    },
+  };
+}
+
+function closeQuietly(handle) {
+  try { handle.close(); } catch (e) { /* already closed */ }
+}
+
+async function removeQuietly(root, name) {
+  try { await root.removeEntry(name); } catch (e) { /* not there */ }
+}
+
+// The checked .part file becomes name.pack: moved where the browser can, otherwise copied.
+async function moveIntoPlace(root, partName, fileName) {
+  await removeQuietly(root, fileName);
+  const part = await root.getFileHandle(partName);
+  if (typeof part.move === "function") {
+    await part.move(fileName);
+  } else {
+    const target = await (await root.getFileHandle(fileName, { create: true })).createSyncAccessHandle();
+    try {
+      const reader = (await part.getFile()).stream().getReader();
+      let at = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        target.write(value, { at });
+        at += value.length;
+      }
+      target.flush();
+    } finally {
+      target.close();
+    }
+    await root.removeEntry(partName);
+  }
+  return root.getFileHandle(fileName);
+}
+
+async function installPack(raw, width, height) {
+  let free = -1;
+  try {
+    const estimate = await navigator.storage.estimate();
+    if (estimate && estimate.quota) free = estimate.quota - (estimate.usage || 0);
+  } catch (e) { /* not known: the download is tried */ }
+  const plan = bridge.install_begin(JSON.stringify(raw), free);
+  if (plan.refused) return finish(bridge.install_said(plan.refused, width, height));
+  let root = null, handle = null;
+  const abort = new AbortController();
+  let response;
+  try {
+    root = await navigator.storage.getDirectory();
+    handle = await (await root.getFileHandle(plan.part, { create: true })).createSyncAccessHandle();
+    handle.truncate(0);
+    response = await fetch(plan.url, { signal: abort.signal });
+    if (!response.ok || !response.body) throw new Error(`Could not download ${plan.url}`);
+  } catch (e) {
+    console.warn("The pack could not be downloaded:", e);
+    if (handle) closeQuietly(handle);
+    if (root) await removeQuietly(root, plan.part);
+    return finish(bridge.install_failed(plan.name, width, height));
+  }
+  downloads.set(plan.name, abort);
+  const result = bridge.install_open(plan.name, handle, rangeHandle(plan.url, plan.size), width, height);
+  if (!result.opened) {   // not a pack this version can open: the core has said why
+    abort.abort();
+    closeQuietly(handle);
+    await removeQuietly(root, plan.part);
+    bridge.install_failed(plan.name, width, height, true);
+    downloads.delete(plan.name);
+    return finish(result);
+  }
+  receive(plan, root, handle, response, abort, { width, height }).finally(() => downloads.delete(plan.name));
+  return finish(result);
+}
+
+// The rest of the download, while the worker answers the page as usual between the pieces of data that come.
+// A download that went wrong takes its pack out of use: the core's answer goes to the page as an update.
+async function receive(plan, root, handle, response, abort, size) {
+  try {
+    const reader = response.body.getReader();
+    let at = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      handle.write(value, { at });
+      at += value.length;
+      const words = bridge.install_chunk(plan.name, value);
+      if (words) say(words);
+    }
+    handle.flush();
+  } catch (e) {
+    closeQuietly(handle);
+    await removeQuietly(root, plan.part);
+    update(bridge.install_failed(plan.name, size.width, size.height, abort.signal.aborted));   // cancelled: nothing said (P4-T6f)
+    return;
+  }
+  const end = bridge.install_end(plan.name, size.width, size.height);
+  closeQuietly(handle);
+  if (!end.ok) {
+    await removeQuietly(root, plan.part);
+    update(end.update);
+    return;
+  }
+  try {
+    const file = await moveIntoPlace(root, plan.part, plan.file);
+    bridge.install_stored(plan.name, await file.createSyncAccessHandle());
+    say(end.text);
+  } catch (e) {
+    console.warn("The pack could not be moved into place:", e);
+    await removeQuietly(root, plan.part);
+    update(bridge.install_failed(plan.name, size.width, size.height));
+  }
 }
 
 // Bytes from the bridge become typed arrays, with fresh buffers that can be
@@ -137,7 +298,7 @@ function finish(result) {
 
 self.onmessage = async (event) => {
   const { id, type, commands, width, height, paintMs, saved, at, key, region, event: earcon, keyMs, handedMs, slowMs,
-          problem, samples, rate, factor, pitch, open, text, scope, index, system, bookmarks } = event.data;
+          problem, samples, rate, factor, pitch, open, text, scope, index, system, bookmarks, entry, name } = event.data;
   try {
     await ready;
     let out;
@@ -165,6 +326,12 @@ self.onmessage = async (event) => {
     else if (type === "painted") { bridge.frame_painted(paintMs); out = { result: null, transfer: [] }; }
     else if (type === "shell_times") { bridge.shell_times(keyMs, handedMs); out = { result: null, transfer: [] }; }
     else if (type === "search") out = { result: bridge.search(text || "", JSON.stringify(scope || {})), transfer: [] };
+    else if (type === "install") out = await installPack(entry, width, height);   // a catalogue entry (P4-T6c)
+    else if (type === "install_cancel") {   // a download stopped, its .part file removed (P4-T6f will resume)
+      const abort = downloads.get(name);
+      if (abort) abort.abort();
+      out = { result: !!abort, transfer: [] };
+    }
     else if (type === "packcheck") out = { result: bridge.pack_selfcheck(), transfer: [] };
     else if (type === "storecheck") out = { result: bridge.store_selfcheck(), transfer: [] };
     else throw new Error(`Unknown message ${type}`);

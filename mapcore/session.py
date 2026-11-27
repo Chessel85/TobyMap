@@ -528,6 +528,28 @@ class MapSession:
         self.areas = self._here()
         return r
 
+    def remove_packs(self, names) -> Response:
+        """Packs taken out of use while TobyMap runs (P4-T6c: a download that failed its checksum; P4-T6d: Remove),
+        by name. The session is made afresh round the store without them, as add_packs does, keeping the settings,
+        the place and the bookmarks, and the removed packs are closed. Nothing changes for a name not in use."""
+        from mapcore.store import Store
+
+        names = set(names)
+        gone = [p for p in self.store.packs if p.name in names]
+        r = Response(redraw=bool(gone), panel_stale=bool(gone), details_stale=bool(gone))
+        if not gone:
+            return r
+        saved = self.save()
+        keep = {"map_size": self.map_size, "trace": self.trace, "bookmarks": self.bookmarks}
+        self.__init__(platform=self.platform, store=Store([p for p in self.store.packs if p.name not in names]),
+                      settings=saved["settings"], saved_state=saved["state"], clock=self.clock, system=self.system)
+        for name, value in keep.items():
+            setattr(self, name, value)
+        self.areas = self._here()
+        for pack in gone:
+            pack.close()
+        return r
+
     def run(self, name: str, pressed_in: str | None = None, **args) -> Response:
         """Carry out a command. pressed_in is the region its key was pressed in, when a shell
         knows it: Go to and Type a bearing send the focus back there (P2-T17k). A menu item or

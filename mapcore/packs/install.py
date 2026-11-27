@@ -8,6 +8,7 @@ Every word is from the templates (packs.install_*).
 """
 from __future__ import annotations
 
+import hashlib
 import re
 
 from mapcore.describe import say
@@ -15,6 +16,7 @@ from mapcore.packs.catalogue import CatalogueError, Entry
 from mapcore.packs.pack import _compare, version_tuple
 
 STEP = 10                  # progress is said at most every 10 percent
+MEGABYTE = 1_000_000
 PART = ".part"             # a download in progress: name.pack.part, renamed into place when checked (P4-T6f resumes it)
 _SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
@@ -49,6 +51,20 @@ def refusal(entry: Entry, app_version: str) -> str | None:
     if have is not None and need is not None and _compare(have, need) >= 0 and entry.app_versions.get("before"):
         return say("packs.install_too_new", name=label(entry), before=entry.app_versions["before"], have=app_version)
     return say("packs.install_too_old", name=label(entry), need=entry.app_versions["from"], have=app_version)
+
+
+def _megabytes(size: int, up: bool) -> int:
+    whole, rest = divmod(max(int(size), 0), MEGABYTE)
+    return whole + (1 if up and rest else 0)
+
+
+def no_room(entry: Entry, free: int | None) -> str | None:
+    """Why the pack will not fit in the space the browser has left for TobyMap, with what is left, or None when
+    it fits or the space is not known (P4-T6c, architecture 9.3). The need is rounded up and what is left down."""
+    if free is None or free >= entry.size:
+        return None
+    return say("packs.install_no_room", name=label(entry), need=_megabytes(entry.size, True),
+               left=_megabytes(free, False))
 
 
 def matches(entry: Entry, size: int, sha256: str) -> bool:
@@ -89,3 +105,24 @@ def failed(entry: Entry) -> str:
 
 def busy(entry: Entry) -> str:
     return say("packs.install_busy", name=label(entry))
+
+
+class Download:
+    """One download as it goes on, for a shell that hands over the bytes as they come (the web version,
+    P4-T6c): their checksum, the progress to say, and at the end whether they are the pack the catalogue
+    names, with the words to say."""
+
+    def __init__(self, entry: Entry):
+        self.entry = entry
+        self.progress = Progress(entry)
+        self.digest = hashlib.sha256()
+        self.received = 0
+
+    def add(self, data: bytes) -> str | None:
+        self.digest.update(data)
+        self.received += len(data)
+        return self.progress.update(self.received)
+
+    def end(self) -> tuple[bool, str]:
+        ok = matches(self.entry, self.received, self.digest.hexdigest())
+        return ok, done(self.entry) if ok else damaged(self.entry)

@@ -37,6 +37,9 @@ window.tobymap = { announcements: log, earcons: sounds.played, heard: sounds.hea
   scanStarted: scan.started, scanPlaying: scan.playing,
   // A search in the core, with its time in Pyodide (P3-T8b): for the tests and timing until the dialog comes (P3-T8c).
   search: (text, scope) => client.send({ type: "search", text, scope }),
+  // Installing a pack from a catalogue entry (P4-T6c): for the browser tests until the pack manager (P4-T6d) uses it.
+  // Resolves once the pack is open, or refused; the download goes on, its progress said as notices.
+  install: (entry) => client.send({ type: "install", entry, ...mapSize() }).then((r) => { handle(r); return !!(r && r.opened); }),
   // The language the page marks a name with, or null (P3-T12b), for the browser tests.
   languageOf };
 const told = new Set();   // voice problems and own sound files that failed, each said once
@@ -2227,6 +2230,7 @@ async function boot() {
   mapArea.hidden = false;
   $("side").hidden = false;
   client.onNotice = (text) => speak(text, "polite");   // the map download's progress
+  client.onUpdate = (result) => handle(result);   // a pack download that went wrong, taken out of use (P4-T6c)
   const { width, height } = mapSize();
   let saved = "";
   try { saved = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) { saved = ""; }

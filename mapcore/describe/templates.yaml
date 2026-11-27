@@ -1110,6 +1110,8 @@ packs:
   install_damaged: "{name} did not match its checksum after downloading, so it may be damaged or incomplete. It has been removed. Download it again."
   install_failed: "{name} could not be downloaded, so nothing was changed. Check the connection and try again."
   install_busy: "{name} is still downloading. Wait for it to finish, then try again."
+  # The web version (P4-T6c): the space the browser has left for TobyMap, in whole megabytes, is too small.
+  install_no_room: "{name} needs {need} megabytes, and this browser has {left} megabytes left for TobyMap, so it was not downloaded. Free some space, then try again."
 
 
 # The points of interest of a regional pack (P4-T1f, design docs/plan/p4-t1-design.md 3.10).

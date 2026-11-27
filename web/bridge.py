@@ -292,6 +292,111 @@ def search(text: str, scope_json: str = "{}"):
     return _js({"results": results, "ms": (time.perf_counter() - t) * 1000, "langs": _session.name_languages()})
 
 
+# Installing a pack from the catalogue (P4-T6c, PCK-4, PCK-5). The worker moves the bytes; the core decides
+# whether the pack may be installed, says the progress and checks the bytes (mapcore.packs.install). Each
+# download in progress, by pack name: its install.Download, and the pack's source once it is open.
+_installs: dict = {}
+
+
+def install_begin(entry_json: str, free: float):
+    """A catalogue entry the worker was asked to install, and the space the browser has left for TobyMap in
+    bytes (-1 when not known). {"refused": words} when it is not to be downloaded, otherwise what the worker
+    needs: the pack's name, its file and .part file names, its web address and its size."""
+    from mapcore import version
+    from mapcore.packs import catalogue, install
+
+    try:
+        entry = catalogue.parse(json.dumps({"format": catalogue.FORMAT, "packs": [json.loads(entry_json)]})).entries[0]
+    except (catalogue.CatalogueError, ValueError) as e:
+        return _js({"refused": e.message if isinstance(e, catalogue.CatalogueError) else say("packs.catalogue_unreadable")})
+    if entry.name in _installs:
+        return _js({"refused": install.busy(entry)})
+    refused = install.refusal(entry, version()) or install.no_room(entry, None if free < 0 else int(free))
+    if refused:
+        return _js({"refused": refused})
+    _installs[entry.name] = [install.Download(entry), None]
+    return _js({"name": entry.name, "file": install.file_name(entry), "part": install.part_name(entry),
+                "url": entry.url_web, "size": entry.size})
+
+
+def install_said(text: str, width: int, height: int):
+    """Words about an install, said straight away, as an answer the page handles like any other."""
+    from mapcore.session import ASSERTIVE, Response
+
+    return _js(_extras(Response().speak(text, ASSERTIVE), {}, width, height))
+
+
+def install_open(name: str, stored, remote, width: int, height: int):
+    """The download has begun: the pack is opened and added to the map at once, reading what is stored in the
+    .part file (stored, a synchronous access handle) and the rest by range requests (remote, a handle with the
+    same two methods), so the map can be used while it downloads (PCK-4). opened is false when it could not be
+    opened, and the words are in the answer."""
+    from mapcore.packs import install
+    from mapcore.packs.source import DownloadingSource
+
+    record = _installs[name]
+    entry = record[0].entry
+    source = DownloadingSource(entry.size, install.file_name(entry), HandleSource(remote, entry.url_web),
+                               HandleSource(stored, install.part_name(entry)))
+    response = _session.add_packs([source])
+    opened = any(getattr(p, "source", None) is source for p in _session.store.packs)
+    record[1] = source if opened else None
+    return _js(_extras(response, {"opened": opened}, width, height))
+
+
+def install_chunk(name: str, chunk) -> str | None:
+    """Bytes just written to the .part file: counted and hashed. The progress words to say, or None."""
+    download, source = _installs[name]
+    words = download.add(bytes(chunk.to_py()))
+    if source is not None:
+        source.have = download.received
+    return words
+
+
+def _taken_out(name: str, text: str, width: int, height: int):
+    """A download that went wrong: its pack is taken out of use (MapSession.remove_packs), and the words said,
+    as an answer the page handles like any other. Empty text says nothing (a cancelled download, P4-T6f)."""
+    from mapcore.packs import install
+    from mapcore.session import ASSERTIVE, Response
+
+    download, source = _installs.pop(name)
+    response = _session.remove_packs([install.file_name(download.entry)]) if source is not None else Response()
+    if text:
+        response.speak(text, ASSERTIVE)
+    return _js(_extras(response, {}, width, height))
+
+
+def install_end(name: str, width: int, height: int):
+    """Every byte has come: {"ok", "update"}. Until install_stored, the pack is read from the internet, as the
+    .part file is closed and moved into place. A download that did not match is taken out of use, and update is
+    the answer for the page that says so; the worker removes its file."""
+    download, source = _installs[name]
+    if source is not None:
+        source.stored_as(None)
+    ok, text = download.end()
+    if ok:
+        return _js({"ok": True, "text": text})
+    return _js({"ok": False, "update": _taken_out(name, text, width, height)})
+
+
+def install_stored(name: str, stored) -> None:
+    """The checked pack is in place: it is read from there from now on."""
+    from mapcore.packs import install
+
+    download, source = _installs.pop(name)
+    if source is not None:
+        source.stored_as(HandleSource(stored, install.file_name(download.entry)))
+
+
+def install_failed(name: str, width: int, height: int, quiet: bool = False):
+    """The download stopped (no connection, storage that could not be written, or cancelled when quiet): the pack
+    is taken out of use, and the answer for the page says so. The worker removes its .part file."""
+    from mapcore.packs import install
+
+    entry = _installs[name][0].entry
+    return _taken_out(name, "" if quiet else install.failed(entry), width, height)
+
+
 def pack_selfcheck():
     """The pack format's self-check in Pyodide (P1-T2): a list of problems, empty when all is well."""
     from mapcore.packs import selfcheck

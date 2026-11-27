@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "packs": [
+    {"name": "world", "title": "World", "version": "2026.11.1", "date": "2026-11-20", "size": 552000000,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "url_desktop": "https://github.com/Chessel85/TobyMap/releases/download/packs-1/world.pack",
+     "url_web": "https://huggingface.co/datasets/example/tobymap/resolve/main/world.pack",
+     "app_versions": {"from": "0.1.0"}, "coverage": "The whole world", "depends": [],
+     "sources": {"osm": "2026-11-01"}},
+    {"name": "england", "version": "2026.11.1", "date": "2026-11-21", "size": 968300000,
+     "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "url_desktop": "https://example.org/england.pack", "url_web": "https://example.org/web/england.pack",
+     "app_versions": {"from": "0.1.0", "before": "0.2.0"}, "depends": ["world"]}
+  ]
+}

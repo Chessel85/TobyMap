@@ -1094,6 +1094,14 @@ packs:
   damaged_record: "Part of {name} is damaged, and TobyMap is carrying on without it. Download the pack again. The damaged record is {record}."
   set_aside: "{message} It has been moved out of use, and TobyMap is carrying on with the other packs."
   checksum_wrong: "{name} does not match its checksum, so it may be damaged or incomplete. Download it again."
+  # The catalogue of packs that can be downloaded (P4-T6a). {name} is a pack, {field} the part of its entry that is wrong.
+  catalogue_unreadable: "The list of packs that can be downloaded could not be read, so no pack is offered. Try again later."
+  catalogue_newer: "The list of packs that can be downloaded is for a newer version of TobyMap. Update TobyMap to see it."
+  catalogue_field: "The list of packs that can be downloaded is wrong for {name}: its {field} is missing or not valid."
+  catalogue_twice: "The list of packs that can be downloaded names {name} more than once."
+  state_installed: "installed"
+  state_not_installed: "not installed"
+  state_update: "update available"
 
 
 # The points of interest of a regional pack (P4-T1f, design docs/plan/p4-t1-design.md 3.10).

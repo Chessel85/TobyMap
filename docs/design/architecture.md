@@ -557,6 +557,7 @@ Each feature record holds:
 ### 6.10 The catalogue
 * One small file, catalogue.json, lists every published pack: name, version, date, size, checksum, download address, coverage, dependencies, compatible application versions, and the dates of its sources.
 * The pack manager reads it to offer installs and updates (PCK-2).
+  * As built (P4-T6a): mapcore/packs/catalogue.py parses the text the shell hands over (no network, no file). The top level is {"format": 1, "packs": [...]}. Each entry has name, version, date, size (bytes), sha256, url_desktop (GitHub Releases), url_web (Hugging Face) and app_versions ({"from", optional "before"}, the same rules as a pack manifest), and optionally title, coverage, depends (pack names) and sources. Anything missing or mistyped raises CatalogueError, with its words from the templates. state() gives installed, not installed or update available from the installed packs' versions (compared by the numbers in them, so dates work too); an update this application cannot use is not offered.
 
 ### 6.11 Personal data
 * Settings, key bindings, layer choices and position history are stored as JSON, separately from packs (PLT-5).

@@ -141,6 +141,20 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 
 Last updated 27 November 2026. Read this first to resume.
 
+### Night of 27 to 28 November 2026 (the PO away, actions.txt)
+
+The PO's answers: the points of interest list (p4-t1f-poi-categories.csv) is kept as it is; the P4-T1 design choices for England need no change. The night's plan, in order:
+
+1. P4-T1n Lakes lying in the sea (DP224) and P4-T3f the compact feature table (DP225), tried on the Hampshire rehearsal and the Western Europe trial. New task IDs, given by the orchestrator.
+2. The world pack rebuilt from the lakes stage onwards, which takes in the groups of islands (P4-T13b).
+3. England rerun from its lakes stage onwards, with the new writing stage.
+4. Built twice, identical (P4-T2e for England, DMT-1 for the world) on these new packs.
+5. If time is left: P4-T3d with both packs in the browsers, and P4-T7b memory, the laptop otherwise idle.
+
+Progress tonight:
+
+* (filled in as each step ends)
+
 ### Where things stand
 
 * Everything listed under Progress is committed and pushed. The tick list is docs/plan/phase-4.md.

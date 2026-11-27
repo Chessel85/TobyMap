@@ -7,9 +7,11 @@
   nearest point, and the distance and bearing to it (INF-3, INF-7).
 * feature(id): a feature record by its identifier.
 
-Phase 1 has one pack. The store keeps a list of packs and asks which of them
-covers a point, so Phase 4 can add pack tile coverage and let the most
-detailed pack win (AD-14).
+Several packs may be open together (P4-T3a, AD-14, mapcore/store/packs_combined.py): regional packs first,
+the finest coverage first, then the world pack. Inside a regional pack's covered pack tiles it answers for its
+layers, and the world pack's features of those layers are left out there, for where am I, Nearby, the places
+near a point, and Crossed and passed. Elsewhere, and for every other layer, the world pack answers, and nothing
+is said about missing detail (PLT-4). A feature both packs hold, by the same identifier, is given once.
 
 A damaged record is noted in `problems` and the store carries on without it
 (NFR-4).
@@ -36,6 +38,7 @@ from mapcore.geo import geodesy
 from mapcore.packs import tiles
 from mapcore.packs.pack import DamagedRecord, Pack
 from mapcore.store import contents
+from mapcore.store.packs_combined import coverage_of, detail_order
 from mapcore.store.contents import TREE_LAYERS, special_kind  # noqa: F401 (special_kind is used by the session)
 from mapcore.store.cache import TileCache, TileData
 from mapcore.store.projection import Flat
@@ -354,6 +357,17 @@ def join_parts(lines: list, metres: float = JOIN_M) -> list:
     return out
 
 
+def _first_by_id(found, last: bool = False) -> list:
+    """Crossings or passings, one for each feature by its identifier, though two packs hold it (P4-T3a): the
+    first along the path, or with last the last (where the path leaves an area)."""
+    best: dict = {}
+    for c in found:
+        old = best.get(c.area.id)
+        if old is None or (c.along_m > old.along_m if last else c.along_m < old.along_m):
+            best[c.area.id] = c
+    return list(best.values())
+
+
 class _PackIndex:
     """What the store keeps about one pack: its features' boxes, and which pack tiles exist."""
 
@@ -364,6 +378,7 @@ class _PackIndex:
         self._sizes = None
         self._ids = None
         self._layer_by_id = None
+        self._layer_by_number = None
         self._points: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
         self._tile_index: dict[tuple[str, int], tuple[np.ndarray, np.ndarray]] = {}
         by_kind: dict[tuple[str, int], list[tuple[int, int]]] = {}
@@ -415,6 +430,13 @@ class _PackIndex:
         if self._layer_by_id is None:
             self._layer_by_id = dict(zip(self.ids.tolist(), self.sizes[1].tolist()))
         return self._layer_by_id
+
+    def layer_of_number(self, number: int) -> str:
+        """A feature's layer by its number, from the feature table, with no record read (P4-T3a)."""
+        if self._layer_by_number is None:
+            numbers, _boxes = self.boxes
+            self._layer_by_number = dict(zip(numbers.tolist(), self.sizes[1].tolist()))
+        return self._layer_by_number.get(number, "")
 
     def _read_table(self) -> None:
         numbers, box, widths, layer_of, ids = [], [], [], [], []
@@ -480,9 +502,14 @@ class Store:
         # water_islands' answers, by water: (the islands in it by their shore, how many of them the stored "held"
         # leaves out, and how many the stored "counts" leaves out) (P3-T32g)
         self._isles: dict[str, tuple[list[str], int, int]] = {}
-        for p in packs if isinstance(packs, (list, tuple)) else [packs]:
-            pack = p if isinstance(p, Pack) else Pack(p)
-            self._indexes.append(_PackIndex(pack, self.problems))
+        opened = [p if isinstance(p, Pack) else Pack(p)
+                  for p in (packs if isinstance(packs, (list, tuple)) else [packs])]
+        # The most detailed first (P4-T3a): regional packs, the finest coverage first, then the world pack.
+        for k in detail_order(opened):
+            self._indexes.append(_PackIndex(opened[k], self.problems))
+        self._coverages = [coverage_of(i.pack) for i in self._indexes]
+        world = [p for p, cov in enumerate(self._coverages) if cov is None]
+        self._world = world[0] if world else None   # the world pack that answers where no regional pack does
 
     @property
     def packs(self) -> list[Pack]:
@@ -506,9 +533,51 @@ class Store:
     # Reading tiles -------------------------------------------------------------
 
     def _covering(self, lat: float, lon: float) -> list[int]:
-        """The packs that cover a point, the one to use first. Phase 1: a
-        world pack covers everywhere, and the first one installed is used."""
-        return list(range(len(self._indexes)))
+        """The packs that answer at a point, most detailed first (P4-T3a): each regional pack whose coverage
+        holds it, then the world pack. A second world pack is not asked, as before Phase 4."""
+        out = [p for p, cov in enumerate(self._coverages) if cov is not None and cov.covers(lat, lon)]
+        if self._world is not None:
+            out.append(self._world)
+        return out
+
+    def _used(self) -> list[int]:
+        """Every pack a question over a path may ask: the regional packs and the world pack."""
+        return [p for p, cov in enumerate(self._coverages) if cov is not None or p == self._world]
+
+    def _hidden(self, p: int, layer: str, lat: float, lon: float) -> bool:
+        """Whether pack p's features of a layer are left out at a point, because a more detailed pack covers
+        the point and answers for that layer there (P4-T3a)."""
+        for q in range(p):
+            cov = self._coverages[q]
+            if cov is not None and layer in cov.layers and cov.covers(lat, lon):
+                return True
+        return False
+
+    def _taken(self, packs) -> list[frozenset]:
+        """For each of the packs, in order, the layers the packs before it answer for: those it leaves out."""
+        out, taken = [], frozenset()
+        for p in packs:
+            out.append(taken)
+            cov = self._coverages[p]
+            if cov is not None:
+                taken = taken | cov.layers
+        return out
+
+    def drawn_packs(self, zoom_km: float, boxes) -> list[int]:
+        """The packs a view draws, most detailed first (P4-T3a): each regional pack whose coverage meets one of
+        the view's boxes (west, south, east, north), when the view is narrower than the pack's draw_below_km,
+        then the world pack. A wider view is drawn by the world pack alone."""
+        out = []
+        for p, cov in enumerate(self._coverages):
+            if cov is not None and zoom_km < cov.draw_below_km and any(cov.meets_box(b) for b in boxes):
+                out.append(p)
+        if self._world is not None:
+            out.append(self._world)
+        return out
+
+    def coverage(self, p: int):
+        """Pack p's coverage (mapcore.store.packs_combined.Coverage), or None for the world pack."""
+        return self._coverages[p]
 
     def _tile(self, p: int, kind: str, level: int, x: int, y: int) -> TileData:
         """The tile entries of a pack tile ("tile") or drawing tile ("draw"), cached."""
@@ -531,7 +600,7 @@ class Store:
         level. Returns how many were read."""
         lon = geodesy.wrap_lon(lon)
         count = 0
-        for p in self._covering(lat, lon)[:1]:
+        for p in self._covering(lat, lon):
             for level in self._indexes[p].pack.tile_levels:
                 x, y = tiles.tile_of(lon, lat, level)
                 n = 2 ** level
@@ -607,7 +676,9 @@ class Store:
 
         lon = geodesy.wrap_lon(lon)
         found: dict[tuple[int, int], Area] = {}
-        for p in self._covering(lat, lon)[:1]:
+        seen: set = set()
+        covering = self._covering(lat, lon)
+        for p, taken in zip(covering, self._taken(covering)):
             index = self._indexes[p]
             for level in index.pack.tile_levels:
                 x, y = tiles.tile_of(lon, lat, level)
@@ -617,14 +688,17 @@ class Store:
                 for i, entry in enumerate(data.entries):
                     if (p, entry.feature) in found or entry.kind not in tiles.AREA_KINDS:
                         continue   # lines and points have no inside, so are never "here"
+                    if taken and index.layer_of_number(entry.feature) in taken:
+                        continue   # a more detailed pack answers for this layer here (P4-T3a)
                     if entry.kind != tiles.COVERED:
                         with self._shapes:
                             inside = shapely.intersects_xy(data.shape(i), lon, lat)
                         if not inside:
                             continue
                     area = self._area(p, entry.feature)
-                    if area is not None and (layers is None or area.layer in layers):
+                    if area is not None and (layers is None or area.layer in layers) and area.id not in seen:
                         found[(p, entry.feature)] = area
+                        seen.add(area.id)
         return most_specific_first(found.values(), self.tiers)
 
     @property
@@ -652,7 +726,7 @@ class Store:
         if not pieces:
             return []
         found: dict[tuple[int, int], Crossing] = {}
-        for p in range(len(self._indexes)):
+        for p in self._used():
             index = self._indexes[p]
             line_layers = {d["id"] for d in index.pack.layers or [] if d.get("geometry") == "line"}
             if layers is not None:
@@ -681,11 +755,13 @@ class Store:
                                     accept is not None and not accept(area)):
                                 continue
                             for point in shapely.get_coordinates(met).tolist():
+                                if self._hidden(p, area.layer, point[1], point[0]):
+                                    continue   # a more detailed pack answers for this layer here (P4-T3a)
                                 along = _along_m(path, point[1], point[0])
                                 old = found.get((p, entry.feature))
                                 if old is None or along < old.along_m:
                                     found[(p, entry.feature)] = Crossing(area, point[1], point[0], along)
-        return sorted(found.values(), key=lambda c: (c.along_m, c.area.id))
+        return sorted(_first_by_id(found.values()), key=lambda c: (c.along_m, c.area.id))
 
     def along_path(self, path, passed_m: float, layers=None, accept=None, cancelled=None) -> list[Passed]:
         """Crossed and passed (P2-T5, ANN-2, architecture 7.5): what a move's path went over
@@ -710,11 +786,18 @@ class Store:
                              for c in self.crossed_lines(path, layers=layers, accept=accept)]
         check()
         start, end = path[0], path[-1]
-        ends = {(a.pack, a.number) for a in self.at(*start) + self.at(*end)}
+        ends = set()
+        for a in self.at(*start) + self.at(*end):
+            # The same feature in every pack that holds it, so a feature you start or end in is never "passed
+            # over" because another pack holds it too (P4-T3a).
+            for q in self._used():
+                number = a.number if q == a.pack else self._indexes[q].pack.feature_number(a.id)
+                if number is not None:
+                    ends.add((q, number))
         over: dict[tuple[int, int], Passed] = {}
         near: dict[tuple[int, int], Passed] = {}
         dlat = passed_m / M_PER_DEG_LAT_MIN
-        for p in range(len(self._indexes)):
+        for p in self._used():
             index = self._indexes[p]
             kinds = {d["id"]: d.get("geometry", "area") for d in index.pack.layers or []}
             wanted = {k for k, g in kinds.items() if g in ("area", "point") and (layers is None or k in layers)}
@@ -745,8 +828,8 @@ class Store:
                                 self._passed_point(data, i, key, path, passed_m, wanted, accept, near)
                             elif key not in ends:
                                 self._passed_over(data, i, box, key, piece, path, wanted, accept, over)
-        out += over.values()
-        out += near.values()
+        out += _first_by_id(over.values(), last=True)
+        out += _first_by_id(near.values())
         return sorted(out, key=lambda c: (c.along_m, c.area.id))
 
     def _passed_point(self, data, i, key, path, passed_m, wanted, accept, near) -> None:
@@ -762,6 +845,8 @@ class Store:
             area = self._area(*key)
             if area is None or area.layer not in wanted or (accept is not None and not accept(area)):
                 return
+            if self._hidden(key[0], area.layer, lat, lon):
+                continue   # a more detailed pack answers for this layer here (P4-T3a)
             old = near[key] = Passed(area, "passed", lat, lon, closest, along)
 
     def _passed_over(self, data, i, box, key, piece, path, wanted, accept, over) -> None:
@@ -778,6 +863,8 @@ class Store:
         # Where the path leaves it, the last point inside along the path.
         old = over.get(key)
         for lon, lat in shapely.get_coordinates(met).tolist():
+            if self._hidden(key[0], area.layer, lat, lon):
+                continue   # a more detailed pack answers for this layer here (P4-T3a)
             along = _along_m(path, lat, lon)
             if old is None or along > old.along_m:
                 old = over[key] = Passed(area, "passed over", lat, lon, 0.0, along)
@@ -797,8 +884,13 @@ class Store:
         """
         lon = geodesy.wrap_lon(lon)
         flat = Flat(lat, lon)
-        results: list[Near] = []
-        for p in self._covering(lat, lon)[:1]:
+        best: dict[str, Near] = {}
+        # Every pack the radius may reach (P4-T3a). A pack's feature of a layer a more detailed pack answers
+        # for is left out when its nearest point is in that pack's coverage; one both packs hold is given once,
+        # at the nearer of its two nearest points, the more detailed pack's on a tie.
+        packs = self._used() if any(c is not None for c in self._coverages) else self._covering(lat, lon)[:1]
+        for p in packs:
+            results: list[Near] = []
             numbers, boxes = self._indexes[p].boxes
             bound = self._box_distance_m(boxes, lat, lon)
             order = np.argsort(bound, kind="stable")
@@ -812,10 +904,14 @@ class Store:
                         or (accept is not None and not accept(area)):
                     continue
                 found = self._nearest(p, area, flat, lat, lon, float(bound[k]), radius_m)
-                if found is not None:
+                if found is not None and not self._hidden(p, area.layer, found.lat, found.lon):
                     results.append(found)
                     results.sort(key=lambda n: (n.distance_m, n.area.id))
-        return results[:limit]
+            for found in results[:limit]:
+                old = best.get(found.area.id)
+                if old is None or found.distance_m < old.distance_m:
+                    best[found.area.id] = found
+        return sorted(best.values(), key=lambda n: (n.distance_m, n.area.id))[:limit]
 
     def points_near(self, lat: float, lon: float, radius_m: float, layer: str) -> list[Near]:
         """The places of one point in a layer within radius_m of the point, nearest first, measured on the
@@ -823,7 +919,9 @@ class Store:
         that layer are looked at, from arrays kept in memory, so it is quick enough for every press of Space."""
         lon = geodesy.wrap_lon(lon)
         out: list[Near] = []
-        for p in self._covering(lat, lon)[:1]:
+        seen: set = set()
+        packs = self._used() if any(c is not None for c in self._coverages) else self._covering(lat, lon)[:1]
+        for p in packs:
             numbers, lats, lons = self._indexes[p].points_of(layer)
             if not len(numbers):
                 continue
@@ -838,10 +936,11 @@ class Store:
                 continue
             dist, bear = geodesy.inverse_many(lat, lon, lats[rows], lons[rows])
             for k, d, b in zip(rows.tolist(), dist.tolist(), bear.tolist()):
-                if d > radius_m:
+                if d > radius_m or self._hidden(p, layer, float(lats[k]), float(lons[k])):
                     continue
                 area = self._area(p, int(numbers[k]))
-                if area is not None:
+                if area is not None and area.id not in seen:
+                    seen.add(area.id)
                     out.append(Near(area, d, 0.0 if d == 0.0 else b, float(lats[k]), float(lons[k]), d == 0.0))
         out.sort(key=lambda n: (n.distance_m, n.area.id))
         return out

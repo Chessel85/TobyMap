@@ -293,6 +293,30 @@ class VisibleRule:
             found.append(rows)
         return np.concatenate(found) if found else np.zeros(0, np.intp)
 
+    # Which packs (P4-T3a) ------------------------------------------------------------
+
+    def drawn(self, lat: float, lon: float, zoom_m: float, rho: float) -> list[int]:
+        """The packs the view draws, most detailed first, as the map does (Store.drawn_packs)."""
+        if not hasattr(self.store, "drawn_packs"):
+            return self.store._covering(lat, lon)[:1]
+        return self.store.drawn_packs(zoom_m / 1000.0, _cap_boxes(lat, lon, min(math.pi, rho)))
+
+    def unhidden(self, p: int, rows: np.ndarray, drawn) -> np.ndarray:
+        """The rows of pack p's feature table less those a more detailed pack drawn hides: a feature of a
+        layer that pack answers for, whose box lies wholly in its coverage (P4-T3a)."""
+        earlier = [self.store.coverage(q) for q in drawn if q < p] if hasattr(self.store, "coverage") else []
+        earlier = [cov for cov in earlier if cov is not None]
+        if not earlier or not len(rows):
+            return rows
+        _numbers, boxes, _w, layer_of = self._table(p)
+        for cov in earlier:
+            covered = np.fromiter((layer in cov.layers for layer in layer_of[rows].tolist()), bool, len(rows))
+            if covered.any():
+                inside = np.zeros(len(rows), bool)
+                inside[covered] = cov.contains_boxes(boxes[rows[covered]])
+                rows = rows[~inside]
+        return rows
+
     # The view -----------------------------------------------------------------------
 
     def features(self, lat: float, lon: float, zoom_m: float, any_zoom_range: bool = False) -> frozenset:
@@ -317,9 +341,11 @@ class VisibleRule:
         west, south, east, north = box
         spans = [(west, east)] if west <= east else [(west, 180.0), (-180.0, east)]
         out: list[str] = []
-        for p in self.store._covering(lat, lon)[:1]:
+        drawn = self.drawn(lat, lon, zoom_m, rho * MARGIN)
+        for p in drawn:
             numbers, boxes, _w, _l = self._table(p)
             rows = self._candidates(p, zoom_m, lat, math.degrees(rho), lon, rho * MARGIN, any_zoom_range=True)
+            rows = self.unhidden(p, rows, drawn)
             if not len(rows):
                 continue
             near, _far = box_reach(boxes[rows], lat, lon)
@@ -349,10 +375,12 @@ class VisibleRule:
         lon = geodesy.wrap_lon(lon)
         rho = zoom_m / geodesy.R_MEAN_M
         out = []
-        for p in self.store._covering(lat, lon)[:1]:
+        drawn = self.drawn(lat, lon, zoom_m, rho * MARGIN)
+        for p in drawn:
             numbers, boxes, _w, _l = self._table(p)
             # The difference in latitude alone is never more than the distance.
             rows = self._candidates(p, zoom_m, lat, math.degrees(rho), lon, rho * MARGIN, any_zoom_range)
+            rows = self.unhidden(p, rows, drawn)
             if not len(rows):
                 continue
             near, far = box_reach(boxes[rows], lat, lon)

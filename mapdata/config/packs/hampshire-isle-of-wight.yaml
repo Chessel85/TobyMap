@@ -9,8 +9,9 @@
 name: hampshire-isle-of-wight   # region: the pack's name
 title: "Hampshire and the Isle of Wight, the rehearsal of the Great Britain pack: streets, paths, land use, parks, school grounds, points of interest and every administrative level."   # region:
 version: 0.1.0
-# app_versions: P4-T3a sets the first version of the application that opens a regional pack (design 2.4).
-app_versions: {from: 0.0.1}
+# app_versions: the first version of the application that combines packs (P4-T3a, design 2.4). An older one would
+# read a regional pack as a world pack, so it refuses it.
+app_versions: {from: 0.1.1}
 coverage: {kind: region, draw_below_km: 250}
 layer_groups: [base, regional]
 space_needed_mb: 10000   # region: until the rehearsal gives a better figure (design 7.2)

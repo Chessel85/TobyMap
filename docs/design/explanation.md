@@ -478,7 +478,7 @@ The map is drawn from the pack, not from a separate picture. The core chooses wh
 
 ## How several packs work together
 
-This section explains what happens when more than one pack is installed: the world pack, and later regional packs such as Great Britain, and grid packs such as detailed elevation. The design is in architecture AD-13, AD-14 and section 6.8. Combining packs is built in Phase 4, task P4-T3, so this describes the design, not something measured yet.
+This section explains what happens when more than one pack is installed: the world pack, and later regional packs such as Great Britain, and grid packs such as detailed elevation. The design is in architecture AD-13, AD-14 and section 6.8. Combining packs is built in Phase 4, task P4-T3. The first part, P4-T3a, which pack answers where, was built on 27 November 2026; the rest of this section says which parts are still to come.
 
 ### Words used in this section
 
@@ -492,7 +492,9 @@ These are defined in full in the glossary.
 
 ### The short answer
 
-The application does not search every pack when you move. For each place it uses one pack for the shapes, the most detailed one installed there. The other packs are not read. So a step costs about the same with one pack installed or with ten.
+The application does not search every pack when you move. For each place and each layer it asks one pack, the most detailed one installed there that has the layer. A pack that does not cover the place is not read. So a step costs about the same with one pack installed or with ten.
+
+Inside a regional pack's coverage, the world pack is still asked for the layers the regional pack does not have, such as continents, mountain ranges and towns. For the layers both have, such as counties and seas, only the regional pack answers there.
 
 ### What each pack says about itself
 
@@ -504,10 +506,14 @@ Each pack's manifest lists the pack tiles it covers in detail.
 
 ### What happens when you step
 
-1. When the packs are opened, the application builds a table in memory: for each pack tile, which installed pack has the most detail there.
-2. When you step, the lookup works out which pack tiles you are in, one at each tile level, and finds each in that table. This is a look-up in memory, not a search through the packs.
-3. It reads those pack tiles from that one pack, or from the pack tile cache if it has read them already.
+1. When the packs are opened, the application puts the regional packs first, the most detailed first, and the world pack last. For each regional pack it keeps, in memory, the list of its covered pack tiles.
+2. When you step, the lookup works out which pack tile you are in at each tile level the list uses, and looks each up in the list. This is a look-up in memory, not a search through the packs.
+3. Where a regional pack covers the place, it answers for its layers. The world pack answers for the other layers, and its features of the regional pack's layers are left out there.
 4. Where no regional pack covers the place, the base pack answers. Nothing is said about missing detail (PLT-4).
+
+Nearby and Crossed and passed work the same way. A world feature is left out where its nearest point, or the point where you cross it, is inside the coverage of a regional pack that has its layer. A feature both packs hold, under the same identifier, is said once.
+
+On the map, a view wider than 250 kilometres is drawn by the world pack alone. A closer view that reaches a regional pack's coverage draws both: the regional pack's shapes, and the world pack's with the coverage cut out of the layers they share. Where the two meet, along the edge of the coverage, no outline is drawn, as at the edge of a pack tile.
 
 For example, with the base pack and the Great Britain pack installed:
 
@@ -520,7 +526,8 @@ Hampshire is in the base pack, and it would also be in the Great Britain pack. I
 
 * Every feature keeps one identifier in every pack, such as osm:r172799 for Hampshire (AD-13).
 * When a regional pack is built, its features are matched to the base pack's, mostly by their Wikidata identifier, and keep the base pack's identifier.
-* So Hampshire is announced once, its facts and relationships from both packs are joined, and a bookmark on it keeps working whichever packs are installed.
+* So Hampshire is announced once, and a bookmark on it keeps working whichever packs are installed.
+* Joining its facts and relationships from both packs, so that Within, Contains and Bordering list it once, is the next part, P4-T3b. Search across both packs is P4-T3c.
 
 Roads and paths that cross from one regional pack into the next join at the same OpenStreetMap points, so travelling along them carries on across the join.
 

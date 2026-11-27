@@ -24,7 +24,7 @@ class TileData:
     """The tile entries of one pack tile or drawing tile, with their shapes
     decoded when first asked for."""
 
-    __slots__ = ("entries", "by_feature", "shapes", "cost", "owner", "drawing", "some")
+    __slots__ = ("entries", "by_feature", "shapes", "cost", "owner", "drawing", "some", "cuts")
 
     def __init__(self, entries: list[tiles.TileEntry]):
         self.entries = entries
@@ -36,6 +36,7 @@ class TileData:
         self.owner = None  # the cache that holds this tile, told when shapes are decoded
         self.drawing = None  # every shape of the tile, decoded at once, for the map scene (P2-T14c)
         self.some = None  # shapes of single entries decoded by shapes_of, unprepared
+        self.cuts = None  # shapes with a regional pack's coverage cut out, for the map scene (P4-T3a)
 
     def shapes_of(self, indices, box) -> dict:
         """The shapes of some entries, by entry index, unprepared, as drawing_shapes

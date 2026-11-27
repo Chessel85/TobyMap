@@ -28,6 +28,10 @@ be drawn left-aligned beside it; "bookmark_style" the theme's colours for them.
 Artificial edges, the cuts along pack tile boundaries (which include the
 180 degree line and the South Pole), are marked as seams: filled, never
 outlined (AD-17), so Fiji and Russia draw whole across the line.
+
+With a regional pack open (P4-T3a), a view narrower than its draw_below_km that meets its coverage draws both
+packs: the regional pack's shapes, and the world pack's with the coverage cut out of those of the layers the
+regional pack answers for. Where the two meet, along the edges of covered pack tiles, the edges are seams too.
 """
 from __future__ import annotations
 
@@ -253,6 +257,72 @@ def plan_for(index, kind: str, d: dict | None, wanted) -> list[tuple]:
     return plan
 
 
+def drawn_packs(store, zoom_km: float, intervals, south: float, north: float) -> list[int]:
+    """The packs a view draws, most detailed first (P4-T3a): Store.drawn_packs for the view's boxes. A store
+    without it (an older one, in a test) draws its first pack, as before Phase 4."""
+    if not hasattr(store, "drawn_packs"):
+        return store._covering(0.0, 0.0)[:1]
+    return store.drawn_packs(zoom_km, [(west, south, east, north) for west, east in intervals])
+
+
+def coverage_of_pack(store, p: int):
+    """Pack p's coverage in the store, or None for the world pack."""
+    return store.coverage(p) if hasattr(store, "coverage") else None
+
+
+def _cut_covered(data, shapes, found, box, cutters):
+    """The shapes of a tile less the parts a more detailed pack draws: for each coverage, the shapes of the
+    layers it answers for lose the coverage within the tile's box, or are left out where it fills the box.
+    Each cut is made once a shape and kept with the tile (P4-T3a)."""
+    import shapely
+
+    for cov in cutters:
+        part = cov.part_in(box)
+        if part is None:
+            continue
+        mask = np.fromiter((f[3] in cov.layers for f in found), bool, len(found))
+        if not mask.any():
+            continue
+        if part is True:
+            keep = ~mask
+        else:
+            cuts = data.cuts
+            if cuts is None:
+                cuts = data.cuts = {}
+            shapes = shapes.copy()
+            rows = np.nonzero(mask)[0].tolist()
+            todo = [k for k in rows if (id(cov), id(shapes[k])) not in cuts]
+            if todo:
+                made = shapely.difference(shapes[todo], part)
+                for k, shape in zip(todo, made):
+                    cuts[(id(cov), id(shapes[k]))] = (shapes[k], shape)   # the shape itself is kept, so its id stays its own
+            for k in rows:
+                shapes[k] = cuts[(id(cov), id(shapes[k]))][1]
+            keep = ~shapely.is_empty(shapes)
+        if not keep.all():
+            shapes = shapes[keep]
+            found = [f for f, k in zip(found, keep) if k]
+        if not len(shapes):
+            break
+    return shapes, found
+
+
+def _grid_seams(lon, lat, nxt, is_last, tol, grid) -> np.ndarray:
+    """The edges that run along a grid line of the drawn coverages' finest tile level, inside their boxes: the
+    cuts where a regional pack and the world pack meet (P4-T3a, AD-17)."""
+    level, areas = grid
+    nx, ny = 2 ** level / 360.0, 2 ** level / 180.0
+    gx0, gx1 = (lon + 180.0) * nx, (lon[nxt] + 180.0) * nx
+    gy0, gy1 = (lat + 90.0) * ny, (lat[nxt] + 90.0) * ny
+    rx, ry = np.round(gx0), np.round(gy0)
+    on = (((np.abs(gx0 - rx) < tol * nx) & (np.abs(gx1 - rx) < tol * nx))
+          | ((np.abs(gy0 - ry) < tol * ny) & (np.abs(gy1 - ry) < tol * ny)))
+    near = np.zeros(len(lon), bool)
+    for w, s, e, n in areas:
+        near |= (lon >= w - tol) & (lon <= e + tol) & (lat >= s - tol) & (lat <= n + tol)
+    return on & near & ~is_last
+
+
 class SceneBuilder:
     def __init__(self, store, theme: dict | None = None):
         self.store = store
@@ -291,8 +361,13 @@ class SceneBuilder:
         draw}, the drawing's limit (P3-T24a): only those entries of a tile are decoded."""
         geoms, feats, boxes, tile_of = [], [], [], []
         intervals, south, north = _cap(lat, lon, rho * 1.15)
-        for p in self.store._covering(lat, lon)[:1]:
+        drawn = drawn_packs(self.store, zoom_km, intervals, south, north)
+        regional = [cov for cov in (coverage_of_pack(self.store, q) for q in drawn) if cov is not None]
+        self._seam_grid = (max(max(c.levels) for c in regional if c.levels),
+                           [c.bbox for c in regional if c.bbox]) if any(c.levels for c in regional) else None
+        for p in drawn:
             index = self.store._indexes[p]
+            cutters = [cov for q in drawn if q < p for cov in [coverage_of_pack(self.store, q)] if cov is not None]
             kind, d = self._source(zoom_km, index)
             # The layers asked for; isolating a feature may need any layer (VIS-2).
             every = [x["id"] for x in index.pack.layers]
@@ -311,7 +386,7 @@ class SceneBuilder:
                         if not data.entries:
                             continue
                         box = tiles.tile_box(level, x, y)
-                        wanted_here = None if limit is None or isolate is not None else limit.get(p, set())
+                        wanted_here = None if limit is None or isolate is not None else limit.get(p)   # a pack not limited draws all
                         drawn_here = None if wanted_here is None else wanted_here.intersection(data.by_feature)
                         partial = drawn_here is not None and data.drawing is None and len(drawn_here) < len(data.by_feature)
                         if data.drawing is None:
@@ -357,6 +432,11 @@ class SceneBuilder:
                             if not keep.all():
                                 shapes = shapes[keep]
                                 found = [f for f, k in zip(found, keep) if k]
+                            if not len(shapes):
+                                continue
+                        if cutters:
+                            # A more detailed pack draws these layers in its coverage (P4-T3a).
+                            shapes, found = _cut_covered(data, shapes, found, box, cutters)
                             if not len(shapes):
                                 continue
                         geoms.append(shapes)
@@ -696,6 +776,9 @@ class SceneBuilder:
             seam = (((np.abs(x0 - w) < tol) & (np.abs(x1 - w) < tol)) | ((np.abs(x0 - e) < tol) & (np.abs(x1 - e) < tol))
                     | ((np.abs(y0 - s) < tol) & (np.abs(y1 - s) < tol)) | ((np.abs(y0 - n) < tol) & (np.abs(y1 - n) < tol)))
             seam &= ~is_last
+            grid = getattr(self, "_seam_grid", None)
+            if grid is not None:
+                seam |= _grid_seams(lon, lat, nxt, is_last, tol, grid)
             # Edges running along the pushed-out horizon are not real either.
             seam |= hidden & hidden[nxt] & ~is_last
 

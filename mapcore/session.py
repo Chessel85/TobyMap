@@ -239,7 +239,8 @@ class MapSession:
         self.store.set_names(self.settings["names"])   # English or local names (P3-T12a)
         # The layers, with the user's changes from the settings in use (SCP-6, SCP-7).
         # The layers as the map view in use has them, with the user's changes on top (P3-T23, DP198).
-        self.layers = LayerCatalogue(self.store.packs, lambda: self.settings.layers,
+        # The world pack's layers first, so the list keeps its order with a regional pack open (P4-T3a).
+        self.layers = LayerCatalogue(self.store.packs[::-1], lambda: self.settings.layers,
                                      lambda: views_mod.layer_values(self.view()), own=own_layers())
         # Which features are visible: layer, zoom range, size and view (NAV-13, P2-T4a).
         self.visible = VisibleRule(self.store, self.layers)
@@ -679,8 +680,10 @@ class MapSession:
         r = globe._radius(view, width, height)
         rho = math.asin(min(1.0, math.hypot(width / 2, height / 2) / r))
         limit, trimmed = {}, False
-        for p in self.store._covering(world.lat, world.lon)[:1]:
+        drawn = self.visible.drawn(world.lat, world.lon, world.zoom_m, rho * 1.15)   # P4-T3a
+        for p in drawn:
             rows = self.visible._candidates(p, world.zoom_m, world.lat, math.degrees(rho) * 1.15, world.lon, rho * 1.15)
+            rows = self.visible.unhidden(p, rows, drawn)
             numbers, boxes, widths, layer_of = self.visible._table(p)
             if layers is not None:
                 ids, code = self.visible._layer_codes(p)

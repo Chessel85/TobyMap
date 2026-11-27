@@ -42,6 +42,11 @@ Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP22
   * [x] P4-T2d Checks: 45 of 45 check places (tests/acceptance/street_places_england.yaml added), streets, islands, the sea off Cornwall; steps 99.3 percent within 150 ms (NFR-1).
   * [ ] P4-T2e Built twice, identical: waits for your yes.
 * [ ] P4-T3 Combining packs.
+  * [x] P4-T3a Several packs open together, 27 November 2026: the regional pack answers for its layers in its covered pack tiles, the world pack everywhere else and for its other layers; drawn together below 250 kilometres.
+  * [ ] P4-T3b Features and relationships merged.
+  * [ ] P4-T3c Search across packs.
+  * [ ] P4-T3d The web version with two packs.
+  * [ ] P4-T3e At the edge of the pack.
 
 ## Bookmarks
 

@@ -10,7 +10,7 @@
 name: test-region
 title: The regional test pack, three small areas of Hampshire from the samples in the repository.
 version: 0.1.0
-app_versions: {from: 0.0.1}
+app_versions: {from: 0.1.1}
 coverage: {kind: region, draw_below_km: 250}
 layer_groups: [base, regional]
 space_needed_mb: 50

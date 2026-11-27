@@ -157,7 +157,8 @@ Progress tonight:
 * P4-T1n follow-up 5070f1b: great-britain.yaml given the same setting (test_coverage keeps it equal to England and the rehearsal).
 * P4-T3f DONE, f422b4e (Opus subagent; report docs/plan/p4-t3f-feature-table-report.md). Pack format 5 with the compact feature table; 64 feature groups and 50,000 feature records kept. Hampshire: first place said 5.0 to 1.6 s, memory 898 to 370 MB, pack 43.2 to 48.1 MB, written identical twice. Estimate England about 540 MB of table in memory (over the 300 to 400 aim), world about 50 MB. Full Python suite 2,974 passed after the Great Britain fix (one espeak voice test failed once in the long run and passed alone).
 * Builds run from the snapshot worktree C:\Users\chess\github\Mapping-build (at f422b4e) under a supervisor script that restarts with 6, 3, then 2 workers, stops on a code error or continue.txt "no", and writes "<pack> console.txt" beside the output folders.
-* Western Europe trial rebuild from osm-layer started 16:32, as the rehearsal of both changes.
+* Western Europe trial rebuilt 16:32 to 17:02 (30 min 25 s, 6 workers), the rehearsal of both changes: 60 of 60 check places, pack 56.86 MB (55.19 before), peak 519 MB in the build's own process. Opens on the desktop with first place said in 1.3 to 1.8 s, 357 MB.
+* World rebuild started 17:02 (6 workers). The fingerprints rerun it from stage 4 (graticule) onwards, not only from the lakes: the pipeline code changed since 21 November (P4-T1l, P4-T1m, P4-T13b). Expected 6 to 7 hours.
 
 ### Where things stand
 

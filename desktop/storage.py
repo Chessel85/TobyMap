@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 PACK_ENV = "TOBYMAP_PACKS"   # a folder (or a pack file) to use instead of the default
+PACKS_KEY = "packs_folder"   # in settings.json: the packs folder you chose, when not the default (P4-T6b, AD-18)
 
 
 def app_data_folder() -> Path:
@@ -31,13 +32,30 @@ def pack_folder(folder: Path | None = None) -> Path:
     return Path(folder or app_data_folder()) / "packs"
 
 
+def packs_folder(folder: Path | None = None) -> Path:
+    """The packs folder in use: the one chosen in the settings (P4-T6b; P4-T6g lets you move it), else the
+    default one in the application data folder. Downloads go here."""
+    chosen = load(folder).get(PACKS_KEY)
+    return Path(chosen) if isinstance(chosen, str) and chosen else pack_folder(folder)
+
+
+def set_packs_folder(path: Path | None, folder: Path | None = None) -> None:
+    """Choose the packs folder, or None for the default. The rest of the settings are kept."""
+    data = load(folder)
+    if path is None:
+        data.pop(PACKS_KEY, None)
+    else:
+        data[PACKS_KEY] = str(path)
+    save(data, folder, keep_packs_folder=False)
+
+
 def find_packs(folder: Path | None = None, override: str | None = None) -> list[Path]:
     """The pack files to open: TOBYMAP_PACKS if set, else the packs folder."""
     given = override if override is not None else os.environ.get(PACK_ENV)
     if given:
         path = Path(given)
         return [path] if path.is_file() else sorted(path.glob("*.pack"))
-    return sorted(pack_folder(folder).glob("*.pack"))
+    return sorted(packs_folder(folder).glob("*.pack"))
 
 
 def set_aside_pack(path: Path) -> Path | None:
@@ -64,7 +82,13 @@ def load(folder: Path | None = None) -> dict:
         return {}
 
 
-def save(data: dict, folder: Path | None = None) -> Path:
+def save(data: dict, folder: Path | None = None, keep_packs_folder: bool = True) -> Path:
+    """The settings written. The packs folder chosen is the desktop's own, not the core's, so it is kept
+    when the data has none, as when the session saves or settings are imported."""
+    if keep_packs_folder and PACKS_KEY not in data:
+        chosen = load(folder).get(PACKS_KEY)
+        if chosen:
+            data = {**data, PACKS_KEY: chosen}
     path = settings_file(folder)
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_suffix(".tmp")

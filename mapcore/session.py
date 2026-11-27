@@ -503,6 +503,31 @@ class MapSession:
             r.speak(say("bookmarks.damaged"), POLITE)
         return self._record("start", r)
 
+    def add_packs(self, sources) -> Response:
+        """Packs just installed (P4-T6b), opened and added to those in use while TobyMap runs. A pack of the same
+        name as one open takes its place; the one replaced is left for the shell to close. The session is made
+        afresh round the new store, as Reset all settings does, keeping the settings, the place and the bookmarks.
+        A pack that fails its checks is said and left out, as at start (NFR-4)."""
+        from mapcore.packs.pack import is_damage, open_packs
+        from mapcore.store import Store
+
+        opened, failed = open_packs(list(sources))
+        r = Response(redraw=bool(opened), panel_stale=bool(opened), details_stale=bool(opened))
+        r.packs_damaged = [e.pack for e in failed if is_damage(e)]
+        for e in failed:
+            r.speak(say("packs.set_aside", message=e.message) if is_damage(e) else e.message, POLITE)
+        if not opened:
+            return r
+        names = {p.name for p in opened}
+        saved = self.save()
+        keep = {"map_size": self.map_size, "trace": self.trace, "bookmarks": self.bookmarks}
+        self.__init__(platform=self.platform, store=Store([p for p in self.store.packs if p.name not in names] + opened),
+                      settings=saved["settings"], saved_state=saved["state"], clock=self.clock, system=self.system)
+        for name, value in keep.items():
+            setattr(self, name, value)
+        self.areas = self._here()
+        return r
+
     def run(self, name: str, pressed_in: str | None = None, **args) -> Response:
         """Carry out a command. pressed_in is the region its key was pressed in, when a shell
         knows it: Go to and Type a bearing send the focus back there (P2-T17k). A menu item or

@@ -1102,6 +1102,14 @@ packs:
   state_installed: "installed"
   state_not_installed: "not installed"
   state_update: "update available"
+  # Installing a pack from the catalogue (P4-T6b, PCK-5). {name} is the pack's title, or its name when it has none.
+  install_progress: "Downloading {name}: {percent} percent."
+  install_done: "{name} is downloaded and open."
+  install_too_old: "{name} needs TobyMap {need} or later, and this is TobyMap {have}, so it was not downloaded. Update TobyMap to use it."
+  install_too_new: "{name} was made for versions of TobyMap before {before}, and this is TobyMap {have}, so it was not downloaded."
+  install_damaged: "{name} did not match its checksum after downloading, so it may be damaged or incomplete. It has been removed. Download it again."
+  install_failed: "{name} could not be downloaded, so nothing was changed. Check the connection and try again."
+  install_busy: "{name} is still downloading. Wait for it to finish, then try again."
 
 
 # The points of interest of a regional pack (P4-T1f, design docs/plan/p4-t1-design.md 3.10).

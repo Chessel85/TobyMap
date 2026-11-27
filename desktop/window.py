@@ -238,6 +238,7 @@ class MainWindow(QMainWindow):
         self._background = _Background(self, self.session)
         self._background.done.connect(lambda job, found: self.handle(self.session.crossed_finish(job, found)))
         self.spoken_times: list[float] = []
+        self._downloader = None   # made on the first install (P4-T6b)
 
         self.map = MapWidget(self, self.session)
         # Our own tree accessibility, so NVDA says level 1 for a group and level 2
@@ -333,7 +334,43 @@ class MainWindow(QMainWindow):
                           settings=saved.get("settings"), saved_state=saved.get("state"), start_at=start_at,
                           bookmarks=storage.load_bookmarks(self.data_folder))
 
+    # Installing a pack (P4-T6b, PCK-5) ----------------------------------------
+    # The pack manager (P4-T6d) calls install_pack with a catalogue entry. The bytes come on a thread of
+    # their own; the words, and the pack opened in the session, come back on the window's thread.
+
+    def install_pack(self, entry, opener=None) -> bool:
+        """Download a catalogue entry into the packs folder and open it. False, with the reason said, when
+        it is refused at once: a pack this version cannot use, or another download still running."""
+        from desktop.downloads import Downloader
+        from mapcore.session import ASSERTIVE
+
+        if self._downloader is None:
+            self._downloader = Downloader(self)
+            self._downloader.said.connect(lambda text: self.handle(Response().speak(text)))
+            self._downloader.finished.connect(self._pack_installed)
+        if opener is not None:
+            self._downloader.opener = opener
+        refused = self._downloader.start(entry, storage.packs_folder(self.data_folder))
+        if refused:
+            self.handle(Response().speak(refused, ASSERTIVE))
+            return False
+        return True
+
+    def _pack_installed(self, entry, path, text: str) -> None:
+        from mapcore.session import ASSERTIVE
+
+        if path is None:
+            if text:
+                self.handle(Response().speak(text, ASSERTIVE))
+            return
+        response = self.session.add_packs([path])
+        if not response.packs_damaged and len(response.announcements) == 0:
+            response.speak(text, ASSERTIVE)
+        self.handle(response)
+
     def closeEvent(self, event):
+        if self._downloader is not None:
+            self._downloader.cancel()
         self.save()
         self._hold_clock.stop()
         self._beacon.stop()

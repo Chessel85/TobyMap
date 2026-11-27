@@ -30,6 +30,14 @@ Settings:
 * same_as: optional, a list of layers whose names the new features must not
   repeat: the Caspian Sea is a lake in OpenStreetMap, but already in the
   Oceans and seas layer, so it is left out of the lakes.
+* in_sea: optional, layers (such as [oceans, seas]) and share (0.5 if not
+  given). OpenStreetMap maps some lagoons and fjords as water inside its
+  coastline, such as Ringkobing Fjord and Loch Ewe, so the user would hear a
+  lake and a sea at one point (DP224, P4-T1n). A new feature with more than
+  share of its area in those layers is left out, as the sea already holds it;
+  any other that overlaps them keeps only its part outside them. A feature
+  cut to nothing, or only to parts under SLIVER_KM2, is left out too. Areas
+  are on the ellipsoid, as in mapdata.stages.geodesy.
 * box: optional, [west, south, east, north].
 """
 from __future__ import annotations
@@ -46,9 +54,12 @@ import shapely.ops
 
 from mapdata.pipeline import features
 from mapdata.pipeline.errors import BuildStopped
+from mapdata.stages.geodesy import areas_km2
 from mapdata.stages.osm_places import leave_out_repeats, osm_id, place_record
 
 READ_VERSION = "osm-layer-1"
+SEA_SHARE = 0.5      # in_sea: a feature with more than this share of its area in the sea is left out (DP224)
+SLIVER_KM2 = 0.01    # in_sea: a part left outside the sea smaller than this, 1 hectare, is a sliver and dropped
 REQUEST = "request.json"
 READ_FOLDER = "read"
 METRES_PER_DEGREE = 111_320.0
@@ -184,6 +195,69 @@ def missing(lakes: list[dict], geoms: list, within_km: float, records: list[dict
     return out
 
 
+def _robust(op, a, b):
+    """op of two shapes; when GEOS refuses the pair, such as with a TopologyException, done again with both made
+    valid, and failing that on a grid of 1e-9 degrees, as relationships.robust does."""
+    try:
+        return op(a, b)
+    except shapely.errors.GEOSException:
+        pass
+    try:
+        return op(shapely.make_valid(a), shapely.make_valid(b))
+    except shapely.errors.GEOSException:
+        return op(shapely.make_valid(a), shapely.make_valid(b), grid_size=1e-9)
+
+
+def _areas_only(g) -> list:
+    """The polygons of a shape made valid, without the lines and points an intersection can leave."""
+    g = shapely.make_valid(g) if not g.is_valid else g
+    return [q for p in shapely.get_parts(g) for q in shapely.get_parts(p)
+            if q.geom_type == "Polygon" and not q.is_empty]
+
+
+def out_of_sea(records: list[dict], geoms: list, sea: list, share: float = SEA_SHARE,
+               sliver_km2: float = SLIVER_KM2) -> tuple[list[dict], list, list[tuple[str, float]],
+                                                        list[tuple[str, float]]]:
+    """The features with the sea taken out (DP224, P4-T1n): one with more than share of its area in the sea is
+    left out; one that overlaps it less keeps only its part outside it, less any part under sliver_km2, and is
+    left out if nothing is left. The sea is a list of shapes that may overlap, such as the oceans and the seas.
+    Returns the records and shapes kept, in order, and the (name, share in the sea) of those left out and of
+    those cut."""
+    import numpy as np
+
+    parts = np.array([p for g in sea for p in shapely.get_parts(g) if not p.is_empty], dtype=object)
+    if len(parts) == 0 or not records:
+        return list(records), list(geoms), [], []
+    tree = shapely.STRtree(parts)
+    keep_r, keep_g, left, cut = [], [], [], []
+    for r, g in zip(records, geoms):
+        hits = tree.query(g, predicate="intersects")
+        wet = []
+        for i in hits.tolist():
+            wet.extend(_areas_only(_robust(shapely.intersection, g, parts[i])))
+        if not wet:
+            keep_r.append(r)
+            keep_g.append(g)
+            continue
+        # The oceans and the seas overlap, so the bits in the sea are joined before they are measured.
+        wet_g = shapely.union_all(wet) if len(wet) > 1 else wet[0]
+        whole_km2, wet_km2 = (float(a) for a in areas_km2([g, wet_g]))
+        part = wet_km2 / whole_km2 if whole_km2 > 0 else 1.0
+        if part > share:
+            left.append((r["name"], part))
+            continue
+        dry = _areas_only(_robust(shapely.difference, g, wet_g))
+        dry = [p for p, a in zip(dry, areas_km2(dry)) if a >= sliver_km2] if dry else []
+        if not dry:
+            left.append((r["name"], part))
+            continue
+        out = dry[0] if len(dry) == 1 else shapely.MultiPolygon(dry)
+        keep_r.append(r)
+        keep_g.append(shapely.set_precision(out, 1e-7))
+        cut.append((r["name"], part))
+    return keep_r, keep_g, left, cut
+
+
 def run(ctx) -> None:
     s = ctx.settings
     layer = s.get("layer")
@@ -218,11 +292,29 @@ def run(ctx) -> None:
         before, _g = features.load_layers(ctx.previous, layers)
         names = {v for r in before for v in (r.get("name"), r.get("local_name")) if v}
         n_records, n_geoms, left = leave_out_repeats(n_records, n_geoms, names)
+    in_sea = s.get("in_sea")
+    sea_left: list[tuple[str, float]] = []
+    sea_cut: list[tuple[str, float]] = []
+    if in_sea:
+        sea_layers = set(in_sea.get("layers") or ["oceans", "seas"])
+        share = float(in_sea.get("share", SEA_SHARE))
+        _r, sea = features.load_layers(ctx.previous, sea_layers)
+        n_records, n_geoms, sea_left, sea_cut = out_of_sea(n_records, n_geoms, sea, share)
     for name in ("features.json", "shapes.wkb"):
         shutil.copyfile(ctx.previous / name, ctx.claim(ctx.folder / name))
     features.append(ctx.folder, n_records, [shapely.to_wkb(g) for g in n_geoms])
     for name in left:
         ctx.progress.line(f"Left out of the layer {layer}, as the layers {', '.join(s['same_as'])} have it: {name}.")
+    if in_sea:
+        ctx.progress.line(f"In the sea, the layers {', '.join(sorted(sea_layers))}: {len(sea_left):,} of the layer "
+                          f"{layer} left out, as more than {share:.0%} of each is in the sea or only slivers are "
+                          f"left outside it, and {len(sea_cut):,} cut to their part outside the sea. The log lists "
+                          "them.")
+        for name, part in sea_left:
+            ctx.progress.log(f"Left out of the layer {layer}, as it lies in the sea: {name}, {part:.0%} in the sea.")
+        for name, part in sea_cut:
+            ctx.progress.log(f"Cut to its part outside the sea, in the layer {layer}: {name}, {part:.0%} was in "
+                             "the sea.")
     kinds: dict[str, int] = {}
     for r in n_records:
         kinds[r["type"]] = kinds.get(r["type"], 0) + 1

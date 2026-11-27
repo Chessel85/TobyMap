@@ -69,3 +69,66 @@ def test_a_simplified_outline_keeps_only_its_areas():
     g = osm_layer.polygonal(bow)
     assert g.is_valid and g.geom_type == "MultiPolygon" and g.area > 0
     assert osm_layer.polygonal(shapely.LineString([(0, 0), (1, 1)])) is None
+
+
+# P4-T1n, DP224: a lake lying in the sea -------------------------------------------------------------------------
+
+def _lake(name, *box):
+    return {"id": f"osm:w-{name}", "layer": "lakes", "name": name, "type": "lagoon"}, shapely.box(*box)
+
+
+SEA = [shapely.box(0.0, 50.0, 1.0, 51.0),        # the ocean, east of 0 degrees
+       shapely.box(0.5, 50.0, 1.0, 50.5)]        # a sea inside it: the ocean and the sea overlap
+
+
+def test_a_lake_wholly_in_the_sea_is_left_out():
+    r, g = _lake("Loch Ewe", 0.2, 50.2, 0.3, 50.3)
+    recs, geoms, left, cut = osm_layer.out_of_sea([r], [g], SEA)
+    assert recs == [] and geoms == []
+    assert [name for name, _share in left] == ["Loch Ewe"] and cut == []
+
+
+def test_a_lake_mostly_in_the_sea_is_left_out():
+    r, g = _lake("Ringkobing Fjord", -0.04, 50.2, 0.06, 50.3)   # 60% east of 0 degrees
+    recs, _g, left, _cut = osm_layer.out_of_sea([r], [g], SEA)
+    assert recs == [] and left[0][0] == "Ringkobing Fjord" and 0.55 < left[0][1] < 0.65
+
+
+def test_a_lake_partly_in_the_sea_keeps_only_its_part_outside_it():
+    r, g = _lake("Etang", -0.3, 50.2, 0.1, 50.3)   # a quarter east of 0 degrees
+    recs, geoms, left, cut = osm_layer.out_of_sea([r], [g], SEA)
+    assert recs == [r] and left == []
+    assert [name for name, _share in cut] == ["Etang"]
+    out = geoms[0]
+    assert out.is_valid and out.geom_type == "Polygon"
+    assert abs(out.bounds[2]) < 1e-6 and abs(out.bounds[0] + 0.3) < 1e-6   # its east shore is now the coast
+    assert out.intersection(SEA[0]).area < 1e-12
+
+
+def test_a_lake_on_land_or_touching_the_sea_is_unchanged():
+    on_land = _lake("Lac Leman", -0.6, 50.2, -0.4, 50.3)
+    touching = _lake("Shore Lake", -0.2, 50.2, 0.0, 50.3)
+    recs, geoms, left, cut = osm_layer.out_of_sea([on_land[0], touching[0]], [on_land[1], touching[1]], SEA)
+    assert recs == [on_land[0], touching[0]] and left == [] and cut == []
+    assert geoms[0].equals(on_land[1]) and geoms[1].equals(touching[1])
+
+
+def test_a_lake_cut_to_slivers_is_left_out():
+    """A lake whose part outside the sea is only a sliver, under SLIVER_KM2, is left out with the share kept."""
+    r, g = _lake("Thin", -0.000001, 50.2, 0.4, 50.3)
+    recs, _g, left, cut = osm_layer.out_of_sea([r], [g], SEA, share=1.0)   # not left out by its share alone
+    assert recs == [] and [name for name, _s in left] == ["Thin"] and cut == []
+
+
+def test_the_share_is_a_setting_and_no_sea_changes_nothing():
+    r, g = _lake("Half", -0.04, 50.2, 0.06, 50.3)
+    recs, _g, left, cut = osm_layer.out_of_sea([r], [g], SEA, share=0.7)   # 60% is not more than 70%
+    assert recs == [r] and left == [] and [n for n, _s in cut] == ["Half"]
+    assert osm_layer.out_of_sea([r], [g], []) == ([r], [g], [], [])
+    assert osm_layer.SEA_SHARE == 0.5
+
+
+def test_the_world_and_trial_packs_take_the_sea_out_of_their_lakes():
+    for name in ("world", "trial-western-europe"):
+        stage = next(s for s in load_pack(name).stages if s["stage"] == "osm-layer" and s["layer"] == "lakes")
+        assert stage["in_sea"] == {"layers": ["oceans", "seas"], "share": 0.5}

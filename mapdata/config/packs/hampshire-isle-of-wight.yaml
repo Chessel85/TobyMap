@@ -63,6 +63,9 @@ stages:
     min_km2: 0
     tolerance_m: 5
     same_as: [oceans, seas]
+    # A lake more than half in the oceans and seas is left out, as the sea holds it; the rest lose any part in
+    # the sea (P4-T1n, DP224).
+    in_sea: {layers: [oceans, seas], share: 0.5}
     box: [-2.06, 50.41, -0.63, 51.49]   # region:
   # Every other lake, pond, reservoir and basin, of any size, into the lakes; unnamed ones by their type's words
   # ("Pond", "Unnamed lake"); a river's area left out (P4-T1c).

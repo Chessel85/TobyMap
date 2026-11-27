@@ -66,6 +66,10 @@ stages:
     tolerance_m: 100
     # The Caspian Sea is a lake in OpenStreetMap, but already in the Oceans and seas layer.
     same_as: [oceans, seas]
+    # OpenStreetMap maps some lagoons and fjords as water inside its coastline, such as Ringkobing Fjord: a lake
+    # more than half in the oceans and seas is left out, as the sea holds it, and the rest lose any part in the sea
+    # (P4-T1n, DP224).
+    in_sea: {layers: [oceans, seas], share: 0.5}
     check: hydrolakes-points
     check_km2: 100
     check_within_km: 2

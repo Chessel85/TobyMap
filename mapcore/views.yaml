@@ -40,10 +40,9 @@ drawing_order:
   - parks
   - school-grounds
   - national_parks  # National parks, a regional pack's outlines over the land use, not filled.
-  - physical-regions  # 5. Physical regions, larger under smaller. The groups of islands (P4-T13b) are not listed
-                      # yet: an area layer not listed is drawn after the listed areas, before the outlines, and theirs
-                      # is outlined, not filled. Where they go in this order waits for the PO (DP198 approved it).
+  - physical-regions  # 5. Physical regions, larger under smaller.
   - islands         # 6. Islands.
+  - island-groups   # Groups of islands, next to the islands and above them (the PO, 27 November 2026; P4-T13b).
   - mountain-ranges   # 7. Mountain ranges, larger under smaller.
   - lakes           # 8. Lakes and rivers: a country reaches across a lake to its border, so the lake comes after it.
   - rivers

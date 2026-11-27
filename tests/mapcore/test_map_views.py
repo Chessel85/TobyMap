@@ -47,7 +47,7 @@ def _choose(session, label):
 def test_the_drawing_order_is_the_definitions():
     # The layers of a regional pack (P4-T1i) take their places among these; the world's layers keep their order.
     world = ["oceans", "seas", "territorial-waters", "countries", "regions", "counties", "physical-regions",
-             "islands", "mountain-ranges", "lakes", "rivers", "outlines", "roads", "railways"]
+             "islands", "island-groups", "mountain-ranges", "lakes", "rivers", "outlines", "roads", "railways"]
     assert [layer for layer in views.drawing_order() if layer in world] == world
 
 

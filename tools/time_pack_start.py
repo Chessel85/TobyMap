@@ -3,6 +3,7 @@
     .venv\\Scripts\\python.exe tools\\time_pack_start.py pad <pack> --mb 300 --out <padded.pack>
     .venv\\Scripts\\python.exe tools\\time_pack_start.py desktop <pack> [<pack> ...] [--runs 3] [--json FILE]
     .venv\\Scripts\\python.exe tools\\time_pack_start.py web <pack> [<pack> ...] [--browser chromium] [--json FILE]
+    .venv\\Scripts\\python.exe tools\\time_pack_start.py web <world.pack> <england.pack> --together
 
 pad: a copy of a pack made larger with padding records, which the
 application never reads, of the same average size as the pack's own pack
@@ -26,7 +27,9 @@ pack into the browser's private storage as it would from the internet (here
 from this computer, so far faster). Measures the first visit (download
 included), the storage used, and a second visit, when the pack is read from
 storage: the time until the map is ready and names the place, and the memory
-of the browser's processes.
+of the browser's processes. Then a walk of 30 steps east, each drawn, and the
+memory again. With --together, the packs are served and opened together, as
+the world pack and a regional pack are (P4-T3d), in place of one at a time.
 
 The download time at 10 and 50 megabits a second is worked out from the
 pack's size, not measured.
@@ -203,7 +206,7 @@ def run_desktop(packs: list[Path], runs: int) -> list[dict]:
 
 # The web version ------------------------------------------------------------------
 
-def run_web(packs: list[Path], browsers: list[str]) -> list[dict]:
+def run_web(packs: list[Path], browsers: list[str], together: bool = False) -> list[dict]:
     import functools
     import http.server
     import threading
@@ -216,17 +219,25 @@ def run_web(packs: list[Path], browsers: list[str]) -> list[dict]:
     stage_web.stage()
     out = []
     with sync_playwright() as p:
-        for pack in packs:
-            serve_web.Handler.pack = pack.resolve()
+        for group in ([packs] if together else [[pack] for pack in packs]):
+            serve_web.Handler.pack, serve_web.Handler.packs = None, []
+            if len(group) == 1:
+                serve_web.Handler.pack = group[0].resolve()
+            else:
+                serve_web.Handler.packs = [pack.resolve() for pack in group]
+            names = " and ".join(pack.name for pack in group)
             handler = functools.partial(serve_web.Handler, directory=str(serve_web.WEB))
             server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
             threading.Thread(target=server.serve_forever, daemon=True).start()
             url = f"http://127.0.0.1:{server.server_address[1]}/index.html?at={START_AT}"
             try:
                 for name in browsers:
-                    with tempfile.TemporaryDirectory() as profile:
+                    profile = tempfile.mkdtemp()
+                    r = {"pack": " + ".join(str(pack) for pack in group),
+                         "bytes": sum(pack.stat().st_size for pack in group), "browser": name}
+                    context = None
+                    try:
                         context = getattr(p, name).launch_persistent_context(profile, viewport={"width": 1200, "height": 800})
-                        r = {"pack": str(pack), "bytes": pack.stat().st_size, "browser": name}
                         for visit in ("first", "second"):
                             page = context.new_page()
                             t = time.perf_counter()
@@ -235,22 +246,63 @@ def run_web(packs: list[Path], browsers: list[str]) -> list[dict]:
                                                    timeout=1_800_000, polling=100)
                             took = time.perf_counter() - t
                             if page.evaluate("window.tobymap.error"):
-                                raise SystemExit(f"{name}: {page.evaluate('window.tobymap.error')}")
+                                # Recorded, and the next browser still tried (P4-T3d).
+                                r["error"] = page.evaluate("window.tobymap.error")
+                                r["error_memory_mb"] = browser_memory_mb()
+                                break
                             label = page.evaluate("document.getElementById('map').getAttribute('aria-label')")
                             page.wait_for_timeout(3000)   # the spatial voice and sounds load after the start
                             r[visit] = {"ready_s": took, "named": label, "memory_mb": browser_memory_mb(),
                                         "storage_mb": page.evaluate(
                                             "navigator.storage.estimate().then(e => e.usage)") / 1e6}
+                            if visit == "second":
+                                r["walk"] = web_walk(page)
                             page.close()
-                        context.close()
-                        out.append(r)
-                        print(f"{name.capitalize()}, {pack.name}: first visit ready in {r['first']['ready_s']:.1f} s, "
-                              f"second visit in {r['second']['ready_s']:.1f} s, storage "
-                              f"{r['first']['storage_mb']:,.0f} MB, memory {r['second']['memory_mb']:,.0f} MB.",
-                              flush=True)
+                    finally:
+                        if context is not None:
+                            context.close()
+                        remove_profile(profile)
+                    out.append(r)
+                    if "error" in r:
+                        last = r["error"].strip().splitlines()[-1]
+                        print(f"{name.capitalize()}, {names}: the map did not start. The last line of the error: "
+                              f"{last}. Browser memory then {r['error_memory_mb']:,.0f} MB.", flush=True)
+                        continue
+                    print(f"{name.capitalize()}, {names}: first visit ready in {r['first']['ready_s']:.1f} s, "
+                          f"second visit in {r['second']['ready_s']:.1f} s, storage "
+                          f"{r['first']['storage_mb']:,.0f} MB, memory {r['second']['memory_mb']:,.0f} MB, "
+                          f"{r['walk']['memory_mb']:,.0f} MB after the walk, its steps a median of "
+                          f"{r['walk']['median_ms']:.0f} ms. Named: {r['second']['named']}", flush=True)
             finally:
                 server.shutdown()
     return out
+
+
+def remove_profile(folder: str) -> None:
+    """A browser profile removed, tried again for a few seconds, as a browser may hold a file a moment after
+    closing. Each holds a copy of the packs, so one left behind costs as much disk as they do."""
+    import shutil
+
+    for _ in range(10):
+        shutil.rmtree(folder, ignore_errors=True)
+        if not os.path.exists(folder):
+            return
+        time.sleep(1)
+    print(f"A browser profile could not be removed: {folder}", flush=True)
+
+
+def web_walk(page, steps: int = 30) -> dict:
+    """A walk of steps east, each waited for until it is drawn; the browser's memory after it."""
+    took = []
+    for _ in range(steps):
+        before = page.evaluate("window.tobymap.paints")
+        t = time.perf_counter()
+        page.keyboard.press("ArrowRight")
+        page.wait_for_function(f"window.tobymap.paints > {before}", timeout=120_000, polling=20)
+        took.append((time.perf_counter() - t) * 1000)
+    page.wait_for_timeout(2000)
+    return {"steps": steps, "median_ms": sorted(took)[len(took) // 2], "max_ms": max(took),
+            "memory_mb": browser_memory_mb()}
 
 
 def download_lines(size_bytes: int) -> list[str]:
@@ -277,6 +329,7 @@ def main(argv=None) -> int:
     we.add_argument("packs", type=Path, nargs="+")
     we.add_argument("--browser", action="append", choices=["chromium", "firefox"])
     we.add_argument("--json", type=Path)
+    we.add_argument("--together", action="store_true", help="open the packs together, not one at a time (P4-T3d)")
     args = parser.parse_args(argv)
     if args.what == "pad":
         r = pad(args.pack, args.mb, args.out)
@@ -284,7 +337,7 @@ def main(argv=None) -> int:
               f"{r['padding_records']:,} are padding.")
         return 0
     results = run_desktop(args.packs, args.runs) if args.what == "desktop" else \
-        run_web(args.packs, args.browser or ["chromium", "firefox"])
+        run_web(args.packs, args.browser or ["chromium", "firefox"], args.together)
     for pack in args.packs:
         print(f"Download of {pack.name}, {pack.stat().st_size / 1e6:,.0f} MB, worked out from its size:")
         for line in download_lines(pack.stat().st_size):

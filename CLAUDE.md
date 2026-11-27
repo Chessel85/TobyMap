@@ -60,11 +60,11 @@ Windows, Python 3.14 (the version the current Pyodide runs), in `.venv`:
 .venv\Scripts\python.exe tools\time_write.py <pack> --workers 6        # the writing stage alone, timed, its pack compared byte for byte (--previous <folder>, P3-T1k)
 .venv\Scripts\python.exe tools\time_stage.py <pack> <stage>            # one stage alone: time, peak memory, files compared byte for byte (P4-T1l)
 .venv\Scripts\python.exe tools	ime_stage.py <pack> <stage>          # one stage alone: time, peak memory, files compared byte for byte (P4-T1l)
-.venv\Scripts\python.exe tools\time_pack_start.py desktop <pack>...     # start-up, first place said, memory; also: web <pack>..., pad <pack> --mb N --out F
+.venv\Scripts\python.exe tools\time_pack_start.py desktop <pack>...     # start-up, first place said, memory; also: web <pack>... (--together: open them together, P4-T3d), pad <pack> --mb N --out F
 .venv\Scripts\python.exe tools\make_voice_samples.py                  # spatial voice samples at each speed and behind, into voices/samples
 .venv\Scripts\python.exe tools\make_beacon_samples.py                 # three lower beacon sounds to choose from, into sounds/samples
 .venv\Scripts\python.exe -m desktop                                    # run the desktop application
-.venv\Scripts\python.exe tools\serve_web.py                            # stage the core and serve the web version locally
+.venv\Scripts\python.exe tools\serve_web.py                            # stage the core and serve the web version locally (--pack <file>, twice for two packs together)
 .\packaging\build.ps1                                                  # Windows installer and portable zip, into dist_installer
 .venv\Scripts\python.exe -m mapdata fetch land-polygons                # download a source into <data>/tobymap/downloads
 .venv\Scripts\python.exe -m mapdata spike-s2-stage1                    # spike S2 stage 1 build and report, into <data>/tobymap/output

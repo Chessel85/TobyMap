@@ -76,3 +76,33 @@ def site_url(test_pack):
     yield f"http://127.0.0.1:{server.server_address[1]}"
     server.shutdown()
     shutil.rmtree(packs, ignore_errors=True)
+
+
+class _TwoPacksHandler(_IsolatedHandler):
+    """The site with the test pack and the regional test pack (P4-T3d): packs/ is read from its own folder, so
+    the one-pack site of the other tests is not changed."""
+
+    packs_dir: Path | None = None
+
+    def translate_path(self, path):
+        clean = path.split("?", 1)[0].split("#", 1)[0]
+        if clean.startswith("/packs/"):
+            return str(self.packs_dir / clean[len("/packs/"):])
+        return super().translate_path(path)
+
+
+@pytest.fixture(scope="session")
+def two_packs_site_url(site_url, test_pack, test_region_pack, tmp_path_factory):
+    """The web version with two packs: the test pack (a world pack) and test-region. A separate server, so a
+    separate origin with its own private storage. The regional pack is listed first, so the order of packs.json
+    is shown to make no difference (the store puts the most detailed first)."""
+    folder = tmp_path_factory.mktemp("two_packs")
+    shutil.copyfile(test_region_pack, folder / "test-region.pack")
+    shutil.copyfile(test_pack, folder / "test.pack")
+    (folder / "packs.json").write_text(json.dumps({"packs": [
+        {"file": name, "bytes": (folder / name).stat().st_size} for name in ("test-region.pack", "test.pack")]}),
+        encoding="utf-8")
+    handler = type("_Handler", (_TwoPacksHandler,), {"packs_dir": folder})
+    server = _serve(handler)
+    yield f"http://127.0.0.1:{server.server_address[1]}"
+    server.shutdown()

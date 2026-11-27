@@ -4,11 +4,13 @@ Stages the core, checks Pyodide is present, serves the web folder at
 http://127.0.0.1:8765 and opens it in the default browser. Press Ctrl+C in
 this window to stop.
 
-Run: .venv\\Scripts\\python.exe tools\\serve_web.py [--port 8765] [--no-browser] [--pack <world.pack>]
+Run: .venv\\Scripts\\python.exe tools\\serve_web.py [--port 8765] [--no-browser] [--pack <world.pack>] [--pack <england.pack>]
 
 With --pack, the pack is served from where it is, as packs/world.pack with its
 packs/packs.json, so the page downloads it on the first visit as it would from
-GitHub Pages. Nothing is copied into the web folder.
+GitHub Pages. Nothing is copied into the web folder. Given more than once, each
+pack is served under its own file name and all are listed, so the page opens
+them together, such as the world pack and the England pack (P4-T3d).
 """
 from __future__ import annotations
 
@@ -44,17 +46,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
-    pack: Path | None = None   # set by --pack
+    pack: Path | None = None   # one pack, served as world.pack
+    packs: list[Path] = []     # several packs, each served under its own file name (P4-T3d)
+
+    def _served(self) -> dict[str, Path]:
+        if self.packs:
+            return {p.name: p for p in self.packs}
+        return {"world.pack": self.pack} if self.pack is not None else {}
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
-        if self.pack is not None and path == "/packs/packs.json":
-            body = json.dumps({"packs": [{"file": "world.pack", "bytes": self.pack.stat().st_size}]}).encode()
+        served = self._served()
+        name = path[len("/packs/"):] if path.startswith("/packs/") else None
+        if served and name == "packs.json":
+            body = json.dumps({"packs": [{"file": n, "bytes": f.stat().st_size} for n, f in served.items()]}).encode()
             self._headers("application/json", len(body))
             self.wfile.write(body)
-        elif self.pack is not None and path == "/packs/world.pack":
-            self._headers("application/octet-stream", self.pack.stat().st_size)
-            with self.pack.open("rb") as f:
+        elif name in served:
+            self._headers("application/octet-stream", served[name].stat().st_size)
+            with served[name].open("rb") as f:
                 shutil.copyfileobj(f, self.wfile, 1 << 20)
         else:
             super().do_GET()
@@ -70,13 +80,22 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Serve the TobyMap web version on this computer.")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
-    parser.add_argument("--pack", help="a pack file to serve as the web version's map, such as world.pack")
+    parser.add_argument("--pack", action="append",
+                        help="a pack file to serve as the web version's map, such as world.pack; more than once to "
+                             "open several together")
     args = parser.parse_args(argv)
-    if args.pack:
-        Handler.pack = Path(args.pack).resolve()
-        if not Handler.pack.is_file():
-            print(f"The pack {Handler.pack} is not there.")
+    given = [Path(g).resolve() for g in args.pack or []]
+    for pack in given:
+        if not pack.is_file():
+            print(f"The pack {pack} is not there.")
             return 1
+    if len({p.name for p in given}) < len(given):
+        print("Two of the packs have the same file name. Each must have its own.")
+        return 1
+    if len(given) == 1:
+        Handler.pack = given[0]
+    elif given:
+        Handler.packs = given
     fetch_vendor.fetch_pyodide()
     stage_web.stage()
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), functools.partial(Handler, directory=str(WEB)))

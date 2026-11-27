@@ -45,7 +45,7 @@ Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP22
   * [x] P4-T3a Several packs open together, 27 November 2026: the regional pack answers for its layers in its covered pack tiles, the world pack everywhere else and for its other layers; drawn together below 250 kilometres.
   * [x] P4-T3b Features and relationships merged, 27 November 2026: a feature both packs hold is one feature, with the whole feature's record; Within, Contains and Bordering give one Hampshire; a parish sits under the world pack's county, and above the country the world pack's holders follow; an alias finds its feature.
   * [x] P4-T3c Search across packs, 27 November 2026: one search over both packs; a feature both hold is listed once, described by the pack that holds all of it, with the better of the two packs' match and importance.
-  * [ ] P4-T3d The web version with two packs.
+  * [ ] P4-T3d The web version with two packs: works with the test packs in Chromium and Firefox; with the world and England packs it runs out of memory, as does the desktop at 10.4 GB (docs/plan/p4-t3d-report.md). Waits for DP225.
   * [ ] P4-T3e At the edge of the pack.
 
 ## Bookmarks

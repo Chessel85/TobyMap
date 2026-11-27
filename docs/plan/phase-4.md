@@ -37,9 +37,9 @@ Planned on 20 November 2026, when you closed Phase 3. You answered DP218 to DP22
 * [x] P4-T1m The writing stage group by group: about 5 to 7 GB for England, not 20 to 30; the pack the same byte for byte, 27 November 2026 (docs/plan/p4-t1m-report.md).
 * [ ] P4-T2 The England pack (England only, the PO, 26 November 2026; planned as Great Britain). Work items, each its own session:
   * [x] P4-T2a Estimate and get ready, 26 November 2026: about 850 MB, about 6 million features, 4.5 to 7 hours with --away, no process expected over 12 GB (docs/plan/p4-t2a-estimate-report.md).
-  * [ ] P4-T2b The build, overnight.
-  * [ ] P4-T2c Size by layer; a proposal to you if over 1 GB.
-  * [ ] P4-T2d Checks: street places in and away from Hampshire, England's coast and islands, step timing.
+  * [x] P4-T2b The build, 26 to 27 November 2026: 968.3 MB, 6,328,884 features, about 4 hours with --away; a slow step in writing fixed (docs/plan/p4-t2-england-report.md).
+  * [x] P4-T2c Size by layer: under 1 GB, so no proposal; land use 184 MB, streets 145 MB, paths 97 MB, the pack's own records 317 MB.
+  * [x] P4-T2d Checks: 45 of 45 check places (tests/acceptance/street_places_england.yaml added), streets, islands, the sea off Cornwall; steps 99.3 percent within 150 ms (NFR-1).
   * [ ] P4-T2e Built twice, identical: waits for your yes.
 * [ ] P4-T3 Combining packs.
 

@@ -416,19 +416,45 @@ def segments_km(a, b) -> np.ndarray:
     return 2 * EARTH_KM * np.arcsin(np.sqrt(np.clip(h, 0.0, 1.0)))
 
 
-def shore_km(island, water, eps_deg: float) -> float:
+def outer_rings(island) -> list:
+    """The coordinates of each outer ring of an island, for shore_km."""
+    return [shapely.get_coordinates(r) for r in shapely.get_exterior_ring(shapely.get_parts(island))]
+
+
+def shore_km(island, water, eps_deg: float, rings: list | None = None) -> float:
     """The length of an island's outline, its outer rings only, within eps_deg of a water area, in km: each ring
     cut into steps no longer than eps_deg, and a step counted when both its ends are that close. `water` is best
-    prepared."""
+    prepared; `rings` is outer_rings(island), given when the same island is measured against many waters.
+
+    Only the outline's segments that come within reach of the water's bounds are cut into steps and tested (P4-T2b):
+    a segment wholly beyond them has no step near the water. The steps of the rest are those of the whole ring, as
+    each segment is cut on its own, so the length is the same to the last digit. Without this, Great Britain's
+    170,904 points were cut and tested for each of England's 170,012 lakes: about 7 hours."""
+    w, s, e, n = water.bounds
+    reach = eps_deg * 1.001   # a little more, so rounding never drops a segment that has a near step
+    lo_x, lo_y, hi_x, hi_y = w - reach, s - reach, e + reach, n + reach
     total = 0.0
-    for ring in shapely.get_exterior_ring(shapely.get_parts(island)):
-        c = shapely.get_coordinates(shapely.segmentize(ring, eps_deg))
-        if len(c) < 2:
+    for v in (outer_rings(island) if rings is None else rings):
+        if len(v) < 2:
             continue
-        near = shapely.dwithin(water, shapely.points(c), eps_deg)
-        both = near[:-1] & near[1:]
-        if both.any():
-            total += float(segments_km(c[:-1][both], c[1:][both]).sum())
+        x0, x1, y0, y1 = v[:-1, 0], v[1:, 0], v[:-1, 1], v[1:, 1]
+        keep = ((np.minimum(x0, x1) <= hi_x) & (np.maximum(x0, x1) >= lo_x)
+                & (np.minimum(y0, y1) <= hi_y) & (np.maximum(y0, y1) >= lo_y))
+        if not keep.any():
+            continue
+        # Each run of kept segments, from vertex a to vertex b, cut into steps as the whole ring would be.
+        edges = np.diff(np.concatenate(([0], keep.view(np.int8), [0])))
+        starts, ends = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
+        a_parts, b_parts = [], []
+        for a, b in zip(starts.tolist(), ends.tolist()):
+            c = shapely.get_coordinates(shapely.segmentize(shapely.linestrings(v[a:b + 1]), eps_deg))
+            near = shapely.dwithin(water, shapely.points(c), eps_deg)
+            both = near[:-1] & near[1:]
+            if both.any():
+                a_parts.append(c[:-1][both])
+                b_parts.append(c[1:][both])
+        if a_parts:
+            total += float(segments_km(np.concatenate(a_parts), np.concatenate(b_parts)).sum())
     return total
 
 
@@ -450,14 +476,19 @@ def lake_shores(records: list[dict], geoms: list, relationships: dict[str, dict]
     tree = shapely.STRtree(arr)
     touched: set[str] = set()
     pairs = 0
+    rings: dict[int, list] = {}   # each island's outer rings, taken once
     for k in lakes:
         lake = geoms[k]
         _w, s, _e, n = lake.bounds
         # In degrees of longitude, the widest, so the reach is at least `metres` every way.
         eps = metres / (111_320.0 * max(math.cos(math.radians(max(abs(s), abs(n)))), 0.05))
         shapely.prepare(lake)
-        for h in tree.query(lake, predicate="dwithin", distance=eps).tolist():
-            km = round(shore_km(arr[h], lake, eps), 2)
+        # The islands whose bounds come within eps of the lake's: shore_km gives none a shore whose outline is not
+        # near. Testing the distance here too took England 35 minutes, as every lake is inside Great Britain (P4-T2b).
+        for h in tree.query(shapely.box(_w - eps, s - eps, _e + eps, n + eps)).tolist():
+            if h not in rings:
+                rings[h] = outer_rings(arr[h])
+            km = round(shore_km(arr[h], lake, eps, rings[h]), 2)
             if km < 0.01:
                 continue
             isle, water = records[isles[h]]["id"], records[k]["id"]

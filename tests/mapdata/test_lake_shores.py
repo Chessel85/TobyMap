@@ -61,6 +61,38 @@ def test_the_core_puts_the_islands_all_round_in_the_lake_and_not_the_one_on_its_
     assert contents.waters_round(rels["b"]) == set()   # under a third of its outline is on the lake
 
 
+def whole_ring_km(island, water, eps_deg):
+    """shore_km as it was before P4-T2b: every ring cut into steps and every step tested."""
+    total = 0.0
+    for ring in shapely.get_exterior_ring(shapely.get_parts(island)):
+        c = shapely.get_coordinates(shapely.segmentize(ring, eps_deg))
+        near = shapely.dwithin(water, shapely.points(c), eps_deg)
+        both = near[:-1] & near[1:]
+        if both.any():
+            total += float(write.segments_km(c[:-1][both], c[1:][both]).sum())
+    return total
+
+
+def test_only_the_outline_near_the_water_is_measured_and_the_length_is_the_same():
+    """P4-T2b: a large island's outline is cut into steps only near each lake, as Great Britain's whole outline was
+    cut for each of England's lakes. The length is the same to the last digit, for lakes on the shore, inland and
+    away from it, and for islands of several parts."""
+    big = shapely.Point(0, 0).buffer(1.0, quad_segs=400)          # a large island, its outline of many segments
+    parts = shapely.MultiPolygon([big, shapely.box(1.2, 0.0, 1.3, 0.1)])
+    eps = write.LAKE_SHORE_M / 111_320.0
+    lakes = [shapely.box(0.99, -0.01, 1.05, 0.01),                 # on the shore
+             shapely.box(-0.2, -0.2, 0.2, 0.2),                    # inland, far from the outline
+             shapely.box(1.15, 0.0, 1.21, 0.05),                   # between the two parts
+             shapely.Point(0, 0.999).buffer(0.002)]                # a small lake just inside the outline
+    for island in (big, parts):
+        rings = write.outer_rings(island)
+        for lake in lakes:
+            expected = whole_ring_km(island, lake, eps)
+            assert write.shore_km(island, lake, eps) == expected
+            assert write.shore_km(island, lake, eps, rings) == expected
+    assert whole_ring_km(big, lakes[0], eps) > 0 and whole_ring_km(big, lakes[1], eps) == 0
+
+
 def test_no_lakes_or_no_islands_change_nothing():
     rels = {"lake": {}}
     assert write.lake_shores([{"id": "lake", "layer": "lakes"}], [LAKE], rels) == 0

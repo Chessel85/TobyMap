@@ -1,0 +1,43 @@
+# Street places of the England pack away from Hampshire (P4-T2d, DAT-2, DAT-3, LOC-1, LOC-2), so the checks are
+# not only on the area the build was tuned on. The checks stage of england.yaml reads this file as well as
+# street_places_hampshire.yaml.
+#
+# For each place: its latitude and longitude, and either "sea: true", meaning no land area may contain it, or
+# "includes": names that must all be among the areas containing it, as the checks stage looks them up. The names
+# were checked against the England pack of 27 November 2026 with the checks stage's own lookup. The PO may add
+# places.
+#
+# A point at sea is checked only where it is inside the England pack's coverage: the coverage ends 1 to 2 km off
+# the coast in places, such as off St Ives and Bude, and beyond it the world pack says the sea (P4-T3).
+
+places:
+  # The north: a park and a parish in West Yorkshire, Manchester and Newcastle.
+  - {name: Roundhay Park in Leeds, lat: 53.8369, lon: -1.4986, includes: [United Kingdom, England, Leeds, Roundhay Park, Unparished area]}
+  - {name: Briggate in Leeds city centre, lat: 53.7983, lon: -1.5418, includes: [England, Leeds, Unparished area]}
+  - {name: Haworth, lat: 53.8306, lon: -1.9573, includes: [England, Bradford, Haworth and Stanbury]}
+  - {name: Hebden Bridge, lat: 53.7417, lon: -2.0130, includes: [England, Calderdale, Hebden Royd]}
+  - {name: Heaton Park in Manchester, lat: 53.5355, lon: -2.2525, includes: [England, Manchester, Heaton Park]}
+  - {name: Grey Street in Newcastle, lat: 54.9714, lon: -1.6131, includes: [England, Newcastle upon Tyne, Unparished area]}
+  - {name: York Minster, lat: 53.9623, lon: -1.0819, includes: [England, York, Unparished area]}
+  - {name: Durham Cathedral, lat: 54.7733, lon: -1.5762, includes: [England, County Durham, City of Durham]}
+  - {name: Hexham, lat: 54.9711, lon: -2.1010, includes: [England, Northumberland, Hexham]}
+  - {name: Whitby, lat: 54.4858, lon: -0.6206, includes: [England, North Yorkshire, Whitby, Pannett Park]}
+  - {name: Keswick in the Lake District, lat: 54.6013, lon: -3.1347, includes: [England, Cumberland, Keswick, Lake District National Park]}
+  - {name: Berwick-upon-Tweed, lat: 55.7710, lon: -2.0050, includes: [England, Northumberland, Berwick-upon-Tweed]}
+  # The east, London and the south-west.
+  - {name: Norwich Cathedral, lat: 52.6320, lon: 1.3010, includes: [England, Norfolk, Norwich]}
+  - {name: King's College in Cambridge, lat: 52.2043, lon: 0.1149, includes: [England, Cambridgeshire, Cambridge]}
+  - {name: Hyde Park in London, lat: 51.5073, lon: -0.1657, includes: [England, City of Westminster, Hyde Park]}
+  - {name: Truro Cathedral, lat: 50.2640, lon: -5.0510, includes: [England, Cornwall, Truro]}
+  # Islands (DAT-3): each an island in its own county or parish.
+  - {name: Lindisfarne Priory, lat: 55.6694, lon: -1.8010, includes: [England, Northumberland, Holy Island of Lindisfarne, Holy Island]}
+  - {name: Hugh Town on St Mary's in the Isles of Scilly, lat: 49.9150, lon: -6.3100, includes: [England, Isles of Scilly, St Mary's]}
+  - {name: Tresco in the Isles of Scilly, lat: 49.9550, lon: -6.3330, includes: [England, Isles of Scilly, Tresco]}
+  - {name: Lundy, lat: 51.1800, lon: -4.6700, includes: [England, Devon, Lundy]}
+  # The spike S2 coastline places in England (coastline_places.yaml).
+  - {name: London, lat: 51.5074, lon: -0.1278, includes: [United Kingdom, England]}
+  - {name: Isle of Wight, lat: 50.6800, lon: -1.3000, includes: [United Kingdom, England, Isle of Wight]}
+  # At sea off the Cornish coast (DAT-3), inside the coverage.
+  - {name: 2 km off Land's End, lat: 50.0660, lon: -5.7440, sea: true}
+  - {name: 2 km off the Lizard, lat: 49.9400, lon: -5.2000, sea: true}
+  - {name: 2 km off Newquay, lat: 50.4300, lon: -5.1000, sea: true}

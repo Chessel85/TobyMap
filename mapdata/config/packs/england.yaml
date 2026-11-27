@@ -174,4 +174,4 @@ stages:
       - {tolerance_m: 25, min_km2: 0.02, tile_level: 9, view_km: 50}
       - {tolerance_m: 150, min_km2: 0.5, tile_level: 7, view_km: 150}
   - stage: checks
-    places: [tests/acceptance/street_places_hampshire.yaml]   # region: the rehearsal's street places, all in England; P4-T2d adds places away from Hampshire
+    places: [tests/acceptance/street_places_hampshire.yaml, tests/acceptance/street_places_england.yaml]   # region: the rehearsal's street places, all in England, and England's away from Hampshire (P4-T2d)

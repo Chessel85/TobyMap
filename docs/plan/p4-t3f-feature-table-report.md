@@ -47,6 +47,8 @@ Why two:
 
 Before, every feature record read was kept for as long as TobyMap ran.
 
+Note, 28 November (P4-T3g): the limits are unchanged, but a pack with the feature table now reads a feature record alone, from its feature group's record, without reading the rest of the group, so its groups are no longer kept when one feature is asked for. Reading the whole group for each record made the browser's steps about 8 seconds with the world and England packs. See docs/plan/p4-t3d-report.md, section "With the compact feature table, 28 November".
+
 ## The Hampshire rehearsal
 
 The writing stage was run alone on the Hampshire and Isle of Wight data on disk, with tools/time_stage.py, 3 workers, into working/hampshire-isle-of-wight-time-stage. The old code was run from a copy of the code before this change, so old and new read the same stage folders. No build folder was changed.

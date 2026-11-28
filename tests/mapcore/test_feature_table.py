@@ -132,13 +132,37 @@ def test_the_group_and_record_caches_stay_within_their_limits(monkeypatch):
         p.feature(n)
         assert p.groups_kept <= 2 and p.records_kept <= 10
     reads = p.reads
-    p.feature(p.feature_count - 1)   # the last record and its group are kept: no read
-    p.feature(p.group_starts[2])   # its group is kept: no read
+    p.feature(p.feature_count - 1)   # the last record is kept: no read
     assert p.reads == reads
-    p.feature(0)   # the first group and record were let go: read again
+    p.feature(0)   # the first record was let go: read again
     assert p.reads == reads + 1
     p.feature(0)   # now kept
     assert p.reads == reads + 1
+    for g in range(3):   # groups read whole, as a scan or Nearby's relationships do, are kept within the limit
+        p._group(g)
+        assert p.groups_kept <= 2
+
+
+def test_with_a_table_a_feature_record_is_read_alone_and_is_the_groups_own(test_pack, test_region_pack):
+    """P4-T3g: a view's features are in many feature groups, so each is read without the rest of its group."""
+    for source in (selfcheck.build(), test_pack.read_bytes(), test_region_pack.read_bytes()):
+        p = pack.Pack(MemorySource(source, "t.pack"), check_app=False)
+        assert p.has_table and p.table() is not None
+        whole = [r for g in range(len(p.group_starts)) for r in json.loads(p.get(f"features/{g}"))]
+        reads = p.reads
+        for n in range(p.feature_count):
+            got = p.feature(n)
+            assert got == whole[n] and json.dumps(got) == json.dumps(whole[n])
+        assert p.groups_kept == 0 and p.reads == reads + p.feature_count
+
+
+def test_a_record_not_found_alone_is_read_with_its_group():
+    p = pack.Pack(MemorySource(selfcheck.build(), "t.pack"), check_app=False)
+    p.table()
+    p._table.ids.blob = b"x" * len(p._table.ids.blob)   # identifiers no record has
+    assert p._one_record(0, 0) is None
+    record = p.feature(0)
+    assert record == json.loads(p.get("features/0"))[0] and p.groups_kept == 1
 
 
 def test_the_group_limit_holds_for_an_old_pack_looked_up_by_identifier(monkeypatch):
@@ -241,5 +265,54 @@ def test_the_store_reads_no_feature_record_to_make_the_table(test_pack):
         store._indexes[0].boxes
         assert p.groups_kept == 0
         assert store.layer_of("osm:r172799") is not None and p.groups_kept == 0
+    finally:
+        store.close()
+
+
+def _scenes(paths, steps=3):
+    from mapcore.session import MapSession
+
+    s = MapSession(packs=list(paths), saved_state={"lat": 51.06, "lon": -1.31, "zoom_m": 5000, "step_m": 500})
+    s.start()
+    out = []
+    try:
+        for i in range(steps):
+            if i:
+                s.run("move.east", held=True)
+            scene = s.scene(900, 760)
+            out.append({k: v for k, v in scene.items() if not k.endswith("_ms")})
+    finally:
+        s.store.close()
+    return out
+
+
+def _same(a, b):
+    if isinstance(a, dict):
+        return isinstance(b, dict) and a.keys() == b.keys() and all(_same(a[k], b[k]) for k in a)
+    if isinstance(a, (list, tuple)):
+        return isinstance(b, (list, tuple)) and len(a) == len(b) and all(_same(x, y) for x, y in zip(a, b))
+    if isinstance(a, np.ndarray):
+        return isinstance(b, np.ndarray) and a.dtype == b.dtype and np.array_equal(a, b)
+    return a == b
+
+
+def test_the_drawing_is_the_same_from_new_packs_and_old_ones(test_pack, test_region_pack, old_packs):
+    """P4-T3g: from a pack with a table, a drawn feature's record is read only for its colour, intervals or name."""
+    assert _same(_scenes([test_pack]), _scenes([old_packs[0]]))
+    assert _same(_scenes([test_pack, test_region_pack]), _scenes(list(old_packs)))
+
+
+def test_nearby_measures_only_the_boxes_it_may_reach(test_pack, monkeypatch):
+    """P4-T3g: the same answers as when every box is measured and sorted."""
+    from mapcore.store import store as store_mod
+
+    store = store_of(test_pack)
+    try:
+        asked = [(lat, lon, r) for lat, lon in POINTS for r in (500.0, 20_000.0, 2_000_000.0)]
+        got = [[(n.area.id, n.distance_m) for n in store.nearby(lat, lon, r, limit=15)] for lat, lon, r in asked]
+        monkeypatch.setattr(store_mod.Store, "_rows_within",
+                            staticmethod(lambda boxes, lat, radius_m: np.arange(len(boxes), dtype=np.intp)))
+        every = [[(n.area.id, n.distance_m) for n in store.nearby(lat, lon, r, limit=15)] for lat, lon, r in asked]
+        assert got == every and any(got)
     finally:
         store.close()

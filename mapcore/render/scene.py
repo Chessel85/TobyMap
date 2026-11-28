@@ -123,7 +123,7 @@ def paint_plan(feats: list, paint: dict | None, fills: dict | None, theme: dict,
     order = np.zeros(n, float)
     land_count = len(theme["land"])
     for k, f in enumerate(feats):
-        ident, rank, colour, layer = f[0], f[1], f[2], f[3]
+        ident, rank, layer = f[0], f[1], f[3]   # the colour only when it is used (P4-T3g)
         if paint is not None and layer in paint:
             spec = paint[layer]
             fill = spec.get("fill", "colours")
@@ -148,7 +148,7 @@ def paint_plan(feats: list, paint: dict | None, fills: dict | None, theme: dict,
             style[k] = KIND_STYLE + kinds.index(layer) if layer in kinds else (
                 KIND_STYLE + kinds.index("default") if "default" in kinds else PLAIN_STYLE)
         elif fill in ("colours", "land"):
-            style[k] = (int(colour) - 1) % land_count
+            style[k] = (int(f[2]) - 1) % land_count
         elif line >= 0 or ident == current:
             style[k] = CLEAR_STYLE   # not filled, but outlined or the current feature
         named[k] = (fill != "none") if name is None else bool(name)
@@ -323,6 +323,29 @@ def _grid_seams(lon, lat, nxt, is_last, tol, grid) -> np.ndarray:
     return on & near & ~is_last
 
 
+class _Drawn:
+    """A drawn feature, indexed as SceneBuilder._feature's tuple: (id, layer order, colour, layer, width in km or
+    None, intervals or None, name). The id, layer and width come from the pack's compact feature table; the
+    feature record is read only when the colour, intervals or name is asked for (P4-T3g), as few features of a
+    regional pack's view need them: those of the layers filled in colours, filtered by interval or named."""
+
+    __slots__ = ("_known", "_whole", "_builder", "_p", "_number")
+
+    def __init__(self, ident, order, layer, width, builder, p, number):
+        self._known = (ident, order, None, layer, width)
+        self._whole = None
+        self._builder, self._p, self._number = builder, p, number
+
+    def __getitem__(self, i):
+        if i in (0, 1, 3, 4):
+            return self._known[i]
+        whole = self._whole
+        if whole is None:
+            whole = self._whole = self._builder._whole(self._p, self._number)
+            self._builder = None
+        return whole[i]
+
+
 class SceneBuilder:
     def __init__(self, store, theme: dict | None = None):
         self.store = store
@@ -333,12 +356,20 @@ class SceneBuilder:
     def _feature(self, p: int, number: int):
         got = self._features.get((p, number))
         if got is None:
-            area = self.store._area(p, number)
-            got = ("?", 9, 1, "", None, None, "") if area is None else (
-                area.id, LAYER_ORDER.get(area.layer, 4), int(area.record.get("colour") or 1), area.layer,
-                area.record.get("width_km"), area.record.get("intervals"), area.name)
+            facts = self.store.table_facts(p, number)
+            if facts is None:
+                got = self._whole(p, number)
+            else:   # the record is read only if its colour, intervals or name is asked for (P4-T3g)
+                ident, layer, width = facts
+                got = _Drawn(ident, LAYER_ORDER.get(layer, 4), layer, width, self, p, number)
             self._features[(p, number)] = got
         return got
+
+    def _whole(self, p: int, number: int) -> tuple:
+        area = self.store._area(p, number)
+        return ("?", 9, 1, "", None, None, "") if area is None else (
+            area.id, LAYER_ORDER.get(area.layer, 4), int(area.record.get("colour") or 1), area.layer,
+            area.record.get("width_km"), area.record.get("intervals"), area.name)
 
     def _source(self, zoom_km: float, index):
         return drawing_source(index, zoom_km)

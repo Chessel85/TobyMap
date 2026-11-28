@@ -869,6 +869,24 @@ class Store:
                 return Area(got[0], got[1], got[2], self.naming)
         return Area(p, number, record, self.naming)
 
+    def table_facts(self, p: int, number: int) -> tuple[str, str, float | None] | None:
+        """Pack p's feature's identifier, layer and width in km (None where its record has none), from the pack's
+        compact feature table, with no feature record read (P4-T3g), as _area would give them; None when the pack
+        has no table, or the feature's layer is in another pack too, so _area may merge its record with another's.
+        Feature records are in groups by identifier, not by place, so each feature a drawing needs read a whole
+        group: about 2 ms each in the browser, a minute for England's first drawing."""
+        index = self._indexes[p]
+        if index._boxes is None:
+            index._read_table()
+        found = index._table
+        if found is None or not 0 <= number < found.count:
+            return None
+        layer = found.layer_of(number)
+        if not layer or len(self._layer_packs.get(layer, ())) > 1:
+            return None
+        width = float(found.widths[number])
+        return found.ids.one(number), layer, (None if width == math.inf else width)
+
     # What is at a point ------------------------------------------------------------
 
     def at(self, lat: float, lon: float, layers=None) -> list[Area]:
@@ -1094,18 +1112,19 @@ class Store:
         for p in packs:
             results: list[Near] = []
             numbers, boxes = self._indexes[p].boxes
-            bound = self._box_distance_m(boxes, lat, lon)
+            rows = self._rows_within(boxes, lat, radius_m)
+            bound = self._box_distance_m(boxes[rows], lat, lon)
             order = np.argsort(bound, kind="stable")
-            for k in order.tolist():
-                if bound[k] > radius_m:
+            for k, near_m in zip(rows[order].tolist(), bound[order].tolist()):
+                if near_m > radius_m:
                     break
-                if len(results) >= limit and results[limit - 1].distance_m <= bound[k]:
+                if len(results) >= limit and results[limit - 1].distance_m <= near_m:
                     break
                 area = self._area(p, int(numbers[k]), merged=False)   # measured on pack p's own shapes
                 if area is None or area.id in exclude or (layers is not None and area.layer not in layers) \
                         or (accept is not None and not accept(area)):
                     continue
-                found = self._nearest(p, area, flat, lat, lon, float(bound[k]), radius_m)
+                found = self._nearest(p, area, flat, lat, lon, near_m, radius_m)
                 if found is not None and not self._hidden(p, area.layer, found.lat, found.lon):
                     whole = self._area(p, int(numbers[k]))   # given as one feature (P4-T3b)
                     results.append(replace(found, area=whole) if whole is not None else found)
@@ -1788,6 +1807,15 @@ class Store:
                 if d.get("id") == layer:
                     return d.get("geometry", "area")
         return "area"
+
+    @staticmethod
+    def _rows_within(boxes: np.ndarray, lat: float, radius_m: float) -> np.ndarray:
+        """The rows of the boxes that may be within radius_m of latitude lat, in order: the only ones Nearby
+        measures and sorts (P4-T3g). Measuring and sorting every one of England's 6.3 million features took about
+        4 seconds in the browser, at every step. A box whose latitudes alone are further away is further than
+        _box_distance_m's bound, so the boxes left out are those Nearby would never reach."""
+        reach = (radius_m * (1 + 1e-9) + 1.0) / M_PER_DEG_LAT_MIN
+        return np.flatnonzero((boxes[:, 1] <= lat + reach) & (boxes[:, 3] >= lat - reach))
 
     @staticmethod
     def _box_distance_m(boxes: np.ndarray, lat: float, lon: float) -> np.ndarray:

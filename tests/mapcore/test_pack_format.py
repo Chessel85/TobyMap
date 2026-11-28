@@ -206,9 +206,11 @@ def test_reading_uses_only_the_byte_source(data):
     opened = source.calls
     assert opened == 4  # header, directory, manifest, layers
     p.tile(3, 3, 5)
+    p.table()   # the compact feature table, six records (P4-T3f)
     p.feature(0)
-    p.feature(1)  # same group: no second read
-    assert source.calls == opened + 2 == p.reads + 2
+    p.feature(1)  # each record read alone, from its group's record (P4-T3g)
+    p.feature(0)  # kept: no second read
+    assert source.calls == opened + 1 + len(table.KEYS) + 2 == p.reads + 2
 
 
 def test_written_to_a_file_with_its_checksum_beside_it(tmp_path, data):

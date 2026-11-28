@@ -154,6 +154,9 @@ class PackWriteError(ValueError):
 
 # Small helpers -----------------------------------------------------------------
 
+_DECODER = json.JSONDecoder()   # as json.loads reads a record
+
+
 def check_number(data: bytes) -> int:
     return zlib.crc32(data) & 0xFFFFFFFF
 
@@ -782,12 +785,45 @@ class Pack:
                 self._records.move_to_end(number)
                 return got
         g = bisect.bisect_right(self.group_starts, number) - 1
-        got = self._group(g)[number - self.group_starts[g]]
+        got = None
+        if g not in self._groups and self.table() is not None:
+            got = self._one_record(g, number)
+        if got is None:
+            got = self._group(g)[number - self.group_starts[g]]
         with self._groups_lock:
             self._records[number] = got
             while len(self._records) > FEATURES_KEPT:
                 self._records.popitem(last=False)
         return got
+
+    def _one_record(self, g: int, number: int) -> dict | None:
+        """One feature record of group g, found by its identifier from the feature table and read alone, without
+        reading the rest of its group (P4-T3g); None if it cannot be found so, and the caller reads the group.
+        Feature groups are by identifier, not by place, so the features of a view are in many groups: reading
+        each whole, some 256 records, for one record took about 2 ms in the browser, a minute for England's
+        first drawing. The record is the same as the group's own: the same JSON decoder reads it from its start."""
+        data = self.get(f"features/{g}")
+        if data is None:
+            return None
+        identifier, layer = self._table.ids.one(number), self._table.layer_of(number)
+        text = data.decode("utf-8")
+        at = text.find('"id":' + json.dumps(identifier, ensure_ascii=False))
+        if at < 0:
+            return None
+        start = text.rfind("{", 0, at)
+        for _ in range(64):   # back over any object inside the record before its identifier, such as "exclave"
+            if start <= 0:
+                return None
+            try:
+                found, end = _DECODER.raw_decode(text, start)
+            except ValueError:
+                found, end = None, 0
+            if isinstance(found, dict) and end > at and found.get("id") == identifier \
+                    and found.get("layer", "") == layer and text[start - 1] in "[," and end < len(text) \
+                    and text[end] in ",]":
+                return found
+            start = text.rfind("{", 0, start)
+        return None
 
     def scan(self, layers):
         """The feature records of these layers, group by group (P3-T9). A group is read again each time unless

@@ -166,7 +166,11 @@ Progress tonight:
 * Built twice, identical: a full second England build (about 4 hours) and the world's would not both fit the night, so each pack's writing stage, the stage changed tonight and the one run on several workers, is run again with tools/time_stage.py and compared byte for byte with tonight's. A full second England build (P4-T2e as planned) is still owed. World's writing stage started 03:46.
 * World built twice, identical (DMT-1): DONE. The writing stage run again (5,348 s, 6 workers, peak 9.6 GB) made world.pack and world.pack.sha256 the same byte for byte as the build's. Output: E:\osmdata\tobymap\output\world write twice.txt. England's writing stage run again from 05:16.
 * England built twice, identical (writing stage): DONE. Run again (5,628 s, 6 workers, peak 13.7 GB all together), england.pack and its sha256 the same byte for byte. Output: E:\osmdata\tobymap\output\england write twice.txt. The full second build of P4-T2e (every stage, about 4 hours) is still owed; the orchestrator's choice, for the night's time.
-* P4-T3d again with the new packs: tools/time_pack_start.py web world england --together, from about 06:50.
+* P4-T3d again with the new packs (results in E:\osmdata\tobymap\output\two packs web.txt):
+  * Chromium, world and England together: the map now starts (it ran out of memory before). Second visit ready in 11.7 s, storage 1,808 MB, memory 1,757 MB, 2,030 MB after the walk, steps a median of 7,821 ms.
+  * Firefox: ready in 12.0 s, storage 1,698 MB, memory 2,114 MB, 2,412 MB after the walk, steps a median of 7,791 ms.
+  * Desktop, both packs (hard links in E:\osmdata\tobymap\output\two-packs): first place said in 4.5 s (about 40 s before), 1,099 MB private, 1,358 MB after the walk (10.4 GB before), steps a median of 123 ms. P4-T7b's desktop aim (under 2 GB, NFR-3) is met on this walk.
+  * Finding: the browsers' steps, about 7.8 s, are about 60 times the desktop's, and the browsers are over 2 GB after the walk. P4-T3g (new ID, Opus subagent) is finding the cause.
 
 ### Where things stand
 

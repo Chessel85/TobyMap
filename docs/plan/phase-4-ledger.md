@@ -139,7 +139,7 @@ Order chosen: P4-T0e samples, P4-T13a research, P4-T13b on the trial, P4-T1a to 
 
 ## Current state
 
-Last updated 27 November 2026. Read this first to resume.
+Last updated 28 November 2026, morning. Read this first to resume.
 
 ### Night of 27 to 28 November 2026 (the PO away, actions.txt)
 
@@ -171,11 +171,19 @@ Progress tonight:
   * Firefox: ready in 12.0 s, storage 1,698 MB, memory 2,114 MB, 2,412 MB after the walk, steps a median of 7,791 ms.
   * Desktop, both packs (hard links in E:\osmdata\tobymap\output\two-packs): first place said in 4.5 s (about 40 s before), 1,099 MB private, 1,358 MB after the walk (10.4 GB before), steps a median of 123 ms. P4-T7b's desktop aim (under 2 GB, NFR-3) is met on this walk.
   * Finding: the browsers' steps, about 7.8 s, are about 60 times the desktop's, and the browsers are over 2 GB after the walk. P4-T3g (new ID, Opus subagent) is finding the cause.
+* P4-T3g DONE, 3cbbfe8 (Opus subagent; section added to docs/plan/p4-t3d-report.md). Causes, timed inside the browser's worker: Nearby measured and sorted all 6.3 million England features at every step (about 4 s each time); and feature groups are by identifier, not place, so each feature drawn decoded a whole group. Fixes, all in the core: Nearby measures only boxes near enough in latitude; with the table a record is read alone; the drawing reads a record only when it needs it. Steps, median: Chromium 667 ms, Firefox 770 ms, desktop 119 ms. Memory after the walk: Chromium 1,608 MB, Firefox 1,953 MB, desktop 1,237 MB, all under 2 GB (NFR-3). Full Python suite 2,982 passed (the espeak voice test failed once, as before).
+* P4-T7b in part: the 30-step walk from Winchester with both packs is under 2 GB in all three (above). The plan's longer set walk with the laptop idle is still to do.
+
+### Morning summary, 28 November
+
+* Done and pushed tonight: P4-T1n, P4-T3f, P4-T3g, two build fixes (the lakes' sea step's speed, Wikidata 429 retries), the world pack and the England pack rebuilt in format 5, each pack's writing stage built twice and identical, the Western Europe trial rebuilt.
+* Owed: the full second England build (P4-T2e, about 4 hours, needs a quiet night); P4-T7b's longer walk; the browser steps (667 to 770 ms) are still above NFR-1's 150 ms with both packs, as the world pack alone was at about 500 ms, the old P3-T20d question.
+* Orchestrator choices for review: the lakes' setting added to England, Great Britain and Hampshire; the built-twice check done on the writing stage only; new IDs P4-T1n, P4-T3f, P4-T3g.
 
 ### Where things stand
 
 * Everything listed under Progress is committed and pushed. The tick list is docs/plan/phase-4.md.
-* The world pack of 21 November 07:17 (552.46 MB) is at E:\osmdata\tobymap\output\world\world.pack and fits the code, apart from the core-only work since. The Western Europe trial (55.19 MB) was built 21 November 01:20.
+* 28 November: the world pack (561.29 MB, format 5, 27 November 23:50) and the England pack (1,073.25 MB, format 5, 28 November 03:44) are at E:\osmdata\tobymap\output\world and \england and fit the code. The Western Europe trial (56.86 MB) was rebuilt 27 November 17:02. (Older lines below about the 21 November packs are history.)
 * P4-T9d is done and committed (21 November, 09:40): bookmark files save and open on the desktop and the web; a core gap fixed (run_many dropped save_file and open_file). P4-T9 is complete.
 * Committed since 21 November 09:40: P4-T0e, P4-T13a, P4-T1 design note, P4-T1a, P4-T13b, P4-T1b to P4-T1k (see Progress). The Hampshire and Isle of Wight rehearsal pack (43.22 MB, 26 November) is at E:\osmdata\tobymap\output\hampshire-isle-of-wight.
 * Next: P4-T2e (built twice, identical) waits for the PO's yes. P4-T2b to P4-T2d are done (docs/plan/p4-t2-england-report.md): england.pack 968.3 MB at E:\osmdata\tobymap\output\england. Meanwhile P4-T3a, P4-T3b and P4-T3c are done (27 November). P4-T3d is done in part: the world and England packs together run out of memory in the browsers, and use 10.4 GB on the desktop (docs/plan/p4-t3d-report.md); the fix, a compact feature table in each pack, waits for DP225. Then P4-T3e and P4-T6.

@@ -165,6 +165,8 @@ Progress tonight:
 * England pack DONE, 28 November 03:44 (3 h 51 min, 6 workers; relationships 1 h 6 min, writing 1 h 41 min): england.pack 1,073.25 MB (968.3 before: the feature table, about 100 MB as estimated), format 5; check places 45 of 45; lakes: 34 lying in the sea left out, 6 cut; peak 9.2 GB in relationships.
 * Built twice, identical: a full second England build (about 4 hours) and the world's would not both fit the night, so each pack's writing stage, the stage changed tonight and the one run on several workers, is run again with tools/time_stage.py and compared byte for byte with tonight's. A full second England build (P4-T2e as planned) is still owed. World's writing stage started 03:46.
 * World built twice, identical (DMT-1): DONE. The writing stage run again (5,348 s, 6 workers, peak 9.6 GB) made world.pack and world.pack.sha256 the same byte for byte as the build's. Output: E:\osmdata\tobymap\output\world write twice.txt. England's writing stage run again from 05:16.
+* England built twice, identical (writing stage): DONE. Run again (5,628 s, 6 workers, peak 13.7 GB all together), england.pack and its sha256 the same byte for byte. Output: E:\osmdata\tobymap\output\england write twice.txt. The full second build of P4-T2e (every stage, about 4 hours) is still owed; the orchestrator's choice, for the night's time.
+* P4-T3d again with the new packs: tools/time_pack_start.py web world england --together, from about 06:50.
 
 ### Where things stand
 

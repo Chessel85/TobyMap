@@ -178,6 +178,7 @@ Progress tonight:
 
 * Done and pushed tonight: P4-T1n, P4-T3f, P4-T3g, two build fixes (the lakes' sea step's speed, Wikidata 429 retries), the world pack and the England pack rebuilt in format 5, each pack's writing stage built twice and identical, the Western Europe trial rebuilt.
 * Owed: the full second England build (P4-T2e, about 4 hours, needs a quiet night); P4-T7b's longer walk; the browser steps (667 to 770 ms) are still above NFR-1's 150 ms with both packs, as the world pack alone was at about 500 ms, the old P3-T20d question.
+* Tests at the end: full Python suite 2,982 passed (the espeak voice test failed once, passes alone); all browser tests 312 passed in Chromium and Firefox. Continuous integration for 3cbbfe8: Windows, Chromium and Firefox green; macOS red on the tests red before tonight: test_cancel_download_keeps_the_part_and_install_carries_on (its diagnostic now says only the catalogue was asked for, so on the Mac the download never starts: look there first) and the held-key step count (10 to 11, the Mac's inexact sleep). The build worktree Mapping-build is removed.
 * Orchestrator choices for review: the lakes' setting added to England, Great Britain and Hampshire; the built-twice check done on the writing stage only; new IDs P4-T1n, P4-T3f, P4-T3g.
 
 ### Where things stand
